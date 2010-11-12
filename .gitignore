@@ -1,13 +1,16 @@
-# ignore all files in bin directories
+# ignore all files in bin directory
 */bin/
-# ignore all giles in obj directories
+# ignore all files in obj directory
 */obj/
-# ignore all files in Properties directories
+# ignore all files in Properties directory
 */Properties/
-# other specific files to ignore
+# other individual files to ignore
 */App.*
-*.pfx
+*.csproj
+*.user
 *.sln
 *.suo
-*.user
-*.csproj
+*.pfx
+*.snk
+# also ignore .gitignore itself
+.gitignore
