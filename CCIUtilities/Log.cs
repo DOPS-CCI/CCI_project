@@ -8,7 +8,7 @@ namespace CCIUtilities
     public class Log
     {
         static readonly Uri ftpFile = new Uri("ftp://zoomlenz.net/public_ftp/program_files/log.txt");
-        static readonly NetworkCredential cred = new NetworkCredential("zoomlenz", "madbuckgoat");
+        static readonly NetworkCredential cred = new NetworkCredential(Properties.Settings.Default.un, Properties.Settings.Default.pw);
 
         public static void writeToLog(string message)
         {
@@ -34,7 +34,7 @@ namespace CCIUtilities
             }
             catch
             {
-                return;//ignore errors; off network OK
+                return;//ignore errors; thus, off network OK
             }
         }
     }
