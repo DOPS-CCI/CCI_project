@@ -1,0 +1,44 @@
+﻿<Button x:Class="FMGraph2.Graphlet1"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:s="clr-namespace:System;assembly=mscorlib"
+    FontSize="14" Click="OnGraphClick">
+    <Button.Template>
+        <ControlTemplate TargetType="Button">
+            <Border Name="Border" Background="White" BorderBrush="DarkBlue" BorderThickness="1" SnapsToDevicePixels="True">
+                <ContentPresenter />
+            </Border>
+            <ControlTemplate.Triggers>
+                <Trigger Property="IsMouseOver" Value="true">
+                    <Setter TargetName="Border" Property="BorderBrush" Value="Crimson" />
+                    <Setter TargetName="Border" Property="BorderThickness" Value="1" />
+                </Trigger>
+            </ControlTemplate.Triggers>
+        </ControlTemplate>
+    </Button.Template>
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="{Binding Path=marginSize}" />
+            <ColumnDefinition Width="{Binding Path=size1X}" />
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="{Binding Path=size1Y}" />
+            <RowDefinition Height="{Binding Path=marginSize}" />
+        </Grid.RowDefinitions>
+        <Label Content="{Binding Path=yLabel}" Grid.Column="0" Grid.Row="0" Grid.RowSpan="2" Padding="12,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Right">
+            <Label.LayoutTransform>
+                <RotateTransform Angle="-90" />
+            </Label.LayoutTransform>
+        </Label>
+        <Label  Content="{Binding Path=xLabel}" Grid.Column="0" Grid.Row="1" Grid.ColumnSpan="2" Padding="12,2,0,0" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,-4,0,0"/>
+        <Canvas Name="gCanvas" Grid.Column="1" Grid.Row="0" Width="{Binding Path=ScaleX}" VerticalAlignment="Bottom" HorizontalAlignment="Left" Height="{Binding Path=size1Y}">
+            <Line Name="yAxis" Y2="{Binding Path=size1Y}" Canvas.Bottom="{Binding Path=halfMargin}" Canvas.Left="0" Stroke="Black" />
+            <Line Name="xAxis" X2="{Binding Path=size1X}" Canvas.Bottom="0" Canvas.Left="{Binding Path=halfMargin}" Stroke="Black" />
+            <Path Name="xAxisGrid" Stroke="LightGray" StrokeThickness="0.5"  Canvas.Left="0" Canvas.Bottom="{Binding Path=halfMargin}"/>
+            <Path Name="yAxisGrid" Stroke="LightGray" StrokeThickness="0.5" Canvas.Bottom="0" Canvas.Left="{Binding Path=halfMargin}"/>
+            <Canvas Name="xAxisLabels" Canvas.Bottom="0" Canvas.Left="0"/>
+            <Canvas Name="yAxisLabels" Canvas.Bottom="0" Canvas.Left="0"/>
+        </Canvas>
+        <Label Name="name" Grid.Column="1" Grid.Row="0" FontSize="80" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#80E00000" Visibility="Hidden">Graphlet</Label>
+    </Grid>
+</Button>

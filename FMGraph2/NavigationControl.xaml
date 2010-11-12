@@ -1,0 +1,52 @@
+﻿<Grid x:Class="FMGraph2.NavigationControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid Grid.Column="0" Grid.Row="0" Background="Cornsilk" Width="180" Height="Auto">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <Button Grid.Row="0" Name="ShowLabs" Height="Auto" Width="120" VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,5,0,5" Click="ShowHide_Click" Padding="2">Show labels</Button>
+        <Button Grid.Row="0" Name="HideLabs" Height="Auto" Width="120" VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,5,0,5" Click="ShowHide_Click" Visibility="Hidden" Padding="2">Hide labels</Button>
+        <GroupBox Grid.Row="1" Header="Navigation" Margin="2">
+            <StackPanel Orientation="Vertical">
+                <Button Name="Next" Height="Auto" Width="120" VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,5,0,5" Click="Next_Click" Padding="2">Next record</Button>
+                <Button Name="Previous" Height="Auto" Width="120" VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,5,0,5" Click="Previous_Click" Padding="2">Prev record</Button>
+                <Button Name="Jump" VerticalAlignment="Top" Height="Auto" MinWidth="120" MaxWidth="150" Width="Auto" Margin="0,5,0,5" Padding="2" Click="Jump_Click" HorizontalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                        <TextBlock VerticalAlignment="Center" Margin="0,0,3,0">Go to recset</TextBlock>
+                        <TextBox Name="jumpRec" VerticalAlignment="Center" MinWidth="28" Height="Auto">1</TextBox>
+                    </StackPanel>
+                </Button>
+                <TextBlock HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center">
+                    <Run Text="Recset "/>
+                    <Run Name="recsetText" Text="{Binding Path=recListString, Mode=OneWay}"/>
+                    <Run Text=" of "/><Run Name="totalRecs"/>
+                </TextBlock>
+            </StackPanel>
+        </GroupBox>
+        <GroupBox Grid.Row="2" Header="Mode" Margin="2">
+            <StackPanel Orientation="Vertical" >
+                <RadioButton Name="Individual" IsChecked="True" Checked="Individual_Checked" Margin="5">Individual</RadioButton>
+                <RadioButton Name="Superimpose" IsChecked="False" Margin="5,0,5,5">Superimpose</RadioButton>
+                <Button IsEnabled="{Binding ElementName=Superimpose, Path=IsChecked}" Height="Auto" Width="120" VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,5,0,5" Padding="2" Click="Undo_Click">Undo</Button>
+                <Button IsEnabled="{Binding ElementName=Superimpose, Path=IsChecked}" Height="Auto" Width="120" VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,5,0,5" Padding="2" Click="Clear_Click">Clear</Button>
+            </StackPanel>
+        </GroupBox>
+        <GroupBox Header="Group Vars" Grid.Row="3" Margin="2">
+            <ListBox Name="GVListBox" ItemsSource="{Binding Path=gvList, Mode=OneWay}" IsSynchronizedWithCurrentItem="True" MaxHeight="280">
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{Binding Path=name, Mode=OneWay}"/>
+                            <TextBlock>=</TextBlock>
+                            <TextBlock Text="{Binding Path=n, Mode=OneWay}"/>
+                        </StackPanel>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </GroupBox>
+    </Grid>
+</Grid>

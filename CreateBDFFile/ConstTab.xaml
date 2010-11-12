@@ -1,0 +1,28 @@
+﻿<TabItem x:Class="CreateBDFFile.ConstTab"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    FontSize="14">
+    <TabItem.Header>
+        <StackPanel Orientation="Horizontal">
+            <TextBlock Margin="0,0,4,0" VerticalAlignment="Center">Const</TextBlock>
+            <Button Margin="0,-3,-12,0" Height="12" VerticalAlignment="top" Click="XButton_Click">
+                <TextBlock FontSize="8" Margin="-1" VerticalAlignment="Center">
+                    <Bold>X</Bold>
+                </TextBlock>
+            </Button>
+        </StackPanel>
+    </TabItem.Header>
+    <TabItem.Content>
+        <StackPanel Orientation="Vertical" VerticalAlignment="Center">
+            <Grid VerticalAlignment="Center">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Margin="2">Coefficient:</TextBlock>
+                <TextBox Grid.Column="1" TextChanged="TextBox_TextChanged" Height="24" Tag="0">1.0</TextBox>
+            </Grid>
+            <TextBlock Name="Formula" Height="30" FontFamily="Palatino Linotype" FontSize="20" />
+        </StackPanel>
+    </TabItem.Content>
+</TabItem>

@@ -1,0 +1,144 @@
+﻿<TabItem x:Class="CreateBDFFile.EventTab"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    FontSize="14">
+    <TabItem.Header>
+        <StackPanel Orientation="Horizontal">
+            <TextBlock Margin="0,0,4,0" VerticalAlignment="Center" Text="{Binding ElementName=name,Path=Text}" />
+            <Button Name="XButton"  Margin="0,-3,-12,0" Height="12" VerticalAlignment="top" Click="XButton_Click">
+                <TextBlock FontSize="8" Margin="-1" VerticalAlignment="Center">
+                    <Bold>X</Bold>
+                </TextBlock>
+            </Button>
+        </StackPanel>
+    </TabItem.Header>
+    <TabItem.Content>
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <!--Event name-->
+            <StackPanel Orientation="Horizontal" Grid.Row="0">
+                <TextBlock Margin="2"> Event Name:</TextBlock>
+                <TextBox Name="name" Width="100" TextChanged="name_TextChanged" BorderBrush="Red">Event name</TextBox>
+            </StackPanel>
+            <!--Event occurences-->
+            <StackPanel Orientation="Vertical" Grid.Row="1">
+                <GroupBox Header="Occurrences" Margin="2" BorderBrush="DarkBlue">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition />
+                            <RowDefinition />
+                            <RowDefinition />
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="24"/><!--Indent-->
+                            <ColumnDefinition /><ColumnDefinition /><ColumnDefinition /><ColumnDefinition /><ColumnDefinition />
+                        </Grid.ColumnDefinitions>
+                        <RadioButton Name="PeriodicRB" Grid.Column="0" Grid.Row="0" Grid.ColumnSpan="5" Margin="2" IsChecked="True" Tag="{Binding ElementName=period,Path=IsEnabled,Mode=TwoWay}" Checked="SignalTypeButton_Checked" Unchecked="SignalTypeButton_Checked">Periodic</RadioButton>
+                        <TextBlock Grid.Column="2" Grid.Row="0" Margin="2" HorizontalAlignment="Right">Period(sec):</TextBlock>
+                        <TextBox Grid.Column="3" Grid.Row="0" Name="period">1.0</TextBox>
+                        <RadioButton Grid.Column="0" Grid.Row="1" Grid.ColumnSpan="5" Margin="2" Tag="{Binding ElementName=RandomParms,Path=IsEnabled,Mode=TwoWay}" Checked="SignalTypeButton_Checked" Unchecked="SignalTypeButton_Checked">Random:</RadioButton>
+                        <Grid Name="RandomParms" Grid.Column="0" Grid.ColumnSpan="6" Grid.Row="2" IsEnabled="False">
+                            <Grid.RowDefinitions>
+                                <RowDefinition /><RowDefinition /><RowDefinition />
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="24"/> <!--Indent-->
+                                <ColumnDefinition /><ColumnDefinition /><ColumnDefinition /><ColumnDefinition /><ColumnDefinition />
+                            </Grid.ColumnDefinitions>
+                            <RadioButton Name="GaussianRB" Grid.Column="1" Grid.Row="0" Margin="2" IsChecked="True" Tag="{Binding ElementName=GaussGrid,Path=IsEnabled,Mode=TwoWay}" Checked="SignalTypeButton_Checked" Unchecked="SignalTypeButton_Checked">Gaussian:</RadioButton>
+                            <Grid Name="GaussGrid" Grid.Row="0" Grid.Column="2" Grid.ColumnSpan="4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition />
+                                    <ColumnDefinition />
+                                    <ColumnDefinition />
+                                    <ColumnDefinition />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" HorizontalAlignment="Right" Margin="2">Mean(sec):</TextBlock>
+                                <TextBox Name="GMean" Grid.Column="1" TextChanged="Num_TextChanged">0.0</TextBox>
+                                <TextBlock Grid.Column="2" HorizontalAlignment="Right" Margin="2">SD(sec):</TextBlock>
+                                <TextBox Name="GSD" Grid.Column="3" TextChanged="GSD_TextChanged">1.0</TextBox>
+                            </Grid>
+                            <RadioButton Name="UniformRB" Grid.Column="1" Grid.Row="1" Margin="2" Tag="{Binding ElementName=UnifGrid,Path=IsEnabled,Mode=TwoWay}" Checked="SignalTypeButton_Checked" Unchecked="SignalTypeButton_Checked">Uniform:</RadioButton>
+                            <Grid Name="UnifGrid" Grid.Row="1" Grid.Column="2" Grid.ColumnSpan="4" IsEnabled="False">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition /><ColumnDefinition /><ColumnDefinition /><ColumnDefinition />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" HorizontalAlignment="Right" Margin="2">Min(sec):</TextBlock>
+                                <TextBox Name="UMin" Grid.Column="1" TextChanged="UMin_TextChanged">0.0</TextBox>
+                                <TextBlock Grid.Column="2" HorizontalAlignment="Right">Max(sec):</TextBlock>
+                                <TextBox Name="UMax" Grid.Column="3" TextChanged="UMax_TextChanged">1.0</TextBox>
+                            </Grid>
+                        </Grid>
+                    </Grid>
+                </GroupBox>
+            </StackPanel>
+            <!--Event associated signal-->
+            <GroupBox Grid.Row="2" Header="Signal" Margin="2" BorderBrush="DarkBlue">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="24"/>
+                        <ColumnDefinition /><ColumnDefinition /><ColumnDefinition /><ColumnDefinition /><ColumnDefinition />
+                    </Grid.ColumnDefinitions>
+                    <RadioButton Name="SNone" Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3" Margin="2" IsChecked="True" Checked="SignalTypeButton_Checked" Unchecked="SignalTypeButton_Checked">None</RadioButton>
+                    <RadioButton Name="SImpulse" Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" Margin="2" Checked="SignalTypeButton_Checked" Tag="{Binding ElementName=BW,Path=IsEnabled,Mode=TwoWay}" Unchecked="SignalTypeButton_Checked">Impulse</RadioButton>
+                    <TextBlock Grid.Row="1" Grid.Column="2" Margin="2" HorizontalAlignment="Right">Bandwidth:</TextBlock>
+                    <TextBox Name="BW" Grid.Row="1" Grid.Column="3" IsEnabled="False" TextChanged="BW_TextChanged">20</TextBox>
+                    <RadioButton Name="SDampedSine" Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" Margin="2" Checked="SignalTypeButton_Checked" Tag="{Binding ElementName=DampParms,Path=IsEnabled,Mode=TwoWay}" Unchecked="SignalTypeButton_Checked">Damped sinusoid:</RadioButton>
+                    <Grid Name="DampParms" Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="6" IsEnabled="False">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="24"/>
+                            <ColumnDefinition /><ColumnDefinition /><ColumnDefinition /><ColumnDefinition /><ColumnDefinition />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="2" Grid.Row="0" HorizontalAlignment="Right" Margin="2">Coefficient:</TextBlock>
+                        <TextBox Name="DSCoef" Grid.Column="3" Grid.Row="0" TextChanged="Num_TextChanged">1.0</TextBox>
+                        <TextBlock Grid.Column="4" Grid.Row="0" HorizontalAlignment="Right" Margin="2">Damping:</TextBlock>
+                        <TextBox Name="DSDamp" Grid.Column="5" Grid.Row="0" TextChanged="DSDamp_TextChanged">1.0</TextBox>
+                        <TextBlock Grid.Column="2" Grid.Row="1" HorizontalAlignment="Right" Margin="2">Freq(Hz):</TextBlock>
+                        <TextBox Name="DSFreq" Grid.Column="3" Grid.Row="1" TextChanged="Num_TextChanged">10.0</TextBox>
+                        <TextBlock Grid.Column="4" Grid.Row="1" HorizontalAlignment="Right" Margin="2">Phase(deg):</TextBlock>
+                        <TextBox Name="DSPhase" Grid.Column="5" Grid.Row="1" TextChanged="Num_TextChanged">0</TextBox>
+                    </Grid>
+                </Grid>
+            </GroupBox>
+            <!--Event associated Group Variables-->
+            <GroupBox Grid.Row="3" Height="200" BorderBrush="DarkBlue" Header="Associated Group Variables" Margin="2">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="24"/>
+                    </Grid.RowDefinitions>
+                    <ListBox Name="GVPanel" Grid.Row="0" Height="Auto" HorizontalContentAlignment="Center">
+                        
+                    </ListBox>
+                    <StackPanel Grid.Row="1" Orientation="Horizontal"><!--Add/remove buttons-->
+                        <Button Height="20" Width="20" Margin="2" FontSize="18" Click="AddGV_Click">
+                            <TextBlock VerticalAlignment="Center" Margin="-1,-2,0,0">
+                                <Bold>+</Bold>
+                            </TextBlock>
+                        </Button>
+                        <Button Name="RemoveGV" Height="20" Width="20" Margin="2" FontSize="20" Click="RemoveGV_Click" IsEnabled="False">
+                            <TextBlock VerticalAlignment="Center" Margin="1,-2,0,0">
+                                <Bold>-</Bold>
+                            </TextBlock>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </GroupBox>
+        </Grid>
+    </TabItem.Content>
+</TabItem>

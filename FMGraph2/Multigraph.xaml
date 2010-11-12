@@ -1,0 +1,59 @@
+﻿<TabItem x:Class="FMGraph2.Multigraph"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:s="clr-namespace:System;assembly=mscorlib"
+    xmlns:local="clr-namespace:FMGraph2"
+    Height="Auto" Width="Auto" FontSize="14" Padding="12,2,0,2">
+    <TabItem.Resources>
+        <s:Double x:Key="Min">0.0</s:Double>
+        <s:Double x:Key="Mag1">0.4</s:Double>
+        <s:Double x:Key="Mag2">0.8</s:Double>
+        <s:Double x:Key="Mag3">1.2</s:Double>
+        <s:Double x:Key="Mag4">1.6</s:Double>
+    </TabItem.Resources>
+    <TabItem.Header>
+        <StackPanel Orientation="Horizontal">
+            <TextBlock Name="tabName" Margin="0,0,6,0" VerticalAlignment="Center" Text="{Binding Path=FMFileName, Mode=OneTime}"/>
+            <Button Name="XButton"  Margin="0,-2" Height="12" VerticalAlignment="top" Click="Remove_Click">
+                <TextBlock FontSize="8" Margin="0" VerticalAlignment="Center">
+                    <Bold>X</Bold>
+                </TextBlock>
+            </Button>
+        </StackPanel>
+    </TabItem.Header>
+    <Grid Background="AliceBlue">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="180"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="30"/>
+        </Grid.RowDefinitions>
+        <Grid Name="ControlColumn" Grid.Column="0" Grid.Row="0" Background="Cornsilk">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <GroupBox Header="Magnification" Grid.Row="1" VerticalAlignment="Bottom">
+                <StackPanel Orientation="Vertical">
+                    <RadioButton Margin="5" IsChecked="True" Click="RadioButton_Click" Tag="{StaticResource Min}">Minimum</RadioButton>
+                    <RadioButton Margin="5" Click="RadioButton_Click" Tag="{StaticResource Mag1}">Mag1</RadioButton>
+                    <RadioButton Margin="5" Click="RadioButton_Click" Tag="{StaticResource Mag2}">Mag2</RadioButton>
+                    <RadioButton Margin="5" Click="RadioButton_Click" Tag="{StaticResource Mag3}">Mag3</RadioButton>
+                    <RadioButton Margin="5" Click="RadioButton_Click" Tag="{StaticResource Mag4}">Mag4</RadioButton>
+                    <RadioButton Margin="5" Click="RadioButton_Click" Name="MaxRB">Mag5</RadioButton>
+                    <RadioButton Margin="5" Name="VarRB" Click="VarRB_Click">Variable:</RadioButton>
+                </StackPanel>
+            </GroupBox>
+        </Grid>
+        <Slider Name="Magnification" Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="1" Height="Auto" Width="Auto" Margin="0" Padding="4" ValueChanged="Magnification_ValueChanged" LargeChange="0.3" IsEnabled="False" Background="Cornsilk" />
+        <ScrollViewer Name="SV" Grid.Column="1" Grid.Row="0" VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Hidden" Cursor="UpArrow"
+                      ScrollChanged="SV_ScrollChanged" PreviewMouseDown="SV_PreviewMouseDown" PreviewMouseMove="SV_PreviewMouseMove" PreviewMouseUp="SV_PreviewMouseUp" MouseLeave="SV_MouseLeave" MouseEnter="SV_MouseEnter" IsDeferredScrollingEnabled="True">
+            <Viewbox Name="VB">
+                <Canvas Name="Graph" MouseEnter="Graph_MouseEnter" MouseLeave="Graph_MouseLeave">
+                </Canvas>
+            </Viewbox>
+        </ScrollViewer>
+    </Grid>
+</TabItem>
