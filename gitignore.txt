@@ -12,3 +12,5 @@
 *.suo
 *.pfx
 *.snk
+# also ignore .gitignore itself
+.gitignore
