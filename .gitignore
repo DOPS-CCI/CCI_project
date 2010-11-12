@@ -1,0 +1,13 @@
+# ignore all files in bin directories
+*/bin/
+# ignore all giles in obj directories
+*/obj/
+# ignore all files in Properties directories
+*/Properties/
+# other specific files to ignore
+*/App.*
+*.pfx
+*.sln
+*.suo
+*.user
+*.csproj
