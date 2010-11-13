@@ -16,7 +16,7 @@ namespace FileConverter
         public bool risingEdge;
         public double threshold;
         public int decimation;
-        public float offset;
+        public double offset;
         public bool removeOffsets;
         public bool removeTrends;
         public bool radinOffset;

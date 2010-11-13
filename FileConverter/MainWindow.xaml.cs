@@ -36,6 +36,7 @@ namespace FileConverter
         double _extThreshold;
         private double _extSearch;
         int _decimation;
+        List<int> channels;
 
         BackgroundWorker bw;
 
@@ -112,6 +113,7 @@ namespace FileConverter
                 ExtDescription.Text = (ede.location ? "lagging" : "leading") + ", " + (ede.rise ? "rising" : "falling") + " edge:";
                 ExtRow.Visibility = Visibility.Visible;
             }
+            checkError(); // check in case ExtRow visibility changed -- masking or unmasking an error!
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -145,62 +147,14 @@ namespace FileConverter
 
         private void ConvertFM_Click(object sender, RoutedEventArgs e)
         {
-            ConvertFM.Visibility = Visibility.Hidden;
-            ConvertBDF.Visibility = Visibility.Hidden;
             if (fmc == null) /* Just in time singleton */
                 fmc = new FileConverter.FMConverter();
-            fmc.channels = parseList(SelChan.Text);
-            if (fmc.channels == null) return;
+
+            createConverterBase(fmc);
+
             fmc.anc = (bool)ancillarydata.IsChecked;
-            fmc.EDE = (EventDictionaryEntry)listView1.SelectedItem;
-            fmc.equalStatusOnly = (bool)ExactStatus.IsChecked;
-            fmc.continuousSearch = (bool)ContinuousSearch.IsChecked;
-            if (ExtSearch.Text != "")
-                fmc.maxSearch = (int)(Convert.ToDouble(ExtSearch.Text) * samplingRate / 1000D + 0.5);
-            else fmc.maxSearch = Int32.MaxValue;
-            fmc.risingEdge = fmc.EDE.rise; // fixed entry until we allow discordant edges
-            fmc.threshold = System.Convert.ToDouble(ExtThreshold.Text) / 100D;
-            fmc.directory = this.directory;
-            fmc.GV = listView2.SelectedItems.Cast<GVEntry>().ToList<GVEntry>();
-            fmc.eventHeader = this.head;
-            fmc.decimation = System.Convert.ToInt32(Decimation.Text);
-            fmc.length = System.Convert.ToSingle(RecLength.Text);
-            fmc.offset = System.Convert.ToSingle(RecOffset.Text);
-            fmc.removeOffsets = (bool)removeOffsets.IsChecked && removeOffsets.IsEnabled;
-            fmc.removeTrends = (bool)removeTrends.IsChecked && removeTrends.IsEnabled;
-            fmc.radinOffset = (bool)Radin.IsChecked && Radin.IsEnabled;
-            if (fmc.radinOffset)
-            {
-                fmc.radinLow = System.Convert.ToInt32(RadinLowPts.Text);
-                fmc.radinHigh = System.Convert.ToInt32(RadinHighPts.Text);
-            }
-
-            if ((bool)radioButton2.IsChecked) //list of reference channels
-            {
-                fmc.referenceGroups = new List<List<int>>(1);
-                fmc.referenceGroups.Add(fmc.channels); // All channels are referenced to
-                fmc.referenceChannels = new List<List<int>>(1);
-                fmc.referenceChannels.Add(parseList(RefChan.Text)); // this list of channels
-            }
-            else if ((bool)radioButton4.IsChecked) //Reference expression
-            {
-                List<List<int>> refExp = parseReferenceString(RefChanExpression.Text);
-                fmc.referenceGroups = new List<List<int>>();
-                fmc.referenceChannels = new List<List<int>>();
-                for (int i = 0; i < refExp.Count; i += 2)
-                {
-                    fmc.referenceGroups.Add(refExp[i]);
-                    fmc.referenceChannels.Add(refExp[i + 1]);
-                }
-                correctReferenceLists(fmc);
-            }
-            else // no overall reference
-            {
-                fmc.referenceGroups = null;
-                fmc.referenceChannels = null;
-            }
-
-            fmc.BDF = bdf;
+            fmc.length = _recLength;
+            fmc.offset = _recOffset;
 
             // Execute conversion in background
 
@@ -281,83 +235,6 @@ namespace FileConverter
             checkError();
         }
 
-/*        private void Decimation_TextChanged(object sender, TextChangedEventArgs e)
-        {
-            try
-            {
-                _decimation = System.Convert.ToInt32(Decimation.Text);
-                if (_decimation <= 0)
-                {
-                    _decimation = 1;
-                    SR.Text = "Error";
-                }
-                else if ((bool)AllSamples.IsChecked)
-                {
-                    if (samplingRate % _decimation == 0)
-                        SR.Text = (samplingRate / _decimation).ToString("0");
-                    else
-                    {
-                        _decimation = 1;
-                        SR.Text = "Error";
-                    }
-                }
-                else SR.Text = ((float)samplingRate
-                    / (float)_decimation).ToString("0.0");
-            }
-            catch (Exception)
-            {
-                _decimation = 1;
-                SR.Text = "Error";
-            }
-            if (RecLengthPts != null)
-            {
-                try
-                {
-                    RecLengthPts.Text = System.Convert.ToInt32(_recLength
-                        * samplingRate / (float)_decimation).ToString("0");
-                }
-                catch (Exception)
-                {
-                    RecLengthPts.Text = "Error";
-                }
-            }
-            if (RecOffsetPts != null)
-            {
-                try
-                {
-                    RecOffsetPts.Text = System.Convert.ToInt32(_recOffset
-                        * samplingRate / (float)_decimation).ToString("0");
-                }
-                catch (Exception)
-                {
-                    RecOffsetPts.Text = "Error";
-                }
-            }
-            if (RadinLowPts != null)
-            {
-                try
-                {
-                    RadinLowPts.Text = System.Convert.ToInt32(_radinLow
-                        * samplingRate / (float)_decimation).ToString("0");
-                }
-                catch (Exception)
-                {
-                    RadinLowPts.Text = "Error";
-                }
-            }
-            if (RadinHighPts == null) return;
-            try
-            {
-                RadinHighPts.Text = System.Convert.ToInt32(_radinHigh
-                    * samplingRate / (float)_decimation).ToString("0");
-            }
-            catch (Exception)
-            {
-                RadinHighPts.Text = "Error";
-            }
-        }
-*/
-
         double _recOffset;
         private void RecOffset_TextChanged(object sender, TextChangedEventArgs e)
         {
@@ -397,13 +274,16 @@ namespace FileConverter
             try
             {
                 _radinLow = System.Convert.ToDouble(RadinLow.Text);
-                RadinLowPts.Text = System.Convert.ToInt32(_radinLow
-                    * samplingRate / (float)_decimation).ToString("0");
+                if (_radinLow < 0D) throw new Exception();
+                RadinLow.BorderBrush = Brushes.MediumBlue;
             }
-            catch (Exception)
+            catch
             {
+                _radinLow = -1D;
+                RadinLow.BorderBrush = Brushes.Red;
                 RadinLowPts.Text = "Error";
             }
+            checkError();
         }
 
         double _radinHigh;
@@ -412,15 +292,16 @@ namespace FileConverter
             try
             {
                 _radinHigh = System.Convert.ToDouble(RadinHigh.Text);
-                if (_radinHigh > _recLength) RadinHighPts.Text = "Error";
-                else
-                    RadinHighPts.Text = System.Convert.ToInt32(_radinHigh
-                        * samplingRate / (float)_decimation).ToString("0");
+                if (_radinHigh <= 0D) throw new Exception();
+                RadinHigh.BorderBrush = Brushes.MediumBlue;
             }
-            catch (Exception)
+            catch
             {
+                _radinHigh = double.MaxValue;
+                RadinHigh.BorderBrush = Brushes.Red;
                 RadinHighPts.Text = "Error";
             }
+            checkError();
         }
 
         private void AllSamples_Checked(object sender, RoutedEventArgs e)
@@ -486,38 +367,80 @@ namespace FileConverter
             }
         }
 
-        private void radioButton_Checked(object sender, RoutedEventArgs e)
-        {
-            RadioButton rb = (RadioButton)sender;
-            if (rb == null) return;
-            if (RefChan != null)
-                RefChan.IsEnabled = (rb == radioButton2);
-            if (RefChanName != null)
-                RefChanName.IsEnabled = (rb == radioButton2);
-            if (RefChanExpression != null)
-                RefChanExpression.IsEnabled = (rb == radioButton4);
-            if (RefChanExpDesc != null)
-                RefChanExpDesc.IsEnabled = (rb == radioButton4);
-        }
-
+        List<int> _refChan;
         private void RefChan_TextChanged(object sender, TextChangedEventArgs e)
         {
             if (RefChanName == null) return;
             string str = ((TextBox)sender).Text;
-            List<int> l = parseList(str);
-            if (l == null || l.Count == 0) { RefChanName.Text = "Error"; return; }
-            if (l.Count > 1) { RefChanName.Text = l.Count.ToString("0") + " channels"; return; }
-            RefChanName.Text = bdf.channelLabel(l[0]);
+            _refChan = parseList(str);
+            if (_refChan == null || _refChan.Count == 0)
+            {
+                RefChan.BorderBrush = Brushes.Red;
+                RefChanName.Text = "Error";
+            }
+            else
+            {
+                RefChan.BorderBrush = Brushes.MediumBlue;
+                if (_refChan.Count > 1)
+                    RefChanName.Text = _refChan.Count.ToString("0") + " channels";
+                else
+                    RefChanName.Text = bdf.channelLabel(_refChan[0]);
+            }
+            checkError();
+        }
+
+        List<List<int>> _refChanExp;
+        private void RefChanExpression_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (sender == null) return;
+            TextChange tc = e.Changes.Last();
+            string str = RefChanExpression.Text;
+            if (tc.AddedLength == 1)
+            {
+                int i = tc.Offset;
+                char c = str[i++];
+                if (c == '{' || c == '(')
+                {
+                    str = str.Substring(0, i) + (c == '{' ? "}" : ")") + str.Substring(i, str.Length - i);
+                    RefChanExpression.Text = str; //NOTE: this causes reentrant call to this routine, so the next two statements work!
+                    RefChanExpression.Select(i, 0);
+                    return;
+                }
+            }
+            _refChanExp = parseReferenceString(str);
+            if (_refChanExp == null || _refChanExp.Count == 0)
+            {
+                RefChanExpression.BorderBrush = Brushes.Red;
+                RefChanExpDesc.Text = "Error";
+            }
+            else
+            {
+                RefChanExpression.BorderBrush = Brushes.MediumBlue;
+                int lc = _refChanExp.Count / 2;
+                RefChanExpDesc.Text = lc.ToString("0") + " reference set" + (lc <= 1 ? "" : "s");
+            }
+            checkError();
         }
 
         private void SelChan_TextChanged(object sender, TextChangedEventArgs e)
         {
             if (SelChanName == null) return;
             string str = ((TextBox)sender).Text;
-            List<int> l = parseList(str);
-            if (l == null || l.Count == 0) { SelChanName.Text = "Error"; return; }
-            if (l.Count > 1) { SelChanName.Text = l.Count.ToString("0") + " channels"; return; }
-            SelChanName.Text = bdf.channelLabel(l[0]);
+            channels = parseList(str);
+            if (channels == null || channels.Count == 0)
+            {
+                SelChan.BorderBrush = Brushes.Red;
+                SelChanName.Text = "Error";
+            }
+            else
+            {
+                SelChan.BorderBrush = Brushes.MediumBlue;
+                if (channels.Count > 1)
+                    SelChanName.Text = channels.Count.ToString("0") + " channels";
+                else
+                    SelChanName.Text = bdf.channelLabel(channels[0]);
+            }
+            checkError();
         }
 
         private List<int> parseList(string str)
@@ -584,92 +507,20 @@ namespace FileConverter
         private void Window_ContentRendered(object sender, EventArgs e)
         {
             string s = SelChan.Text = "1-" + (bdf.NumberOfChannels - 1).ToString("0");
+            RefChan.Text = s;
             RefChanExpression.Text = "(" + s + ")~{" + s + "}";
         }
 
         private void ConvertBDF_Click(object sender, RoutedEventArgs e)
         {
-            double d2;
-            if (!(bool)AllSamples.IsChecked)
-            {
-                if (listView2.SelectedItems.Count != 1)
-                {
-                    string question = "BDF file must have only one Group Varaiable. Please select a single GV.";
-                    string title = "BDF Group Variable";
-                    MessageBoxButton mbb = MessageBoxButton.OK;
-                    MessageBoxImage mbi = MessageBoxImage.Exclamation;
-                    MessageBoxResult mbr = MessageBox.Show(question, title, mbb, mbi);
-                    return;
-                }
-                double d1 = System.Convert.ToDouble(RecLength.Text);
-                d2 = Math.Truncate(d1);
-                if (d1 != d2)
-                {
-                    string question = "BDF file must have integer record length. Truncate record length to " +
-                        Convert.ToInt32(d2).ToString("0") + " seconds?";
-                    string title = "BDF record length";
-                    MessageBoxButton mbb = MessageBoxButton.YesNo;
-                    MessageBoxImage mbi = MessageBoxImage.Exclamation;
-                    MessageBoxResult mbr = MessageBox.Show(question, title, mbb, mbi);
-                    if (mbr == MessageBoxResult.No)
-                        return;
-                }
-            }
-            else d2 = bdf.RecordDuration;
-            ConvertFM.Visibility = Visibility.Hidden;
-            ConvertBDF.Visibility = Visibility.Hidden;
             if (bdfc == null)
                 bdfc = new FileConverter.BDFConverter();
+
+            createConverterBase(bdfc);
+
             bdfc.allSamps = (bool)AllSamples.IsChecked;
-            bdfc.channels = parseList(SelChan.Text);
-            if (bdfc.channels == null) return;
-            bdfc.EDE = (EventDictionaryEntry)listView1.SelectedItem;
-            bdfc.equalStatusOnly = (bool)ExactStatus.IsChecked;
-            bdfc.continuousSearch = (bool)ContinuousSearch.IsChecked;
-            if (ExtSearch.Text != "")
-                bdfc.maxSearch = (int)(Convert.ToDouble(ExtSearch.Text) * samplingRate / 1000D + 0.5);
-            else bdfc.maxSearch = Int32.MaxValue;
-            bdfc.risingEdge = bdfc.EDE.rise; // fixed entry until we allow discordant edges
-            bdfc.threshold = System.Convert.ToDouble(ExtThreshold.Text) / 100D;
-            bdfc.directory = this.directory;
-            bdfc.GV = new List<GVEntry>(1);
-            bdfc.GV.Add((GVEntry)listView2.SelectedItem);
-            bdfc.eventHeader = this.head;
-            bdfc.decimation = System.Convert.ToInt32(Decimation.Text);
-            bdfc.length = (int)d2;
-            bdfc.offset = bdfc.allSamps ? 0F : System.Convert.ToSingle(RecOffset.Text);
-            bdfc.removeOffsets = (bool)removeOffsets.IsChecked;
-            bdfc.removeTrends = (bool)removeTrends.IsChecked;
-            bdfc.radinOffset = (bool)Radin.IsChecked;
-            bdfc.radinLow = System.Convert.ToInt32(RadinLowPts.Text);
-            bdfc.radinHigh = System.Convert.ToInt32(RadinHighPts.Text);
-
-            if ((bool)radioButton2.IsChecked) //list of reference channels
-            {
-                bdfc.referenceGroups = new List<List<int>>(1);
-                bdfc.referenceGroups.Add(bdfc.channels); // All channels are referenced to
-                bdfc.referenceChannels = new List<List<int>>(1);
-                bdfc.referenceChannels.Add(parseList(RefChan.Text)); // this list of channels
-            }
-            else if ((bool)radioButton4.IsChecked) //Reference expression
-            {
-                List<List<int>> refExp = parseReferenceString(RefChanExpression.Text);
-                bdfc.referenceGroups = new List<List<int>>();
-                bdfc.referenceChannels = new List<List<int>>();
-                for (int i = 0; i < refExp.Count; i += 2)
-                {
-                    bdfc.referenceGroups.Add(refExp[i]);
-                    bdfc.referenceChannels.Add(refExp[i + 1]);
-                }
-            }
-            else // no overall reference
-            {
-                bdfc.referenceGroups = null;
-                bdfc.referenceChannels = null;
-            }
-            correctReferenceLists(bdfc);
-
-            bdfc.BDF = bdf;
+            bdfc.length = bdfc.allSamps ? bdf.RecordDuration : (int)_recLength;
+            bdfc.offset = bdfc.allSamps ? 0F : _recOffset;
 
             // Execute conversion in background
 
@@ -679,24 +530,18 @@ namespace FileConverter
             bw.RunWorkerCompleted += bw_RunWorkerCompleted;
             bw.WorkerReportsProgress = true;
             bw.RunWorkerAsync();
-
         }
 
         private void Radin_Checked(object sender, RoutedEventArgs e)
         {
-            Offsets.IsEnabled = false;
-        }
-
-        private void Radin_Unchecked(object sender, RoutedEventArgs e)
-        {
-            Offsets.IsEnabled = true;
+            Offsets.IsEnabled = !(bool)Radin.IsChecked;
+            checkError();
         }
 
         private void listView2_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (ConvertBDF == null) return;
-            if (listView2.SelectedItems.Count != 1) ConvertBDF.IsEnabled = false;
-            else ConvertBDF.IsEnabled = true;
+            checkError();
         }
 
         private void Window_Closed(object sender, EventArgs e)
@@ -705,66 +550,79 @@ namespace FileConverter
             bdf.Close();
         }
 
-        private void RefChanExpression_TextChanged(object sender, TextChangedEventArgs e)
-        {
-            if (sender == null) return;
-            TextChange tc = e.Changes.Last();
-            string str = RefChanExpression.Text;
-            if (tc.AddedLength == 1)
-            {
-                int i = tc.Offset;
-                char c = str[i++];
-                if (c == '{' || c == '(')
-                {
-                    str = str.Substring(0, i) + (c == '{' ? "}" : ")") + str.Substring(i, str.Length - i);
-                    RefChanExpression.Text = str; //NOTE: this causes reentrant call to this routine, so the next two statements work!
-                    RefChanExpression.Select(i, 0);
-                    return;
-                }
-            }
-            List<List<int>> l = parseReferenceString(str);
-            if (l == null || l.Count == 0) { RefChanExpDesc.Text = "Error"; return; }
-            int lc = l.Count / 2;
-            RefChanExpDesc.Text = lc.ToString("0") + " reference set" + (lc <= 1 ? "" : "s");
-        }
-
         private void checkError()
         {
             if (!this.IsLoaded) return;
 
-            if (_extThreshold == 0D) { ConvertBDF.IsEnabled = false; ConvertFM.IsEnabled = false; return; }
+            if (ExtThreshold.IsVisible && _extThreshold == 0D) { ConvertBDF.IsEnabled = ConvertFM.IsEnabled = false; return; }
 
-            if (_extSearch == 0D) { ConvertBDF.IsEnabled = false; ConvertFM.IsEnabled = false; return; }
+            if (ExtSearch.IsVisible && ExtSearch.Text != null && _extSearch == 0D) { ConvertBDF.IsEnabled = ConvertFM.IsEnabled = false; return; }
 
-            if(_recOffset==double.MinValue) { ConvertBDF.IsEnabled = false; ConvertFM.IsEnabled = false; }
-
-            if (_recLength == 0D) { ConvertBDF.IsEnabled = false; ConvertFM.IsEnabled = false; }
+            ConvertBDF.IsEnabled = true;
+            ConvertFM.IsEnabled = true;
 
             if (_decimation != 0)
+            {
                 if (samplingRate % _decimation == 0)
                 {
                     SR.Text = (samplingRate / _decimation).ToString("0");
-                    ConvertBDF.IsEnabled = true;
                 }
                 else
                 {
                     ConvertBDF.IsEnabled = false;
-                    SR.Text = ((float)samplingRate / (float)_decimation).ToString("0.0");
+                    SR.Text = ((double)samplingRate / (double)_decimation).ToString("0.0");
                 }
+
+                if (_recOffset != double.MinValue) // valid record offset
+                    RecOffsetPts.Text = System.Convert.ToInt32(_recOffset * (double)samplingRate / (double)_decimation).ToString("0");
+                else
+                    ConvertBDF.IsEnabled = ConvertFM.IsEnabled = false;
+
+                if (_recLength != 0D)
+                    RecLengthPts.Text = System.Convert.ToInt32(Math.Ceiling(_recLength * (double)samplingRate / (double)_decimation)).ToString("0");
+                else
+                    ConvertBDF.IsEnabled = ConvertFM.IsEnabled = false;
+
+                if (_recLength != Math.Floor(_recLength))
+                    ConvertBDF.IsEnabled = false; // integer only record lengths for BDF
+            }
             else
             {
-                ConvertBDF.IsEnabled = false;
-                ConvertFM.IsEnabled = false;
+                ConvertBDF.IsEnabled = ConvertFM.IsEnabled = false;
                 SR.Text = "Error";
+                RecLengthPts.Text = "Error";
+                RecOffsetPts.Text = "Error";
             }
 
-            if (_decimation != 0 && _recOffset != double.MinValue)
-                RecOffsetPts.Text = System.Convert.ToInt32(_recOffset * samplingRate / (double)_decimation).ToString("0");
-            else RecOffsetPts.Text = "Error";
+            if ((bool)Radin.IsChecked)
+            {
+                if (_decimation != 0 && _radinLow >= 0 && _radinLow < _recLength)
+                    RadinLowPts.Text = System.Convert.ToInt32(_radinLow * samplingRate / (float)_decimation).ToString("0");
+                else
+                {
+                    ConvertBDF.IsEnabled = ConvertFM.IsEnabled = false;
+                    RadinLowPts.Text = "Error";
+                }
 
-            if (_decimation != 0 && _recLength != 0D)
-                RecLengthPts.Text = System.Convert.ToInt32(Math.Ceiling(_recLength * samplingRate / (float)_decimation)).ToString("0");
-            else RecLengthPts.Text = "Error";
+                if (_decimation != 0 && _radinHigh > 0 && _radinHigh <= _recLength)
+                    RadinHighPts.Text = System.Convert.ToInt32(_radinHigh * samplingRate / (float)_decimation).ToString("0");
+                else
+                {
+                    ConvertBDF.IsEnabled = ConvertFM.IsEnabled = false;
+                    RadinHighPts.Text = "Error";
+                }
+            }
+
+            if (listView2.SelectedItems.Count != 1)
+                ConvertBDF.IsEnabled = false;
+
+            if (channels == null || channels.Count == 0)
+                ConvertBDF.IsEnabled = ConvertFM.IsEnabled = false;
+
+            if ((bool)radioButton2.IsChecked && (_refChan == null || _refChan.Count == 0))
+                ConvertBDF.IsEnabled = ConvertFM.IsEnabled = false;
+            else if ((bool)radioButton4.IsChecked && (_refChanExp == null || _refChanExp.Count == 0))
+                ConvertBDF.IsEnabled = ConvertFM.IsEnabled = false;
 
         }
 
@@ -790,18 +648,78 @@ namespace FileConverter
         {
             if (sender == null) return;
             string str = ExtSearch.Text;
-            try
-            {
-                _extSearch = Convert.ToDouble(str) / 100D;
-                if (_extSearch <= 0D) throw new Exception();
-                ExtSearch.BorderBrush = Brushes.MediumBlue;
-            }
-            catch
-            {
-                _extSearch = 0D;
-                ExtSearch.BorderBrush = Brushes.Red;
-            }
+            if(str != "")
+                try
+                {
+                    _extSearch = Convert.ToDouble(str) / 1000D;
+                    if (_extSearch <= 0D) throw new Exception();
+                    ExtSearch.BorderBrush = Brushes.MediumBlue;
+                }
+                catch
+                {
+                    _extSearch = 0D;
+                    ExtSearch.BorderBrush = Brushes.Red;
+                }
             checkError();
+        }
+
+        private void radioButton_Changed(object sender, RoutedEventArgs e)
+        {
+                checkError();
+        }
+
+        private void createConverterBase(Converter conv)
+        {
+            ConvertFM.Visibility = Visibility.Hidden;
+            ConvertBDF.Visibility = Visibility.Hidden;
+            conv.channels = this.channels;
+            conv.EDE = (EventDictionaryEntry)listView1.SelectedItem;
+            conv.equalStatusOnly = (bool)ExactStatus.IsChecked;
+            conv.continuousSearch = (bool)ContinuousSearch.IsChecked;
+            if (ExtSearch.Text != "")
+                conv.maxSearch = (int)(_extSearch * samplingRate + 0.5);
+            else conv.maxSearch = Int32.MaxValue;
+            conv.risingEdge = conv.EDE.rise; // fixed entry until we allow discordant edges
+            conv.threshold = _extThreshold;
+            conv.directory = this.directory;
+            conv.GV = listView2.SelectedItems.Cast<GVEntry>().ToList<GVEntry>();
+            conv.eventHeader = this.head;
+            conv.decimation = _decimation;
+            conv.removeOffsets = removeOffsets.IsEnabled && (bool)removeOffsets.IsChecked;
+            conv.removeTrends = removeTrends.IsEnabled && (bool)removeTrends.IsChecked;
+            conv.radinOffset = Radin.IsEnabled && (bool)Radin.IsChecked;
+            if (conv.radinOffset)
+            {
+                conv.radinLow = System.Convert.ToInt32(RadinLowPts.Text);
+                conv.radinHigh = System.Convert.ToInt32(RadinHighPts.Text);
+            }
+
+            if ((bool)radioButton2.IsChecked) //list of reference channels
+            {
+                conv.referenceGroups = new List<List<int>>(1);
+                conv.referenceGroups.Add(conv.channels); // All channels are referenced to
+                conv.referenceChannels = new List<List<int>>(1); // this list of channels
+                conv.referenceChannels.Add(_refChan);
+            }
+            else if ((bool)radioButton4.IsChecked) //Reference expression
+            {
+                conv.referenceGroups = new List<List<int>>();
+                conv.referenceChannels = new List<List<int>>();
+                for (int i = 0; i < _refChanExp.Count; i += 2)
+                {
+                    conv.referenceGroups.Add(_refChanExp[i]);
+                    conv.referenceChannels.Add(_refChanExp[i + 1]);
+                }
+                correctReferenceLists(fmc);
+            }
+            else // no overall reference
+            {
+                conv.referenceGroups = null;
+                conv.referenceChannels = null;
+            }
+
+            conv.BDF = bdf;
+
         }
     }
 }

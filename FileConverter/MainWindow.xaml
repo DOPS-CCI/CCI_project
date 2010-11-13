@@ -145,7 +145,7 @@
                         <TextBox.ToolTip>Enter length of records in seconds</TextBox.ToolTip>
                     </TextBox>
                     <Label Grid.Row="2" Grid.Column="3" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="0" Name="label4" Width="Auto" FontSize="14">points</Label>
-                    <CheckBox Grid.Row="3" Grid.Column="0" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="12,0,0,0" Name="Radin" Width="Auto" Height="17" FontSize="14" Padding="2,0,4,0" Checked="Radin_Checked" Unchecked="Radin_Unchecked" VerticalContentAlignment="Top">Radin reference: from</CheckBox>
+                    <CheckBox Grid.Row="3" Grid.Column="0" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="12,0,0,0" Name="Radin" Width="Auto" Height="17" FontSize="14" Padding="2,0,4,0" Checked="Radin_Checked" Unchecked="Radin_Checked" VerticalContentAlignment="Top">Radin reference: from</CheckBox>
                     <TextBox Grid.Row="3" Grid.Column="2" IsEnabled="{Binding ElementName=Radin, Path=IsChecked}" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="4,0,4,0" Name="RadinLowPts" Width="120"  Height="24" FontSize="14" HorizontalContentAlignment="Right" IsReadOnly="True" IsTabStop="False" IsUndoEnabled="False" VerticalContentAlignment="Center"></TextBox>
                     <TextBox Grid.Row="3" Grid.Column="1" IsEnabled="{Binding ElementName=Radin, Path=IsChecked}" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="4,0,4,0" Name="RadinLow" Width="120" Height="24" FontSize="14" TextAlignment="Right" HorizontalContentAlignment="Right" TextChanged="RadLow_TextChanged" Text="0">
                         <TextBox.ToolTip>Enter beginning of Radin reference region</TextBox.ToolTip>
@@ -183,26 +183,27 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
-<!--                    <RadioButton Grid.Row="0" GroupName="Ref" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="8,6,0,5" Name="radioButton1" Width="Auto" Checked="radioButton_Checked" FontSize="14" Content="Common average reference (CAR)">
-                    <RadioButton.ToolTip>Reference set to average of all channels in each record</RadioButton.ToolTip>
-                </RadioButton>-->
                 <StackPanel Grid.Row="0" Orientation="Horizontal">
-                    <RadioButton Grid.Column="0" GroupName="Ref" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="8,5,18,5" Name="radioButton2" FontSize="14" Checked="radioButton_Checked" Width="Auto" Content="Selected channel(s)->">
+                    <RadioButton Grid.Column="0" GroupName="Ref" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="8,5,18,5" Name="radioButton2" FontSize="14" Width="Auto" Content="Selected channel(s)->" Checked="radioButton_Changed">
                         <RadioButton.ToolTip>Reference set to average of selected channels in each record</RadioButton.ToolTip>
                     </RadioButton>
-                    <TextBox Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,5,0,5" Name="RefChan" Width="310" VerticalContentAlignment="Center" FontSize="14" IsEnabled="False" Height="24" TextChanged="RefChan_TextChanged">1
+                    <TextBox Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,5,0,5" Name="RefChan" Width="310" VerticalContentAlignment="Center" 
+                             Height="24" TextChanged="RefChan_TextChanged" IsEnabled="{Binding ElementName=radioButton2, Path=IsChecked}">
                         <TextBox.ToolTip>Enter comma- and hyphen-separated list of reference channels to use (e.g. "0-9,20-24")</TextBox.ToolTip>
                     </TextBox>
-                    <TextBox Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="5,5,0,5" Name="RefChanName" Width="140" FontSize="14" IsReadOnly="True" Height="24" IsEnabled="False" IsUndoEnabled="False" />
+                    <TextBox Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="5,5,0,5" Name="RefChanName" Width="140" FontSize="14" IsReadOnly="True"
+                             Height="24" IsEnabled="{Binding ElementName=radioButton2, Path=IsChecked}"/>
                 </StackPanel>
                 <StackPanel Grid.Row="1" Orientation="Horizontal">
-                    <RadioButton GroupName="Ref" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="8,5,6,5" Name="radioButton4" Checked="radioButton_Checked">Reference expression-></RadioButton>
-                    <TextBox Name="RefChanExpression" Width="310" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,5,0,5" Height="24" TextChanged="RefChanExpression_TextChanged" IsEnabled="False">
+                    <RadioButton GroupName="Ref" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="8,5,6,5" Name="radioButton4" Checked="radioButton_Changed">Reference expression-></RadioButton>
+                    <TextBox Name="RefChanExpression" Width="310" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,5,0,5" Height="24"
+                             TextChanged="RefChanExpression_TextChanged" IsEnabled="{Binding ElementName=radioButton4, Path=IsChecked}">
                         <TextBox.ToolTip>Enter reference expression; e.g. (1,4)~{5-6} means channels 1 and 4 referenced to average of channels 5 and 6.</TextBox.ToolTip>
                     </TextBox>
-                    <TextBox Name="RefChanExpDesc" Width="140" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="5,5,0,5" IsEnabled="False"/>
+                    <TextBox Name="RefChanExpDesc" Width="140" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="5,5,0,5"
+                             IsEnabled="{Binding ElementName=radioButton4, Path=IsChecked}"/>
                 </StackPanel>
-                <RadioButton Grid.Row="2" GroupName="Ref" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="8,5,0,6" Name="radioButton3" Checked="radioButton_Checked" Width="Auto" FontSize="14" IsChecked="True">No correction (CMS/DRL)</RadioButton>
+                <RadioButton Grid.Row="2" GroupName="Ref" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="8,5,0,6" Name="radioButton3" Width="Auto" Checked="radioButton_Changed" IsChecked="True">No correction (CMS/DRL)</RadioButton>
             </Grid>
         </GroupBox>
         <Grid Grid.Row="6">
