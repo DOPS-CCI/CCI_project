@@ -145,7 +145,7 @@ namespace FMGraph2
             }
             xStart = (int)(xMin / finalXScale - 1D) + 1; //First point >= xMin; in sample scale
             xStop = (int)(xMax / finalXScale - 1D) + 1; //Last point >= xMax ; in sample scale
-            yLabel = setup.yAxis.Text;
+            yLabel = ((bool)setup.IncludeY.IsChecked) ? setup.yAxis.Text : "";
 
             try
             {
@@ -185,7 +185,7 @@ namespace FMGraph2
                     {
                         displayChannel e = new displayChannel();
                         e.channel = i - 1;
-                        Graphlet1 g = new Graphlet1(trimChannelName(fis.ChannelNames(i - 1)),this); //Create single graphlet to display this channel
+                        Graphlet1 g = new Graphlet1(trimChannelName(fis.ChannelNames(i - 1)), this); //Create single graphlet to display this channel
                         graphletList.Add(g);
                         g.numberOfChannels = 1;
                         if (m.Groups[2].Value == "@")
