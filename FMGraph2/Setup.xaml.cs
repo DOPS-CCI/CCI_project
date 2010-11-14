@@ -216,21 +216,23 @@ namespace FMGraph2
             this.HeaderInfo.Text = s.ToString();
             double graphletMax = fmr.data.Max();
             double graphletMin = fmr.data.Min();
-            if (graphletMin >= 0D || graphletMin > -graphletMax * 0.01D) Pos.IsChecked = true;
-            else PosNeg.IsChecked = true;
+            if (graphletMin >= 0D || graphletMin > -graphletMax * 0.01D) { Pos.IsChecked = true; F.IsChecked = true; }
+            else { PosNeg.IsChecked = true; T.IsChecked = true; }
+            DecimationBox.Text = "1";
+            _tmaxMax=(double)fm.ND / fm.IS;
+            Tmin.Text = "0.0";
+            Tmax.Text = _tmaxMax.ToString("0.0");
+            _fmaxMax=(double)fm.IS;
+            Fmin.Text = "0.0";
+            Fmax.Text = _fmaxMax.ToString("0.0");
+            IncludeY.IsChecked = true;
+            yAxis.Text = "Y-axis";
+            scaleToSegment.IsChecked = true;
             allYMaxValue.Text = Math.Max(graphletMax, -graphletMin).ToString("G5");
-            _tmin = 0D;
-            _tmax=(double)fm.ND / fm.IS;
-            _tmaxMax = _tmax;
-            Tmax.Text = _tmax.ToString("0.0");
-            _fmin = 0D;
-            _fmax=(double)fm.IS;
-            _fmaxMax = _fmax;
-            Fmax.Text = _fmax.ToString("0.0");
-            _dec = 1;
             ChannelList.Text = "1-" + fm.NC.ToString("0");
-            SelectedChannels.Text = fm.NC.ToString("0") + " channels";
-            checkError();
+            AllChannels.IsChecked = true;
+            None.IsChecked = true;
+            Aspect.Text = "1.0";
         }
 
         private void Aspect_TextChanged(object sender, TextChangedEventArgs e)
