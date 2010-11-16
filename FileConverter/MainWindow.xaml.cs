@@ -216,6 +216,9 @@ namespace FileConverter
                 CCIUtilities.Log.writeToLog("Completed conversion, generating " + res[1].ToString() + " recordsets");
             }
             Cancel.Content = "Done";
+            if ((bool)AllSamples.IsChecked) ConvertFM.Visibility = Visibility.Hidden;
+            else ConvertFM.Visibility = Visibility.Visible;
+            checkError();
         }
 
         private void Decimation_TextChanged(object sender, TextChangedEventArgs e)
@@ -710,16 +713,14 @@ namespace FileConverter
                     conv.referenceGroups.Add(_refChanExp[i]);
                     conv.referenceChannels.Add(_refChanExp[i + 1]);
                 }
-                correctReferenceLists(fmc);
+                correctReferenceLists(conv);
             }
             else // no overall reference
             {
                 conv.referenceGroups = null;
                 conv.referenceChannels = null;
             }
-
             conv.BDF = bdf;
-
         }
     }
 }
