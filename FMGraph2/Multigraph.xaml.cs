@@ -172,100 +172,101 @@ namespace FMGraph2
             List<Graphlet1> orphans = new List<Graphlet1>();
             ReadOnlyCollection<int> channelList = null;
 
-            if (setup.selectedChannels.singleSet) // usual situation; not superimposed channels
+            //First process non-superimposed channels, if any, in set 0
+
+            channelList = setup.selectedChannels[0];
+            bool foundPositionChannel = false;
+            // This loop is for calculating the appropriate scale for the multigraph by determining the minimum distance
+            //between the included channels that have position data in their channel labels and for determining a list of
+            //those included channels that have no position data
+            foreach(int i in channelList)
             {
-                channelList = setup.selectedChannels.getSet(0);
-                // This loop is for calculating the appropriate scale for the multigraph by determining the minimum distance
-                //between the included channels that have position data in their channel labels and for determining a list of
-                //those included channels that have no position data
-                foreach(int i in channelList)
+                m = r.Match(fis.ChannelNames(i));
+                if (m.Groups.Count == 5)
                 {
-                    m = r.Match(fis.ChannelNames(i - 1));
-                    if (m.Groups.Count == 5)
+                    foundPositionChannel = true;
+                    displayChannel e = new displayChannel();
+                    e.channel = i;
+                    Graphlet1 g = new Graphlet1(trimChannelName(fis.ChannelNames(i)), this); //Create single graphlet to display this channel
+                    graphletList.Add(g);
+                    g.numberOfChannels = 1;
+                    if (m.Groups[2].Value == "@")
                     {
-                        displayChannel e = new displayChannel();
-                        e.channel = i - 1;
-                        Graphlet1 g = new Graphlet1(trimChannelName(fis.ChannelNames(i - 1)), this); //Create single graphlet to display this channel
-                        graphletList.Add(g);
-                        g.numberOfChannels = 1;
-                        if (m.Groups[2].Value == "@")
-                        {
-                            g.x = Convert.ToDouble(m.Groups[3].Value);
-                            g.y = Convert.ToDouble(m.Groups[4].Value);
-                        }
-                        else
-                        {
-                            g.x = -Convert.ToDouble(m.Groups[3].Value)
-                                * Math.Sin(Convert.ToDouble(m.Groups[4].Value) * degrad);
-                            g.y = Convert.ToDouble(m.Groups[3].Value)
-                                * Math.Cos(Convert.ToDouble(m.Groups[4].Value) * degrad);
-                        }
-                        e.graphs.Add(g);
-                        maxx = Math.Max(maxx, g.x);
-                        maxy = Math.Max(maxy, g.y);
-                        minx = Math.Min(minx, g.x);
-                        miny = Math.Min(miny, g.y);
-                        //now measure distance from the other channels, to find least distance for scaling
-                        foreach(displayChannel dc in displayedChannels )
-                        {
-                            double x = Math.Abs(g.x - dc.graphs[0].x);
-                            double y = Math.Abs(g.y - dc.graphs[0].y);
-                            double d = Math.Sqrt(x * x + y * y);
-                            if (factor * d < dmin) //can't make it any smaller than this
-                            {
-                                double gamma = Math.Atan(x / y);
-                                gamma -= Math.PI * Math.Floor(2D * gamma / Math.PI) / 2D; //modulus 90 degrees
-                                dmin = Math.Min(d * (gamma <= alpha ? Math.Cos(gamma) : Math.Sin(gamma) / aspect), dmin);
-                            }
-                        }
-                        displayedChannels.Add(e);// and add current channel to list
+                        g.x = Convert.ToDouble(m.Groups[3].Value);
+                        g.y = Convert.ToDouble(m.Groups[4].Value);
                     }
                     else
-                    { //no location info for this channel, keep track on it in orphans; we'll assign them to locations at the bottom
-                        //after we know how big the display of channels with locations is
-                        displayChannel dc = new displayChannel();
-                        Graphlet1 g = new Graphlet1(trimChannelName(fis.ChannelNames(i - 1)), this);
-                        graphletList.Add(g);
-                        g.numberOfChannels = 1;
-                        dc.channel = i - 1;
-                        dc.graphs.Add(g);
-                        displayedChannels.Add(dc);
-                        orphans.Add(g); //Add to list of graphlets without locations = orphans
-                        nOrphans++;
+                    {
+                        g.x = -Convert.ToDouble(m.Groups[3].Value)
+                            * Math.Sin(Convert.ToDouble(m.Groups[4].Value) * degrad);
+                        g.y = Convert.ToDouble(m.Groups[3].Value)
+                            * Math.Cos(Convert.ToDouble(m.Groups[4].Value) * degrad);
                     }
+                    e.graphs.Add(g);
+                    maxx = Math.Max(maxx, g.x);
+                    maxy = Math.Max(maxy, g.y);
+                    minx = Math.Min(minx, g.x);
+                    miny = Math.Min(miny, g.y);
+                    //now measure distance from the other channels, to find least distance for scaling
+                    foreach(displayChannel dc in displayedChannels )
+                    {
+                        double x = Math.Abs(g.x - dc.graphs[0].x);
+                        double y = Math.Abs(g.y - dc.graphs[0].y);
+                        double d = Math.Sqrt(x * x + y * y);
+                        if (factor * d < dmin) //can't make it any smaller than this
+                        {
+                            double gamma = Math.Atan(x / y);
+                            gamma -= Math.PI * Math.Floor(2D * gamma / Math.PI) / 2D; //modulus 90 degrees
+                            dmin = Math.Min(d * (gamma <= alpha ? Math.Cos(gamma) : Math.Sin(gamma) / aspect), dmin);
+                        }
+                    }
+                    displayedChannels.Add(e);// and add current channel to list
+                }
+                else
+                { //no location info for this channel, keep track on it in orphans; we'll assign them to locations at the bottom
+                    //after we know how big the display of channels with locations is
+                    displayChannel dc = new displayChannel();
+                    Graphlet1 g = new Graphlet1(trimChannelName(fis.ChannelNames(i)), this);
+                    graphletList.Add(g);
+                    g.numberOfChannels = 1;
+                    dc.channel = i;
+                    dc.graphs.Add(g);
+                    displayedChannels.Add(dc);
+                    orphans.Add(g); //Add to list of graphlets without locations = orphans
+                    nOrphans++;
                 }
             }
-            else //superimposed channel sets; set up for assigned placement
+
+            //Now process superimposed channel sets; set up for assigned placement
+
+            for (int i = 1; i < setup.selectedChannels.Count; i++)
             {
-                for (int i = 0; i < setup.selectedChannels.setCount; i++)
+                Graphlet1 g = new Graphlet1("ChannelSet " + i.ToString("0"), this);
+                orphans.Add(g);
+                nOrphans++;
+                graphletList.Add(g);
+                channelList = setup.selectedChannels[i];
+                g.numberOfChannels = channelList.Count;
+                foreach (int channel in channelList)
                 {
-                    Graphlet1 g = new Graphlet1("ChannelSet " + (i + 1).ToString("0"), this);
-                    orphans.Add(g);
-                    graphletList.Add(g);
-                    channelList = setup.selectedChannels.getSet(i);
-                    g.numberOfChannels = channelList.Count;
-                    foreach (int channel in channelList)
-                    {
                         
-                        displayChannel dc;
-                        dc = displayedChannels.Find(chan => chan.channel.Equals(channel - 1));
-                        if (dc == null)
-                        {
-                            dc = new displayChannel();
-                            dc.channel = channel - 1;
-                            displayedChannels.Add(dc);
-                        }
-                        dc.graphs.Add(g);
+                    displayChannel dc;
+                    dc = displayedChannels.Find(chan => chan.channel.Equals(channel));
+                    if (dc == null)
+                    {
+                        dc = new displayChannel();
+                        dc.channel = channel;
+                        displayedChannels.Add(dc);
                     }
+                    dc.graphs.Add(g);
                 }
-                nOrphans = setup.selectedChannels.setCount;
             }
 
             // If you thought that was tricky, check this out!!!
             double xSize = 0D;
             double ySize = 0D;
             int nRowMax = nOrphans != 0 ? (int)Math.Truncate(Math.Sqrt(nOrphans - 1)) + 1 : 0; // make a nearly square array; = max number of graphlets in a row
-            if (!setup.selectedChannels.singleSet || nOrphans == channelList.Count) //set reference positions for case with NO channels with location data
+            if (!foundPositionChannel) //set reference positions for case with NO channels with location data (orphan-only case)
                 // this also includes the channel superimposition 
             {
                 nominalWidth = MainWindow.graphletSize * aspect;
@@ -286,11 +287,11 @@ namespace FMGraph2
             int[] nRow;
 
             // Now we run through the orphan list (list of included channels with no position data). and
-            //design a pattern for them to be displayed: 1) in a block, if there are no channels with 
+            //design a pattern for them to be displayed: 1) in a "near-square" block, if there are no channels with 
             //position data to be displayed or 2) in rows at below the channels with position data
             if (nOrphans != 0) //figure out where to place graphlets with no location information
             {
-                if (setup.selectedChannels.singleSet && nOrphans != channelList.Count) // then mixed case: don't increase width already calculated; nRowMax already calculated for only-orphan case
+                if (foundPositionChannel && nOrphans > 0) // then mixed case: don't increase width already calculated; nRowMax already calculated for only-orphan case
                     nRowMax = Math.Max((int)(xSize / (MainWindow.graphletSize * aspect)), nRowMax); // but we need to figure the maximum we can put in a row
                 nRows = (nOrphans - 1) / nRowMax + 1; // number of rows required
                 n = nOrphans / nRows; // min number in rows

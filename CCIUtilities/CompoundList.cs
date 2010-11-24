@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -9,90 +10,87 @@ namespace CCIUtilities
     public class CompoundList
     {
         List<List<int>> sets = new List<List<int>>();
-        int _setCount = 0;
-        public int setCount { get { return _setCount; } } //read-only
-        bool _singleSet = false;
-        public bool singleSet { get { return _singleSet; } } //read-only
+
+        public int Count { get { return sets.Count; } } //read-only
+        public int setCount { get { return sets.Count - 1; } } //read-only
+        public bool singleSet { get { return sets.Count == 1; } } //read-only
+
+        public ReadOnlyCollection<int> this[int index] { get { return sets[index].AsReadOnly(); } }
 
         public CompoundList(string s) : this(s, int.MinValue, int.MaxValue) { } //no value checking
 
         public CompoundList(string s, int maximum) : this(s, 0, maximum) { } //
 
-        public CompoundList(string s, int minimum, int maximum)
+        /// <summary>
+        /// Creates compound list of channels with both singletons and sets of channels;
+        /// maintains list of sets of integers, where entry 0 is list of singleton channels
+        /// </summary>
+        /// <param name="inputString">Input string to be parsed</param>
+        /// <param name="minimum">Minimum channel number, 1-based</param>
+        /// <param name="maximum">Maximum channel number, 1-based</param>
+        public CompoundList(string inputString, int minimum, int maximum)
         {
-            if (s == null || s == "") return;
-            List<string> setStrings = new List<string>();
-            Regex r;
-            if (s.StartsWith("{")) // expect multiple sets
+            if (inputString == null || inputString == "") return;
+            sets.Add(null); //dummy first entry for singletons
+            MatchCollection mc = Regex.Matches(inputString, @"\G((?<set>{[^}]+})|(?<list>[^{]+))(?<next>,|$)");
+            if (mc.Count == 0 || mc[mc.Count - 1].Groups["next"].Length > 0) //didn't reach end of input string
+                throw new Exception("Error in compound list");
+            List<int> list = new List<int>(); //singleton list
+            foreach (Match m in mc)
             {
-                Match setSplit;
-                string str = s;
-                r = new Regex(@"^{(?<set>.*?)}(,(?={)|$)"); //split into sets between curly brackets
-                while (str != "")
+                string str = m.Groups["set"].Value;
+                try
                 {
-                    setSplit = r.Match(str);
-                    if (setSplit.Success)
+                    if (str.Length > 0)
                     {
-                        setStrings.Add(setSplit.Groups["set"].Value);
-                        str = str.Substring(setSplit.Length);
+                        List<int> set = CCIUtilities.Utilities.parseChannelList(str.Substring(1, str.Length - 2), minimum, maximum, true);
+                        if (set.Count == 1)
+                            if (!list.Contains(set[0])) //check for singleton not included in singleton list
+                                list.Add(set[0]);
+                            else ;
+
+                        else
+                            sets.Add(set);
                     }
                     else
-                        throw new Exception("Parsing error in: \"" + s + "\" at character " + (s.Length - str.Length).ToString("0"));
+                    {
+                        str = m.Groups["list"].Value;
+                        if (str.Length > 0)
+                        {
+                            list = list.Union<int>(CCIUtilities.Utilities.parseChannelList(str, minimum, maximum, true)).ToList<int>();
+                        }
+                        else throw new Exception("Error in compound list");
+                    }
                 }
-            }
-            else //single set (no bracket)
-            {
-                setStrings.Add(s);
-                _singleSet = true;
-            }
-            foreach (string setString in setStrings)
-            {
-                List<int> l = Utilities.parseChannelList(setString, minimum, maximum, false);
-                if (l == null) throw new Exception("Null set not permitted");
-                sets.Add(l);
-                _setCount = setStrings.Count;
+                catch (Exception exc)
+                {
+                    throw exc;
+                }
+                list.Sort();
+                sets[0] = list;
             }
         }
 
-        public CompoundList(int nChannels)
+        /// <summary>
+        /// Creates CompoundList consisting of nChannels of singletons
+        /// </summary>
+        /// <param name="nChannels">Number of channels</param>
+        /// <param name="zeroBased">Create 0-based channel numbers if true; 1-based if false</param>
+        public CompoundList(int nChannels, bool zeroBased)
         {
             List<int> list = new List<int>(nChannels);
-            for (int i = 1; i <= nChannels; i++)
-                list.Add(i);
+            for (int i = 0; i < nChannels; i++)
+                list.Add(zeroBased ? i : i - 1);
             sets.Add(list);
-            _setCount = 1;
-            _singleSet = true;
-        }
-
-        public int getValue(int set, int i)
-        {
-            if (set < 0 || set >= _setCount) return -1;
-            if (i < 0 || i >= sets[set].Count) return -1;
-            return sets[set][i];
-        }
-
-        public ReadOnlyCollection<int> getSet(int set)
-        {
-            if (set < 0 || set >= _setCount) return null;
-            return sets[set].AsReadOnly();
         }
 
         public override string ToString()
         {
-            StringBuilder sb = new StringBuilder();
             string nl = Environment.NewLine;
-            bool n = false;
-            int nset = 0;
-            foreach (List<int> list in sets)
+            StringBuilder sb = new StringBuilder("Singletons: " + Utilities.intListToString(sets[0], true) + nl);
+            for (int i = 1; i < sets.Count; i++)
             {
-                sb.Append((n ? nl : "") + "Set " + (++nset).ToString("0") + ": ");
-                n = true;
-                bool comma = false;
-                foreach (int i in list)
-                {
-                    sb.Append((comma ? "," : "") + i.ToString("0"));
-                    comma = true;
-                }
+                sb.Append("ChannelSet " + i.ToString("0") + ": " + Utilities.intListToString(sets[i], true) + nl);
             }
             return sb.ToString();
         }

@@ -87,7 +87,7 @@
                         <RadioButton Name="channelYMax" Margin="10,4,0,4" GroupName="YScaling">Scale to each channel's overall maximum</RadioButton>
                         <StackPanel Orientation="Horizontal">
                             <RadioButton Name="allYMax" Margin="10,4,0,4" Checked="click_Check" Unchecked="click_Check" GroupName="YScaling">Scale to fixed maximum for all channels =</RadioButton>
-                            <TextBox Name="allYMaxValue" Width="120" Height="20" Margin="8,4,0,4" IsEnabled="{Binding ElementName=allYMax, Path=IsChecked}" TextChanged="allYMaxValue_TextChanged" Padding="0" />
+                            <TextBox Name="allYMaxValue" Width="130" Height="20" Margin="4,4,0,4" IsEnabled="{Binding ElementName=allYMax, Path=IsChecked}" TextChanged="allYMaxValue_TextChanged" Padding="0" />
                         </StackPanel>
                     </StackPanel>
                 </GroupBox>
@@ -97,8 +97,8 @@
             <StackPanel Orientation="Vertical">
                 <CheckBox Name="AllChannels" IsChecked="True" Margin="15,8,0,4" Checked="AllChannels_Checked" Unchecked="AllChannels_Unchecked">All channels</CheckBox>
                 <StackPanel Orientation="Horizontal">
-                    <TextBox Name="ChannelList" Margin="15,4,4,8" Width="370" IsEnabled="False" VerticalContentAlignment="Center" TextChanged="ChannelList_TextChanged" />
-                    <TextBox Name="SelectedChannels" Margin="4,4,4,8" Width="100" IsEnabled="True" VerticalContentAlignment="Center" IsReadOnly="True"/>
+                    <TextBox Name="ChannelList" Margin="15,4,4,8" Width="270" IsEnabled="False" VerticalContentAlignment="Center" TextChanged="ChannelList_TextChanged" />
+                    <TextBox Name="SelectedChannels" Margin="4,4,4,8" Width="200" IsEnabled="True" VerticalContentAlignment="Center" IsReadOnly="True"/>
                 </StackPanel>
             </StackPanel>
         </GroupBox>

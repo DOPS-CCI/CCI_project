@@ -50,7 +50,7 @@ namespace FMGraph2
         {
             if((bool)AllChannels.IsChecked)
             {
-                selectedChannels = new CompoundList(fm.NC);
+                selectedChannels = new CompoundList(fm.NC, true);
             }
             CCIUtilities.Log.writeToLog("FMGraph2 creating Multigraph based on " + FMFileName);
             gp.TC.SelectedIndex = gp.TC.Items.Add(new Multigraph(this));
@@ -105,29 +105,33 @@ namespace FMGraph2
 
         private void writeChans()
         {
-            if (selectedChannels == null || selectedChannels.setCount == 0)
+            if (selectedChannels == null || selectedChannels.setCount == 0 && selectedChannels[0] == null)
             {
                 SelectedChannels.Foreground = Brushes.Red;
                 SelectedChannels.Text = "Error";
                 return;
             }
             SelectedChannels.Foreground = Brushes.Black;
-            if (selectedChannels.singleSet)
+            StringBuilder sb = new StringBuilder();
+            bool singles = false;
+            if (selectedChannels[0] != null)
             {
-                int l = selectedChannels.getSet(0).Count;
+                int l = selectedChannels[0].Count;
+                singles = l > 0;
                 if (l == 1)
                 {
-                    string s = fm.ChannelNames(selectedChannels.getValue(0, 0) - 1);
-                    SelectedChannels.Text = s.Substring(0, s.Length < 16 ? s.Length : 16).TrimEnd(' ');
+                    string s = fm.ChannelNames(selectedChannels[0][0]);
+                    sb.Append(s.Substring(0, s.Length < 16 ? s.Length : 16).TrimEnd(' '));
                 }
-                else
-                    SelectedChannels.Text = l.ToString("0") + " channels";
+                else if(l > 1)
+                    sb.Append(l.ToString("0") + " channels");
             }
-            else
+            if (selectedChannels.setCount > 0)
             {
-                SelectedChannels.Text = selectedChannels.setCount.ToString("0") + " channel set" +
-                    (selectedChannels.setCount == 1 ? "" : "s");
+                sb.Append((singles ? " + " : "") + selectedChannels.setCount.ToString("0") + " channelSet" +
+                    (selectedChannels.setCount == 1 ? "" : "s"));
             }
+            SelectedChannels.Text = sb.ToString();
         }
 
         private void ChannelList_TextChanged(object sender, TextChangedEventArgs e)
