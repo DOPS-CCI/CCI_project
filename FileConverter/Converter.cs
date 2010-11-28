@@ -24,11 +24,9 @@ namespace FileConverter
         public int radinHigh;
         public bool anc = false;
         public List<int> channels;
-//        public List<int> referenceChannels = null;
         public List<List<int>> referenceGroups = null;
         public List<List<int>> referenceChannels = null;
         public BDFFileReader BDF;
-//        public bool recordReference = false;
         public bool equalStatusOnly;
         public int maxSearch;
         public bool continuousSearch;
@@ -255,6 +253,7 @@ namespace FileConverter
         private int _recSize;
         private int _rec;
         private int _pt;
+        private double _sec = 1D;
 
         public int Rec
         {
@@ -282,6 +281,14 @@ namespace FileConverter
             }
         }
 
+        public statusPt(BDFFileReader bdf)
+        {
+            _rec = 0;
+            _pt = 0;
+            _recSize = bdf.NSamp;
+            _sec = (double)bdf.RecordDuration;
+        }
+
         public statusPt(int recordSize)
         {
             _rec = 0;
@@ -294,6 +301,7 @@ namespace FileConverter
             this._rec = pt._rec;
             this._pt = pt._pt;
             this._recSize = pt._recSize;
+            this._sec = pt._sec;
         }
 
         public static statusPt operator +(statusPt pt, int pts) //adds pts points to current location stp
@@ -324,7 +332,7 @@ namespace FileConverter
 
         public double ToSecs()
         {
-            return (double)this._rec + (double)this._pt / (double)_recSize; //this is only correct for 1 second records
+            return (double)this._rec + ((double)this._pt / (double)_recSize) * _sec;
         }
 
         public override string ToString()

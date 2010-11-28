@@ -93,14 +93,14 @@ namespace FileConverter
                 new FileStream(Path.Combine(directory, eventHeader.EventFile), FileMode.Open, FileAccess.Read));
             mask = (1 << eventHeader.Status) - 1;
 
-            statusPt stp = new statusPt(BDF.NSamp);
-            statusPt lastEvent = new statusPt(BDF.NSamp);
+            statusPt stp = new statusPt(BDF);
+            statusPt lastEvent = new statusPt(BDF);
             if (!EDE.intrinsic) //set threshold
                 if (risingEdge) threshold = EDE.channelMin + (EDE.channelMax - EDE.channelMin) * threshold;
                 else threshold = EDE.channelMax - (EDE.channelMax - EDE.channelMin) * threshold;
 
-            nominalT = new statusPt(BDF.NSamp); //nominal Event time based on Event.Time
-            actualT = new statusPt(BDF.NSamp); //actual Event time in Status channel
+            nominalT = new statusPt(BDF); //nominal Event time based on Event.Time
+            actualT = new statusPt(BDF); //actual Event time in Status channel
             //Note: these should be the same if the two clocks run the same rate (DAQ and computer)
             /***** MAIN LOOP *****/
             foreach (InputEvent ie in EventFR) //Loop through Event file
