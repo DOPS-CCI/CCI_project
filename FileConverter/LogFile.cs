@@ -23,6 +23,9 @@ namespace FileConverter
             logStream = XmlWriter.Create(fileName, settings);
             logStream.WriteStartDocument();
             logStream.WriteStartElement("LogEntries");
+            DateTime dt = DateTime.Now;
+            logStream.WriteElementString("Date", dt.ToString("D"));
+            logStream.WriteElementString("Time", dt.ToString("T"));
         }
 
         public void registerHeader(Converter c)
@@ -40,6 +43,9 @@ namespace FileConverter
                 recordLength = (double)((BDFConverter)c).length;
             }
             logStream.WriteStartElement("Conversion");
+            logStream.WriteElementString("Computer", Environment.MachineName);
+            logStream.WriteElementString("User", Environment.UserName);
+            logStream.WriteElementString("Source", c.directory);
             logStream.WriteAttributeString("Type", conversionType);
             logStream.WriteStartElement("Event");
             logStream.WriteAttributeString("Name", c.EDE.Name);
