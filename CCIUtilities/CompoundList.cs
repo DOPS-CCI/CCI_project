@@ -14,6 +14,7 @@ namespace CCIUtilities
         public int Count { get { return sets.Count; } } //read-only
         public int setCount { get { return sets.Count - 1; } } //read-only
         public bool singleSet { get { return sets.Count == 1; } } //read-only
+        public bool isEmpty { get { return sets.Count == 0 || (sets.Count == 1 && (sets[0] == null || sets[0].Count == 0)); } }
 
         public ReadOnlyCollection<int> this[int index] { get { return sets[index].AsReadOnly(); } }
 
@@ -30,8 +31,8 @@ namespace CCIUtilities
         /// <param name="maximum">Maximum channel number, 1-based</param>
         public CompoundList(string inputString, int minimum, int maximum)
         {
+            sets.Add(null); //dummy first entry for singletons; assures at least one entry in sets
             if (inputString == null || inputString == "") return;
-            sets.Add(null); //dummy first entry for singletons
             MatchCollection mc = Regex.Matches(inputString, @"\G((?<set>{[^}]+})|(?<list>[^{]+))(?<next>,|$)");
             if (mc.Count == 0 || mc[mc.Count - 1].Groups["next"].Length > 0) //didn't reach end of input string
                 throw new Exception("Error in compound list");
