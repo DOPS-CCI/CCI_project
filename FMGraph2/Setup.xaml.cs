@@ -38,11 +38,11 @@ namespace FMGraph2
         {
             this.gp = mw;
             InitializeComponent();
-
         }
 
         private void Cancel_Click(object sender, RoutedEventArgs e)
         {
+            gp.Close();
             Environment.Exit(0);
         }
 
@@ -92,7 +92,8 @@ namespace FMGraph2
 
             if (fm == null) { Go.IsEnabled = false; return; };
 
-            if (!(bool)AllChannels.IsChecked && (selectedChannels == null || selectedChannels.setCount == 0)) { Go.IsEnabled = false; return; }
+            if (!(bool)AllChannels.IsChecked && (selectedChannels == null || selectedChannels.isEmpty)) { //
+              Go.IsEnabled = false; return; }
 
             if (Points.Text == "Error") { Go.IsEnabled = false; return; }
 
@@ -105,7 +106,7 @@ namespace FMGraph2
 
         private void writeChans()
         {
-            if (selectedChannels == null || selectedChannels.setCount == 0 && selectedChannels[0] == null)
+            if (selectedChannels == null || selectedChannels.isEmpty)
             {
                 SelectedChannels.Foreground = Brushes.Red;
                 SelectedChannels.Text = "Error";

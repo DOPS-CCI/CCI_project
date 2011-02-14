@@ -1,4 +1,5 @@
-﻿using System.Windows;
+﻿using System.Reflection;
+using System.Windows;
 using CCIUtilities;
 
 namespace FMGraph2
@@ -21,7 +22,8 @@ namespace FMGraph2
 
         public MainWindow()
         {
-            CCIUtilities.Log.writeToLog("Starting FMGraph2");
+            string version = Assembly.GetExecutingAssembly().GetName().Version.ToString();
+            CCIUtilities.Log.writeToLog("Starting FMGraph2 " + version);
             InitializeComponent();
             setup = new Setup(this);
             TC.Items.Add(setup);
