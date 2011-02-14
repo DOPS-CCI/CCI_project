@@ -43,10 +43,10 @@ namespace FileConverter
                 recordLength = (double)((BDFConverter)c).length;
             }
             logStream.WriteStartElement("Conversion");
+            logStream.WriteAttributeString("Type", conversionType);
             logStream.WriteElementString("Computer", Environment.MachineName);
             logStream.WriteElementString("User", Environment.UserName);
             logStream.WriteElementString("Source", c.directory);
-            logStream.WriteAttributeString("Type", conversionType);
             logStream.WriteStartElement("Event");
             logStream.WriteAttributeString("Name", c.EDE.Name);
             logStream.WriteElementString("Type", c.EDE.intrinsic ? "intrinsic" : "extrinsic");

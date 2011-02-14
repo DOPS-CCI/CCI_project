@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
@@ -53,14 +54,14 @@ namespace FileConverter
 
         public Window2()
         {
-            CCIUtilities.Log.writeToLog("FILMANConverter starting");
+            CCIUtilities.Log.writeToLog("Starting FileConverter " + Assembly.GetExecutingAssembly().GetName().Version.ToString());
 
             OpenFileDialog dlg = new OpenFileDialog();
             dlg.Title = "Open Header file ...";
             dlg.DefaultExt = ".hdr"; // Default file extension
             dlg.Filter = "HDR Files (.hdr)|*.hdr"; // Filter files by extension
             Nullable<bool> result = dlg.ShowDialog();
-            if (result == false) Environment.Exit(0);
+            if (result == null || result == false) { this.Close(); Environment.Exit(0); }
 
             directory = System.IO.Path.GetDirectoryName(dlg.FileName);
 
@@ -116,10 +117,6 @@ namespace FileConverter
             checkError(); // check in case ExtRow visibility changed -- masking or unmasking an error!
         }
 
-        private void Window_Loaded(object sender, RoutedEventArgs e)
-        {
-        }
-
         public event PropertyChangedEventHandler PropertyChanged;
 
         private void NotifyPropertyChanged(String info)
@@ -142,6 +139,7 @@ namespace FileConverter
 
         private void Cancel_Click(object sender, RoutedEventArgs e)
         {
+            this.Close();
             Environment.Exit(0);
         }
 
@@ -549,7 +547,7 @@ namespace FileConverter
 
         private void Window_Closed(object sender, EventArgs e)
         {
-            CCIUtilities.Log.writeToLog("FILMANConverter ending");
+            CCIUtilities.Log.writeToLog("FileConverter ending");
             bdf.Close();
         }
 
