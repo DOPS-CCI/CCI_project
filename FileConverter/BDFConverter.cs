@@ -140,7 +140,8 @@ namespace FileConverter
             int k;
             int p = 0;
             double[] buff = new double[BDF.NumberOfChannels-1];
-            double[] references = new double[referenceChannels.Count];
+            double[] references = null;
+            if (referenceChannels != null) references = new double[referenceChannels.Count];
             for (int rec = lastEventLocation.Rec; rec <= nextEventLocation.Rec; rec++)
             {
                 if (BDF.read(rec) == null) return; // only happen on last call to fill out record
