@@ -330,6 +330,13 @@ namespace FileConverter
             return pt;
         }
 
+        public bool lessThan(statusPt pt)
+        {
+            if (this._rec < pt._rec) return true;
+            if (this._rec == pt._rec && this._pt < pt._pt) return true;
+            return false;
+        }
+
         public double ToSecs()
         {
             return (double)this._rec + ((double)this._pt / (double)_recSize) * _sec;

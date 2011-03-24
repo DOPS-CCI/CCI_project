@@ -112,7 +112,7 @@ namespace FileConverter
                     if(findEvent(ref stp, ie))
                         if (allSamps) //this is a continuous copy, not Event generated episodic conversion
                         {
-                            runBDFtoEvent(lastEvent, stp, ie);
+                            runBDFtoEvent(lastEvent, ref stp, ie);
                             lastEvent = new statusPt(stp);
                         }
                         else createBDFRecord(stp, ie); //Create BDF recordset around this point; i.e. Event generated episodic conversion
@@ -122,7 +122,7 @@ namespace FileConverter
             {
                 stp.Rec = BDF.NumberOfRecords;
                 stp.Pt = 0;
-                runBDFtoEvent(lastEvent, stp, null);
+                runBDFtoEvent(lastEvent, ref stp, null);
             }
             e.Result = new int[] { BDFWriter.NumberOfRecords, BDFWriter.NumberOfRecords };
             BDFWriter.Close();
@@ -130,11 +130,11 @@ namespace FileConverter
             log.Close();
         }
 
-        private void runBDFtoEvent(statusPt lastEventLocation, statusPt nextEventLocation, InputEvent evt)
+        private void runBDFtoEvent(statusPt lastEventLocation, ref statusPt nextEventLocation, InputEvent evt)
         {
             nextEventLocation += decimation - 1; //correct location so we know where to stop; warning: it's tricky!
             nextEventLocation.Pt /= decimation; //location should be next after actual Event to keep decimation on track
-            nextEventLocation.Pt *= decimation;
+            nextEventLocation.Pt *= decimation; //this also works because decimation must be a factor of the record length
             int pt = lastEventLocation.Pt / decimation;
             int j = lastEventLocation.Pt;
             int k;
