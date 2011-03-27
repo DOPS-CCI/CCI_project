@@ -361,7 +361,7 @@ namespace FILMANFileStream
 
         public IEnumerator<double> GetEnumerator()
         {
-            for (int i = 0; i < 500; i++)
+            for (int i = 0; i < _nd; i++)
                 yield return this[i];
         }
 
