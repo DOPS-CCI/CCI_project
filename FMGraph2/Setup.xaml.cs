@@ -219,7 +219,6 @@ namespace FMGraph2
                     s.Append(Environment.NewLine + str);
             }
             this.HeaderInfo.Text = s.ToString();
-            double test = fmr[1];
             double graphletMax = fmr.Max();
             double graphletMin = fmr.Min();
             if (graphletMin >= 0D || graphletMin > -graphletMax * 0.01D) { Pos.IsChecked = true; F.IsChecked = true; }
