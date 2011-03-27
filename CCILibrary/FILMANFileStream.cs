@@ -327,12 +327,18 @@ namespace FILMANFileStream
         }
     }
 
-    public class FILMANRecord
+    public abstract class FILMANRecord: IEnumerable<double>
     {
         public int[] GV;
         public int[] ancillary;
+        int _nd;
+        public abstract double this[int index]
+        {
+            get;
+            set;
+        }
 
-        protected FILMANRecord( int ng, int na)
+        protected FILMANRecord( int ng, int na, int nd)
         {
             GV = new int[ng];
             if (na != 0) ancillary = new int[na];
@@ -352,19 +358,36 @@ namespace FILMANFileStream
             for (int i = 0; i < ancillary.Length; i++)
                 ancillary[i] = br.ReadInt32();
         }
+
+        public IEnumerator<double> GetEnumerator()
+        {
+            for (int i = 0; i < 500; i++)
+                yield return this[i];
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return GetEnumerator();
+        }
     }
 
     public class FILMANRecordInt : FILMANRecord
     {
-        public int[] data;
+        private int[] data;
+        public override double this[int index]
+        {
+            get { return (double)data[index]; }
+            set { data[index] = (int)Math.Round(value); }
+        }
 
         public FILMANRecordInt(int ng, int na, int nd)
-            : base(ng, na)
+            : base(ng, na, nd)
         {
             data = new int[nd];
         }
 
-        public FILMANRecordInt(FILMANInputStream fis): base(fis.NG,fis.NA)
+        public FILMANRecordInt(FILMANInputStream fis)
+            : base(fis.NG, fis.NA, fis.ND)
         {
             data = new int[fis.ND];
         }
@@ -384,15 +407,21 @@ namespace FILMANFileStream
 
     public class FILMANRecordInt16 : FILMANRecord
     {
-        public short[] data;
+        private short[] data;
+        public override double this[int index]
+        {
+            get { return (double)data[index]; }
+            set { data[index] = (short)Math.Round(value); }
+        }
 
         public FILMANRecordInt16(int ng, int na, int nd)
-            : base(ng, na)
+            : base(ng, na, nd)
         {
             data = new short[nd];
         }
 
-        public FILMANRecordInt16(FILMANInputStream fis): base(fis.NG,fis.NA)
+        public FILMANRecordInt16(FILMANInputStream fis)
+            : base(fis.NG, fis.NA, fis.ND)
         {
             data = new short[fis.ND];
         }
@@ -412,15 +441,22 @@ namespace FILMANFileStream
 
     public class FILMANRecordFloat : FILMANRecord
     {
-        public float[] data;
+        private float[] data;
+        public override double this[int index]
+        {
+            get { return (double)data[index]; }
+            set { data[index] = (float)value; }
+        }
+
 
         public FILMANRecordFloat(int ng, int na, int nd)
-            : base(ng, na)
+            : base(ng, na, nd)
         {
             data = new float[nd];
         }
 
-        public FILMANRecordFloat(FILMANInputStream fis): base(fis.NG,fis.NA)
+        public FILMANRecordFloat(FILMANInputStream fis)
+            : base(fis.NG, fis.NA, fis.ND)
         {
             data = new float[fis.ND];
         }
@@ -440,15 +476,22 @@ namespace FILMANFileStream
 
     public class FILMANRecordDouble : FILMANRecord
     {
-        public double[] data;
+        private double[] data;
+        public override double this[int index]
+        {
+            get { return data[index]; }
+            set { data[index] = value; }
+        }
+
 
         public FILMANRecordDouble(int ng, int na, int nd)
-            : base(ng, na)
+            : base(ng, na, nd)
         {
             data = new double[nd];
         }
 
-        public FILMANRecordDouble(FILMANInputStream fis): base(fis.NG,fis.NA)
+        public FILMANRecordDouble(FILMANInputStream fis)
+            : base(fis.NG, fis.NA, fis.ND)
         {
             data = new double[fis.ND];
         }
@@ -468,15 +511,22 @@ namespace FILMANFileStream
 
     public class FILMANRecordComplex : FILMANRecord
     {
-        public Complex[] data;
+        private Complex[] data;
+        public override double this[int index] //Incomplete implementation!! Indexer only returns/sets a double
+        {
+            get { return data[index].modulus; }
+            set { data[index].R = (float)value; }
+        }
+
 
         public FILMANRecordComplex(int ng, int na, int nd)
-            : base(ng, na)
+            : base(ng, na, nd)
         {
             data = new Complex[nd];
         }
 
-        public FILMANRecordComplex(FILMANInputStream fis): base(fis.NG,fis.NA)
+        public FILMANRecordComplex(FILMANInputStream fis)
+            : base(fis.NG, fis.NA, fis.ND)
         {
             data = new Complex[fis.ND];
         }
@@ -504,15 +554,22 @@ namespace FILMANFileStream
 
     public class FILMANRecordDComplex : FILMANRecord
     {
-        public DComplex[] data;
+        private DComplex[] data;
+        public override double this[int index] //Incomplete implementation!! Indexer only returns/sets a double
+        {
+            get { return data[index].modulus; }
+            set { data[index].R = value; }
+        }
+
 
         public FILMANRecordDComplex(int ng, int na, int nd)
-            : base(ng, na)
+            : base(ng, na, nd)
         {
             data = new DComplex[nd];
         }
 
-        public FILMANRecordDComplex(FILMANInputStream fis): base(fis.NG,fis.NA)
+        public FILMANRecordDComplex(FILMANInputStream fis)
+            : base(fis.NG, fis.NA, fis.ND)
         {
             data = new DComplex[fis.ND];
         }
@@ -550,6 +607,11 @@ namespace FILMANFileStream
         /// <param name="i">Imaginary part</param>
         public Complex(float r, float i) { R = r; I = i; }
 
+        public double modulus
+        {
+            get { return Math.Sqrt(R * R + I + I); }
+        }
+
         public new string ToString()
         {
             return R.ToString() + "+" + I.ToString() + "I";
@@ -572,6 +634,11 @@ namespace FILMANFileStream
         /// <param name="r">Real part</param>
         /// <param name="i">Imaginary part</param>
         public DComplex(double r, double i) { R = r; I = i; }
+
+        public double modulus
+        {
+            get { return Math.Sqrt(R * R + I * I); }
+        }
 
         public new string ToString()
         {
