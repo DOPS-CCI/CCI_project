@@ -9,9 +9,9 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Media;
-using FILMANFileStream;
 using Microsoft.Win32;
 using CCIUtilities;
+using FILMANFileStream;
 
 namespace FMGraph2
 {
@@ -195,7 +195,7 @@ namespace FMGraph2
                     "FILMAN error", MessageBoxButton.OK, MessageBoxImage.Error);
                 return;
             }
-            FILMANRecordFloat fmr = (FILMANRecordFloat)fmTemp.read();
+            FILMANRecord fmr = fmTemp.read(); //Test read the first record to make sure there is at least one there
             if (fmr == null)
             {
                 MessageBox.Show("No records in FILMAN file " + ofd.FileName, "FILMAN error", MessageBoxButton.OK, MessageBoxImage.Error);
@@ -219,8 +219,9 @@ namespace FMGraph2
                     s.Append(Environment.NewLine + str);
             }
             this.HeaderInfo.Text = s.ToString();
-            double graphletMax = fmr.data.Max();
-            double graphletMin = fmr.data.Min();
+            double test = fmr[1];
+            double graphletMax = fmr.Max();
+            double graphletMin = fmr.Min();
             if (graphletMin >= 0D || graphletMin > -graphletMax * 0.01D) { Pos.IsChecked = true; F.IsChecked = true; }
             else { PosNeg.IsChecked = true; T.IsChecked = true; }
             DecimationBox.Text = "1";

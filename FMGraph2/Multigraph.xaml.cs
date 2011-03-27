@@ -149,7 +149,7 @@ namespace FMGraph2
 
             try
             {
-                FILMANRecordFloat FMrecord = (FILMANRecordFloat)fis.read(); // Read sample record
+                FILMANRecord FMrecord = fis.read(); // Read sample record
             }
             catch (Exception e)
             {
@@ -441,13 +441,13 @@ namespace FMGraph2
             if (record < 0 || record >= fis.NR / fis.NC) return;
             RecSet = record; //update displayed record number
             if (recordList.Contains(record)) return; // note: even if record already displayed, we should count through it
-            FILMANRecordFloat FMrecord = null; // to trick compiler
+            FILMANRecord FMrecord = null; // to trick compiler
             bool individual = (bool)nc.Individual.IsChecked;
             gvList = new GVList(); //created here so that the Graphlets can point at it **
             foreach (Graphlet1 g in graphletList) g.first = true;
             foreach(displayChannel dc in displayedChannels)
             {
-                FMrecord = (FILMANRecordFloat)fis.read(record, dc.channel); // get new FILMAN record
+                FMrecord = fis.read(record, dc.channel); // get new FILMAN record
                 if (FMrecord == null) return; //EOF -- premature
 
                 double min = double.PositiveInfinity;
@@ -456,7 +456,7 @@ namespace FMGraph2
                 int last = useAllYMax ? fis.ND : xStop;
                 for (int i = first; i < last; i++)
                 {
-                    double x = FMrecord.data[i];
+                    double x = FMrecord[i];
                     double x1 = pt(x);
                     min = x1 < min ? x1 : min;
                     max = x1 > max ? x1 : max;
@@ -474,7 +474,7 @@ namespace FMGraph2
 
                     //now graph the points for this channel
                     for (int j = xStart; j < xStop; j += decimation)
-                        g.plotPoint((double)(j - xStart), pt(FMrecord.data[j]));
+                        g.plotPoint((double)(j - xStart), pt(FMrecord[j]));
                     g.closePoints();
                 }
             }
