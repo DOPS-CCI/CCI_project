@@ -78,10 +78,12 @@ namespace FileConverter
             string p;
             if (c.radinOffset)
                 p = "Radin: " + c.radinLow.ToString("0") + " to " + c.radinHigh.ToString("0") + "pts";
-            else if (c.removeOffsets)
+            else
+            {
+                p = "None";
                 if (c.removeTrends) p = "Offset and linear trend removal";
-                else p = "Offset removal";
-            else p = "None";
+                else if (c.removeOffsets) p = "Offset removal";
+            }
             logStream.WriteString(p);
             logStream.WriteEndElement(/* Processing */);
             logStream.WriteEndElement(/* Record */);
