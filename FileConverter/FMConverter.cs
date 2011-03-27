@@ -125,7 +125,7 @@ namespace FileConverter
 
             nominalT = new statusPt(BDF); //nominal Event time based on Event.Time
             actualT = new statusPt(BDF); //actual Event time in Status channel
-            //Note: these should be the same if the two clocks run the same rate (DAQ and computer)
+            //Note: these should be the same if the two clocks run the same rate (BioSemi DAQ and computer)
             /***** MAIN LOOP *****/
             foreach (InputEvent ie in EventFR) //Loop through Event file
             {
@@ -222,8 +222,8 @@ namespace FileConverter
                     for (int i = 0; i < FMStream.ND; i++) beta += (bigBuff[channel, i] - ave) * ((double)i - t);
                     beta = 12.0D * beta / fn;
                 }
-                for (int i = 0; i < FMStream.ND; i++) ((FILMANRecordFloat)(FMStream.record)).data[i] =
-                    bigBuff[channel, i] - (float)(ave + beta * ((double)i - t));
+                for (int i = 0; i < FMStream.ND; i++)
+                    FMStream.record[i] = (double)bigBuff[channel, i] - (ave + beta * ((double)i - t));
                 FMStream.write(); //Channel number group variable taken care of here
             }
         }
