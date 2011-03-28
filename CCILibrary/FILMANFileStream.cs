@@ -342,6 +342,7 @@ namespace FILMANFileStream
         {
             GV = new int[ng];
             if (na != 0) ancillary = new int[na];
+            _nd = nd;
         }
 
         internal virtual void write(BinaryWriter bw)
