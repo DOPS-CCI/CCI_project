@@ -120,6 +120,7 @@ namespace FMGraph2
             p.Stroke = Brushes.Black;
             p.StrokeThickness = strokeThickness;
             p.StrokeLineJoin = PenLineJoin.Round;
+            p.SnapsToDevicePixels = false;
             p.Data = points;
             gCanvas.Children.Add(p);
             Plot pl = new Plot();
@@ -173,7 +174,7 @@ namespace FMGraph2
         {
             double range = mg.xMax - mg.xMin;
             double inc;
-            if (range >= 21D)
+            if (range > 20D)
             {
                 int m = (int)Math.Truncate(range + 0.5);
                 if (((m >> 3) << 3) == m) inc = (double)(m >> 3);

@@ -23,8 +23,8 @@ namespace FMGraph2
     {
         internal class displayChannel
         {
-            internal int channel;
-            internal List<Graphlet1> graphs = new List<Graphlet1>(1);
+            internal int channel; //channel number in FILMAN file
+            internal List<Graphlet1> graphs = new List<Graphlet1>(1); //list of Graphlets this channel is displayed in
         }
 
         internal List<displayChannel> displayedChannels = new List<displayChannel>();
@@ -141,7 +141,7 @@ namespace FMGraph2
                 typeXAxis = XType.Freq;
                 xMin = setup._fmin;
                 xMax = setup._fmax;
-                finalXScale = (double)fis.IS / (double)fis.ND; //Hz/pt
+                finalXScale = (double)fis.IS / (double)(fis.ND - 1); //Hz/pt
             }
             xStart = (int)(xMin / finalXScale - 1D) + 1; //First point >= xMin; in sample scale
             xStop = (int)(xMax / finalXScale - 1D) + 1; //Last point >= xMax ; in sample scale
@@ -456,10 +456,9 @@ namespace FMGraph2
                 int last = useAllYMax ? fis.ND : xStop;
                 for (int i = first; i < last; i++)
                 {
-                    double x = FMrecord[i];
-                    double x1 = pt(x);
-                    min = x1 < min ? x1 : min;
-                    max = x1 > max ? x1 : max;
+                    double x = pt(FMrecord[i]);
+                    min = x < min ? x : min;
+                    max = x > max ? x : max;
                 }
 
                 foreach (Graphlet1 g in dc.graphs)
