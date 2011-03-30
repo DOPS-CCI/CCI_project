@@ -27,6 +27,10 @@ namespace FMGraph2
             mg = m;
             InitializeComponent();
             DataContext = mg;
+            this.LocateChannel.Items.Add("None"); //Initialize channel locator list
+            foreach (Multigraph.displayChannel dc in mg.displayedChannels)
+                this.LocateChannel.Items.Add(mg.fis.ChannelNames(dc.channel));
+            this.LocateChannel.SelectedIndex = 0;
         }
 
         private void ShowHide_Click(object sender, RoutedEventArgs e)
@@ -88,5 +92,28 @@ namespace FMGraph2
         {
             mg.clearToOne();
         }
+
+        private void LocateChannel_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            Multigraph.displayChannel dc;
+            ComboBox cb = (ComboBox)sender;
+            string channelName = (string)e.AddedItems[0];
+            if (mg.locatedChannel != -1) //remove any previously marked channel instances
+            {
+                dc = mg.displayedChannels.Find(c => c.channel == mg.locatedChannel);
+                foreach (Graphlet1 g in dc.graphs)
+                    foreach (Plot p in g.plots)
+                        if (p.channel == mg.locatedChannel) { p.path.Stroke = Brushes.Black; p.path.StrokeThickness = Graphlet1.strokeThickness; }
+                mg.locatedChannel = -1;
+            }
+            if (channelName == "None") return;
+            dc = mg.displayedChannels.Find(c => mg.fis.ChannelNames(c.channel) == channelName); //Now mark all instances of this channel
+            mg.locatedChannel = dc.channel;
+            foreach (Graphlet1 g in dc.graphs)
+                foreach (Plot p in g.plots)
+                    if (p.channel == mg.locatedChannel) { p.path.Stroke = Brushes.Red; p.path.StrokeThickness = 2D * Graphlet1.strokeThickness; }
+            return;
+        }
+
     }
 }

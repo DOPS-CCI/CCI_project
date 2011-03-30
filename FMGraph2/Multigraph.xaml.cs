@@ -21,10 +21,15 @@ namespace FMGraph2
     /// </summary>
     public partial class Multigraph : TabItem, INotifyPropertyChanged
     {
-        internal class displayChannel
+        internal class displayChannel:IComparer<displayChannel>
         {
             internal int channel; //channel number in FILMAN file
             internal List<Graphlet1> graphs = new List<Graphlet1>(1); //list of Graphlets this channel is displayed in
+
+            public int Compare(displayChannel x, displayChannel y)
+            {
+                return x.channel - y.channel;
+            }
         }
 
         internal List<displayChannel> displayedChannels = new List<displayChannel>();
@@ -80,6 +85,7 @@ namespace FMGraph2
         internal double xMax;
         int xStart;
         int xStop;
+        public int locatedChannel = -1; // This is the FM channel that is currently "located" == displayed in red
 
         public string recListString //1-based as it's for display
         {
@@ -319,6 +325,8 @@ namespace FMGraph2
                 }
             }
 
+            displayedChannels.Sort(new Comparison<displayChannel>(
+                delegate(displayChannel a, displayChannel b) { return a.channel - b.channel; })); //Sort channel list for Locator
             InitializeComponent();
             this.DataContext = this;
             nc = new NavigationControl(this);
@@ -474,7 +482,7 @@ namespace FMGraph2
                     //now graph the points for this channel
                     for (int j = xStart; j < xStop; j += decimation)
                         g.plotPoint((double)(j - xStart), pt(FMrecord[j]));
-                    g.closePoints();
+                    g.closePoints(dc.channel);
                 }
             }
             if (individual) recordList.Clear();

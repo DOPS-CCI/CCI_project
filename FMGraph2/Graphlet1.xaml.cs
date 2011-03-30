@@ -16,7 +16,7 @@ namespace FMGraph2
     /// </summary>
     public partial class Graphlet1 : Button, INotifyPropertyChanged
     {
-        static readonly double strokeThickness = 0.5D;
+        public static readonly double strokeThickness = 0.5D;
 
         internal bool graphletState = true; // true=in Multigraph; false=in SinglePlot
          
@@ -56,9 +56,9 @@ namespace FMGraph2
         internal Multigraph mg;
         SinglePlot w;
 
-        List<Plot> plots = new List<Plot>();
+        internal List<Plot> plots = new List<Plot>();
 
-        internal bool first;
+        internal bool first; //if true, this is the first (or only) pass of superimposed records
 
         internal int numberOfChannels;
 
@@ -112,19 +112,20 @@ namespace FMGraph2
             ctx.LineTo(p, true, false);
         }
 
-        public void closePoints()
+        public void closePoints(int FMchan)
         {
             ctx.Close();
             points.Freeze();
             Path p = new Path();
-            p.Stroke = Brushes.Black;
-            p.StrokeThickness = strokeThickness;
+            p.Stroke = FMchan == mg.locatedChannel ? Brushes.Red : Brushes.Black;
+            p.StrokeThickness = FMchan == mg.locatedChannel ? strokeThickness * 2D : strokeThickness;
             p.StrokeLineJoin = PenLineJoin.Round;
             p.SnapsToDevicePixels = false;
             p.Data = points;
             gCanvas.Children.Add(p);
             Plot pl = new Plot();
             pl.path = p;
+            pl.channel = FMchan;
             pl.recNumber = mg.RecSet;
             pl.max = graphletMax;
             pl.min = graphletMin;
@@ -330,7 +331,8 @@ namespace FMGraph2
     class Plot
     {
         internal Path path;
-        internal int recNumber;
+        internal int channel; //FILMAN channel number from which this Plot created
+        internal int recNumber; //FILMAN record number for this Plot
         internal double max;
         internal double min;
         internal Multigraph.GVList gvList;
