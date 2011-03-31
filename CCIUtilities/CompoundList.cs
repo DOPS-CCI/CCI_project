@@ -81,7 +81,7 @@ namespace CCIUtilities
         {
             List<int> list = new List<int>(nChannels);
             for (int i = 0; i < nChannels; i++)
-                list.Add(zeroBased ? i : i - 1);
+                list.Add(zeroBased ? i : i + 1);
             sets.Add(list);
         }
 
