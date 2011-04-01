@@ -122,7 +122,7 @@ namespace FMGraph2
                 if (l == 1)
                 {
                     string s = fm.ChannelNames(selectedChannels[0][0]);
-                    sb.Append(s.Substring(0, s.Length < 16 ? s.Length : 16).TrimEnd(' '));
+                    sb.Append(Multigraph.trimChannelName(s));
                 }
                 else if(l > 1)
                     sb.Append(l.ToString("0") + " channels");

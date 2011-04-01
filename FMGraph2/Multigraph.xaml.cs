@@ -19,9 +19,9 @@ namespace FMGraph2
     /// <summary>
     /// Interaction logic for Multigraph.xaml
     /// </summary>
-    public partial class Multigraph : TabItem, INotifyPropertyChanged
+    public partial class Multigraph: TabItem, INotifyPropertyChanged
     {
-        internal class displayChannel:IComparer<displayChannel>
+        internal class displayChannel: IComparer<displayChannel>
         {
             internal int channel; //channel number in FILMAN file
             internal List<Graphlet1> graphs = new List<Graphlet1>(1); //list of Graphlets this channel is displayed in
@@ -369,7 +369,7 @@ namespace FMGraph2
             this.displayRecset(0);
         }
 
-        private string trimChannelName(string channelName){
+        public static string trimChannelName(string channelName){
             return channelName.Substring(0, channelName.Length < 16 ? channelName.Length : 16).Trim(' ');
         }
 //

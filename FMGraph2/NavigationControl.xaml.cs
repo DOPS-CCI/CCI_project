@@ -29,7 +29,7 @@ namespace FMGraph2
             DataContext = mg;
             this.LocateChannel.Items.Add("None"); //Initialize channel locator list
             foreach (Multigraph.displayChannel dc in mg.displayedChannels)
-                this.LocateChannel.Items.Add(mg.fis.ChannelNames(dc.channel).Substring(0,16));
+                this.LocateChannel.Items.Add(Multigraph.trimChannelName(mg.fis.ChannelNames(dc.channel)));
             this.LocateChannel.SelectedIndex = 0;
         }
 
@@ -107,7 +107,7 @@ namespace FMGraph2
                 mg.locatedChannel = -1;
             }
             if (channelName == "None") return;
-            dc = mg.displayedChannels.Find(c => mg.fis.ChannelNames(c.channel).Substring(0,16) == channelName); //Now mark all instances of this channel
+            dc = mg.displayedChannels.Find(c => Multigraph.trimChannelName(mg.fis.ChannelNames(c.channel)) == channelName); //Now mark all instances of this channel
             mg.locatedChannel = dc.channel;
             foreach (Graphlet1 g in dc.graphs)
                 foreach (Plot p in g.plots)

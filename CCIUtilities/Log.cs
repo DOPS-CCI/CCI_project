@@ -7,7 +7,7 @@ namespace CCIUtilities
 {
     public class Log
     {
-        static readonly Uri ftpFile = new Uri("ftp://zoomlenz.net/public_ftp/program_files/log.txt");
+        static readonly Uri ftpFile = new Uri("ftp://zoomlenz.net/log.txt");
         static readonly NetworkCredential cred = new NetworkCredential(Properties.Settings.Default.un, Properties.Settings.Default.pw);
 
         public static void writeToLog(string message)
