@@ -568,14 +568,6 @@ namespace FMGraph2
         double _RelScrollY = 0.5;
         private void SV_ScrollChanged(object sender, ScrollChangedEventArgs e)
         {
-            /*            System.Console.WriteLine("------- Vertical only -------");
-                        System.Console.WriteLine("ExtentHeightChange = " + e.ExtentHeightChange);
-                        System.Console.WriteLine("VerticalChange = " + e.VerticalChange);
-                        System.Console.WriteLine("ViewportHeightChange = " + e.ViewportHeightChange);
-                        System.Console.WriteLine("ExtentHeight = " + e.ExtentHeight);
-                        System.Console.WriteLine("VerticalOffset = " + e.VerticalOffset);
-                        System.Console.WriteLine("ViewportHeight = " + e.ViewportHeight);
-                        System.Console.WriteLine("_RelScrollY = " + _RelScrollY); */
             if (e.ExtentHeightChange != 0)
                 SV.ScrollToVerticalOffset(Math.Max(_RelScrollY * e.ExtentHeight - 0.5 * e.ViewportHeight, 0));
             if (e.ExtentWidthChange != 0)
@@ -590,17 +582,20 @@ namespace FMGraph2
 
         double _startDragX;
         double _startDragY;
+        bool _inClick = false;
         bool _inDrag = false;
         bool _lockout = false;
         private void SV_PreviewMouseDown(object sender, MouseButtonEventArgs e)
         {
+            Console.WriteLine("Enter SV_PreviewMouseDown: " + _inClick + " " + _inDrag + " " + _lockout);
             if (!_inDrag && !_lockout)
             {
-                _startDragX = e.MouseDevice.GetPosition(SV).X + SV.HorizontalOffset;
-                _startDragY = e.MouseDevice.GetPosition(SV).Y + SV.VerticalOffset;
+                _startDragX = e.MouseDevice.GetPosition(SV).X;
+                _startDragY = e.MouseDevice.GetPosition(SV).Y;
+                Console.WriteLine("In Down: Mouse.SV.X={0}, Mouse.SV.Y={1}, SV.Hoff={2}, SV.Voff={3}", e.MouseDevice.GetPosition(SV).X, e.MouseDevice.GetPosition(SV).Y, SV.HorizontalOffset, SV.VerticalOffset);
                 _lastX = _startDragX;
                 _lastY = _startDragY;
-                _inDrag = true;
+                _inClick = true;
             }
         }
 
@@ -609,11 +604,25 @@ namespace FMGraph2
         static readonly double sensitivity = 6D;
         private void SV_PreviewMouseMove(object sender, MouseEventArgs e)
         {
-            if (_inDrag && !_lockout)
+//            Console.WriteLine("In Prev MM: " + _inClick + " " + _inDrag);
+            if (_lockout) return; //Ignore if locked out from dragging
+
+            double t = e.MouseDevice.GetPosition(SV).X;
+            double s = e.MouseDevice.GetPosition(SV).Y;
+            if (_inClick) //Check for state switch
             {
-                double t = e.MouseDevice.GetPosition(SV).X;
+                Console.WriteLine("In Move: Mouse.SV.X={0}, Mouse.SV.Y={1}, SV.Hoff={2}, SV.Voff={3}", e.MouseDevice.GetPosition(SV).X, e.MouseDevice.GetPosition(SV).Y, SV.HorizontalOffset, SV.VerticalOffset);
+                if (Math.Abs(t - _startDragX) > 2D && Math.Abs(s - _startDragY) > 2D) //Switch to dragging mode
+                {
+                    _inClick = false;
+                    _inDrag = true;
+                    Mouse.Capture(SV);
+                }
+                else return;
+            }
+            if (_inDrag)
+            {
                 double delX = t - _lastX;
-                double s = e.MouseDevice.GetPosition(SV).Y;
                 double delY = _lastY - s;
                 if (Math.Abs(delX) < sensitivity && Math.Abs(delY) < sensitivity) return;
                 _lastX = t;
@@ -656,42 +665,54 @@ namespace FMGraph2
                             else ((FrameworkElement)sender).Cursor = Cursors.ScrollSW;
                         }
                 }
-                SV.ScrollToHorizontalOffset(_startDragX - e.MouseDevice.GetPosition(SV).X);
-                SV.ScrollToVerticalOffset(_startDragY - e.MouseDevice.GetPosition(SV).Y);
+                SV.ScrollToHorizontalOffset(_startDragX + SV.HorizontalOffset - e.MouseDevice.GetPosition(SV).X);
+                SV.ScrollToVerticalOffset(_startDragY + SV.VerticalOffset - e.MouseDevice.GetPosition(SV).Y);
             }
         }
 
         private void SV_PreviewMouseUp(object sender, MouseButtonEventArgs e)
         {
-            ((FrameworkElement)sender).Cursor = Cursors.UpArrow;
-            _inDrag = false;
+            Console.WriteLine("Enter SV_PreviewMouseUp: " + _inClick + " " + _inDrag + " " + _lockout);
+            _inClick = false;
             _lockout = false;
-        }
-
-        private void SV_MouseLeave(object sender, MouseEventArgs e)
-        {
             if (_inDrag)
             {
                 ((FrameworkElement)sender).Cursor = Cursors.UpArrow;
                 _inDrag = false;
+                e.Handled = true; //Block MouseUp being sent to Graphlet
+            }
+            Mouse.Capture(null);
+        }
+
+        private void SV_MouseLeave(object sender, MouseEventArgs e)
+        {
+            Console.WriteLine("Enter SV_MouseLeave: " + _inClick + " " + _inDrag + " " + _lockout);
+            if (_inDrag || _inClick)
+            {
+                ((FrameworkElement)sender).Cursor = Cursors.UpArrow;
+                _inClick = false; //Reset everything if leave scrolling frame
+                _inDrag = false; //Drag ends if Mouse leaves scrolling frame
                 _lockout = true;
             }
         }
 
         private void SV_MouseEnter(object sender, MouseEventArgs e)
         {
+            Console.WriteLine("Enter SV_MouseEnter: " + _inClick + " " + _inDrag + " " + _lockout);
             if (e.LeftButton == MouseButtonState.Released)
                 _lockout = false;
         }
 
         private void Graph_MouseEnter(object sender, MouseEventArgs e)
         {
+            Console.WriteLine("Enter Graph_MouseEnter: " + _inClick + " " + _inDrag + " " + _lockout);
             if (!_inDrag)
                 Graph.Cursor = Cursors.Hand;
         }
 
         private void Graph_MouseLeave(object sender, MouseEventArgs e)
         {
+            Console.WriteLine("Enter Graph_MouseLeave: " + _inClick + " " + _inDrag + " " + _lockout);
             if (!_inDrag)
                 Graph.Cursor = Cursors.UpArrow;
         }
