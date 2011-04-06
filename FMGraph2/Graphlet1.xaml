@@ -16,6 +16,9 @@
             </ControlTemplate.Triggers>
         </ControlTemplate>
     </Button.Template>
+    <Button.ToolTip>
+        <TextBlock FontSize="16" Foreground="Red"><Run Name="graphletName"/></TextBlock>
+    </Button.ToolTip>
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="{Binding Path=marginSize}" />

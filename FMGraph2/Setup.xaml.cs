@@ -238,6 +238,7 @@ namespace FMGraph2
             AllChannels.IsChecked = true;
             None.IsChecked = true;
             Aspect.Text = "1.0";
+            DefaultLocation.IsChecked = false;
         }
 
         private void Aspect_TextChanged(object sender, TextChangedEventArgs e)

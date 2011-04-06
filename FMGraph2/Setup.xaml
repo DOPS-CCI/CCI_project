@@ -111,9 +111,14 @@
                 <RadioButton Name="Abs" Margin="15,4,0,8">Absolute value</RadioButton>
             </StackPanel>
         </GroupBox>
-        <StackPanel Orientation="Horizontal" Grid.Row="6">
-            <Label Content="Aspect ratio (x / y)" FontSize="14" HorizontalAlignment="Right" Margin="8" VerticalAlignment="Center" />
-            <TextBox FontSize="14" Height="Auto" HorizontalAlignment="Left" Margin="5" Name="Aspect" TextChanged="Aspect_TextChanged" VerticalAlignment="Center" Width="80" />
+        <StackPanel Orientation="Vertical" Grid.Row="6">
+            <StackPanel Orientation="Horizontal">
+                <Label Content="Aspect ratio (x / y) of graphlets" FontSize="14" HorizontalAlignment="Right" Margin="8" VerticalAlignment="Center" />
+                <TextBox FontSize="14" Height="Auto" HorizontalAlignment="Left" Margin="5" Name="Aspect" TextChanged="Aspect_TextChanged" VerticalAlignment="Center" Width="80" >
+                    <TextBox.ToolTip>This determines the shape of the individual graphlets:  greater than 1.0 results in a "landscape" shape; less than 1.0, in a "portrait" shape</TextBox.ToolTip>
+                </TextBox>
+            </StackPanel>
+            <CheckBox FontSize="14" Height="Auto" HorizontalAlignment="Left" Margin="15,3,5,5" Name="DefaultLocation">Don't use any included positioning information</CheckBox>
         </StackPanel>
         <StackPanel Orientation="Horizontal" Grid.Row="6" Grid.RowSpan="2" HorizontalAlignment="Right" VerticalAlignment="Bottom">
             <Button Name="Go" FontSize="14" Width="90" Margin="6" Click="Go_Click" IsEnabled="False">Create</Button>

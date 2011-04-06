@@ -164,7 +164,7 @@ namespace FMGraph2
                 throw (e);
             }
 
-            Regex r = new Regex(@"^(.+?)\s*(@?)(-?\d+),(-?\d+)$");
+            Regex r = new Regex(@"^(.+?)\s*([@&]?)(-?\d+),(-?\d+)$");
             Match m;
             double maxx = double.NegativeInfinity;
             double minx = double.PositiveInfinity;
@@ -188,7 +188,7 @@ namespace FMGraph2
             foreach(int i in channelList)
             {
                 m = r.Match(fis.ChannelNames(i));
-                if (m.Groups.Count == 5)
+                if (m.Groups.Count == 5 && !(bool)setup.DefaultLocation.IsChecked)
                 {
                     foundPositionChannel = true;
                     displayChannel e = new displayChannel();
@@ -196,12 +196,17 @@ namespace FMGraph2
                     Graphlet1 g = new Graphlet1(trimChannelName(fis.ChannelNames(i)), this); //Create single graphlet to display this channel
                     graphletList.Add(g);
                     g.numberOfChannels = 1;
-                    if (m.Groups[2].Value == "@")
+                    if (m.Groups[2].Value == "@") //Cartesian coordinates
                     {
                         g.x = Convert.ToDouble(m.Groups[3].Value);
                         g.y = Convert.ToDouble(m.Groups[4].Value);
                     }
-                    else
+                    else if (m.Groups[2].Value == "&") //UNC coordinates (row,column)
+                    {
+                        g.x = Convert.ToDouble(m.Groups[4].Value);
+                        g.y = -Convert.ToDouble(m.Groups[3].Value);
+                    }
+                    else //Polar coordinates
                     {
                         g.x = -Convert.ToDouble(m.Groups[3].Value)
                             * Math.Sin(Convert.ToDouble(m.Groups[4].Value) * degrad);

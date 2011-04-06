@@ -70,6 +70,7 @@ namespace FMGraph2
             this.DataContext = mg;
             this.gp = mg.gp;
             this.name.Content = name;
+            this.graphletName.Text = name;
             this.Height = MainWindow.graphletSize;
             this.Width = this.Height * mg.aspect;
 
@@ -328,6 +329,7 @@ namespace FMGraph2
                 PropertyChanged(this, new PropertyChangedEventArgs(property));
         }
     }
+
     class Plot
     {
         internal Path path;
