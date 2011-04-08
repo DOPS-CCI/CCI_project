@@ -5,7 +5,8 @@
     <TabItem.Header>
         <Run FontSize="16" Foreground="Black">Create</Run>
     </TabItem.Header>
-    <Grid Width="520" HorizontalAlignment="Left">
+    <TabItem.Content>
+        <Grid Width="520" HorizontalAlignment="Left">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
@@ -17,7 +18,7 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
         <GroupBox Header="File information" FontSize="14">
-            <Grid Margin="7">
+            <Grid Margin="4">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="100"/>
                     <ColumnDefinition Width="*"/>
@@ -44,42 +45,42 @@
         </GroupBox>
         <GroupBox Header="X-axis" Grid.Row="2" FontSize="14">
             <StackPanel Orientation="Vertical">
-                <Label Margin="8,4,0,0">Type:</Label>
+                <Label Margin="8,0,0,0">Type:</Label>
                 <StackPanel Orientation="Vertical" Margin="30,0,0,0">
                     <StackPanel Orientation="Horizontal">
-                        <RadioButton Name="T" IsChecked="True" VerticalAlignment="Center" Click="click_Check" GroupName="TFselect">Time:</RadioButton>
-                        <TextBox Name="Tmin" MinWidth="60" VerticalAlignment="Center" IsEnabled="{Binding ElementName=T,Path=IsChecked}" TextChanged="Tmin_TextChanged"/>
+                        <RadioButton Name="T" Margin="0,0,4,0" IsChecked="True" VerticalAlignment="Center" Click="click_Check" GroupName="TFselect">Time:</RadioButton>
+                        <TextBox Name="Tmin" Height="20" Padding="2,0,2,0" MinWidth="60" IsEnabled="{Binding ElementName=T,Path=IsChecked}" TextChanged="Tmin_TextChanged"/>
                         <Label>-</Label>
-                        <TextBox Name="Tmax" MinWidth="60" VerticalAlignment="Center" IsEnabled="{Binding ElementName=T,Path=IsChecked}" TextChanged="Tmax_TextChanged"/>
+                        <TextBox Name="Tmax" Height="20" Padding="2,0,2,0" MinWidth="60" VerticalAlignment="Center" IsEnabled="{Binding ElementName=T,Path=IsChecked}" TextChanged="Tmax_TextChanged"/>
                         <Label>seconds</Label>
                     </StackPanel>
                     <StackPanel Orientation="Horizontal">
-                        <RadioButton Name="F" VerticalAlignment="Center" Click="click_Check" GroupName="TFselect">Frequency:</RadioButton>
-                        <TextBox Name="Fmin" MinWidth="60" VerticalAlignment="Center" IsEnabled="{Binding ElementName=F,Path=IsChecked}" TextChanged="Fmin_TextChanged"/>
+                        <RadioButton Name="F" Margin="0,0,4,0" VerticalAlignment="Center" Click="click_Check" GroupName="TFselect">Frequency:</RadioButton>
+                        <TextBox Name="Fmin" Height="20" Padding="2,0,2,0" MinWidth="60" VerticalAlignment="Center" IsEnabled="{Binding ElementName=F,Path=IsChecked}" TextChanged="Fmin_TextChanged"/>
                         <Label>-</Label>
-                        <TextBox Name="Fmax" MinWidth="60" VerticalAlignment="Center" IsEnabled="{Binding ElementName=F,Path=IsChecked}" TextChanged="Fmax_TextChanged"/>
+                        <TextBox Name="Fmax" Height="20" Padding="2,0,2,0" MinWidth="60" VerticalAlignment="Center" IsEnabled="{Binding ElementName=F,Path=IsChecked}" TextChanged="Fmax_TextChanged"/>
                         <Label>Hz</Label>
                     </StackPanel>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal">
-                    <Label Margin="8,4,8,0">Decimation factor =</Label>
-                    <TextBox Name="DecimationBox" Height="20" Width="40" Margin="2,4,0,0" Padding="0" TextChanged="DecimationBox_TextChanged"/>
+                    <Label Margin="8,4,4,0">Decimation factor =</Label>
+                    <TextBox Name="DecimationBox" Height="20" Width="40" Padding="2,0,2,0" Margin="0,4,0,0" TextChanged="DecimationBox_TextChanged"/>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal">
-                    <Label Margin="8,4,8,0">Total points =</Label>
-                    <TextBox Name="Points" Height="20" Width="60" Margin="2,4,0,0" IsReadOnly="True" HorizontalContentAlignment="Right" Padding="0" VerticalAlignment="Stretch" />
+                    <Label Margin="8,4,4,0">Total points =</Label>
+                    <TextBox Name="Points" Height="20" Width="60" Padding="2,0,2,0" Margin="0,4,0,0" IsReadOnly="True" HorizontalContentAlignment="Right" VerticalAlignment="Stretch" />
                     <Label Margin="2,4,0,4">points</Label>
                 </StackPanel>
             </StackPanel>
         </GroupBox>
         <GroupBox Header="Y-axis" Grid.Row="3" FontSize="14">
             <StackPanel Orientation="Vertical">
-                <Label Margin="8,4,0,0">Type:</Label>
+                <Label Margin="8,0,0,0">Type:</Label>
                 <RadioButton Name="PosNeg" Margin="30,0,0,4">+/- equal</RadioButton>
                 <RadioButton Name="Pos" Margin="30,0,0,4">+ only</RadioButton>
                 <StackPanel Orientation="Horizontal">
                     <CheckBox Name="IncludeY" Margin="15,8,4,8" IsChecked="True">Include Y axis label:</CheckBox>
-                    <TextBox Name="yAxis" Width="200" VerticalContentAlignment="Center" Height="20" Padding="0" IsEnabled="{Binding ElementName=IncludeY,Path=IsChecked}"/>
+                    <TextBox Name="yAxis" Width="200" VerticalContentAlignment="Center" Height="20" Padding="2,0,2,0" IsEnabled="{Binding ElementName=IncludeY,Path=IsChecked}"/>
                 </StackPanel>
                 <GroupBox Header="Scaling">
                     <StackPanel Orientation="Vertical">
@@ -87,7 +88,7 @@
                         <RadioButton Name="channelYMax" Margin="10,4,0,4" GroupName="YScaling">Scale to each channel's overall maximum</RadioButton>
                         <StackPanel Orientation="Horizontal">
                             <RadioButton Name="allYMax" Margin="10,4,0,4" Checked="click_Check" Unchecked="click_Check" GroupName="YScaling">Scale to fixed maximum for all channels =</RadioButton>
-                            <TextBox Name="allYMaxValue" Width="130" Height="20" Margin="4,4,0,4" IsEnabled="{Binding ElementName=allYMax, Path=IsChecked}" TextChanged="allYMaxValue_TextChanged" Padding="0" />
+                            <TextBox Name="allYMaxValue" Width="130" Height="20" Padding="2,0,2,0" Margin="4,4,0,4" IsEnabled="{Binding ElementName=allYMax, Path=IsChecked}" TextChanged="allYMaxValue_TextChanged" />
                         </StackPanel>
                     </StackPanel>
                 </GroupBox>
@@ -97,8 +98,8 @@
             <StackPanel Orientation="Vertical">
                 <CheckBox Name="AllChannels" IsChecked="True" Margin="15,8,0,4" Checked="AllChannels_Checked" Unchecked="AllChannels_Unchecked">All channels</CheckBox>
                 <StackPanel Orientation="Horizontal">
-                    <TextBox Name="ChannelList" Margin="15,4,4,8" Width="270" IsEnabled="False" VerticalContentAlignment="Center" TextChanged="ChannelList_TextChanged" />
-                    <TextBox Name="SelectedChannels" Margin="4,4,4,8" Width="200" IsEnabled="True" VerticalContentAlignment="Center" IsReadOnly="True"/>
+                    <TextBox Name="ChannelList" Margin="15,4,4,8" Height="20" Width="270" Padding="2,0,2,0" IsEnabled="False" VerticalContentAlignment="Center" TextChanged="ChannelList_TextChanged" />
+                    <TextBox Name="SelectedChannels" Margin="4,4,4,8" Height="20" Width="200" Padding="2,0,2,0" IsEnabled="True" VerticalContentAlignment="Center" IsReadOnly="True"/>
                 </StackPanel>
             </StackPanel>
         </GroupBox>
@@ -113,16 +114,17 @@
         </GroupBox>
         <StackPanel Orientation="Vertical" Grid.Row="6">
             <StackPanel Orientation="Horizontal">
-                <Label Content="Aspect ratio (x / y) of graphlets" FontSize="14" HorizontalAlignment="Right" Margin="8" VerticalAlignment="Center" />
-                <TextBox FontSize="14" Height="Auto" HorizontalAlignment="Left" Margin="5" Name="Aspect" TextChanged="Aspect_TextChanged" VerticalAlignment="Center" Width="80" >
-                    <TextBox.ToolTip>This determines the shape of the individual graphlets:  greater than 1.0 results in a "landscape" shape; less than 1.0, in a "portrait" shape</TextBox.ToolTip>
+                <Label Content="Aspect ratio (x / y) of graphlets:" FontSize="14" HorizontalAlignment="Right" Margin="8,4,4,4" VerticalAlignment="Center" />
+                <TextBox FontSize="14" Height="20" Padding="2,0,2,0" HorizontalAlignment="Left" Margin="0,4,0,4" Name="Aspect" TextChanged="Aspect_TextChanged" VerticalAlignment="Center" Width="80" >
+                    <TextBox.ToolTip>This determines the shape of the individual graphlets: greater than 1.0 results in a "landscape" shape; less than 1.0, in a "portrait" shape</TextBox.ToolTip>
                 </TextBox>
             </StackPanel>
-            <CheckBox FontSize="14" Height="Auto" HorizontalAlignment="Left" Margin="15,3,5,5" Name="DefaultLocation">Don't use any included positioning information</CheckBox>
+            <CheckBox FontSize="14" Height="Auto" HorizontalAlignment="Left" Margin="12,4,4,0" Name="DefaultLocation">Don't use any included positioning information</CheckBox>
         </StackPanel>
         <StackPanel Orientation="Horizontal" Grid.Row="6" Grid.RowSpan="2" HorizontalAlignment="Right" VerticalAlignment="Bottom">
-            <Button Name="Go" FontSize="14" Width="90" Margin="6" Click="Go_Click" IsEnabled="False">Create</Button>
-            <Button FontSize="14" Width="90" Margin="6" Click="Cancel_Click">Quit</Button>
+            <Button Name="Go" FontSize="14" Width="90" Margin="4" Click="Go_Click" IsEnabled="False">Create</Button>
+            <Button FontSize="14" Width="90" Margin="4" Click="Cancel_Click">Quit</Button>
         </StackPanel>
     </Grid>
+    </TabItem.Content>
 </TabItem>

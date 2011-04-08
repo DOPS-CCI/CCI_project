@@ -28,10 +28,10 @@
                 </TextBlock>
             </StackPanel>
         </GroupBox>
-        <GroupBox Grid.Row="2" Header="Mode" Margin="2">
+        <GroupBox Grid.Row="2" Header="Display mode" Margin="2">
             <StackPanel Orientation="Vertical" >
-                <RadioButton Name="Individual" IsChecked="True" Checked="Individual_Checked" Margin="5">Individual</RadioButton>
-                <RadioButton Name="Superimpose" IsChecked="False" Margin="5,0,5,5">Superimpose</RadioButton>
+                <RadioButton Name="Individual" IsChecked="True" Checked="Individual_Checked" Margin="5">Single reset</RadioButton>
+                <RadioButton Name="Superimpose" IsChecked="False" Margin="5,0,5,5">Superimpose recsets</RadioButton>
                 <Button IsEnabled="{Binding ElementName=Superimpose, Path=IsChecked}" Height="Auto" Width="120" VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,5,0,5" Padding="2" Click="Undo_Click">Undo</Button>
                 <Button IsEnabled="{Binding ElementName=Superimpose, Path=IsChecked}" Height="Auto" Width="120" VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,5,0,5" Padding="2" Click="Clear_Click">Clear</Button>
             </StackPanel>
@@ -49,7 +49,7 @@
                 </ListBox.ItemTemplate>
             </ListBox>
         </GroupBox>
-        <GroupBox Header="Locate channel" Grid.Row="4">
+        <GroupBox Header="Highlight channel" Grid.Row="4">
             <ComboBox Name="LocateChannel" SelectionChanged="LocateChannel_SelectionChanged"></ComboBox>
         </GroupBox>
     </Grid>
