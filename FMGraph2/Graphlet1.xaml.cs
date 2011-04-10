@@ -1,13 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Media;
 using System.Windows.Shapes;
+using FILMANFileStream;
 
 namespace FMGraph2
 {
@@ -56,13 +57,14 @@ namespace FMGraph2
         internal Multigraph mg;
         SinglePlot w;
 
+        internal List<int> channels = new List<int>(1); //List of channels to be displayed in this Graphlet
         internal List<Plot> plots = new List<Plot>();
 
         internal bool first; //if true, this is the first (or only) pass of superimposed records
 
         internal int numberOfChannels;
 
-        public Graphlet1(string name, Multigraph mg)
+        public Graphlet1(string name, IEnumerable<int> channels, Multigraph mg)
         {
             InitializeComponent();
 
@@ -73,6 +75,8 @@ namespace FMGraph2
             this.graphletName.Text = name;
             this.Height = MainWindow.graphletSize;
             this.Width = this.Height * mg.aspect;
+            foreach (int chan in channels)
+                this.channels.Add(chan);
 
             if (mg.typeAxis == AxisType.Pos)
                 offset = MainWindow._baseSize;
@@ -118,12 +122,12 @@ namespace FMGraph2
             ctx.Close();
             points.Freeze();
             Path p = new Path();
-            p.Stroke = FMchan == mg.locatedChannel ? Brushes.Red : Brushes.Black;
-            p.StrokeThickness = FMchan == mg.locatedChannel ? strokeThickness * 2D : strokeThickness;
+            p.Stroke = FMchan == mg.highlightedChannel ? Brushes.Red : Brushes.Black;
+            p.StrokeThickness = FMchan == mg.highlightedChannel ? strokeThickness * 2D : strokeThickness;
             p.StrokeLineJoin = PenLineJoin.Round;
-            p.SnapsToDevicePixels = false;
+            p.SnapsToDevicePixels = false; //use anti-aliasing
             p.Data = points;
-            gCanvas.Children.Add(p);
+            gCanvas.Children.Add(p); //draw the plot onto graphlet
             Plot pl = new Plot();
             pl.path = p;
             pl.channel = FMchan;
@@ -133,6 +137,49 @@ namespace FMGraph2
             pl.gvList = mg.gvList;
             plots.Add(pl);
             first = false;
+        }
+
+        public void displayRecord()
+        {
+            double graphletMax = double.NegativeInfinity;
+            double graphletMin = double.PositiveInfinity;
+            foreach (int channel in channels)
+            {
+                FILMANRecord fmr = mg.recordSet[channel];
+                points = new StreamGeometry();
+                ctx = points.Open();
+                double max = fmr[mg.xStart];
+                double min = max;
+                ctx.BeginFigure(new Point(0, MainWindow._baseSize - offset - mg.gp.halfMargin - max * graphletYScale), false, false);
+                for (int x = mg.decimation; x <= mg.xStop - mg.xStart; x += mg.decimation)
+                {
+                    double y = fmr[x];
+                    ctx.LineTo(new Point((double)x * graphletXScale, offset - mg.gp.halfMargin - y * graphletYScale), true, true);
+                    max = Math.Max(max, y);
+                    min = Math.Min(min, y);
+                }
+                ctx.Close();
+                points.Freeze();
+                Path p = new Path();
+                p.Stroke = channel == mg.highlightedChannel ? Brushes.Red : Brushes.Black;
+                p.StrokeThickness = channel == mg.highlightedChannel ? strokeThickness * 2D : strokeThickness;
+                p.StrokeLineJoin = PenLineJoin.Round;
+                p.SnapsToDevicePixels = false; //use anti-aliasing
+                p.Data = points;
+                gCanvas.Children.Add(p); //draw the plot onto graphlet
+                Plot pl = new Plot();
+                pl.path = p;
+                pl.channel = channel;
+                pl.recNumber = mg.RecSet;
+                pl.max = max;
+                graphletMax = Math.Max(graphletMax, max);
+                pl.min = min;
+                graphletMin = Math.Min(graphletMin, min);
+                pl.gvList = mg.gvList;
+                plots.Add(pl);
+            }
+            drawXgrid();
+            drawYGrid(Math.Max(graphletMax, -graphletMin));
         }
 
         public void clearPlots()
@@ -226,7 +273,7 @@ namespace FMGraph2
         }
 
         static double[] gridYMax = { 1, 2, 3, 5, 5, 10, 10, 10, 10, 10 };
-        static double[] gridYInc = { 0.2, 0.25, 0.5, 1, 1, 2, 2, 2, 2, 2 };
+        static double[] gridYInc = { 0.2, 0.5, 0.5, 1, 1, 2, 2, 2, 2, 2 };
         public double drawYGrid(double maxVal)
         {
             double d = Math.Abs(maxVal);

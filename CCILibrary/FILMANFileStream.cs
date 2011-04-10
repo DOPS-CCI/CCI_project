@@ -197,7 +197,7 @@ namespace FILMANFileStream
         /// <remarks>
         /// 1. Create new FILMANInputStream based on open stream to read
         /// 2. Invoke <code>.read()</code> for each channel in each record; returns FILMANRecord
-        /// 3. Or us iterator, e.g.
+        /// 3. Or use iterator, e.g.
         ///     <code>
         ///     foreach (FILMANRecord fr in FMInputStream)
         ///     {
@@ -280,6 +280,15 @@ namespace FILMANFileStream
 
         }
 
+        public FMRecordSet readRecordSet(int nrecSet)
+        {
+            if (!br.BaseStream.CanSeek) throw new IOException("File stream not able to perform seek.");
+            if (nrecSet * _nc >= _nr || nrecSet < 0) return null; //read beyond EOF
+            long pos = 464 + 24 * (_ng + _nc) + (nrecSet * _nc + nc) * NP * 4;
+            br.BaseStream.Seek(pos, SeekOrigin.Begin);
+            return read();
+        }
+
         public void Close() { br.Close(); }
 
         public void Dispose() { this.Close(); }
@@ -332,6 +341,7 @@ namespace FILMANFileStream
         public int[] GV;
         public int[] ancillary;
         int _nd;
+
         public abstract double this[int index]
         {
             get;
@@ -650,5 +660,18 @@ namespace FILMANFileStream
         {
             return R.ToString(format) + "+" + I.ToString(format) + "I";
         }
+    }
+
+    public class FMRecordSet
+    {
+        FILMANRecord[] recordSet;
+        public FMRecordSet(FILMANFileStream fm)
+        {
+            recordSet = new FILMANRecord[fm.NC];
+            for (int i = 0; i < fm.NC; i++)
+            {
+            }
+        }
+
     }
 }

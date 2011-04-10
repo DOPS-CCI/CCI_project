@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 using System.Text;
 using System.Windows;
@@ -98,20 +99,20 @@ namespace FMGraph2
             Multigraph.displayChannel dc;
             ComboBox cb = (ComboBox)sender;
             string channelName = (string)e.AddedItems[0];
-            if (mg.locatedChannel != -1) //remove any previously marked channel instances
+            if (mg.highlightedChannel != -1) //remove any previously marked channel instances
             {
-                dc = mg.displayedChannels.Find(c => c.channel == mg.locatedChannel);
+                dc = mg.displayedChannels.Find(c => c.channel == mg.highlightedChannel);
                 foreach (Graphlet1 g in dc.graphs)
                     foreach (Plot p in g.plots)
-                        if (p.channel == mg.locatedChannel) { p.path.Stroke = Brushes.Black; p.path.StrokeThickness = Graphlet1.strokeThickness; }
-                mg.locatedChannel = -1;
+                        if (p.channel == mg.highlightedChannel) { p.path.Stroke = Brushes.Black; p.path.StrokeThickness = Graphlet1.strokeThickness; }
+                mg.highlightedChannel = -1;
             }
             if (channelName == "None") return;
             dc = mg.displayedChannels.Find(c => Multigraph.trimChannelName(mg.fis.ChannelNames(c.channel)) == channelName); //Now mark all instances of this channel
-            mg.locatedChannel = dc.channel;
+            mg.highlightedChannel = dc.channel;
             foreach (Graphlet1 g in dc.graphs)
                 foreach (Plot p in g.plots)
-                    if (p.channel == mg.locatedChannel) { p.path.Stroke = Brushes.Red; p.path.StrokeThickness = 2D * Graphlet1.strokeThickness; }
+                    if (p.channel == mg.highlightedChannel) { p.path.Stroke = Brushes.Red; p.path.StrokeThickness = 2D * Graphlet1.strokeThickness; }
             return;
         }
 

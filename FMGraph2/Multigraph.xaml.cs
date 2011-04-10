@@ -17,13 +17,15 @@ using CCIUtilities;
 namespace FMGraph2
 {
     /// <summary>
-    /// Interaction logic for Multigraph.xaml
+    /// Class for displaying and manipulating multiple Graphlets
     /// </summary>
     public partial class Multigraph: TabItem, INotifyPropertyChanged
     {
         internal class displayChannel: IComparer<displayChannel>
         {
             internal int channel; //channel number in FILMAN file
+            internal double max;
+            internal double min;
             internal List<Graphlet1> graphs = new List<Graphlet1>(1); //list of Graphlets this channel is displayed in
 
             public int Compare(displayChannel x, displayChannel y)
@@ -36,6 +38,8 @@ namespace FMGraph2
 
         internal List<Graphlet1> graphletList = new List<Graphlet1>();
 
+        internal FILMANFileStream.FILMANRecord[] recordSet;
+
         int recset = 0;
         public int RecSet
         {
@@ -47,7 +51,7 @@ namespace FMGraph2
             }
         }
         double mag = minMagSize;
-        public double VBWidth
+        public double VBWidth //determines magnification
         {
             get { return mag; }
             set
@@ -83,9 +87,9 @@ namespace FMGraph2
         string _recListString;
         internal double xMin;
         internal double xMax;
-        int xStart;
-        int xStop;
-        public int locatedChannel = -1; // This is the FM channel that is currently "located" == displayed in red
+        internal int xStart;
+        internal int xStop;
+        public int highlightedChannel = -1; // This is the FM channel that is currently "highlighted" == displayed in red
 
         public string recListString //1-based as it's for display
         {
@@ -124,6 +128,7 @@ namespace FMGraph2
         public Multigraph(Setup setup)
         {
             this.fis = setup.fm;
+            this.recordSet = new FILMANRecord[fis.NC]; // need to process by recordset, Graphlets can randomly access channels
             this.gp = setup.gp;
             this.FMFileName = setup.FMFileName;
             this.fixedYMax = (bool)setup.allYMax.IsChecked;
@@ -164,7 +169,7 @@ namespace FMGraph2
                 throw (e);
             }
 
-            Regex r = new Regex(@"^(.+?)\s*([@&]?)(-?\d+),(-?\d+)$");
+            Regex r = new Regex(@"^(.+?)\s*([@&]?)(-?\d+),(-?\d+)$"); //Regex for parsing channel names including location information
             Match m;
             double maxx = double.NegativeInfinity;
             double minx = double.PositiveInfinity;
@@ -174,14 +179,14 @@ namespace FMGraph2
             double degrad = Math.PI / 180D;
             double factor = 1D / Math.Sqrt(1 + aspect * aspect);
             double alpha = Math.Atan(aspect);
+            List<Graphlet1> orphans = new List<Graphlet1>(); //Internal list for keeping track of Graphlets without location information
             int nOrphans = 0;
-            List<Graphlet1> orphans = new List<Graphlet1>();
             ReadOnlyCollection<int> channelList = null;
 
             //First process non-superimposed channels, if any, in set 0
 
             channelList = setup.selectedChannels[0];
-            bool foundPositionChannel = false;
+            bool foundPositionChannel = false; //indicates that there is at least one channel with location information
             // This loop is for calculating the appropriate scale for the multigraph by determining the minimum distance
             //between the included channels that have position data in their channel labels and for determining a list of
             //those included channels that have no position data
@@ -193,7 +198,8 @@ namespace FMGraph2
                     foundPositionChannel = true;
                     displayChannel e = new displayChannel();
                     e.channel = i;
-                    Graphlet1 g = new Graphlet1(trimChannelName(fis.ChannelNames(i)), this); //Create single graphlet to display this channel
+                    int[] chan={i};
+                    Graphlet1 g = new Graphlet1(trimChannelName(fis.ChannelNames(i)), chan, this); //Create single graphlet to display this channel
                     graphletList.Add(g);
                     g.numberOfChannels = 1;
                     if (m.Groups[2].Value == "@") //Cartesian coordinates
@@ -237,7 +243,8 @@ namespace FMGraph2
                 { //no location info for this channel, keep track on it in orphans; we'll assign them to locations at the bottom
                     //after we know how big the display of channels with locations is
                     displayChannel dc = new displayChannel();
-                    Graphlet1 g = new Graphlet1(trimChannelName(fis.ChannelNames(i)), this);
+                    int[] chan = { i };
+                    Graphlet1 g = new Graphlet1(trimChannelName(fis.ChannelNames(i)), chan, this);
                     graphletList.Add(g);
                     g.numberOfChannels = 1;
                     dc.channel = i;
@@ -252,18 +259,18 @@ namespace FMGraph2
 
             for (int i = 1; i < setup.selectedChannels.Count; i++)
             {
-                Graphlet1 g = new Graphlet1("ChannelSet " + i.ToString("0"), this);
+                channelList = setup.selectedChannels[i];
+                Graphlet1 g = new Graphlet1("ChannelSet " + i.ToString("0"), channelList, this);
                 orphans.Add(g);
                 nOrphans++;
                 graphletList.Add(g);
-                channelList = setup.selectedChannels[i];
                 g.numberOfChannels = channelList.Count;
                 foreach (int channel in channelList)
                 {
                         
                     displayChannel dc;
-                    dc = displayedChannels.Find(chan => chan.channel.Equals(channel));
-                    if (dc == null)
+                    dc = displayedChannels.Find(chan => chan.channel.Equals(channel)); //check if channel already in displayedChannels
+                    if (dc == null) //if not, make new displayedChannel
                     {
                         dc = new displayChannel();
                         dc.channel = channel;
@@ -454,10 +461,10 @@ namespace FMGraph2
             if (record < 0 || record >= fis.NR / fis.NC) return;
             RecSet = record; //update displayed record number
             if (recordList.Contains(record)) return; // note: even if record already displayed, we should count through it
-            FILMANRecord FMrecord = null; // to trick compiler
+//            FILMANRecord FMrecord = null; // to trick compiler
             bool individual = (bool)nc.Individual.IsChecked;
             gvList = new GVList(); //created here so that the Graphlets can point at it **
-            foreach (Graphlet1 g in graphletList) g.first = true;
+/*            foreach (Graphlet1 g in graphletList) g.first = true;
             foreach(displayChannel dc in displayedChannels)
             {
                 FMrecord = fis.read(record, dc.channel); // get new FILMAN record
@@ -499,8 +506,26 @@ namespace FMGraph2
                 GV gv = new GV(fis.GVNames(j + 2));
                 gv.n = FMrecord.GV[j + 2]; //all records in a FILMAN fileset have the same GV values
                 gvList.Add(gv);
+            } */
+            double allChanMax = double.NegativeInfinity;
+            double allChanMin = double.PositiveInfinity;
+            foreach (displayChannel dc in displayedChannels)
+            {
+                recordSet[dc.channel] = fis.read(record, dc.channel);
+                dc.max = recordSet[dc.channel].Max();
+                dc.min = recordSet[dc.channel].Min();
+                allChanMax = Math.Max(allChanMax, dc.max);
+                allChanMin = Math.Min(allChanMin, dc.min);
             }
 
+            foreach (Graphlet1 g in graphletList)
+            {
+                g.displayRecord();
+                //Now we can draw Y axis, if it only needs to be done once
+                if (individual && g.first && !fixedYMax)
+                    g.drawYGrid(Math.Max(g.graphletMax, -g.graphletMin));
+
+            }
         }
 
         public void displayNextRecset()
