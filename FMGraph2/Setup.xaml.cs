@@ -99,7 +99,7 @@ namespace FMGraph2
 
             if (_asp == 0D) { Go.IsEnabled = false; return; }
 
-            if ((bool)allYMax.IsChecked && _Ymax == 0D) { Go.IsEnabled = false; return; }
+            if ((bool)scaleToFixedMax.IsChecked && _Ymax == 0D) { Go.IsEnabled = false; return; }
 
             Go.IsEnabled = true;
         }
@@ -232,7 +232,7 @@ namespace FMGraph2
             Fmax.Text = _fmaxMax.ToString("0.0");
             IncludeY.IsChecked = true;
             yAxis.Text = "Y-axis";
-            scaleToSegment.IsChecked = true;
+            scaleToEachChannel.IsChecked = true;
             allYMaxValue.Text = Math.Max(graphletMax, -graphletMin).ToString("G5");
             ChannelList.Text = "1-" + fm.NC.ToString("0");
             AllChannels.IsChecked = true;

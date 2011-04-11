@@ -28,6 +28,8 @@ namespace FMGraph2
         internal double graphletXScale; //Final scale and offset
         internal double graphletYScale;
         internal double offset;
+        double oldGraphletXScale = 0D; //These are used to determine when to rescale graphlet
+        double oldGraphletYScale = 0D;
 
         internal double x; //Raw location in Multigraph
         internal double y;
@@ -141,23 +143,32 @@ namespace FMGraph2
 
         public void displayRecord()
         {
-            double graphletMax = double.NegativeInfinity;
-            double graphletMin = double.PositiveInfinity;
+            //Find maximum and minimum for this graphlet, in case needed for scaling
+            double max = double.NegativeInfinity;
+            double min = double.PositiveInfinity;
+            foreach (int channel in channels)
+            {
+                FILMANRecord fmr = mg.recordSet[channel];
+                for (int i = mg.xStart; i < mg.xStop; i += mg.decimation)
+                {
+                    double y = fmr[i];
+                    max = Math.Max(max, y);
+                    min = Math.Min(min, y);
+                }
+            }
+
+            //Check to see if new Y-axis and grid needed
+            if (mg.useAllYMax) drawYGrid(Math.Max(mg.allChanMax, -mg.allChanMin));
+            else if (!mg.fixedYMax) //then must be per graphlet max
+                drawYGrid(Math.Max(max,-min));
             foreach (int channel in channels)
             {
                 FILMANRecord fmr = mg.recordSet[channel];
                 points = new StreamGeometry();
                 ctx = points.Open();
-                double max = fmr[mg.xStart];
-                double min = max;
-                ctx.BeginFigure(new Point(0, MainWindow._baseSize - offset - mg.gp.halfMargin - max * graphletYScale), false, false);
-                for (int x = mg.decimation; x <= mg.xStop - mg.xStart; x += mg.decimation)
-                {
-                    double y = fmr[x];
-                    ctx.LineTo(new Point((double)x * graphletXScale, offset - mg.gp.halfMargin - y * graphletYScale), true, true);
-                    max = Math.Max(max, y);
-                    min = Math.Min(min, y);
-                }
+                ctx.BeginFigure(new Point(0, MainWindow._baseSize - offset - mg.gp.halfMargin - fmr[0] * graphletYScale), false, false);
+                for (int x = mg.decimation; x < mg.xStop - mg.xStart; x += mg.decimation)
+                    ctx.LineTo(new Point((double)x * graphletXScale, offset - mg.gp.halfMargin - fmr[mg.xStart + x] * graphletYScale), true, true);
                 ctx.Close();
                 points.Freeze();
                 Path p = new Path();
@@ -172,14 +183,12 @@ namespace FMGraph2
                 pl.channel = channel;
                 pl.recNumber = mg.RecSet;
                 pl.max = max;
-                graphletMax = Math.Max(graphletMax, max);
+                graphletMax = Math.Max(graphletMax, max); //for superimposed records
                 pl.min = min;
                 graphletMin = Math.Min(graphletMin, min);
                 pl.gvList = mg.gvList;
                 plots.Add(pl);
             }
-            drawXgrid();
-            drawYGrid(Math.Max(graphletMax, -graphletMin));
         }
 
         public void clearPlots()
@@ -219,7 +228,7 @@ namespace FMGraph2
         /********** Methods to set grid and axis values in graphlet **********/
 
         static double[] gridXInc = { 0.1, 0.2, 0.5, 0.5, 0.5, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 2.0, 1.0, 2.0, 3.0, 2.0, 1.0, 2.0, 1.0, 2.0 };
-        public void drawXgrid()
+        public void drawXGrid()
         {
             double range = mg.xMax - mg.xMin;
             double inc;
@@ -248,33 +257,36 @@ namespace FMGraph2
             double scale = mg.ScaleX / range;
             graphletXScale = scale * mg.finalXScale;
 
-            GeometryGroup gg = new GeometryGroup();
-            xAxisLabels.Children.Clear();
-            for (double x = 0D; x <= range; x += inc)
+            if (graphletXScale != oldGraphletXScale) //need to redraw X axis and grid
             {
-                if (x != 0D) //don't need to draw first one -- it's the axis
+                GeometryGroup gg = new GeometryGroup();
+                xAxisLabels.Children.Clear();
+                for (double x = 0D; x <= range; x += inc)
                 {
-                    LineGeometry l = new LineGeometry(
-                        new Point(x * scale, 0D),
-                        new Point(x * scale, gp.size1Y));
-                    gg.Children.Add(l);
+                    if (x != 0D) //don't need to draw first one -- it's the axis
+                    {
+                        LineGeometry l = new LineGeometry(
+                            new Point(x * scale, 0D),
+                            new Point(x * scale, gp.size1Y));
+                        gg.Children.Add(l);
+                    }
+                    TextBlock tb = new TextBlock(new Run((x + mg.xMin).ToString("G6")));
+                    tb.Foreground = Brushes.Gray;
+                    tb.Width = gp.marginSize;
+                    tb.TextAlignment = TextAlignment.Center;
+                    tb.FontSize = 10D;
+                    Canvas.SetBottom(tb, -gp.marginSize);
+                    tb.Padding = new Thickness(0D, 0D, 0D, 2D);
+                    Canvas.SetLeft(tb, x * scale + gp.halfMargin);
+                    xAxisLabels.Children.Add(tb);
                 }
-                TextBlock tb = new TextBlock(new Run((x + mg.xMin).ToString("G6")));
-                tb.Foreground = Brushes.Gray;
-                tb.Width = gp.marginSize;
-                tb.TextAlignment = TextAlignment.Center;
-                tb.FontSize = 10D;
-                Canvas.SetBottom(tb, -gp.marginSize);
-                tb.Padding = new Thickness(0D, 0D, 0D, 2D);
-                Canvas.SetLeft(tb, x * scale + gp.halfMargin);
-                xAxisLabels.Children.Add(tb);
+                xAxisGrid.Data = gg;
             }
-            xAxisGrid.Data = gg;
         }
 
         static double[] gridYMax = { 1, 2, 3, 5, 5, 10, 10, 10, 10, 10 };
         static double[] gridYInc = { 0.2, 0.5, 0.5, 1, 1, 2, 2, 2, 2, 2 };
-        public double drawYGrid(double maxVal)
+        public void drawYGrid(double maxVal)
         {
             double d = Math.Abs(maxVal);
             if (d == 0D) d = 1D;
@@ -297,52 +309,54 @@ namespace FMGraph2
                 if (mg.typeAxis == AxisType.Neg) graphletYScale = -graphletYScale;
             }
 
-            GeometryGroup gg = new GeometryGroup();
-            yAxisLabels.Children.Clear();
-            for (double y = inc; y <= m0; y += inc)
+            if (graphletYScale != oldGraphletYScale)
             {
-                LineGeometry l = new LineGeometry(
-                    new Point(0D, -y * graphletYScale),
-                    new Point(mg.size1X, -y * graphletYScale));
-                gg.Children.Add(l);
-                string s = y.ToString("G4");
-                TextBlock tb = new TextBlock(new Run(s));
-                tb.Foreground = Brushes.Gray;
-                tb.Width = gp.marginSize;
-                tb.TextAlignment = TextAlignment.Center;
-                tb.FontSize = 10D;
-                if (s.Length > 4)
+                GeometryGroup gg = new GeometryGroup();
+                yAxisLabels.Children.Clear();
+                for (double y = inc; y <= m0; y += inc)
                 {
-                    tb.FontSize = 6D;
-                    tb.FontStretch = FontStretches.UltraCondensed;
-                }
-                Canvas.SetBottom(tb, (mg.typeAxis == AxisType.PosNeg ? offset : 0D) + y * graphletYScale - tb.FontSize / 2);
-                Canvas.SetRight(tb, 0D);
-                yAxisLabels.Children.Add(tb);
-                if (mg.typeAxis == AxisType.PosNeg)
-                {
-                    LineGeometry l1 = new LineGeometry(
-                        new Point(0D, y * graphletYScale),
-                        new Point(mg.size1X, y * graphletYScale));
-                    gg.Children.Add(l1);
-                    s = (-y).ToString("G4");
-                    TextBlock tb1 = new TextBlock(new Run(s));
-                    tb1.Foreground = Brushes.Gray;
-                    tb1.Width = gp.marginSize;
-                    tb1.TextAlignment = TextAlignment.Center;
-                    tb1.FontSize = 10D;
+                    LineGeometry l = new LineGeometry(
+                        new Point(0D, -y * graphletYScale),
+                        new Point(mg.size1X, -y * graphletYScale));
+                    gg.Children.Add(l);
+                    string s = y.ToString("G4");
+                    TextBlock tb = new TextBlock(new Run(s));
+                    tb.Foreground = Brushes.Gray;
+                    tb.Width = gp.marginSize;
+                    tb.TextAlignment = TextAlignment.Center;
+                    tb.FontSize = 10D;
                     if (s.Length > 4)
                     {
-                        tb1.FontSize = 6D;
-                        tb1.FontStretch = FontStretches.UltraCondensed;
+                        tb.FontSize = 6D;
+                        tb.FontStretch = FontStretches.UltraCondensed;
                     }
-                    Canvas.SetBottom(tb1, offset - y * graphletYScale - tb.FontSize / 2);
-                    Canvas.SetRight(tb1, 0D);
-                    yAxisLabels.Children.Add(tb1);
+                    Canvas.SetBottom(tb, (mg.typeAxis == AxisType.PosNeg ? offset : 0D) + y * graphletYScale - tb.FontSize / 2);
+                    Canvas.SetRight(tb, 0D);
+                    yAxisLabels.Children.Add(tb);
+                    if (mg.typeAxis == AxisType.PosNeg)
+                    {
+                        LineGeometry l1 = new LineGeometry(
+                            new Point(0D, y * graphletYScale),
+                            new Point(mg.size1X, y * graphletYScale));
+                        gg.Children.Add(l1);
+                        s = (-y).ToString("G4");
+                        TextBlock tb1 = new TextBlock(new Run(s));
+                        tb1.Foreground = Brushes.Gray;
+                        tb1.Width = gp.marginSize;
+                        tb1.TextAlignment = TextAlignment.Center;
+                        tb1.FontSize = 10D;
+                        if (s.Length > 4)
+                        {
+                            tb1.FontSize = 6D;
+                            tb1.FontStretch = FontStretches.UltraCondensed;
+                        }
+                        Canvas.SetBottom(tb1, offset - y * graphletYScale - tb.FontSize / 2);
+                        Canvas.SetRight(tb1, 0D);
+                        yAxisLabels.Children.Add(tb1);
+                    }
                 }
+                yAxisGrid.Data = gg;
             }
-            yAxisGrid.Data = gg;
-            return m0;
         }
 
         /********** Event handlers **********/

@@ -84,11 +84,11 @@
                 </StackPanel>
                 <GroupBox Header="Scaling">
                     <StackPanel Orientation="Vertical">
-                        <RadioButton Name="scaleToSegment" Margin="10,4,0,4" IsChecked="True" GroupName="YScaling">Scale to each channel's maximum in included segment</RadioButton>
-                        <RadioButton Name="channelYMax" Margin="10,4,0,4" GroupName="YScaling">Scale to each channel's overall maximum</RadioButton>
+                        <RadioButton Name="scaleToEachChannel" Margin="10,4,0,4" IsChecked="True" GroupName="YScaling">Scale each channel to its maximum</RadioButton>
+                        <RadioButton Name="scaleToRecsetMax" Margin="10,4,0,4" GroupName="YScaling">Scale all channels to overall maximum of recordset</RadioButton>
                         <StackPanel Orientation="Horizontal">
-                            <RadioButton Name="allYMax" Margin="10,4,0,4" Checked="click_Check" Unchecked="click_Check" GroupName="YScaling">Scale to fixed maximum for all channels =</RadioButton>
-                            <TextBox Name="allYMaxValue" Width="130" Height="20" Padding="2,0,2,0" Margin="4,4,0,4" IsEnabled="{Binding ElementName=allYMax, Path=IsChecked}" TextChanged="allYMaxValue_TextChanged" />
+                            <RadioButton Name="scaleToFixedMax" Margin="10,4,0,4" Checked="click_Check" Unchecked="click_Check" GroupName="YScaling">Scale all channels to fixed maximum of</RadioButton>
+                            <TextBox Name="allYMaxValue" Width="130" Height="20" Padding="2,0,2,0" Margin="4,4,0,4" IsEnabled="{Binding ElementName=scaleToFixedMax, Path=IsChecked}" TextChanged="allYMaxValue_TextChanged" />
                         </StackPanel>
                     </StackPanel>
                 </GroupBox>

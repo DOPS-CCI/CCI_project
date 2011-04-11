@@ -280,15 +280,6 @@ namespace FILMANFileStream
 
         }
 
-        public FMRecordSet readRecordSet(int nrecSet)
-        {
-            if (!br.BaseStream.CanSeek) throw new IOException("File stream not able to perform seek.");
-            if (nrecSet * _nc >= _nr || nrecSet < 0) return null; //read beyond EOF
-            long pos = 464 + 24 * (_ng + _nc) + (nrecSet * _nc + nc) * NP * 4;
-            br.BaseStream.Seek(pos, SeekOrigin.Begin);
-            return read();
-        }
-
         public void Close() { br.Close(); }
 
         public void Dispose() { this.Close(); }
@@ -662,16 +653,4 @@ namespace FILMANFileStream
         }
     }
 
-    public class FMRecordSet
-    {
-        FILMANRecord[] recordSet;
-        public FMRecordSet(FILMANFileStream fm)
-        {
-            recordSet = new FILMANRecord[fm.NC];
-            for (int i = 0; i < fm.NC; i++)
-            {
-            }
-        }
-
-    }
 }

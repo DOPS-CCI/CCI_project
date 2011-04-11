@@ -89,6 +89,8 @@ namespace FMGraph2
         internal double xMax;
         internal int xStart;
         internal int xStop;
+        internal double allChanMax;
+        internal double allChanMin;
         public int highlightedChannel = -1; // This is the FM channel that is currently "highlighted" == displayed in red
 
         public string recListString //1-based as it's for display
@@ -131,8 +133,8 @@ namespace FMGraph2
             this.recordSet = new FILMANRecord[fis.NC]; // need to process by recordset, Graphlets can randomly access channels
             this.gp = setup.gp;
             this.FMFileName = setup.FMFileName;
-            this.fixedYMax = (bool)setup.allYMax.IsChecked;
-            this.useAllYMax = (bool)setup.channelYMax.IsChecked;
+            this.fixedYMax = (bool)setup.scaleToFixedMax.IsChecked;
+            this.useAllYMax = (bool)setup.scaleToRecsetMax.IsChecked;
             this.fixedYMaxValue = setup._Ymax;
             this.aspect = setup._asp;
             this.decimation = setup._dec;
@@ -155,7 +157,7 @@ namespace FMGraph2
                 finalXScale = (double)fis.IS / (double)(fis.ND - 1); //Hz/pt
             }
             xStart = (int)(xMin / finalXScale - 1D) + 1; //First point >= xMin; in sample scale
-            xStop = (int)(xMax / finalXScale - 1D) + 1; //Last point >= xMax ; in sample scale
+            xStop = (int)(xMax / finalXScale - 1D) + 1; //Last point <= xMax ; in sample scale
             yLabel = ((bool)setup.IncludeY.IsChecked) ? setup.yAxis.Text : "";
 
             try
@@ -373,7 +375,7 @@ namespace FMGraph2
             //but is scaled/magnified appropriately to fill available actual window size
             foreach(Graphlet1 g in graphletList)
             {
-                g.drawXgrid(); //only has to be done once
+                g.drawXGrid(); //only has to be done once
                 if (fixedYMax) g.drawYGrid(fixedYMaxValue); //then, only has to be done once
                 this.AddGraphlet(g, g.x * nominalWidth - offsetx, g.y * nominalWidth - offsety);
             }
@@ -507,11 +509,11 @@ namespace FMGraph2
                 gv.n = FMrecord.GV[j + 2]; //all records in a FILMAN fileset have the same GV values
                 gvList.Add(gv);
             } */
-            double allChanMax = double.NegativeInfinity;
-            double allChanMin = double.PositiveInfinity;
+            allChanMax = double.NegativeInfinity;
+            allChanMin = double.PositiveInfinity;
             foreach (displayChannel dc in displayedChannels)
             {
-                recordSet[dc.channel] = fis.read(record, dc.channel);
+                recordSet[dc.channel] = Transform(fis.read(record, dc.channel)); //Read in channel and transform
                 dc.max = recordSet[dc.channel].Max();
                 dc.min = recordSet[dc.channel].Min();
                 allChanMax = Math.Max(allChanMax, dc.max);
@@ -526,6 +528,13 @@ namespace FMGraph2
                     g.drawYGrid(Math.Max(g.graphletMax, -g.graphletMin));
 
             }
+        }
+
+        private FILMANRecord Transform(FILMANRecord filmanRecord)
+        {
+            for (int i = xStart; i < xStop; i += decimation)
+                filmanRecord[i] = pt(filmanRecord[i]);
+            return filmanRecord;
         }
 
         public void displayNextRecset()
