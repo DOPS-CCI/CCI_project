@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
+using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -66,7 +67,7 @@ namespace FMGraph2
 
         internal int numberOfChannels;
 
-        public Graphlet1(string name, IEnumerable<int> channels, Multigraph mg)
+        public Graphlet1(string name, IEnumerable<int> includedChannels, Multigraph mg)
         {
             InitializeComponent();
 
@@ -74,12 +75,17 @@ namespace FMGraph2
             this.DataContext = mg;
             this.gp = mg.gp;
             this.name.Content = name;
-            this.graphletName.Text = name;
             this.Height = MainWindow.graphletSize;
             this.Width = this.Height * mg.aspect;
-            foreach (int chan in channels)
+            StringBuilder tooltip = new StringBuilder(name);
+            bool first = true;
+            foreach (int chan in includedChannels)
+            {
+                if (includedChannels.Count() > 1) tooltip.Append((first ? ": " : ", ") + Multigraph.trimChannelName(mg.fis.ChannelNames(chan)));
+                first = false;
                 this.channels.Add(chan);
-
+            }
+            this.graphletName.Text = tooltip.ToString();
             if (mg.typeAxis == AxisType.Pos)
                 offset = MainWindow._baseSize;
             else if (mg.typeAxis == AxisType.PosNeg)
@@ -148,27 +154,33 @@ namespace FMGraph2
             double min = double.PositiveInfinity;
             foreach (int channel in channels)
             {
-                FILMANRecord fmr = mg.recordSet[channel];
-                for (int i = mg.xStart; i < mg.xStop; i += mg.decimation)
-                {
-                    double y = fmr[i];
-                    max = Math.Max(max, y);
-                    min = Math.Min(min, y);
-                }
+                Multigraph.displayChannel dc = mg.displayedChannels.Where(n => n.channel == channel).First();
+                max = Math.Max(dc.max, max);
+                min = Math.Min(dc.min, min);
             }
 
             //Check to see if new Y-axis and grid needed
             if (mg.useAllYMax) drawYGrid(Math.Max(mg.allChanMax, -mg.allChanMin));
             else if (!mg.fixedYMax) //then must be per graphlet max
                 drawYGrid(Math.Max(max,-min));
+
+            if (mg.individual) // make sure this is the first
+            {
+                foreach (Plot pl in plots)
+                    gCanvas.Children.Remove(pl.path);
+                plots.Clear();
+                graphletMax = double.MinValue;
+                graphletMin = double.MaxValue;
+            }
+
             foreach (int channel in channels)
             {
-                FILMANRecord fmr = mg.recordSet[channel];
+                Multigraph.displayChannel dc = mg.displayedChannels.Where(n => n.channel == channel).First();
                 points = new StreamGeometry();
                 ctx = points.Open();
-                ctx.BeginFigure(new Point(0, MainWindow._baseSize - offset - mg.gp.halfMargin - fmr[0] * graphletYScale), false, false);
-                for (int x = mg.decimation; x < mg.xStop - mg.xStart; x += mg.decimation)
-                    ctx.LineTo(new Point((double)x * graphletXScale, offset - mg.gp.halfMargin - fmr[mg.xStart + x] * graphletYScale), true, true);
+                ctx.BeginFigure(new Point(0, MainWindow._baseSize - offset - mg.gp.halfMargin - dc.buffer[0] * graphletYScale), false, false);
+                for (int x = 1; x < dc.buffer.GetLength(0); x++)
+                    ctx.LineTo(new Point((double)x * graphletXScale, offset - mg.gp.halfMargin - dc.buffer[x] * graphletYScale), true, true);
                 ctx.Close();
                 points.Freeze();
                 Path p = new Path();
@@ -255,7 +267,7 @@ namespace FMGraph2
                     inc = gridXInc[(int)range - 1];
 
             double scale = mg.ScaleX / range;
-            graphletXScale = scale * mg.finalXScale;
+            graphletXScale = scale * mg.finalXScale * (double)mg.decimation;
 
             if (graphletXScale != oldGraphletXScale) //need to redraw X axis and grid
             {

@@ -21,24 +21,7 @@ namespace FMGraph2
     /// </summary>
     public partial class Multigraph: TabItem, INotifyPropertyChanged
     {
-        internal class displayChannel: IComparer<displayChannel>
-        {
-            internal int channel; //channel number in FILMAN file
-            internal double max;
-            internal double min;
-            internal List<Graphlet1> graphs = new List<Graphlet1>(1); //list of Graphlets this channel is displayed in
-
-            public int Compare(displayChannel x, displayChannel y)
-            {
-                return x.channel - y.channel;
-            }
-        }
-
-        internal List<displayChannel> displayedChannels = new List<displayChannel>();
-
         internal List<Graphlet1> graphletList = new List<Graphlet1>();
-
-        internal FILMANFileStream.FILMANRecord[] recordSet;
 
         int recset = 0;
         public int RecSet
@@ -106,6 +89,27 @@ namespace FMGraph2
             }
         }
 
+        internal class displayChannel: IComparer<displayChannel>
+        {
+            internal int channel; //channel number in FILMAN file
+            internal double max;
+            internal double min;
+            internal List<Graphlet1> graphs = new List<Graphlet1>(1); //list of Graphlets this channel is displayed in
+            internal double[] buffer;
+
+            internal displayChannel(int size)
+            {
+                buffer = new double[size];
+            }
+
+            public int Compare(displayChannel x, displayChannel y)
+            {
+                return x.channel - y.channel;
+            }
+        }
+
+        internal List<displayChannel> displayedChannels = new List<displayChannel>();
+
         GVList _gv;
         public GVList gvList
         {
@@ -130,7 +134,6 @@ namespace FMGraph2
         public Multigraph(Setup setup)
         {
             this.fis = setup.fm;
-            this.recordSet = new FILMANRecord[fis.NC]; // need to process by recordset, Graphlets can randomly access channels
             this.gp = setup.gp;
             this.FMFileName = setup.FMFileName;
             this.fixedYMax = (bool)setup.scaleToFixedMax.IsChecked;
@@ -198,7 +201,7 @@ namespace FMGraph2
                 if (m.Groups.Count == 5 && !(bool)setup.DefaultLocation.IsChecked)
                 {
                     foundPositionChannel = true;
-                    displayChannel e = new displayChannel();
+                    displayChannel e = new displayChannel((xStop - xStart) / decimation);
                     e.channel = i;
                     int[] chan={i};
                     Graphlet1 g = new Graphlet1(trimChannelName(fis.ChannelNames(i)), chan, this); //Create single graphlet to display this channel
@@ -244,7 +247,7 @@ namespace FMGraph2
                 else
                 { //no location info for this channel, keep track on it in orphans; we'll assign them to locations at the bottom
                     //after we know how big the display of channels with locations is
-                    displayChannel dc = new displayChannel();
+                    displayChannel dc = new displayChannel((xStop - xStart) / decimation);
                     int[] chan = { i };
                     Graphlet1 g = new Graphlet1(trimChannelName(fis.ChannelNames(i)), chan, this);
                     graphletList.Add(g);
@@ -274,7 +277,7 @@ namespace FMGraph2
                     dc = displayedChannels.Find(chan => chan.channel.Equals(channel)); //check if channel already in displayedChannels
                     if (dc == null) //if not, make new displayedChannel
                     {
-                        dc = new displayChannel();
+                        dc = new displayChannel((xStop - xStart) / decimation);
                         dc.channel = channel;
                         displayedChannels.Add(dc);
                     }
@@ -458,13 +461,13 @@ namespace FMGraph2
             return Graph.Children.Count;
         }
 
+        internal bool individual; //Indicates single recordset display mode; false implies superimposed recordset mode
         public void displayRecset(int record)
         {
             if (record < 0 || record >= fis.NR / fis.NC) return;
             RecSet = record; //update displayed record number
             if (recordList.Contains(record)) return; // note: even if record already displayed, we should count through it
-//            FILMANRecord FMrecord = null; // to trick compiler
-            bool individual = (bool)nc.Individual.IsChecked;
+            individual = (bool)nc.Individual.IsChecked;
             gvList = new GVList(); //created here so that the Graphlets can point at it **
 /*            foreach (Graphlet1 g in graphletList) g.first = true;
             foreach(displayChannel dc in displayedChannels)
@@ -509,15 +512,31 @@ namespace FMGraph2
                 gv.n = FMrecord.GV[j + 2]; //all records in a FILMAN fileset have the same GV values
                 gvList.Add(gv);
             } */
+            FILMANRecord fmr = null; //to fool compiler
             allChanMax = double.NegativeInfinity;
             allChanMin = double.PositiveInfinity;
+            double v;
             foreach (displayChannel dc in displayedChannels)
             {
-                recordSet[dc.channel] = Transform(fis.read(record, dc.channel)); //Read in channel and transform
-                dc.max = recordSet[dc.channel].Max();
-                dc.min = recordSet[dc.channel].Min();
+                fmr = fis.read(record, dc.channel);
+                if (fmr == null) return; //EOF -- premature => invalid file
+                int j = 0;
+                for (int i = 0; i < xStop - xStart; i += decimation)
+                {
+                    v = pt(fmr[xStart + i]);
+                    dc.buffer[j++] = v;
+                    dc.max = Math.Max(v, dc.max);
+                    dc.min = Math.Min(v, dc.min);
+                }
                 allChanMax = Math.Max(allChanMax, dc.max);
                 allChanMin = Math.Min(allChanMin, dc.min);
+            }
+
+            for (int j = 0; j < fis.NG - 2; j++)
+            {// ** but set GV values here once we have them available
+                GV gv = new GV(fis.GVNames(j + 2));
+                gv.n = fmr.GV[j + 2]; //all records in a recset have the same GV values, so we'll just us last one
+                gvList.Add(gv);
             }
 
             foreach (Graphlet1 g in graphletList)
@@ -528,13 +547,10 @@ namespace FMGraph2
                     g.drawYGrid(Math.Max(g.graphletMax, -g.graphletMin));
 
             }
-        }
 
-        private FILMANRecord Transform(FILMANRecord filmanRecord)
-        {
-            for (int i = xStart; i < xStop; i += decimation)
-                filmanRecord[i] = pt(filmanRecord[i]);
-            return filmanRecord;
+            if (individual) recordList.Clear();
+            recordList.Add(record);
+            recListString = Utilities.intListToString(recordList, true);
         }
 
         public void displayNextRecset()
