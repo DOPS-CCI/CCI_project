@@ -15,6 +15,8 @@ namespace FMGraph2
     {
         Graphlet1 g;
         Multigraph mg;
+        double localXScale;
+        double localYScale;
 
         double _xCoord;
         public double xCoord
@@ -22,7 +24,7 @@ namespace FMGraph2
             get { return _xCoord; }
             set
             {
-                _xCoord = (value - mg.gp.marginSize) * mg.finalXScale / g.graphletXScale + mg.xMin; //scale from index to real world value (sec or Hz)
+                _xCoord = (value - mg.gp.marginSize) * localXScale + mg.xMin; //scale from index to real world value (sec or Hz)
                 Notify("xCoord");
             }
         }
@@ -32,7 +34,7 @@ namespace FMGraph2
             get { return _yCoord; }
             set
             {
-                _yCoord = (g.offset - value - g.mg.gp.halfMargin) / g.graphletYScale;
+                _yCoord = (g.offset - value - g.mg.gp.halfMargin) * localYScale;
                 Notify("yCoord");
             }
         }
@@ -43,9 +45,10 @@ namespace FMGraph2
 
             g = graph;
             mg = t;
-            //            DataContext = g;
             loc.DataContext = this;
             tabName.Text = g.mg.FMFileName + ": " + (string)g.name.Content;
+            localXScale = (double)mg.decimation * mg.finalXScale / g.graphletXScale;
+            localYScale = 1D / g.graphletYScale;
             this.Cursor = Cursors.Cross;
             Info.DataContext = g;
             plot.Width = MainWindow.graphletSize * g.mg.aspect + 12;

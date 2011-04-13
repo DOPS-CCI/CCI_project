@@ -20,18 +20,17 @@ namespace FMGraph2
     {
         public static readonly double strokeThickness = 0.5D;
 
+        internal Multigraph mg;
+        internal List<int> channels = new List<int>(1); //List of channels to be displayed in this Graphlet
+        internal List<Plot> plots = new List<Plot>();
+        internal int numberOfChannels;
         internal bool graphletState = true; // true=in Multigraph; false=in SinglePlot
-         
         internal Canvas parent; //Current tab embedded in
         internal double bottom; //Final calculated position in Multigraph
         internal double left;
-
         internal double graphletXScale; //Final scale and offset
         internal double graphletYScale;
         internal double offset;
-        double oldGraphletXScale = 0D; //These are used to determine when to rescale graphlet
-        double oldGraphletYScale = 0D;
-
         internal double x; //Raw location in Multigraph
         internal double y;
 
@@ -45,6 +44,7 @@ namespace FMGraph2
                 Notify("graphletMin");
             }
         }
+
         double _graphletMax = double.MinValue;
         public double graphletMax
         {
@@ -57,15 +57,10 @@ namespace FMGraph2
         }
 
         MainWindow gp;
-        internal Multigraph mg;
         SinglePlot w;
+        double oldGraphletXScale = 0D; //These are used to determine when to rescale graphlet
+        double oldGraphletYScale = 0D;
 
-        internal List<int> channels = new List<int>(1); //List of channels to be displayed in this Graphlet
-        internal List<Plot> plots = new List<Plot>();
-
-        internal bool first; //if true, this is the first (or only) pass of superimposed records
-
-        internal int numberOfChannels;
 
         public Graphlet1(string name, IEnumerable<int> includedChannels, Multigraph mg)
         {
@@ -78,11 +73,12 @@ namespace FMGraph2
             this.Height = MainWindow.graphletSize;
             this.Width = this.Height * mg.aspect;
             StringBuilder tooltip = new StringBuilder(name);
-            bool first = true;
+            bool colon = true;
             foreach (int chan in includedChannels)
             {
-                if (includedChannels.Count() > 1) tooltip.Append((first ? ": " : ", ") + Multigraph.trimChannelName(mg.fis.ChannelNames(chan)));
-                first = false;
+                if (includedChannels.Count() > 1)
+                    tooltip.Append((colon ? ": " : ", ") + Multigraph.trimChannelName(mg.fis.ChannelNames(chan)));
+                colon = false;
                 this.channels.Add(chan);
             }
             this.graphletName.Text = tooltip.ToString();
@@ -104,49 +100,6 @@ namespace FMGraph2
 
         StreamGeometry points;
         StreamGeometryContext ctx;
-        public void openPoints(bool clear)
-        {
-            if (clear) // make sure this is the first
-            {
-                foreach (Plot pl in plots)
-                    gCanvas.Children.Remove(pl.path);
-                plots.Clear();
-                graphletMax = double.MinValue;
-                graphletMin = double.MaxValue;
-            }
-            points = new StreamGeometry();
-            ctx = points.Open();
-            ctx.BeginFigure(new Point(0, MainWindow._baseSize - offset - mg.gp.halfMargin), false, false);
-        }
-
-        public void plotPoint(double x, double y)
-        {
-            Point p = new Point(x * graphletXScale, offset - y * graphletYScale - mg.gp.halfMargin);
-            ctx.LineTo(p, true, false);
-        }
-
-        public void closePoints(int FMchan)
-        {
-            ctx.Close();
-            points.Freeze();
-            Path p = new Path();
-            p.Stroke = FMchan == mg.highlightedChannel ? Brushes.Red : Brushes.Black;
-            p.StrokeThickness = FMchan == mg.highlightedChannel ? strokeThickness * 2D : strokeThickness;
-            p.StrokeLineJoin = PenLineJoin.Round;
-            p.SnapsToDevicePixels = false; //use anti-aliasing
-            p.Data = points;
-            gCanvas.Children.Add(p); //draw the plot onto graphlet
-            Plot pl = new Plot();
-            pl.path = p;
-            pl.channel = FMchan;
-            pl.recNumber = mg.RecSet;
-            pl.max = graphletMax;
-            pl.min = graphletMin;
-            pl.gvList = mg.gvList;
-            plots.Add(pl);
-            first = false;
-        }
-
         public void displayRecord()
         {
             //Find maximum and minimum for this graphlet, in case needed for scaling
@@ -160,11 +113,12 @@ namespace FMGraph2
             }
 
             //Check to see if new Y-axis and grid needed
-            if (mg.useAllYMax) drawYGrid(Math.Max(mg.allChanMax, -mg.allChanMin));
-            else if (!mg.fixedYMax) //then must be per graphlet max
-                drawYGrid(Math.Max(max,-min));
+            if(mg.individual)
+                if (mg.useAllYMax) drawYGrid(Math.Max(mg.allChanMax, -mg.allChanMin));
+                else if (!mg.fixedYMax) //then must be per graphlet max
+                    drawYGrid(Math.Max(max,-min));
 
-            if (mg.individual) // make sure this is the first
+            if (mg.individual) // make sure this is the only one
             {
                 foreach (Plot pl in plots)
                     gCanvas.Children.Remove(pl.path);
@@ -388,10 +342,7 @@ namespace FMGraph2
                 w.IsSelected = true;
             }
             else
-            {
                 gp.TC.Items.Remove(w);
-//                w.Unloaded -= OnGraphClick;
-            }
         }
 
         public event PropertyChangedEventHandler PropertyChanged;

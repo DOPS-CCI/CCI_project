@@ -469,49 +469,6 @@ namespace FMGraph2
             if (recordList.Contains(record)) return; // note: even if record already displayed, we should count through it
             individual = (bool)nc.Individual.IsChecked;
             gvList = new GVList(); //created here so that the Graphlets can point at it **
-/*            foreach (Graphlet1 g in graphletList) g.first = true;
-            foreach(displayChannel dc in displayedChannels)
-            {
-                FMrecord = fis.read(record, dc.channel); // get new FILMAN record
-                if (FMrecord == null) return; //EOF -- premature
-
-                double min = double.PositiveInfinity;
-                double max = double.NegativeInfinity;
-                int first = useAllYMax ? 0 : xStart;
-                int last = useAllYMax ? fis.ND : xStop;
-                for (int i = first; i < last; i++)
-                {
-                    double x = pt(FMrecord[i]);
-                    min = x < min ? x : min;
-                    max = x > max ? x : max;
-                }
-
-                foreach (Graphlet1 g in dc.graphs)
-                {
-                    g.openPoints(individual && g.first); //resets plots and min/max as needed
-                    g.graphletMin = Math.Min(min, g.graphletMin);
-                    g.graphletMax = Math.Max(max, g.graphletMax);
-
-                    //Now we can draw Y axis, if it only needs to be done once
-                    if (individual && g.first && !fixedYMax)
-                        g.drawYGrid(Math.Max(g.graphletMax, -g.graphletMin));
-
-                    //now graph the points for this channel
-                    for (int j = xStart; j < xStop; j += decimation)
-                        g.plotPoint((double)(j - xStart), pt(FMrecord[j]));
-                    g.closePoints(dc.channel);
-                }
-            }
-            if (individual) recordList.Clear();
-            recordList.Add(record);
-            recListString = Utilities.intListToString(recordList, true);
-
-            for (int j = 0; j < fis.NG - 2; j++)
-            {// ** but set GV values here once we have them available
-                GV gv = new GV(fis.GVNames(j + 2));
-                gv.n = FMrecord.GV[j + 2]; //all records in a FILMAN fileset have the same GV values
-                gvList.Add(gv);
-            } */
             FILMANRecord fmr = null; //to fool compiler
             allChanMax = double.NegativeInfinity;
             allChanMin = double.PositiveInfinity;
@@ -521,6 +478,8 @@ namespace FMGraph2
                 fmr = fis.read(record, dc.channel);
                 if (fmr == null) return; //EOF -- premature => invalid file
                 int j = 0;
+                dc.max = double.NegativeInfinity;
+                dc.min = double.PositiveInfinity;
                 for (int i = 0; i < xStop - xStart; i += decimation)
                 {
                     v = pt(fmr[xStart + i]);
@@ -540,13 +499,7 @@ namespace FMGraph2
             }
 
             foreach (Graphlet1 g in graphletList)
-            {
                 g.displayRecord();
-                //Now we can draw Y axis, if it only needs to be done once
-                if (individual && g.first && !fixedYMax)
-                    g.drawYGrid(Math.Max(g.graphletMax, -g.graphletMin));
-
-            }
 
             if (individual) recordList.Clear();
             recordList.Add(record);
