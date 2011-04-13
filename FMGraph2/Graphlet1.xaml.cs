@@ -23,7 +23,6 @@ namespace FMGraph2
         internal Multigraph mg;
         internal List<int> channels = new List<int>(1); //List of channels to be displayed in this Graphlet
         internal List<Plot> plots = new List<Plot>();
-        internal int numberOfChannels;
         internal bool graphletState = true; // true=in Multigraph; false=in SinglePlot
         internal Canvas parent; //Current tab embedded in
         internal double bottom; //Final calculated position in Multigraph
@@ -159,21 +158,21 @@ namespace FMGraph2
 
         public void clearPlots()
         {
-            for (int i = 0; i < plots.Count - numberOfChannels; i++)
+            for (int i = 0; i < plots.Count - channels.Count; i++)
             {
                 Plot pl = plots[plots.Count - 1]; // Remove top one
                 gCanvas.Children.Remove(pl.path);
                 plots.Remove(pl);
             }
-                adjustRecSet();
+            adjustRecSet();
         }
 
         public void undoPlots()
         {
-            if (plots.Count <= numberOfChannels) return; //always leave the last set; nothing to remove
-            for (int i = 0; i < numberOfChannels; i++) //clear out last set
+            if (plots.Count <= channels.Count) return; //always leave the last set; nothing to remove
+            for (int i = 0; i < channels.Count; i++) //clear out last set
             {
-                Plot pl = plots[plots.Count - 1]; // Remove top one numberOfChannels times
+                Plot pl = plots[plots.Count - 1]; // Remove top one channels.Count times
                 gCanvas.Children.Remove(pl.path);
                 plots.Remove(pl);
             }

@@ -206,7 +206,6 @@ namespace FMGraph2
                     int[] chan={i};
                     Graphlet1 g = new Graphlet1(trimChannelName(fis.ChannelNames(i)), chan, this); //Create single graphlet to display this channel
                     graphletList.Add(g);
-                    g.numberOfChannels = 1;
                     if (m.Groups[2].Value == "@") //Cartesian coordinates
                     {
                         g.x = Convert.ToDouble(m.Groups[3].Value);
@@ -251,7 +250,6 @@ namespace FMGraph2
                     int[] chan = { i };
                     Graphlet1 g = new Graphlet1(trimChannelName(fis.ChannelNames(i)), chan, this);
                     graphletList.Add(g);
-                    g.numberOfChannels = 1;
                     dc.channel = i;
                     dc.graphs.Add(g);
                     displayedChannels.Add(dc);
@@ -269,10 +267,8 @@ namespace FMGraph2
                 orphans.Add(g);
                 nOrphans++;
                 graphletList.Add(g);
-                g.numberOfChannels = channelList.Count;
                 foreach (int channel in channelList)
                 {
-                        
                     displayChannel dc;
                     dc = displayedChannels.Find(chan => chan.channel.Equals(channel)); //check if channel already in displayedChannels
                     if (dc == null) //if not, make new displayedChannel
