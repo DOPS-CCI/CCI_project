@@ -390,7 +390,7 @@ namespace FMGraph2
 //
         static double None(double x) { return x; }
         static double Sqrt(double x) { return Math.Sqrt(Math.Abs(x)); }
-        static double Log(double x) { if (x != 0D) return Math.Log(Math.Abs(x)); return 0D; }
+        static double Log(double x) { if (x != 0D) return Math.Log(Math.Abs(x), 10D); return 0D; }
         static double Asin(double x) { if (Math.Abs(x) <= 1D) return Math.Asin(x); return 0D; }
         static double Abs(double x) { return Math.Abs(x); }
 

@@ -131,7 +131,7 @@ namespace FMGraph2
                 Multigraph.displayChannel dc = mg.displayedChannels.Where(n => n.channel == channel).First();
                 points = new StreamGeometry();
                 ctx = points.Open();
-                ctx.BeginFigure(new Point(0, MainWindow._baseSize - offset - mg.gp.halfMargin - dc.buffer[0] * graphletYScale), false, false);
+                ctx.BeginFigure(new Point(0, offset - mg.gp.halfMargin - dc.buffer[0] * graphletYScale), false, false);
                 for (int x = 1; x < dc.buffer.GetLength(0); x++)
                     ctx.LineTo(new Point((double)x * graphletXScale, offset - mg.gp.halfMargin - dc.buffer[x] * graphletYScale), true, true);
                 ctx.Close();
@@ -158,7 +158,8 @@ namespace FMGraph2
 
         public void clearPlots()
         {
-            for (int i = 0; i < plots.Count - channels.Count; i++)
+            int toRemove = plots.Count - channels.Count;
+            for (int i = 0; i < toRemove; i++)
             {
                 Plot pl = plots[plots.Count - 1]; // Remove top one
                 gCanvas.Children.Remove(pl.path);
