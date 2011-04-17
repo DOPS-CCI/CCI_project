@@ -47,7 +47,7 @@ namespace FMGraph2
             mg = t;
             loc.DataContext = this;
             tabName.Text = g.mg.FMFileName + ": " + (string)g.name.Content;
-            localXScale = (double)mg.decimation * mg.finalXScale / g.graphletXScale;
+            localXScale = (double)mg._decimation * mg.finalXScale / g.graphletXScale;
             localYScale = 1D / g.graphletYScale;
             this.Cursor = Cursors.Cross;
             Info.DataContext = g;

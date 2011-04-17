@@ -8,6 +8,7 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
         <Button Grid.Row="0" Name="ShowLabs" Height="Auto" Width="120" VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,5,0,5" Click="ShowHide_Click" Padding="2">Show labels</Button>
         <Button Grid.Row="0" Name="HideLabs" Height="Auto" Width="120" VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,5,0,5" Click="ShowHide_Click" Visibility="Hidden" Padding="2">Hide labels</Button>
@@ -51,6 +52,14 @@
         </GroupBox>
         <GroupBox Header="Highlight channel" Grid.Row="4">
             <ComboBox Name="LocateChannel" SelectionChanged="LocateChannel_SelectionChanged"></ComboBox>
+        </GroupBox>
+        <GroupBox Header="Specifications" Grid.Row="5">
+            <StackPanel Orientation="Vertical">
+                <TextBlock Margin="4"><Run>Decimation = </Run><Run Text="{Binding Path=decimation, Mode=OneWay}"/></TextBlock>
+                <TextBlock Name="specScale" Margin="4"/>
+                <TextBlock Name="specTransform" Margin="4"/>
+                <TextBlock Name="specPosition" Margin="4"/>
+            </StackPanel>
         </GroupBox>
     </Grid>
 </Grid>

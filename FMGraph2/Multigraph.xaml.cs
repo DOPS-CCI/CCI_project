@@ -53,7 +53,8 @@ namespace FMGraph2
         public double fixedYMaxValue;
         public bool useAllYMax;
         public double aspect;
-        public int decimation;
+        internal int _decimation;
+        public int decimation { get { return _decimation; } }
         public AxisType typeAxis;
         public XType typeXAxis;
         public string xLabel { get; set; }
@@ -74,6 +75,7 @@ namespace FMGraph2
         internal int xStop;
         internal double allChanMax;
         internal double allChanMin;
+        internal bool usePositionData;
         public int highlightedChannel = -1; // This is the FM channel that is currently "highlighted" == displayed in red
 
         public string recListString //1-based as it's for display
@@ -128,8 +130,8 @@ namespace FMGraph2
         }
 
         internal NavigationControl nc;
-        delegate double PointTransform(double x);
-        PointTransform pt = None;
+        internal delegate double PointTransform(double x);
+        internal PointTransform pt = None;
 
         public Multigraph(Setup setup)
         {
@@ -140,7 +142,7 @@ namespace FMGraph2
             this.useAllYMax = (bool)setup.scaleToRecsetMax.IsChecked;
             this.fixedYMaxValue = setup._Ymax;
             this.aspect = setup._asp;
-            this.decimation = setup._dec;
+            this._decimation = setup._dec;
             if ((bool)setup.PosNeg.IsChecked) typeAxis = AxisType.PosNeg;
             else typeAxis = AxisType.Pos;
             if ((bool)setup.T.IsChecked)//Time-based graphlets
@@ -162,6 +164,7 @@ namespace FMGraph2
             xStart = (int)(xMin / finalXScale - 1D) + 1; //First point >= xMin; in sample scale
             xStop = (int)(xMax / finalXScale - 1D) + 1; //Last point <= xMax ; in sample scale
             yLabel = ((bool)setup.IncludeY.IsChecked) ? setup.yAxis.Text : "";
+            usePositionData = !(bool)setup.DefaultLocation.IsChecked;
 
             try
             {
@@ -198,10 +201,10 @@ namespace FMGraph2
             foreach(int i in channelList)
             {
                 m = r.Match(fis.ChannelNames(i));
-                if (m.Groups.Count == 5 && !(bool)setup.DefaultLocation.IsChecked)
+                if (m.Groups.Count == 5 && usePositionData)
                 {
                     foundPositionChannel = true;
-                    displayChannel e = new displayChannel((xStop - xStart) / decimation);
+                    displayChannel e = new displayChannel((xStop - xStart) / _decimation);
                     e.channel = i;
                     int[] chan={i};
                     Graphlet1 g = new Graphlet1(trimChannelName(fis.ChannelNames(i)), chan, this); //Create single graphlet to display this channel
@@ -246,7 +249,7 @@ namespace FMGraph2
                 else
                 { //no location info for this channel, keep track on it in orphans; we'll assign them to locations at the bottom
                     //after we know how big the display of channels with locations is
-                    displayChannel dc = new displayChannel((xStop - xStart) / decimation);
+                    displayChannel dc = new displayChannel((xStop - xStart) / _decimation);
                     int[] chan = { i };
                     Graphlet1 g = new Graphlet1(trimChannelName(fis.ChannelNames(i)), chan, this);
                     graphletList.Add(g);
@@ -273,7 +276,7 @@ namespace FMGraph2
                     dc = displayedChannels.Find(chan => chan.channel.Equals(channel)); //check if channel already in displayedChannels
                     if (dc == null) //if not, make new displayedChannel
                     {
-                        dc = new displayChannel((xStop - xStart) / decimation);
+                        dc = new displayChannel((xStop - xStart) / _decimation);
                         dc.channel = channel;
                         displayedChannels.Add(dc);
                     }
@@ -342,15 +345,15 @@ namespace FMGraph2
                 delegate(displayChannel a, displayChannel b) { return a.channel - b.channel; })); //Sort channel list for Locator
             InitializeComponent();
             this.DataContext = this;
-            nc = new NavigationControl(this);
-            nc.totalRecs.Text = (fis.NR / fis.NC).ToString("0");
             if (!(bool)setup.None.IsChecked)
             {
                 if ((bool)setup.Sqrt.IsChecked) pt = Sqrt;
-                else if ((bool)setup.Log.IsChecked) pt = Log;
-                else if ((bool)setup.Asin.IsChecked) pt = Asin;
+                else if ((bool)setup.Log.IsChecked) pt = Log10;
+                else if ((bool)setup.Asin.IsChecked) pt = Arcsin;
                 else pt = Abs;
             }
+            nc = new NavigationControl(this);
+            nc.totalRecs.Text = (fis.NR / fis.NC).ToString("0");
 
             double marg = 0.02D * Math.Max(xSize, ySize);
             xSize += 2D * marg; // final extent of the graph
@@ -390,8 +393,8 @@ namespace FMGraph2
 //
         static double None(double x) { return x; }
         static double Sqrt(double x) { return Math.Sqrt(Math.Abs(x)); }
-        static double Log(double x) { if (x != 0D) return Math.Log(Math.Abs(x), 10D); return 0D; }
-        static double Asin(double x) { if (Math.Abs(x) <= 1D) return Math.Asin(x); return 0D; }
+        static double Log10(double x) { if (x != 0D) return Math.Log(Math.Abs(x), 10D); return 0D; }
+        static double Arcsin(double x) { if (Math.Abs(x) <= 1D) return Math.Asin(x); return 0D; }
         static double Abs(double x) { return Math.Abs(x); }
 
         /// <summary>
@@ -476,7 +479,7 @@ namespace FMGraph2
                 int j = 0;
                 dc.max = double.NegativeInfinity;
                 dc.min = double.PositiveInfinity;
-                for (int i = 0; i < xStop - xStart; i += decimation)
+                for (int i = 0; i < xStop - xStart; i += _decimation)
                 {
                     v = pt(fmr[xStart + i]);
                     dc.buffer[j++] = v;

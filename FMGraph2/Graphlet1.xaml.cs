@@ -221,7 +221,7 @@ namespace FMGraph2
                     inc = gridXInc[(int)range - 1];
 
             double scale = mg.ScaleX / range;
-            graphletXScale = scale * mg.finalXScale * (double)mg.decimation;
+            graphletXScale = scale * mg.finalXScale * (double)mg._decimation;
 
             if (graphletXScale != oldGraphletXScale) //need to redraw X axis and grid
             {

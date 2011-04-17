@@ -32,6 +32,9 @@ namespace FMGraph2
             foreach (Multigraph.displayChannel dc in mg.displayedChannels)
                 this.LocateChannel.Items.Add(Multigraph.trimChannelName(mg.fis.ChannelNames(dc.channel)));
             this.LocateChannel.SelectedIndex = 0;
+            this.specScale.Text = mg.useAllYMax ? "Scale Y to all chans" : mg.fixedYMax ? "Scale Y to " + mg.fixedYMaxValue.ToString() : "Scale Y to each chan";
+            this.specTransform.Text = "Point transform = " + mg.pt.Method.Name;
+            this.specPosition.Text = mg.usePositionData ? "Using position data" : "Default locations for all";
         }
 
         private void ShowHide_Click(object sender, RoutedEventArgs e)
