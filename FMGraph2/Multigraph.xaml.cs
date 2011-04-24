@@ -588,14 +588,15 @@ namespace FMGraph2
         private void SV_PreviewMouseDown(object sender, MouseButtonEventArgs e)
         {
             Console.WriteLine("Enter SV_PreviewMouseDown: " + _inClick + " " + _inDrag + " " + _lockout);
-            if (!_inDrag && !_lockout)
+            if (/*!_inDrag && !_lockout*/true)
             {
                 _startDragX = e.MouseDevice.GetPosition(SV).X;
                 _startDragY = e.MouseDevice.GetPosition(SV).Y;
-                Console.WriteLine("In Down: Mouse.SV.X={0}, Mouse.SV.Y={1}, SV.Hoff={2}, SV.Voff={3}", e.MouseDevice.GetPosition(SV).X, e.MouseDevice.GetPosition(SV).Y, SV.HorizontalOffset, SV.VerticalOffset);
+                Console.WriteLine("In Down: Mouse.SV.X={0}, Mouse.SV.Y={1}, SV.Hoff={2}, SV.Voff={3}", _startDragX, _startDragY, SV.HorizontalOffset, SV.VerticalOffset);
                 _lastX = _startDragX;
                 _lastY = _startDragY;
                 _inClick = true;
+                e.Handled = true; //bypass down click in button
             }
         }
 
@@ -611,17 +612,18 @@ namespace FMGraph2
             double s = e.MouseDevice.GetPosition(SV).Y;
             if (_inClick) //Check for state switch
             {
-                Console.WriteLine("In Move: Mouse.SV.X={0}, Mouse.SV.Y={1}, SV.Hoff={2}, SV.Voff={3}", e.MouseDevice.GetPosition(SV).X, e.MouseDevice.GetPosition(SV).Y, SV.HorizontalOffset, SV.VerticalOffset);
+                Console.WriteLine("In Move (click): Mouse.SV.X={0}, Mouse.SV.Y={1}, SV.Hoff={2}, SV.Voff={3}", t, s, SV.HorizontalOffset, SV.VerticalOffset);
                 if (Math.Abs(t - _startDragX) > 2D && Math.Abs(s - _startDragY) > 2D) //Switch to dragging mode
                 {
-                    _inClick = false;
+                    _inClick = false; //switch mode from click to drag
                     _inDrag = true;
-                    Mouse.Capture(SV);
+//                    Mouse.Capture(SV);
                 }
-                else return;
+                else return; //do nothing if it hasn't moved 2 pixels yet
             }
             if (_inDrag)
             {
+                Console.WriteLine("In Move (drag): Mouse.SV.X={0}, Mouse.SV.Y={1}, SV.Hoff={2}, SV.Voff={3}", t, s, SV.HorizontalOffset, SV.VerticalOffset);
                 double delX = t - _lastX;
                 double delY = _lastY - s;
                 if (Math.Abs(delX) < sensitivity && Math.Abs(delY) < sensitivity) return;
@@ -681,7 +683,12 @@ namespace FMGraph2
                 _inDrag = false;
                 e.Handled = true; //Block MouseUp being sent to Graphlet
             }
-            Mouse.Capture(null);
+            else {//_inClick still ==> simulate MouseClick event if over Graphlet
+                Mouse.Capture(null);
+                UIElement uie = (UIElement)e.Source;
+                Type target = Type.GetType("FMGraph2.Graphlet1");
+                if (uie.GetType() == target) ((Graphlet1)e.Source).OnGraphClick(e.Source, e);
+            }
         }
 
         private void SV_MouseLeave(object sender, MouseEventArgs e)
