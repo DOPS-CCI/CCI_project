@@ -145,6 +145,8 @@ namespace HeaderFileStream
                 header.BDFFile = xr.ReadElementContentAsString("BDFFile", nameSpace);
                 header.EventFile = xr.ReadElementContentAsString("EventFile", nameSpace);
                 header.ElectrodeFile = xr.ReadElementContentAsString("ElectrodeFile", nameSpace);
+                if (xr.Name == "Comment")
+                    header.Comment = xr.ReadElementContentAsString("Comment", nameSpace); //Optional comment
                 xr.ReadEndElement(/* SessionDescription */);
                 return header;
             }

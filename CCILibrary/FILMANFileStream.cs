@@ -514,12 +514,42 @@ namespace FILMANFileStream
     public class FILMANRecordComplex : FILMANRecord
     {
         private Complex[] data;
+        complexMode _mode = complexMode.Modulus; //default return is modulus
+        public complexMode mode { get { return _mode; } set { _mode = value; } }
         public override double this[int index] //Incomplete implementation!! Indexer only returns/sets a double
         {
-            get { return data[index].modulus; }
-            set { data[index].R = (float)value; }
-        }
+            get
+            {
+                double r;
+                switch (_mode)
+                {
+                    case complexMode.Modulus: r = data[index].modulus; break;
+                    case complexMode.Argument: r = data[index].argument; break;
+                    case complexMode.Real: r = data[index].R; break;
+                    case complexMode.Imaginary: r = data[index].I; break;
+                    default: r = data[index].modulus; break;
+                }
+                return r;
+            }
 
+            set
+            {
+                switch (_mode)
+                {
+                    case complexMode.Real:
+                    case complexMode.Modulus: data[index].R = (float)value; return;
+                    case complexMode.Imaginary: data[index].I = (float)value; return;
+                    case complexMode.Argument:
+                        {
+                            double r = data[index].R;
+                            data[index].I = (float)(r * Math.Sin(value));
+                            data[index].R = (float)(r * Math.Cos(value));
+                        }
+                        return;
+                }
+            }
+
+        }
 
         public FILMANRecordComplex(int ng, int na, int nd)
             : base(ng, na, nd)
@@ -557,12 +587,41 @@ namespace FILMANFileStream
     public class FILMANRecordDComplex : FILMANRecord
     {
         private DComplex[] data;
+        complexMode _mode = complexMode.Modulus; //default return is modulus
+        public complexMode mode { get { return _mode; } set { _mode = value; } }
         public override double this[int index] //Incomplete implementation!! Indexer only returns/sets a double
         {
-            get { return data[index].modulus; }
-            set { data[index].R = value; }
-        }
+            get
+            {
+                double r;
+                switch (_mode)
+                {
+                    case complexMode.Modulus: r = data[index].modulus; break;
+                    case complexMode.Argument: r = data[index].argument; break;
+                    case complexMode.Real: r = data[index].R; break;
+                    case complexMode.Imaginary: r = data[index].I; break;
+                    default: r = data[index].modulus; break;
+                }
+                return r;
+            }
 
+            set
+            { 
+                switch(_mode)
+                {
+                    case complexMode.Real:
+                    case complexMode.Modulus: data[index].R = value; return;
+                    case complexMode.Imaginary: data[index].I = value; return;
+                    case complexMode.Argument:
+                        {
+                            double r = data[index].R;
+                            data[index].I = r * Math.Sin(value);
+                            data[index].R = r * Math.Cos(value);
+                        }
+                        return;
+                }
+            }
+        }
 
         public FILMANRecordDComplex(int ng, int na, int nd)
             : base(ng, na, nd)
@@ -597,6 +656,8 @@ namespace FILMANFileStream
         }
     }
 
+    public enum complexMode { Real, Imaginary, Modulus, Argument }
+
     public struct Complex
     {
         public float R;
@@ -611,7 +672,12 @@ namespace FILMANFileStream
 
         public double modulus
         {
-            get { return Math.Sqrt(R * R + I + I); }
+            get { return Math.Sqrt(R * R + I * I); }
+        }
+
+        public double argument
+        {
+            get { return Math.Atan2(I, R); }
         }
 
         public new string ToString()
@@ -640,6 +706,11 @@ namespace FILMANFileStream
         public double modulus
         {
             get { return Math.Sqrt(R * R + I * I); }
+        }
+
+        public double argument
+        {
+            get { return Math.Atan2(I, R); }
         }
 
         public new string ToString()

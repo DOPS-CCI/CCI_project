@@ -26,6 +26,7 @@ namespace Header
         public string BDFFile { get; set; }
         public string EventFile { get; set; }
         public string ElectrodeFile { get; set; }
+        public string Comment { get; set; }
 
         public override string ToString()
         {
