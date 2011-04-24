@@ -73,6 +73,7 @@ namespace FMGraph2
         internal double xMax;
         internal int xStart;
         internal int xStop;
+        internal int buffsize;
         internal double allChanMax;
         internal double allChanMin;
         internal bool usePositionData;
@@ -161,8 +162,9 @@ namespace FMGraph2
                 xMax = setup._fmax;
                 finalXScale = (double)fis.IS / (double)(fis.ND - 1); //Hz/pt
             }
-            xStart = (int)(xMin / finalXScale - 1D) + 1; //First point >= xMin; in sample scale
-            xStop = (int)(xMax / finalXScale - 1D) + 1; //Last point <= xMax ; in sample scale
+            xStart = (int)Math.Ceiling(xMin / finalXScale); //First point >= xMin; in sample scale
+            xStop = (int)Math.Floor(xMax / finalXScale); //Last point <= xMax; in sample scale
+            buffsize = (int)Math.Ceiling(((double)xStop - (double)xStart) /(double)_decimation);
             yLabel = ((bool)setup.IncludeY.IsChecked) ? setup.yAxis.Text : "";
             usePositionData = !(bool)setup.DefaultLocation.IsChecked;
 
@@ -204,7 +206,7 @@ namespace FMGraph2
                 if (m.Groups.Count == 5 && usePositionData)
                 {
                     foundPositionChannel = true;
-                    displayChannel e = new displayChannel((xStop - xStart) / _decimation);
+                    displayChannel e = new displayChannel(buffsize);
                     e.channel = i;
                     int[] chan={i};
                     Graphlet1 g = new Graphlet1(trimChannelName(fis.ChannelNames(i)), chan, this); //Create single graphlet to display this channel
@@ -249,7 +251,7 @@ namespace FMGraph2
                 else
                 { //no location info for this channel, keep track on it in orphans; we'll assign them to locations at the bottom
                     //after we know how big the display of channels with locations is
-                    displayChannel dc = new displayChannel((xStop - xStart) / _decimation);
+                    displayChannel dc = new displayChannel(buffsize);
                     int[] chan = { i };
                     Graphlet1 g = new Graphlet1(trimChannelName(fis.ChannelNames(i)), chan, this);
                     graphletList.Add(g);
@@ -276,7 +278,7 @@ namespace FMGraph2
                     dc = displayedChannels.Find(chan => chan.channel.Equals(channel)); //check if channel already in displayedChannels
                     if (dc == null) //if not, make new displayedChannel
                     {
-                        dc = new displayChannel((xStop - xStart) / _decimation);
+                        dc = new displayChannel(buffsize);
                         dc.channel = channel;
                         displayedChannels.Add(dc);
                     }
