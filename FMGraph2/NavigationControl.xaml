@@ -9,14 +9,21 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
-        </Grid.RowDefinitions>
-        <Button Grid.Row="0" Name="ShowLabs" Height="Auto" Width="120" VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,5,0,5" Click="ShowHide_Click" Padding="2">Show labels</Button>
-        <Button Grid.Row="0" Name="HideLabs" Height="Auto" Width="120" VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,5,0,5" Click="ShowHide_Click" Visibility="Hidden" Padding="2">Hide labels</Button>
+       </Grid.RowDefinitions>
+        <Grid Grid.Row="0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <Button Grid.Row="0" Name="ShowLabs" Height="Auto" Width="120" VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,5,0,2" Click="ShowHide_Click" Padding="2">Show labels</Button>
+            <Button Grid.Row="0" Name="HideLabs" Height="Auto" Width="120" VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,5,0,2" Click="ShowHide_Click" Visibility="Hidden" Padding="2">Hide labels</Button>
+            <Button Grid.Row="1" Name="Print" Height="Auto" Width="120" VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,2,0,5" Click="Print_Click" Padding="2">Print</Button>
+        </Grid>
         <GroupBox Grid.Row="1" Header="Navigation" Margin="2">
             <StackPanel Orientation="Vertical">
-                <Button Name="Next" Height="Auto" Width="120" VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,5,0,5" Click="Next_Click" Padding="2">Next record</Button>
-                <Button Name="Previous" Height="Auto" Width="120" VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,5,0,5" Click="Previous_Click" Padding="2">Prev record</Button>
-                <Button Name="Jump" VerticalAlignment="Top" Height="Auto" MinWidth="120" MaxWidth="150" Width="Auto" Margin="0,5,0,5" Padding="2" Click="Jump_Click" HorizontalAlignment="Center">
+                <Button Name="Next" Height="Auto" Width="120" VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,5,0,2" Click="Next_Click" Padding="2">Next record</Button>
+                <Button Name="Previous" Height="Auto" Width="120" VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,2,0,2" Click="Previous_Click" Padding="2">Prev record</Button>
+                <Button Name="Jump" VerticalAlignment="Top" Height="Auto" MinWidth="120" MaxWidth="150" Width="Auto" Margin="0,2,0,5" Padding="2" Click="Jump_Click" HorizontalAlignment="Center">
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                         <TextBlock VerticalAlignment="Center" Margin="0,0,3,0">Go to recset</TextBlock>
                         <TextBox Name="jumpRec" VerticalAlignment="Center" MinWidth="28" Height="Auto">1</TextBox>
@@ -33,12 +40,12 @@
             <StackPanel Orientation="Vertical" >
                 <RadioButton Name="Individual" IsChecked="True" Checked="Individual_Checked" Margin="5">Single recordset</RadioButton>
                 <RadioButton Name="Superimpose" IsChecked="False" Margin="5,0,5,5">Superimpose recsets</RadioButton>
-                <Button IsEnabled="{Binding ElementName=Superimpose, Path=IsChecked}" Height="Auto" Width="120" VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,5,0,5" Padding="2" Click="Undo_Click">Undo</Button>
-                <Button IsEnabled="{Binding ElementName=Superimpose, Path=IsChecked}" Height="Auto" Width="120" VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,5,0,5" Padding="2" Click="Clear_Click">Clear</Button>
+                <Button IsEnabled="{Binding ElementName=Superimpose, Path=IsChecked}" Height="Auto" Width="120" VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,2,0,2" Padding="2" Click="Undo_Click">Undo</Button>
+                <Button IsEnabled="{Binding ElementName=Superimpose, Path=IsChecked}" Height="Auto" Width="120" VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,2,0,5" Padding="2" Click="Clear_Click">Clear</Button>
             </StackPanel>
         </GroupBox>
         <GroupBox Header="Group Vars" Grid.Row="3" Margin="2">
-            <ListBox Name="GVListBox" ItemsSource="{Binding Path=gvList, Mode=OneWay}" IsSynchronizedWithCurrentItem="True" MaxHeight="280">
+            <ListBox Name="GVListBox" ItemsSource="{Binding Path=gvList, Mode=OneWay}" IsSynchronizedWithCurrentItem="True" MaxHeight="120">
                 <ListBox.ItemTemplate>
                     <DataTemplate>
                         <StackPanel Orientation="Horizontal">
@@ -55,10 +62,10 @@
         </GroupBox>
         <GroupBox Header="Specifications" Grid.Row="5">
             <StackPanel Orientation="Vertical">
-                <TextBlock Margin="4"><Run>Decimation = </Run><Run Text="{Binding Path=decimation, Mode=OneWay}"/></TextBlock>
-                <TextBlock Name="specScale" Margin="4"/>
-                <TextBlock Name="specTransform" Margin="4"/>
-                <TextBlock Name="specPosition" Margin="4"/>
+                <TextBlock Margin="4,4,4,0"><Run>Decimation = </Run><Run Text="{Binding Path=decimation, Mode=OneWay}"/></TextBlock>
+                <TextBlock Name="specScale" Margin="4,0,4,0"/>
+                <TextBlock Name="specTransform" Margin="4,0,4,0"/>
+                <TextBlock Name="specPosition" Margin="4,0,4,0"/>
             </StackPanel>
         </GroupBox>
     </Grid>
