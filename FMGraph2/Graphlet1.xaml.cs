@@ -69,12 +69,13 @@ namespace FMGraph2
             this.name.Content = name;
             this.Height = MainWindow.graphletSize;
             this.Width = this.Height * mg.aspect;
-            StringBuilder tooltip = new StringBuilder(name);
+            StringBuilder tooltip = new StringBuilder(includedChannels.Count() > 1 ? name : "");
             bool colon = true;
             foreach (int chan in includedChannels)
             {
                 if (includedChannels.Count() > 1)
-                    tooltip.Append((colon ? ": " : ", ") + Multigraph.trimChannelName(mg.fis.ChannelNames(chan)));
+                    tooltip.Append((colon ? ": " : ", "));
+                tooltip.Append(Multigraph.trimChannelName(mg.fis.ChannelNames(chan)) + "(" + (chan + 1).ToString("0") + ")");
                 colon = false;
                 this.channels.Add(chan);
             }

@@ -45,7 +45,7 @@
             </StackPanel>
         </GroupBox>
         <GroupBox Header="Group Vars" Grid.Row="3" Margin="2">
-            <ListBox Name="GVListBox" ItemsSource="{Binding Path=gvList, Mode=OneWay}" IsSynchronizedWithCurrentItem="True" MaxHeight="120">
+            <ListBox Name="GVListBox" ItemsSource="{Binding Path=gvList, Mode=OneWay}" IsSynchronizedWithCurrentItem="True" MaxHeight="180">
                 <ListBox.ItemTemplate>
                     <DataTemplate>
                         <StackPanel Orientation="Horizontal">

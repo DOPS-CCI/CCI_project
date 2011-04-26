@@ -1,24 +1,14 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Linq;
-using System.Text;
 using System.Printing;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
 using System.Windows.Xps;
 
 namespace FMGraph2
 {
     /// <summary>
-    /// Interaction logic for UserControl1.xaml
+    /// Interaction logic for NavigationControl.xaml
     /// </summary>
     public partial class NavigationControl : Grid
     {
@@ -48,7 +38,7 @@ namespace FMGraph2
             else // Hide
                 ShowLabs.Visibility = Visibility.Visible;
             foreach (Graphlet1 g in mg.graphletList)
-                    g.name.Visibility = HideLabs.Visibility;
+                g.name.Visibility = HideLabs.Visibility;
         }
 
         private void Next_Click(object sender, RoutedEventArgs e)
@@ -124,21 +114,29 @@ namespace FMGraph2
         private void Print_Click(object sender, RoutedEventArgs e)
         {
             PrintDocumentImageableArea area = null;
-            XpsDocumentWriter xpsdw = PrintQueue.CreateXpsDocumentWriter(ref area);
+            XpsDocumentWriter xpsdw = PrintQueue.CreateXpsDocumentWriter(ref area); //select a print queue
             if (xpsdw != null)
             {
-                FrameworkElement v;
+                FrameworkElement currentImage;
                 TabItem t = (TabItem)mg.gp.TC.SelectedItem; //determine Type of currently active tab
                 if (t.GetType() == typeof(SinglePlot)) //SinglePlot
-                    v = ((SinglePlot)mg.gp.TC.SelectedItem).plot;
+                    currentImage = ((SinglePlot)mg.gp.TC.SelectedItem).plot;
                 else //MultiGraph
-                    v = mg.Graph;
-                double scale = Math.Min(area.ExtentHeight / v.Height, area.ExtentWidth / v.Width);
-                v.RenderTransform = new ScaleTransform(scale, scale);
-                v.UpdateLayout();
-                xpsdw.Write(v);
-                v.RenderTransform = Transform.Identity;
-                v.UpdateLayout();
+                    currentImage = mg.Graph;
+
+                PrintTicket pt = new PrintTicket();
+                pt.PageOrientation = currentImage.Height < currentImage.Width ?
+                    PageOrientation.Landscape : PageOrientation.Portrait; //choose orientation to maximize size
+
+                double scale = Math.Max(area.ExtentHeight, area.ExtentWidth) / Math.Max(currentImage.Height, currentImage.Width); //scale to fit orientation
+                scale = Math.Min(Math.Min(area.ExtentHeight, area.ExtentWidth) / Math.Min(currentImage.Height, currentImage.Width), scale);
+                currentImage.RenderTransform = new ScaleTransform(scale, scale);
+                currentImage.UpdateLayout();
+
+                xpsdw.Write(currentImage, pt);
+
+                currentImage.RenderTransform = Transform.Identity; //return to normal size
+                currentImage.UpdateLayout();
             }
         }
 

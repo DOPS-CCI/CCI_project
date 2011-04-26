@@ -37,13 +37,13 @@
             </Grid.RowDefinitions>
             <GroupBox Header="Magnification" Grid.Row="1" VerticalAlignment="Bottom">
                 <StackPanel Orientation="Vertical">
-                    <RadioButton Margin="5" IsChecked="True" Click="RadioButton_Click" Tag="{StaticResource Min}">Minimum</RadioButton>
-                    <RadioButton Margin="5" Click="RadioButton_Click" Tag="{StaticResource Mag1}">Mag1</RadioButton>
-                    <RadioButton Margin="5" Click="RadioButton_Click" Tag="{StaticResource Mag2}">Mag2</RadioButton>
-                    <RadioButton Margin="5" Click="RadioButton_Click" Tag="{StaticResource Mag3}">Mag3</RadioButton>
-                    <RadioButton Margin="5" Click="RadioButton_Click" Tag="{StaticResource Mag4}">Mag4</RadioButton>
-                    <RadioButton Margin="5" Click="RadioButton_Click" Name="MaxRB">Mag5</RadioButton>
-                    <RadioButton Margin="5" Name="VarRB" Click="VarRB_Click">Variable:</RadioButton>
+                    <RadioButton Margin="4,4,4,1" IsChecked="True" Click="RadioButton_Click" Tag="{StaticResource Min}">Minimum</RadioButton>
+                    <RadioButton Margin="4,1,4,1" Click="RadioButton_Click" Tag="{StaticResource Mag1}">Mag1</RadioButton>
+                    <RadioButton Margin="4,1,4,1" Click="RadioButton_Click" Tag="{StaticResource Mag2}">Mag2</RadioButton>
+                    <RadioButton Margin="4,1,4,1" Click="RadioButton_Click" Tag="{StaticResource Mag3}">Mag3</RadioButton>
+                    <RadioButton Margin="4,1,4,1" Click="RadioButton_Click" Tag="{StaticResource Mag4}">Mag4</RadioButton>
+                    <RadioButton Margin="4,1,4,1" Click="RadioButton_Click" Name="MaxRB">Mag5</RadioButton>
+                    <RadioButton Margin="4,1,4,0" Name="VarRB" Click="VarRB_Click">Variable:</RadioButton>
                 </StackPanel>
             </GroupBox>
         </Grid>
