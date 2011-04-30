@@ -47,7 +47,7 @@ namespace FileConverter
         
 
         bool setEpoch = false;
-        DateTime epoch;
+        double epoch;
 
         protected bool findEvent(ref statusPt stp, InputEvent ie)
         {
@@ -61,14 +61,14 @@ namespace FileConverter
                 }
                 nominalT.Rec = actualT.Rec = stp.Rec;
                 nominalT.Pt = actualT.Pt = stp.Pt;
-                epoch = new DateTime(ie.Time.Ticks - (long)(((double)stp.Rec + (double)stp.Pt / (double)BDF.NSamp)
-                    * (double)BDF.RecordDuration * 10000000D));
+                epoch = ie.Time - ((double)stp.Rec + (double)stp.Pt / (double)BDF.NSamp)
+                    * (double)BDF.RecordDuration;
                 log.registerEpochSet(epoch, ie);
                 setEpoch = true;
             }
             else //calculate Status search starting point
             {
-                double t = (double)(ie.Time.Subtract(epoch).Ticks) / 10000000D; //Calculate seconds from starting epoch
+                double t = ie.Time - epoch; //Calculate seconds from starting epoch
                 nominalT.Rec = (int)(t / (double)BDF.RecordDuration); //Record number
                 nominalT.Pt = (int)((t - (double)(nominalT.Rec * BDF.RecordDuration)) * (double)samplingRate); //Sample number
                 if (continuousSearch)

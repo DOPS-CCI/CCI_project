@@ -130,11 +130,11 @@ namespace FileConverter
             gatherStats(t0, nominalOffset);
         }
 
-        public void registerEpochSet(DateTime epoch, InputEvent ie)
+        public void registerEpochSet(double epoch, InputEvent ie)
         {
             logStream.WriteStartElement("EpochSet");
             logStream.WriteAttributeString("EventIndex", ie.Index.ToString("0"));
-            logStream.WriteValue(epoch.ToString("yyyyMMddHHmmss.ffffff"));
+            logStream.WriteValue(epoch.ToString("00000000000.0000000"));
             logStream.WriteEndElement(/*EpochSet*/);
         }
 /*

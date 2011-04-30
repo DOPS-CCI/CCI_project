@@ -92,7 +92,7 @@ namespace CreateBDFFile
             efs.Close();
             
             /* ***** Create new HDR file ***** */
-            HeaderFileWriter hfr = new HeaderFileWriter(
+            new HeaderFileWriter(
                 File.Open(parameters.fileName + ".hdr", FileMode.Create, FileAccess.Write),
                 parameters.head);
 

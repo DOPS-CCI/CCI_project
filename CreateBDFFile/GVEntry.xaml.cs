@@ -31,7 +31,10 @@ namespace CreateBDFFile
             GV gv = new GV();
             gv.Name = name.Text;
             gv.NValues = nValues;
-            gv.poly = this.p;
+            if (p == null)
+                gv.poly = new Polynominal("1", 'v');
+            else
+                gv.poly = this.p;
             if ((bool)Cyclic.IsChecked) gv.Type = GV.GVType.Cyclic;
             else gv.Type = GV.GVType.Random;
             if ((bool)Coef.IsChecked) gv.dType = GV.DependencyType.Coeff;

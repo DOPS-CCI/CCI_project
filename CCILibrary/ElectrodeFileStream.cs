@@ -47,6 +47,7 @@ namespace ElectrodeFileStream
                 {
                     if (type == "PhiTheta") etrRecord = new PhiThetaRecord();
                     else if (type == "XY") etrRecord = new XYRecord();
+                    else if (type == "XYZ") etrRecord = new XYZRecord();
                     else throw new Exception("Invalid electrode type");
                     etrRecord.read(xr, nameSpace);
                 }
@@ -196,4 +197,49 @@ namespace ElectrodeFileStream
         }
     }
 
+    public class XYZRecord : ElectrodeRecord
+    {
+        double X;
+        double Y;
+        double Z;
+
+        public XYZRecord() { }
+
+        public XYZRecord(string name, double x, double y, double z)
+            : base(name)
+        {
+            X = x;
+            Y = y;
+            Z = z;
+        }
+        public override void read(XmlReader xr, string nameSpace)
+        {
+            this.Name = xr["Name", nameSpace];
+            xr.ReadStartElement(/* Electrode */);
+            this.X = xr.ReadElementContentAsDouble("X", nameSpace);
+            this.Y = xr.ReadElementContentAsDouble("Y", nameSpace);
+            this.Z = xr.ReadElementContentAsDouble("Z", nameSpace);
+            xr.ReadEndElement(/* Electrode */);
+        }
+
+        public override void write(ElectrodeOutputFileStream ofs, string nameSpace)
+        {
+            if (ofs.t != typeof(XYZRecord)) throw new Exception("Attempt to mix types in ElectrodeOutputFileStream.");
+            XmlWriter xw = ofs.xw;
+            xw.WriteStartElement("Electrode", nameSpace);
+            xw.WriteAttributeString("Name", nameSpace, this.Name);
+            xw.WriteElementString("X", nameSpace, this.X.ToString("G"));
+            xw.WriteElementString("Y", nameSpace, this.Y.ToString("G"));
+            xw.WriteElementString("Z", nameSpace, this.Z.ToString("G"));
+            xw.WriteEndElement();
+        }
+
+        public override Point project2D()
+        {
+            double x2y2 = Math.Sqrt(X * X + Y * Y);
+            double r = Math.Atan2(x2y2, Z) * 180D / Math.PI; // = phi of PhiTheta system
+            if (r < 0) r = 90 - r;
+            return new Point(X * r / x2y2, Y * r / x2y2);
+        }
+    }
 }

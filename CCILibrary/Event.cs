@@ -150,19 +150,19 @@ namespace Event
     public class OutputEvent : Event
     {
         internal string m_name;
-        internal DateTime m_time;
+        internal double m_time;
         internal uint m_index;
         internal uint m_gc;
         public string[] GVValue;
 
         public string Name { get { return m_name; } }
-        public DateTime Time { get { return m_time; } }
+        public double Time { get { return m_time; } }
         public int Index { get { return (int)m_index; } }
         public int GC { get { return (int)m_gc; } }
 
         internal OutputEvent(EventDictionaryEntry entry): base(entry)
         {
-            m_time = DateTime.Now; // Get time immediately
+            m_time = (double)(DateTime.Now.Ticks) / 1E7; // Get time immediately
 
             if (entry.GroupVars.Count > 0) GVValue = new string[entry.GroupVars.Count];
             else GVValue = null;
@@ -178,7 +178,7 @@ namespace Event
             : base(entry)
         {
             m_name = entry.Name;
-            m_time = time;
+            m_time = (double)(time.Ticks) / 1E7;
             m_index = (uint)index;
             m_gc = EventFactory.greyCode(m_index);
             GVValue = null;
@@ -195,7 +195,7 @@ namespace Event
     {
         internal string name;
         public string Name { get { return name; } }
-        public DateTime Time;
+        public double Time;
         public int Index;
         public int GC;
         public string[] GVValue;
@@ -211,7 +211,7 @@ namespace Event
             StringBuilder str = new StringBuilder("Event name: " + name + nl);
             str.Append("Index: " + Index.ToString("0") + nl);
             str.Append("GreyCode: " + GC.ToString("0") + nl);
-            str.Append("Time: " + Time.ToString("o") + nl);
+            str.Append("Time: " + Time.ToString("00000000000.0000000") + nl);
             int j=0;
             foreach (GVEntry gve in ede.GroupVars)
             {

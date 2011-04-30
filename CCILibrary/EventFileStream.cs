@@ -56,7 +56,11 @@ namespace EventFile
                 xr.ReadStartElement(/* Event */);
                 ev.Index = xr.ReadElementContentAsInt("Index", nameSpace);
                 ev.GC = xr.ReadElementContentAsInt("GrayCode", nameSpace);
-                ev.Time = new DateTime(xr.ReadElementContentAsLong("Time", nameSpace));
+                string t = xr.ReadElementContentAsString("Time", nameSpace);
+                if (t.Contains(".")) //new style
+                    ev.Time = System.Convert.ToDouble(t);
+                else //old style
+                    ev.Time = System.Convert.ToDouble(t.Substring(0, 11) + "." + t.Substring(11));
                 bool isEmpty = xr.IsEmptyElement; // Use this to handle <GroupVars /> construct
                 xr.ReadStartElement("GroupVars", nameSpace);
                 if (!isEmpty)
@@ -189,7 +193,7 @@ namespace EventFile
             xw.WriteAttributeString("Name", ev.Name);
             xw.WriteElementString("Index",ev.Index.ToString("0"));
             xw.WriteElementString("GrayCode", ev.GC.ToString("0"));
-            xw.WriteElementString("Time",ev.Time.Ticks.ToString("0"));
+            xw.WriteElementString("Time",ev.Time.ToString("00000000000.0000000"));
             xw.WriteStartElement("GroupVars");
             if (ev.GVValue != null)
                 for (int j = 0; j < ev.GVValue.Length; j++)
