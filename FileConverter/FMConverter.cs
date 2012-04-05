@@ -209,7 +209,7 @@ namespace FileConverter
                     for (int i = radinLow; i < radinHigh; i++) ave += bigBuff[channel, i];
                     ave = ave / (double)(radinHigh - radinLow);
                 }
-                if (removeOffsets) //calculate average for this channel; this will always be true if removeTrends true
+                if (removeOffsets||removeTrends) //calculate average for this channel; this will always be true if removeTrends true
                 {
                     for (int i = 0; i < FMStream.ND; i++) ave += bigBuff[channel, i];
                     ave = ave / fn;
