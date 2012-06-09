@@ -22,12 +22,23 @@ namespace ASCConverter
         public MainWindow()
         {
             InitializeComponent();
-            EpisodeDescriptionEntry episode1 = new EpisodeDescriptionEntry();
-            episode1.Event1.Items.Add("Next entry");
-            EpisodeEntries.Items.Add(episode1);
             EpisodeDescriptionEntry episode2 = new EpisodeDescriptionEntry();
             episode2.Event2.Items.Add("Next next entry");
             EpisodeEntries.Items.Add(episode2);
+        }
+
+        private void AddSpec_Click(object sender, RoutedEventArgs e)
+        {
+            EpisodeDescriptionEntry episode = new EpisodeDescriptionEntry();
+            EpisodeEntries.Items.Add(episode);
+            if (EpisodeEntries.Items.Count > 1) RemoveSpec.IsEnabled = true;
+        }
+
+        private void RemoveSpec_Click(object sender, RoutedEventArgs e)
+        {
+            EpisodeDescriptionEntry episode = (EpisodeDescriptionEntry)EpisodeEntries.SelectedItem;
+            EpisodeEntries.Items.Remove(episode);
+            if (EpisodeEntries.Items.Count == 1) RemoveSpec.IsEnabled = false;
         }
     }
 }

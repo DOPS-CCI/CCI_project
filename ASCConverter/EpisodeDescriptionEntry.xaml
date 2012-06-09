@@ -5,6 +5,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              mc:Ignorable="d" 
              d:DesignHeight="80" d:DesignWidth="848">
+    <Border BorderBrush="Black" BorderThickness="1" CornerRadius="8" IsHitTestVisible="False">
     <StackPanel Orientation="Horizontal">
         <Grid Width="80">
             <TextBox Height="48" HorizontalAlignment="Center" Margin="0" Name="GVSpec" VerticalAlignment="Center" Width="64" FontSize="32" TextAlignment="Center" Padding="0,2">GV1</TextBox>
@@ -49,4 +50,5 @@
             <TextBox Grid.Row="1" Grid.Column="7" Height="24" HorizontalAlignment="Left" Margin="3,8,3,0" Name="Offset2" VerticalAlignment="Top" Width="60" >0</TextBox>
         </Grid>
     </StackPanel>
+    </Border>
 </UserControl>
