@@ -142,7 +142,7 @@ namespace CCILibrary
         /// <summary>
         /// BDF/EDF header information
         /// </summary>
-        /// <returns>String representation of BDF header</returns>
+        /// <returns>String representation of BDF/EDF header</returns>
         public new string ToString() //Overrides Object.ToString()
         {
             if (!header.isValid) return "BDFEDFFileSream header not valid.";
@@ -162,7 +162,7 @@ namespace CCILibrary
         /// BDF/EDF channel information
         /// </summary>
         /// <param name="chan">Channel number; zero-based</param>
-        /// <returns>String description of BDF channel</returns>
+        /// <returns>String description of BDF/EDF channel</returns>
         public string ToString(int chan)
         {
             if (!header.isValid) return "BDFEDFFileSream header not valid.";
@@ -190,7 +190,7 @@ namespace CCILibrary
     }
 
     /// <summary>
-    /// Class for reading a BDF file
+    /// Class for reading a BDF or EDF file
     /// </summary>
     public class BDFEDFFileReader : BDFEDFFileStream, IDisposable{
 
@@ -221,7 +221,7 @@ namespace CCILibrary
         }
 
         /// <summary>
-        /// Reads a given record number from BDF file
+        /// Reads a given record number from BDF or EDF file
         /// </summary>
         /// <param name="recNum">Record number requested (first record is zero)</param>
         /// <returns>Requested <see cref="BDFEDFRecord">BDFEDFRecord</see></returns>
@@ -259,7 +259,7 @@ namespace CCILibrary
         }
 
         /// <summary>
-        /// Gets data from status channel
+        /// Gets data from status channel; only valid in BDF files
         /// </summary>
         /// <returns>Array of integers from status channel</returns>
         /// <exception cref="BDFEDFException">No records yet read</exception>
@@ -297,7 +297,7 @@ namespace CCILibrary
     }
 
     /// <summary>
-    /// Class for writing a BDF file
+    /// Class for writing a BDF or EDF file
     /// </summary>
     public class BDFEDFFileWriter : BDFEDFFileStream, IDisposable
     {
@@ -348,7 +348,7 @@ namespace CCILibrary
         }
 
         /// <summary>
-        /// Puts data into status channel
+        /// Puts data into status channel; valid only in BDF file
         /// </summary>
         /// <param name="values">Array of integer values to be placed in status channel</param>
         /// <exception cref="BDFException">Not a BDF file</exception>
@@ -378,7 +378,7 @@ namespace CCILibrary
         /// <param name="channel">Channel number</param>
         /// <param name="sample">Sample number</param>
         /// <param name="value">Integer value to be stored</param>
-        /// <exception cref="BDFException">Invalid input</exception>
+        /// <exception cref="BDFEDFException">Invalid input</exception>
         public void putSample(int channel, int sample, int value) {
             if (channel < 0 || channel >= header.numberChannels) throw new BDFEDFException("Invalid channel number (" + channel + ")");
             if (sample < 0 || sample >= header.numberSamples[channel]) throw new BDFEDFException("Invalid sample number (" + sample + ")");
@@ -405,8 +405,8 @@ namespace CCILibrary
     }
 
     /// <summary>
-    /// Class embodying the information included in the header record of a BDF file
-    /// Class created only by the creation of a BDFFileReader or BDFFileWriter
+    /// Class embodying the information included in the header record of a BDF or EDF file
+    /// Class created only by the creation of a BDFEDFFileReader or BDFEDFFileWriter
     /// </summary>
     internal class BDFEDFHeader : IDisposable {
         internal string localSubjectId;
@@ -435,10 +435,10 @@ namespace CCILibrary
         internal BDFEDFHeader(){} //Usual read constructor
 
         /// <summary>
-        /// General constructor for creating a new (unwritten) BDF file header record
+        /// General constructor for creating a new (unwritten) BDF/EDF file header record
         /// </summary>
         /// <param name="file">Stream opened for writing this header</param>
-        /// <param name="nChan">Number of channels in the BDF file</param>
+        /// <param name="nChan">Number of channels in the BDF/EDF file</param>
         /// <param name="duration">Duration of each record</param>
         /// <param name="samplingRate">General sampling rate for this data stream. NB: currently permit only single 
         /// sampling rate for all channels.</param>

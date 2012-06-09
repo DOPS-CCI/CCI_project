@@ -1,0 +1,8 @@
+﻿<Window x:Class="ASCConverter.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="ASCConverter" Height="350" Width="960">
+    <Grid>
+        <ListBox Height="286" HorizontalAlignment="Left" Margin="18,13,0,0" Name="EpisodeEntries" VerticalAlignment="Top" Width="900" />
+    </Grid>
+</Window>
