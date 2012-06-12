@@ -41,5 +41,10 @@ namespace EventDictionary
         public List<GVEntry> GroupVars; //GroupVars in this Event
         public int ancillarySize = 0;
 
+        public override string ToString()
+        {
+            return m_name;
+        }
+
     }
 }

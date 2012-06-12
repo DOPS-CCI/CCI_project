@@ -30,5 +30,10 @@ namespace GroupVarDictionary
         private string m_description;
         public string Description { get { return m_description; } set { m_description = value; } }
         public Dictionary<string, int> GVValueDictionary;
+
+        public override string ToString()
+        {
+            return m_name;
+        }
     }
 }

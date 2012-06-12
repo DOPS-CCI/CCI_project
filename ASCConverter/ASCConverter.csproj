@@ -39,6 +39,9 @@
     <Reference Include="CCILibrary">
       <HintPath>..\CCILibrary\bin\Debug\CCILibrary.dll</HintPath>
     </Reference>
+    <Reference Include="CCIUtilities">
+      <HintPath>..\CCIUtilities\bin\Debug\CCIUtilities.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Data" />
     <Reference Include="System.Xml" />
@@ -70,6 +73,7 @@
       <DependentUpon>App.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="EpisodeDescription.cs" />
     <Compile Include="EpisodeDescriptionEntry.xaml.cs">
       <DependentUpon>EpisodeDescriptionEntry.xaml</DependentUpon>
     </Compile>

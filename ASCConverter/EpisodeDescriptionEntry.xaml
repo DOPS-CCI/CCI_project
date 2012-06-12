@@ -4,8 +4,8 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              mc:Ignorable="d" 
-             d:DesignHeight="80" d:DesignWidth="848">
-    <Border BorderBrush="Black" BorderThickness="1" CornerRadius="8" IsHitTestVisible="False">
+             d:DesignHeight="86" d:DesignWidth="854">
+    <Border BorderBrush="Black" BorderThickness="1" CornerRadius="8" Margin="3">
     <StackPanel Orientation="Horizontal">
         <Grid Width="80">
             <TextBox Height="48" HorizontalAlignment="Center" Margin="0" Name="GVSpec" VerticalAlignment="Center" Width="64" FontSize="32" TextAlignment="Center" Padding="0,2">GV1</TextBox>
@@ -26,14 +26,14 @@
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
-            <ComboBox Grid.Row="0" Grid.Column="1" Margin="3,8,3,0" Name="Event1" Height="24" VerticalAlignment="Top" HorizontalAlignment="Left" Width="227" SelectedIndex="0">
-                <ComboBoxItem>Next Event</ComboBoxItem>
-                <ComboBoxItem>Any Event</ComboBoxItem>
+            <ComboBox Grid.Row="0" Grid.Column="1" Margin="3,8,3,0" Name="Event1" Height="24" VerticalAlignment="Top" HorizontalAlignment="Left" Width="227" SelectedIndex="0" SelectionChanged="Event1_SelectionChanged">
+                <ComboBoxItem Tag="{x:Null}">Next Event</ComboBoxItem>
+                <ComboBoxItem Tag="{x:Null}">Any Event</ComboBoxItem>
             </ComboBox>
             <ComboBox Grid.Row="0" Grid.Column="3" Margin="3,8,3,0" Name="GV1" Height="24" VerticalAlignment="Top" HorizontalAlignment="Left" Width="227" SelectedIndex="0"/>
-            <ComboBox Grid.Row="1" Grid.Column="1" Margin="3,8,3,0" Name="Event2" Height="24" VerticalAlignment="Top" HorizontalAlignment="Left" Width="227" SelectedIndex="0">
-                <ComboBoxItem>Next Event</ComboBoxItem>
-                <ComboBoxItem>Same Event</ComboBoxItem>
+            <ComboBox Grid.Row="1" Grid.Column="1" Margin="3,8,3,0" Name="Event2" Height="24" VerticalAlignment="Top" HorizontalAlignment="Left" Width="227" SelectedIndex="0" SelectionChanged="Event2_SelectionChanged">
+                <ComboBoxItem Tag="{x:Null}">Next Event</ComboBoxItem>
+                <ComboBoxItem Tag="{x:Null}">Same Event</ComboBoxItem>
             </ComboBox>
             <ComboBox Grid.Row="1" Grid.Column="3" Margin="3,8,3,0" Name="GV2" Height="24" VerticalAlignment="Top" HorizontalAlignment="Left" Width="227" SelectedIndex="0"/>
             <Label Grid.Row="0" Grid.Column="0" Content="From Event" Height="24" HorizontalAlignment="Left" Margin="0,7,0,0" VerticalAlignment="Top"  />

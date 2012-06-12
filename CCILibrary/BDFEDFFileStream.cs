@@ -4,7 +4,7 @@ using System.Text;
 
 namespace CCILibrary
 {
-    class BDFEDFFileStream: IDisposable {
+    public class BDFEDFFileStream: IDisposable {
         internal BDFEDFHeader header;
         public BDFEDFRecord record;
 
