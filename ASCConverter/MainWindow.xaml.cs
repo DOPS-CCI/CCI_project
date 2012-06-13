@@ -155,8 +155,8 @@ namespace ASCConverter
                 epi.End._GV = null;
             epi.Start._comp = Comp.equals;
             epi.End._comp = Comp.equals;
-            epi.Start._GVVal = ede.GVValue1.Text;
-            epi.End._GVVal = ede.GVValue2.Text;
+            epi.Start._GVVal = ede.GVValue1TB.Text;
+            epi.End._GVVal = ede.GVValue2TB.Text;
             epi.Start._offset = Convert.ToDouble(ede.Offset1.Text);
             epi.End._offset = Convert.ToDouble(ede.Offset2.Text);
             return epi;
