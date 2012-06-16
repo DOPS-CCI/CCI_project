@@ -31,9 +31,7 @@
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <Label Grid.Row="0" Grid.Column="0" Content="From Event" Height="24" HorizontalAlignment="Left" Margin="0,7,0,0" VerticalAlignment="Top"  />
-            <ComboBox Grid.Row="0" Grid.Column="1" Margin="3,8" Name="Event1" Height="24" VerticalAlignment="Top" HorizontalAlignment="Left" Width="180" SelectedIndex="-1" SelectionChanged="Event1_SelectionChanged">
-                <ComboBoxItem>Any Event</ComboBoxItem>
-            </ComboBox>
+            <ComboBox Grid.Row="0" Grid.Column="1" Margin="3,8" Name="Event1" Height="24" VerticalAlignment="Top" HorizontalAlignment="Left" Width="180" SelectedIndex="-1" SelectionChanged="Event1_SelectionChanged"/>
             <StackPanel Orientation="Horizontal" Name="GVPanel1" Grid.Row="0" Grid.Column="2">
                 <Label Content="with GV" Height="24" HorizontalAlignment="Left" Margin="0,7,0,0" VerticalAlignment="Top" />
                 <ComboBox Margin="3,8" Name="GV1" Height="24" VerticalAlignment="Top" HorizontalAlignment="Left" Width="180" SelectedIndex="0" SelectionChanged="GV1_SelectionChanged" />
@@ -44,10 +42,7 @@
             <Label Grid.Row="0" Grid.Column="3" Content="offset" Height="24" HorizontalAlignment="Left" Margin="0,7,0,0" VerticalAlignment="Top" />
             <TextBox Grid.Row="0" Grid.Column="4" Height="24" HorizontalAlignment="Left" Margin="3,8" Name="Offset1" VerticalAlignment="Top" Width="60" >0</TextBox>
             <Label Grid.Row="1" Grid.Column="0" Content="To Event" Height="24" HorizontalAlignment="right" Margin="0,7,0,0" VerticalAlignment="Top" />
-            <ComboBox Grid.Row="1" Grid.Column="1" Margin="3,8" Name="Event2" Height="24" VerticalAlignment="Top" HorizontalAlignment="Left" Width="180" SelectedIndex="-1" SelectionChanged="Event2_SelectionChanged">
-                <ComboBoxItem>Next Event</ComboBoxItem>
-                <ComboBoxItem>Same Event</ComboBoxItem>
-            </ComboBox>
+            <ComboBox Grid.Row="1" Grid.Column="1" Margin="3,8" Name="Event2" Height="24" VerticalAlignment="Top" HorizontalAlignment="Left" Width="180" SelectedIndex="-1" SelectionChanged="Event2_SelectionChanged"/>
             <StackPanel Orientation="Horizontal" Name="GVPanel2" Grid.Row="1" Grid.Column="2">
                 <Label Content="with GV" Height="24" HorizontalAlignment="Left" Margin="0,7,0,0" VerticalAlignment="Top"  />
                 <ComboBox Margin="3,8" Name="GV2" Height="24" VerticalAlignment="Top" HorizontalAlignment="Left" Width="180" SelectedIndex="0" SelectionChanged="GV2_SelectionChanged" />

@@ -11,6 +11,7 @@ namespace ASCConverter
 {
     public class EpisodeDescription
     {
+        internal int? GVValue;
         internal EpisodeMark Start = new EpisodeMark();
         internal EpisodeMark End = new EpisodeMark();
     }
@@ -20,21 +21,21 @@ namespace ASCConverter
         internal object _Event;
         internal GVEntry _GV;
         internal Comp _comp;
-        internal string _GVVal;
+        internal int _GVVal;
         internal double _offset;
 
         internal string EventName()
         {
-            if (_Event.GetType().Name == "ComboBoxItem")
-                return (string)((ComboBoxItem)_Event).Content;
+            if (_Event.GetType().Name == "String")
+                return (String)_Event;
             else
                 return ((EventDictionaryEntry)_Event).Name;
         }
 
-        internal bool Match(Event.InputEvent ev)
+        internal bool Match(InputEvent ev)
         {
             if (ev.Name == this.EventName()) //event type matches
-                return (_GV == null || this.MatchGV(ev.GVValue[_GV.Index]));
+                return (_GV == null || this.MatchGV(ev));
             return false;
         }
 
@@ -45,7 +46,7 @@ namespace ASCConverter
         /// </summary>
         /// <param name="val">GV value for this Event</param>
         /// <returns>true, if GV value meets criterium for this EpisodeMark</returns>
-        internal bool MatchGV(string val)
+        internal bool MatchGV(int val)
         {
             switch (_comp)
             {
@@ -61,9 +62,14 @@ namespace ASCConverter
             return false;
         }
 
-        internal bool MatchGV(Event.InputEvent ev)
+        /// <summary>
+        /// Convenience method that looks up the value of the correct GV in an InputEvent
+        /// </summary>
+        /// <param name="ev">The InputEvent to compare GV fors</param>
+        /// <returns></returns>
+        internal bool MatchGV(InputEvent ev)
         {
-            if (_GV == null || this.MatchGV(ev.GVValue[_GV.Index]))
+            if (_GV == null || MatchGV(ev.GetIntValueForGVName(_GV.Name)))
                 return true;
             return false;
         }

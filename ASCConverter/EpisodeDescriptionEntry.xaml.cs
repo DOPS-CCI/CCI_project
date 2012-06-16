@@ -30,6 +30,10 @@ namespace ASCConverter
             InitializeComponent();
 
             EventDictionary.EventDictionary events = hdr.Events;
+            Event1.Items.Add("Any Event");
+            Event2.Items.Add("Same Event");
+            Event2.Items.Add("Next Event");
+            Event2.Items.Add("Any Event");
             foreach (EventDictionary.EventDictionaryEntry ev in events.Values){
                 Event1.Items.Add(ev);
                 Event2.Items.Add(ev);
@@ -48,7 +52,7 @@ namespace ASCConverter
             GV1.Items.Clear();
             GV1.Items.Add("*None*");
             Object o = Event1.SelectedItem;
-            if (o.GetType().Name=="ComboBoxItem")
+            if (o.GetType().Name=="String")
             {
                 foreach (GVEntry gv in hdr.GroupVars.Values)
                     GV1.Items.Add(gv);
@@ -69,9 +73,9 @@ namespace ASCConverter
             GV2.Items.Clear();
             GV2.Items.Add("*None*");
             Object o = Event2.SelectedItem;
-            if (o.GetType().Name == "ComboBoxItem")
+            if (o.GetType().Name == "String")
             {
-                if ((string)((ComboBoxItem)o).Content == "Same Event")
+                if ((string)o == "Same Event")
                 {
                     GVPanel2.IsEnabled = false;
                     return;

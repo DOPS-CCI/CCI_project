@@ -144,6 +144,11 @@ namespace Event
         {
             return ede.Description;
         }
+
+        public int GetGVIndex(string gv)
+        {
+            return ede.GroupVars.FindIndex(g => g.Name == gv);
+        }
     }
 
     //********** Class: OutputEvent **********
@@ -203,6 +208,12 @@ namespace Event
         public InputEvent(EventDictionaryEntry entry): base(entry)
         {
             if (ede.GroupVars != null && ede.GroupVars.Count > 0) GVValue = new string[ede.GroupVars.Count];
+        }
+
+        public int GetIntValueForGVName(string name)
+        {
+            int i = GetGVIndex(name);
+            return ede.GroupVars[i].ConvertGVValueStringToInteger(GVValue[i]);
         }
 
         public new string ToString()

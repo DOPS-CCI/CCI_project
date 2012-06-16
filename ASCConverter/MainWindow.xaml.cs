@@ -108,13 +108,14 @@ namespace ASCConverter
                     if (em._Event.GetType().Name == "EventDictionaryEntry")
                         if (em.Match(ev)) //found Start Event
                         {
-                            startEvent = ev;
+                            startEvent = ev; //found match for Start, remember it
+                            em = specs[i].End; //now set to match End Mark Event
                             break;
                         }
                         else continue;
                     else
                     {
-                        string str = (string)((ComboBoxItem)em._Event).Content;
+                        string str = (string)em._Event;
                         if (str == "Next Event")
                         {
                             efr.GetEnumerator().MoveNext();
@@ -128,7 +129,7 @@ namespace ASCConverter
                 }
                 // at this point, startEvent refers to an Event that satisfies the criterium for starting an episode
                 // EventFile is positioned at this record, so we can refer to it in the end criterium, if desired
-            }
+            }  //next spec
         }
 
         private void CancelButton_Click(object sender, RoutedEventArgs e)
@@ -141,8 +142,10 @@ namespace ASCConverter
         private EpisodeDescription getEpisode(EpisodeDescriptionEntry ede)
         {
             EpisodeDescription epi = new EpisodeDescription();
-            epi.Start._Event = ede.Event1.SelectedItem; //may be EDE or ComboBoxItem (string)
-            epi.End._Event = ede.Event2.SelectedItem; //may be EDE or ComboBoxItem (string)
+            String str = ede.GVSpec.Text;
+            epi.GVValue = str == "" ? null : (int?)Convert.ToInt32(str);
+            epi.Start._Event = ede.Event1.SelectedItem; //may be EDE or string
+            epi.End._Event = ede.Event2.SelectedItem; //may be EDE or string
             Object o = ede.GV1.SelectedItem;
             if (o!=null && o.GetType().Name == "GVEntry")
                 epi.Start._GV = (GVEntry)o;
@@ -153,10 +156,18 @@ namespace ASCConverter
                 epi.End._GV = (GVEntry)o;
             else
                 epi.End._GV = null;
-            epi.Start._comp = Comp.equals;
-            epi.End._comp = Comp.equals;
-            epi.Start._GVVal = ede.GVValue1TB.Text;
-            epi.End._GVVal = ede.GVValue2TB.Text;
+            str = ede.Comp1.Text;
+            epi.Start._comp = str == "=" ? Comp.equals : str == "!=" ? Comp.notequal : str == ">" ? Comp.greaterthan : Comp.lessthan;
+            str = ede.Comp2.Text;
+            epi.End._comp = str == "=" ? Comp.equals : str == "!=" ? Comp.notequal : str == ">" ? Comp.greaterthan : Comp.lessthan;
+            if (ede.GVValue1TB.IsVisible && ede.GVValue1TB.IsEnabled)
+                epi.Start._GVVal = Convert.ToInt32(ede.GVValue1TB.Text);
+            else if (ede.GVValue1CB.IsEnabled)
+                epi.Start._GVVal = epi.Start._GV.ConvertGVValueStringToInteger((string)ede.GVValue1CB.SelectedItem); //
+            if (ede.GVValue2TB.IsVisible && ede.GVValue2TB.IsEnabled)
+                epi.End._GVVal = Convert.ToInt32(ede.GVValue2TB.Text);
+            else if (ede.GVValue2CB.IsEnabled)
+                epi.End._GVVal = epi.End._GV.ConvertGVValueStringToInteger((string)ede.GVValue2CB.SelectedItem);
             epi.Start._offset = Convert.ToDouble(ede.Offset1.Text);
             epi.End._offset = Convert.ToDouble(ede.Offset2.Text);
             return epi;

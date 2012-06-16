@@ -31,9 +31,25 @@ namespace GroupVarDictionary
         public string Description { get { return m_description; } set { m_description = value; } }
         public Dictionary<string, int> GVValueDictionary;
 
+        public int ConvertGVValueStringToInteger(string val)
+        {
+            int ret;
+            if (GVValueDictionary == null) //can't look up in Dictionary
+            {
+                if (Int32.TryParse(val, out ret)) //so must be an integer
+                    return ret;
+            }
+            else
+            {
+                if (GVValueDictionary.TryGetValue(val, out ret)) //look up in Dictionary
+                    return ret;
+            }
+            return 0; //this indicates an error; GV values are supposed to be > 0
+       }
+
         public override string ToString()
         {
-            return m_name;
+            return Name;
         }
     }
 }
