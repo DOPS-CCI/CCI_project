@@ -95,40 +95,72 @@ namespace ASCConverter
                     FileMode.Open, FileAccess.Read));
             samplingRate = bdf.NSamp / bdf.RecordDuration;
 
-            EventFileReader efr = new EventFileReader(
-                new FileStream(System.IO.Path.Combine(directory, head.EventFile),
-                    FileMode.Open, FileAccess.Read));
             EventFactory.Instance(ED);
             for (int i = 0; i < specs.Length; i++) //loop through episode specifications
             {
-                InputEvent startEvent = null;
-                EpisodeMark em = specs[i].Start;
-                foreach (InputEvent ev in efr) //find events that meet the Event specification
+                EpisodeMark em;
+                IEnumerator<InputEvent> EFREnum = (new EventFileReader(
+                    new FileStream(System.IO.Path.Combine(directory, head.EventFile),
+                    FileMode.Open, FileAccess.Read))).GetEnumerator();
+                bool more = EFREnum.MoveNext(); //move to first Event
+                do //through end of Event file
                 {
-                    if (em._Event.GetType().Name == "EventDictionaryEntry")
-                        if (em.Match(ev)) //found Start Event
-                        {
-                            startEvent = ev; //found match for Start, remember it
-                            em = specs[i].End; //now set to match End Mark Event
-                            break;
-                        }
-                        else continue;
-                    else
+                    em = specs[i].Start;
+                    InputEvent startEvent = null;
+                    InputEvent endEvent = null;
+                    do //find all Events/Episodes that match spec
                     {
-                        string str = (string)em._Event;
-                        if (str == "Next Event")
+                        InputEvent ev = EFREnum.Current;
+                        if (em._Event.GetType().Name == "EventDictionaryEntry")
+                            if (em.Match(ev)) //found matching Event
+                            {
+                                if (startEvent == null) //matches a startEvent
+                                {
+                                    startEvent = ev; //found match for Start, remember it
+                                    em = specs[i].End; //now move on to match End Mark Event
+                                    // but don't advance to next Event, so "Same Event" works
+                                }
+                                else endEvent = ev; //matches the endEvent for this spec
+                                // but don't advance; have to check against startEvent of next episode!
+                            }
+                            else more = EFREnum.MoveNext();
+                        else // special cases
                         {
-                            efr.GetEnumerator().MoveNext();
-                            startEvent = efr.GetEnumerator().Current;
+                            string str = (string)em._Event;
+                            if (str == "Same Event") //only occurs as endEvent
+                            {
+                                endEvent = ev;
+                                more = EFREnum.MoveNext(); //must advance to avoid endless loop!
+                            }
+                            else if (str == "Next Event") //only occurs as endEvent
+                            {
+                                more = EFREnum.MoveNext(); //in this case, advance, then test
+                                if (em.MatchGV(ev) && more) endEvent = EFREnum.Current;
+                            }
+                            else if (str == "Any Event") //only occurs as startEvent
+                            {
+                                if (em.MatchGV(ev))
+                                {
+                                    startEvent = ev;
+                                    em = specs[i].End;
+                                }
+                                else more = EFREnum.MoveNext(); //no match, move to next Event
+                            }
+                            else more = false; //shouldn't occur -- skip this spec by simulating EOF
                         }
-                        else if (str == "Any Event") startEvent = ev;
-                        else continue; //shouldn't occur -- will ignore all Events
-                        if (em.MatchGV(startEvent)) break;
-                        startEvent = null;
+                    } while (endEvent == null && more);
+                    // At this point, startEvent refers to an Event that satisfies the criterium for starting an episode
+                    // and endEvent to the Event satisfying criterium for ending an episode. Thus if endEvent != null,
+                    // then the episode is complete. In addition if more is false, then end-of-file has been reached and
+                    // if startEvent is not null, one could use the end-of-file as the end of the episode **************
+                    if (endEvent != null) //process found episode
+                    {
+                        Console.WriteLine(startEvent);
+                        Console.WriteLine(endEvent);
                     }
-                }
-                // at this point, startEvent refers to an Event that satisfies the criterium for starting an episode
-                // EventFile is positioned at this record, so we can refer to it in the end criterium, if desired
+                    
+                } while (more); // there may be more episodes matching this spec
+                EFREnum.Dispose(); //reset file
             }  //next spec
         }
 

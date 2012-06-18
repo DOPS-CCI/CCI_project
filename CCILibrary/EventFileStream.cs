@@ -140,8 +140,7 @@ namespace EventFile
         bool IEnumerator.MoveNext()
         {
             current = efr.readEvent();
-            if (current == null) return false;
-            return true;
+            return current != null;
         }
 
         void IEnumerator.Reset()

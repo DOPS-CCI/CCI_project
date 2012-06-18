@@ -216,7 +216,7 @@ namespace Event
             return ede.GroupVars[i].ConvertGVValueStringToInteger(GVValue[i]);
         }
 
-        public new string ToString()
+        public override string ToString()
         {
             string nl = Environment.NewLine;
             StringBuilder str = new StringBuilder("Event name: " + name + nl);

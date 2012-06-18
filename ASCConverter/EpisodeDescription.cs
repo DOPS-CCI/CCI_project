@@ -69,9 +69,7 @@ namespace ASCConverter
         /// <returns></returns>
         internal bool MatchGV(InputEvent ev)
         {
-            if (_GV == null || MatchGV(ev.GetIntValueForGVName(_GV.Name)))
-                return true;
-            return false;
+            return (_GV == null || MatchGV(ev.GetIntValueForGVName(_GV.Name)));
         }
     }
 
