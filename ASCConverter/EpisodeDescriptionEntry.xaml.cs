@@ -33,7 +33,6 @@ namespace ASCConverter
             Event1.Items.Add("Any Event");
             Event2.Items.Add("Same Event");
             Event2.Items.Add("Next Event");
-            Event2.Items.Add("Any Event");
             foreach (EventDictionary.EventDictionaryEntry ev in events.Values){
                 Event1.Items.Add(ev);
                 Event2.Items.Add(ev);

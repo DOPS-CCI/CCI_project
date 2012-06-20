@@ -43,7 +43,7 @@ namespace ASCConverter
 
         public MainWindow()
         {
-            CCIUtilities.Log.writeToLog("Starting FileConverter " + Assembly.GetExecutingAssembly().GetName().Version.ToString());
+            CCIUtilities.Log.writeToLog("Starting ASCConverter " + Assembly.GetExecutingAssembly().GetName().Version.ToString());
 
             OpenFileDialog dlg = new OpenFileDialog();
             dlg.Title = "Open Header file ...";
@@ -95,17 +95,23 @@ namespace ASCConverter
                     FileMode.Open, FileAccess.Read));
             samplingRate = bdf.NSamp / bdf.RecordDuration;
 
+            int FMRecLength = Convert.ToInt32(FMRecLen.Text);
+
             EventFactory.Instance(ED);
+
             for (int i = 0; i < specs.Length; i++) //loop through episode specifications
             {
+                EpisodeDescription currentEpisode = specs[i];
                 EpisodeMark em;
                 IEnumerator<InputEvent> EFREnum = (new EventFileReader(
                     new FileStream(System.IO.Path.Combine(directory, head.EventFile),
                     FileMode.Open, FileAccess.Read))).GetEnumerator();
                 bool more = EFREnum.MoveNext(); //move to first Event
-                do //through end of Event file
+                if (i == 0 && more) //use first Event to calculate indexTime via call to zeroTime
+                    bdf.setZeroTime(EFREnum.Current);
+                while (more) //through end of Event file
                 {
-                    em = specs[i].Start;
+                    em = currentEpisode.Start;
                     InputEvent startEvent = null;
                     InputEvent endEvent = null;
                     do //find all Events/Episodes that match spec
@@ -117,7 +123,7 @@ namespace ASCConverter
                                 if (startEvent == null) //matches a startEvent
                                 {
                                     startEvent = ev; //found match for Start, remember it
-                                    em = specs[i].End; //now move on to match End Mark Event
+                                    em = currentEpisode.End; //now move on to match End Mark Event
                                     // but don't advance to next Event, so "Same Event" works
                                 }
                                 else endEvent = ev; //matches the endEvent for this spec
@@ -142,7 +148,7 @@ namespace ASCConverter
                                 if (em.MatchGV(ev))
                                 {
                                     startEvent = ev;
-                                    em = specs[i].End;
+                                    em = currentEpisode.End;
                                 }
                                 else more = EFREnum.MoveNext(); //no match, move to next Event
                             }
@@ -155,11 +161,17 @@ namespace ASCConverter
                     // if startEvent is not null, one could use the end-of-file as the end of the episode **************
                     if (endEvent != null) //process found episode
                     {
+                        double startTime = startEvent.Time + currentEpisode.Start._offset - bdf.zeroTime;
+                        double f = Math.Floor(startTime / bdf.RecordDuration);
+                        int BDFRecOffset = (int)f;
+                        int BDFPtOffset = (int)((startTime - f * bdf.RecordDuration) * (double)samplingRate);
+                        int numberOfFMRecs = (int)Math.Floor((endEvent.Time - startEvent.Time + currentEpisode.End._offset - currentEpisode.Start._offset) / FMRecLength);
+                        Console.WriteLine("GVnew=" + (currentEpisode.GVValue == null ? "0" : currentEpisode.GVValue.ToString()));
+                        Console.WriteLine("Rec=" + BDFRecOffset + " Pt=" + BDFPtOffset + " Len=" + numberOfFMRecs);
                         Console.WriteLine(startEvent);
                         Console.WriteLine(endEvent);
                     }
-                    
-                } while (more); // there may be more episodes matching this spec
+                }
                 EFREnum.Dispose(); //reset file
             }  //next spec
         }

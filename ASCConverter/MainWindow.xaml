@@ -7,13 +7,19 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
         <ListBox Height="370" HorizontalAlignment="Center" Margin="15" Name="EpisodeEntries" VerticalAlignment="Top" Width="896" />
         <StackPanel Grid.Row="1" Orientation="Horizontal">
         <Button Name="AddSpec" Grid.Row="1" Width="24" Height="24" FontSize="13" FontWeight="Bold" HorizontalAlignment="Left" Margin="15,0,0,0" Click="AddSpec_Click">+</Button>
         <Button Name="RemoveSpec" Grid.Row="1" Width="24" Height="24" FontSize="13" FontWeight="Bold" HorizontalAlignment="Left" Margin="10,0,0,0" IsEnabled="False" Click="RemoveSpec_Click">-</Button>
         </StackPanel>
-        <StackPanel Grid.Row="2" Orientation="Horizontal" FlowDirection="RightToLeft">
+        <StackPanel Grid.Row="2" Orientation="Horizontal">
+            <Label>FILMAN record length = </Label>
+            <TextBox Name="FMRecLen" Width="40">1</TextBox>
+            <Label>seconds</Label>
+        </StackPanel>
+        <StackPanel Grid.Row="3" Orientation="Horizontal" FlowDirection="RightToLeft">
             <Button Width="80" Name="OKButton" Margin="20,0" Click="OKButton_Click">OK</Button>
             <Button Width="80" Name="CancelButton" Click="CancelButton_Click">Cancel</Button>
         </StackPanel>

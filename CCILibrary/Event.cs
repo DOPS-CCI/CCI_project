@@ -17,6 +17,10 @@ namespace Event
         private static EventFactory instance = null;
         internal static EventDictionary.EventDictionary ed;
         private static int nBits;
+        public int statusBits
+        {
+            get { return nBits; }
+        }
 
         /// <summary>
         /// Access singleton instance of FactoryEvent; lazy constructor

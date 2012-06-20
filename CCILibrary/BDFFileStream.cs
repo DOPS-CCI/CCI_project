@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Text;
+using Event;
 
 namespace BDFFileStream {
 
@@ -192,6 +193,7 @@ namespace BDFFileStream {
     public class BDFFileReader : BDFFileStream, IDisposable{
 
         protected BinaryReader reader;
+        double? _zeroTime = null;
 
         public BDFFileReader(Stream str) {
 
@@ -277,6 +279,42 @@ namespace BDFFileStream {
             if (channel < 0 || channel >= header.numberChannels) throw new BDFException("Invalid channel number (" + channel + ")");
             if (sample < 0 || sample >= header.numberSamples[channel]) throw new BDFException("Invalid sample number (" + sample + ")");
             return (double)record.channelData[channel][sample] * header.Gain(channel) + header.Offset(channel);
+        }
+
+        /// <summary>
+        /// Calculates the time of start of file (record 0, point 0) based on the InputEvent.
+        /// After this, value may be accessed via property <code>zeroTime</code>
+        /// </summary>
+        /// <param name="IE">InputEvent to use as index</param>
+        /// <returns>True if GC found, false if not</returns>
+        public bool setZeroTime(InputEvent IE)
+        {
+            int[] statusBuffer = new int[NSamp];
+            int rec = 0;
+            uint mask = 0xFFFFFFFF >> (32 - EventFactory.Instance().statusBits);
+            while (this.read(rec++) != null)
+            {
+                statusBuffer = getStatus();
+                for (int i = 0; i < NSamp; i++)
+                    if ((mask & statusBuffer[i]) == IE.GC)
+                    {
+                        _zeroTime = IE.Time - (double)this.RecordDuration * (--rec + (double)i / NSamp);
+                        return true;
+                    }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Read-only property which is the time from the first point in file to the reference Event (graycode)
+        /// </summary>
+        public double zeroTime
+        {
+            get
+            {
+                if (_zeroTime == null) throw new Exception("In BDFFileReader: zeroTime not initialized");
+                return (double)_zeroTime;
+            }
         }
 
         public new void Dispose() {
