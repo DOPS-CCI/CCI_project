@@ -14,6 +14,15 @@ namespace ASCConverter
         internal int? GVValue;
         internal EpisodeMark Start = new EpisodeMark();
         internal EpisodeMark End = new EpisodeMark();
+
+        public override string ToString()
+        {
+            StringBuilder sb = new StringBuilder();
+            if (GVValue != null) sb.Append("GV " + ((int)GVValue).ToString("0") + ": ");
+            else sb.Append("NoVal: ");
+            sb.Append("From " + Start.ToString() + " to " + End.ToString());
+            return sb.ToString();
+        }
     }
 
     public class EpisodeMark
@@ -70,6 +79,26 @@ namespace ASCConverter
         internal bool MatchGV(InputEvent ev)
         {
             return (_GV == null || MatchGV(ev.GetIntValueForGVName(_GV.Name)));
+        }
+
+        public override string ToString()
+        {
+            StringBuilder sb = new StringBuilder();
+            if (_Event.GetType().Name == "String") sb.Append((string)_Event);
+            else sb.Append(((EventDictionaryEntry)_Event).Name);
+            if (_GV != null)
+                sb.Append(": " + _GV.Name + CompToString() + _GVVal.ToString("0"));
+            sb.Append(" offset=" + _offset.ToString("0.0"));
+            return sb.ToString();
+        }
+
+        internal string CompToString()
+        {
+            if (_comp == Comp.equals) return "=";
+            if (_comp == Comp.notequal) return "!=";
+            if (_comp == Comp.lessthan) return "<";
+            if (_comp == Comp.greaterthan) return ">";
+            return " ";
         }
     }
 
