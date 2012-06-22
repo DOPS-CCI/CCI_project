@@ -45,7 +45,16 @@ namespace GroupVarDictionary
                     return ret;
             }
             return 0; //this indicates an error; GV values are supposed to be > 0
-       }
+        }
+
+        public string ConvertGVValueIntegerToString(int val)
+        {
+            if (GVValueDictionary == null)
+                return val.ToString("0");
+            foreach (KeyValuePair<string, int> entry in GVValueDictionary)
+                if (entry.Value == val) return entry.Key;
+            return "";
+        }
 
         public override string ToString()
         {
