@@ -16,9 +16,11 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 using BDFFileStream;
+using ElectrodeFileStream;
 using Event;
 using EventDictionary;
 using EventFile;
+using FILMANFileStream;
 using GroupVarDictionary;
 using HeaderFileStream;
 using CCIUtilities;
@@ -97,6 +99,90 @@ namespace ASCConverter
 
             int FMRecLength = Convert.ToInt32(FMRecLen.Text);
 
+            /***** Read electrode file *****/
+            ElectrodeInputFileStream etrFile = new ElectrodeInputFileStream(
+                new FileStream(System.IO.Path.Combine(directory, head.ElectrodeFile), FileMode.Open, FileAccess.Read));
+
+            /***** Open FILMAN file *****/
+            SaveFileDialog dlg = new SaveFileDialog();
+            dlg.Title = "Save as FILMAN file ...";
+            dlg.AddExtension = true;
+            dlg.DefaultExt = ".fmn"; // Default file extension
+            dlg.Filter = "FILMAN Files (.fmn)|*.fmn"; // Filter files by extension
+            dlg.FileName = System.IO.Path.GetFileNameWithoutExtension(head.BDFFile);
+            Nullable<bool> result = dlg.ShowDialog();
+            int newRecordLength = Convert.ToInt32(Math.Ceiling(FMRecLength * samplingRate / (float)decimation));
+
+            FILMANOutputStream FMStream = new FILMANOutputStream(
+                File.Open(dlg.FileName, FileMode.Create, FileAccess.ReadWrite),
+                head.GroupVars.Count + 2, 0, bdf.NumberOfChannels-1,
+                newRecordLength,
+                FILMANFileStream.FILMANFileStream.Format.Real);
+            Logfile log = new LogFile(dlg.FileName + ".log.xml");
+            FMStream.IS = Convert.ToInt32((double)samplingRate / (double)decimation);
+            float[,] bigBuff = new float[bdf.NumberOfChannels - 1, FMStream.ND]; //have to dimension to BDF rather than FMStream
+            //in case we need for reference calculations
+
+            /***** Create FILMAN header records *****/
+            FMStream.GVNames(0, "Channel");
+            FMStream.GVNames(1, "Montage");
+            int j = 2;
+            foreach (string gv in head.GroupVars.Keys) FMStream.GVNames(j++, gv); //generate group variable names
+
+            for (j = 0; j < FMStream.NC; j++) //generate channel labels
+            {
+                string s = bdf.channelLabel(j);
+                ElectrodeFileStream.ElectrodeRecord p;
+                if (etrFile.etrPositions.TryGetValue(s, out p))
+                    FMStream.ChannelNames(j, s.PadRight(16, ' ') + p);   //add electrode location information, if available
+                else
+                    FMStream.ChannelNames(j, s);
+            }
+
+            FMStream.Description(0, head.Title + " Date: " + head.Date + " " + head.Time +
+                " File: " + System.IO.Path.Combine(directory, System.IO.Path.GetFileNameWithoutExtension(head.BDFFile)));
+
+            StringBuilder sb = new StringBuilder("Subject: " + head.Subject.ToString());
+            if (head.Agent != 0) sb.Append(" Agent: " + head.Agent);
+            sb.Append(" Tech:");
+            foreach (string s in head.Technician) sb.Append(" " + s);
+            FMStream.Description(1, sb.ToString());
+            sb.Clear();
+            sb = sb.Append(specs[0].ToString());
+            for (j = 1; j < specs.Length; j++) sb.Append("/" + specs[j].ToString());
+            string str = sb.ToString();
+            j=str.Length;
+            if (j < 72) FMStream.Description(2, str);
+            else
+            {
+                FMStream.Description(2, str.Substring(0, 72));
+                if (j < 144) FMStream.Description(3, str.Substring(72));
+                else
+                {
+                    FMStream.Description(3, str.Substring(72, 72));
+                    if (j < 216) FMStream.Description(4, str.Substring(144));
+                    else FMStream.Description(4, str.Substring(144, 72));
+                }
+            }
+/*            if (referenceGroups == null || referenceGroups.Count == 0) sb.Append(" No reference");
+            else if (referenceGroups.Count == 1)
+            {
+                sb.Append(" Single ref group with");
+                if (referenceGroups[0].Count >= FMStream.NC)
+                    if (referenceChannels[0].Count == bdf.NumberOfChannels) sb.Append(" common average ref");
+                    else if (referenceChannels.Count == 1)
+                        sb.Append(" ref channel " + referenceChannels[0][0].ToString("0") + "=" + bdf.channelLabel(referenceChannels[0][0]));
+                    else sb.Append(" multiple ref channels=" + referenceChannels[0].Count.ToString("0"));
+            }
+            else // complex reference expression
+            {
+                sb.Append(" Multiple reference groups=" + referenceGroups.Count.ToString("0"));
+            }
+            FMStream.Description(3, sb.ToString()); */
+
+            FMStream.Description(5, bdf.LocalRecordingId);
+
+            FMStream.writeHeader();
             EventFactory.Instance(ED);
 
             for (int i = 0; i < specs.Length; i++) //loop through episode specifications
@@ -132,7 +218,7 @@ namespace ASCConverter
                             else more = EFREnum.MoveNext();
                         else // special cases
                         {
-                            string str = (string)em._Event;
+                            str = (string)em._Event;
                             if (str == "Same Event") //only occurs as endEvent
                             {
                                 endEvent = ev;
@@ -162,14 +248,9 @@ namespace ASCConverter
                     if (endEvent != null) //process found episode
                     {
                         double startTime = startEvent.Time + currentEpisode.Start._offset - bdf.zeroTime;
-                        double f = Math.Floor(startTime / bdf.RecordDuration);
-                        int BDFRecOffset = (int)f;
-                        int BDFPtOffset = (int)((startTime - f * bdf.RecordDuration) * (double)samplingRate);
                         int numberOfFMRecs = (int)Math.Floor((endEvent.Time - startEvent.Time + currentEpisode.End._offset - currentEpisode.Start._offset) / FMRecLength);
-                        Console.WriteLine("GVnew=" + (currentEpisode.GVValue == null ? "0" : currentEpisode.GVValue.ToString()));
-                        Console.WriteLine("Rec=" + BDFRecOffset + " Pt=" + BDFPtOffset + " Len=" + numberOfFMRecs);
-                        Console.WriteLine(startEvent);
-                        Console.WriteLine(endEvent);
+                        BDFPoint startBDFPoint = new BDFPoint(bdf);
+                        startBDFPoint.FromSecs(startTime);
                     }
                 }
                 EFREnum.Dispose(); //reset file
