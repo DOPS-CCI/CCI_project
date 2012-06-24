@@ -24,9 +24,16 @@ namespace ASCtoFMConverter
     public partial class EpisodeDescriptionEntry : UserControl
     {
         private Header.Header hdr;
-        public EpisodeDescriptionEntry(Header.Header head)
+        private int _GVspec = 1;
+        private int _GVVal1 = 0;
+        private int _GVVal2 = 0;
+        private double _offset1 = 0D;
+        private double _offset2 = 0D;
+        private Window2.Validate validate;
+        public EpisodeDescriptionEntry(Header.Header head, Window2.Validate v)
         {
             this.hdr = head;
+            this.validate = v;
             InitializeComponent();
 
             EventDictionary.EventDictionary events = hdr.Events;
@@ -43,6 +50,12 @@ namespace ASCtoFMConverter
             Comp1.Items.Add("!=");
             Comp2.Items.Add("=");
             Comp2.Items.Add("!=");
+        }
+
+        private void GVSpec_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            int.TryParse(GVSpec.Text, out _GVspec);
+            validate();
         }
 
         private void Event1_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -65,11 +78,13 @@ namespace ASCtoFMConverter
             GV1.SelectedIndex = 0;
             Comp1.IsEnabled = false;
             GVValue1TB.IsEnabled = false;
+            validate();
         }
 
         private void Event2_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (GV2 == null) return;
+            Offset1_TextChanged(null, null); //check for correct offset values
             GV2.Items.Clear();
             GV2.Items.Add("*None*");
             Object o = Event2.SelectedItem;
@@ -93,6 +108,7 @@ namespace ASCtoFMConverter
             Comp2.IsEnabled = false;
             GVValue2TB.IsEnabled = false;
             GVPanel2.IsEnabled = true;
+            validate();
         }
 
         private void GV1_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -138,6 +154,7 @@ namespace ASCtoFMConverter
                 Comp1.IsEnabled = true;
                 Comp1.SelectedIndex = 0;
             }
+            validate();
         }
 
         private void GV2_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -183,6 +200,92 @@ namespace ASCtoFMConverter
                 Comp2.IsEnabled = true;
                 Comp2.SelectedIndex = 0;
             }
+            validate();
         }
+
+        private void GVValue1TB_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            int.TryParse(GVValue1TB.Text, out _GVVal1); //_GVVal1 = 0 if unsuccesful, which is invalid anyway
+            validate();
+        }
+
+        private void GVValue2TB_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            int.TryParse(GVValue2TB.Text, out _GVVal2); //_GVVal2 = 0 if unsuccesful, which is invalid anyway
+            validate();
+        }
+
+        private void Offset1_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (!this.IsLoaded) return;
+            if (!double.TryParse(Offset1.Text, out _offset1)) _offset1 = double.NaN;
+            validate();
+        }
+
+        private void Offset2_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (!this.IsLoaded) return;
+            if (!double.TryParse(Offset2.Text, out _offset2)) _offset2 = double.NaN;
+            validate();
+        }
+
+        public bool Validate()
+        {
+            bool valid = true;
+            if (_GVspec <= 0)
+            {
+                valid = false;
+                GVSpec.BorderBrush = Brushes.Red;
+            }
+            else GVSpec.BorderBrush = Brushes.MediumBlue;
+            if (double.IsNaN(_offset1))
+            {
+                valid = false;
+                Offset1.BorderBrush = Brushes.Red;
+            }
+            else Offset1.BorderBrush = Brushes.MediumBlue;
+            if (double.IsNaN(_offset2))
+            {
+                valid = false;
+                Offset2.BorderBrush = Brushes.Red;
+            }
+            else Offset2.BorderBrush = Brushes.MediumBlue;
+            if(!double.IsNaN(_offset1) && !double.IsNaN(_offset2))
+                if (Event2.SelectedItem.GetType().Name == "String" &&
+                    (string)Event2.SelectedItem == "Same Event")
+                {
+                    if (_offset1 >= _offset2)
+                    {
+                        Offset1.BorderBrush = Brushes.Red;
+                        Offset2.BorderBrush = Brushes.Red;
+                        valid = false;
+                    }
+                }
+            object o = GV1.SelectedItem;
+            if (o.GetType().Name != "String" &&
+                ((GVEntry)o).GVValueDictionary == null)
+            {
+                if (_GVVal1 <= 0)
+                {
+                    GVValue1TB.BorderBrush = Brushes.Red;
+                    valid = false;
+                }
+                else GVValue1TB.BorderBrush = Brushes.MediumBlue;
+            }
+            o = GV2.SelectedItem;
+            if (o.GetType().Name != "String" &&
+                ((GVEntry)o).GVValueDictionary == null)
+            {
+                if (_GVVal2 <= 0)
+                {
+                    GVValue2TB.BorderBrush = Brushes.Red;
+                    valid = false;
+                }
+                else GVValue2TB.BorderBrush = Brushes.MediumBlue;
+            }
+
+            return valid;
+        }
+
     }
 }

@@ -12,15 +12,14 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
         <TextBox Grid.Row="0" FontSize="15" Margin="6,6,6,1" FontWeight="Bold" Name="TitleLine" IsReadOnly="True" TextAlignment="Center"></TextBox>
         <GroupBox Grid.Row="1" Header="Episode creation" BorderBrush="Black" Margin="6,0,6,0" FontSize="14">
             <StackPanel Orientation="Vertical">
             <ListBox Name="EpisodeEntries" VerticalContentAlignment="Top" Height="280"/>
             <StackPanel Grid.Row="1" Orientation="Horizontal">
-                <Button Name="AddSpec" Grid.Row="1" Width="24" Height="24" FontSize="13" FontWeight="Bold" HorizontalAlignment="Left" Margin="15,0,0,0" Click="AddSpec_Click">+</Button>
-                <Button Name="RemoveSpec" Grid.Row="1" Width="24" Height="24" FontSize="13" FontWeight="Bold" HorizontalAlignment="Left" Margin="10,0,0,0" IsEnabled="False" Click="RemoveSpec_Click">-</Button>
+                <Button Name="AddSpec" Grid.Row="1" Width="24" Height="24" FontSize="13" FontWeight="Bold" HorizontalAlignment="Left" Margin="4" Click="AddSpec_Click">+</Button>
+                <Button Name="RemoveSpec" Grid.Row="1" Width="24" Height="24" FontSize="13" FontWeight="Bold" HorizontalAlignment="Left" Margin="4" IsEnabled="False" Click="RemoveSpec_Click">-</Button>
             </StackPanel></StackPanel>
         </GroupBox>
         <GroupBox Grid.Row="2" Header="Group variables" BorderBrush="Black" Margin="6,0" FontSize="14" Height="203" VerticalAlignment="Bottom">
@@ -70,7 +69,6 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
                     <Label Grid.Row="0" Grid.Column="0" HorizontalAlignment="Left" Margin="8,0,0,0">Decimation factor</Label>
                     <TextBox Grid.Row="0" Grid.Column="2" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="4,0,4,0" Name="SR" Width="120" HorizontalContentAlignment="Right" IsReadOnly="True" IsTabStop="False" IsUndoEnabled="False" />
@@ -78,24 +76,24 @@
                         <TextBox.ToolTip>Enter decimation factor (integer)</TextBox.ToolTip>
                     </TextBox>
                     <Label Grid.Row="0" Grid.Column="3" HorizontalAlignment="Left" Margin="0">samples/sec</Label>
-                    <Label Grid.Row="2" Grid.Column="0" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="8,0,0,0" Name="label2" Width="Auto" Height="27" FontSize="14" VerticalContentAlignment="Top">Record length(sec)</Label>
-                    <TextBox Grid.Row="2" Grid.Column="2" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="4,0,4,0" Name="RecLengthPts" Width="120"  Height="24" HorizontalContentAlignment="Right" IsReadOnly="True" IsTabStop="False" IsUndoEnabled="False"></TextBox>
-                    <TextBox Grid.Row="2" Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="4,0,4,0" Name="RecLength" Width="120" Height="24" TextAlignment="Right" HorizontalContentAlignment="Right" TextChanged="RecLength_TextChanged" Text="4">
+                    <Label Grid.Row="1" Grid.Column="0" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="8,0,0,0" Name="label2" Width="Auto" Height="27" FontSize="14" VerticalContentAlignment="Top">Record length(sec)</Label>
+                    <TextBox Grid.Row="1" Grid.Column="2" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="4,0,4,0" Name="RecLengthPts" Width="120"  Height="24" HorizontalContentAlignment="Right" IsReadOnly="True" IsTabStop="False" IsUndoEnabled="False"></TextBox>
+                    <TextBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="4,0,4,0" Name="RecLength" Width="120" Height="24" TextAlignment="Right" HorizontalContentAlignment="Right" TextChanged="RecLength_TextChanged" Text="4">
                         <TextBox.ToolTip>Enter length of records in seconds</TextBox.ToolTip>
                     </TextBox>
-                    <Label Grid.Row="2" Grid.Column="3" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="0" Name="label4" Width="Auto" FontSize="14">points</Label>
-                    <CheckBox Grid.Row="3" Grid.Column="0" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="12,0,0,0" Name="Radin" Width="Auto" Height="17" FontSize="14" Padding="2,0,4,0" Checked="Radin_Checked" Unchecked="Radin_Checked" VerticalContentAlignment="Top">Radin reference: from</CheckBox>
-                    <TextBox Grid.Row="3" Grid.Column="2" IsEnabled="{Binding ElementName=Radin, Path=IsChecked}" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="4,0,4,0" Name="RadinLowPts" Width="120"  Height="24" HorizontalContentAlignment="Right" IsReadOnly="True" IsTabStop="False" IsUndoEnabled="False" VerticalContentAlignment="Center"></TextBox>
-                    <TextBox Grid.Row="3" Grid.Column="1" IsEnabled="{Binding ElementName=Radin, Path=IsChecked}" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="4,0,4,0" Name="RadinLow" Width="120" Height="24" TextAlignment="Right" HorizontalContentAlignment="Right" TextChanged="RadLow_TextChanged" Text="0">
+                    <Label Grid.Row="1" Grid.Column="3" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="0" Name="label4" Width="Auto" FontSize="14">points</Label>
+                    <CheckBox Grid.Row="2" Grid.Column="0" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="12,0,0,0" Name="Radin" Width="Auto" Height="17" FontSize="14" Padding="2,0,4,0" Checked="Radin_Checked" Unchecked="Radin_Checked" VerticalContentAlignment="Top">Radin reference: from</CheckBox>
+                    <TextBox Grid.Row="2" Grid.Column="2" IsEnabled="{Binding ElementName=Radin, Path=IsChecked}" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="4,0,4,0" Name="RadinLowPts" Width="120"  Height="24" HorizontalContentAlignment="Right" IsReadOnly="True" IsTabStop="False" IsUndoEnabled="False" VerticalContentAlignment="Center"></TextBox>
+                    <TextBox Grid.Row="2" Grid.Column="1" IsEnabled="{Binding ElementName=Radin, Path=IsChecked}" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="4,0,4,0" Name="RadinLow" Width="120" Height="24" TextAlignment="Right" HorizontalContentAlignment="Right" TextChanged="RadLow_TextChanged" Text="0">
                         <TextBox.ToolTip>Enter beginning of Radin reference region</TextBox.ToolTip>
                     </TextBox>
-                    <Label Grid.Row="3" Grid.Column="3" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="0" Name="label6" Width="Auto" FontSize="14">points</Label>
-                    <Label Grid.Row="4" Grid.Column="0" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0" Name="label7" Width="Auto" Height="27" VerticalContentAlignment="Top">to</Label>
-                    <TextBox Grid.Row="4" Grid.Column="2" IsEnabled="{Binding ElementName=Radin, Path=IsChecked}" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="4,0,4,0" Name="RadinHighPts" Width="120"  Height="24" HorizontalContentAlignment="Right" IsReadOnly="True" IsTabStop="False" IsUndoEnabled="False"></TextBox>
-                    <TextBox Grid.Row="4" Grid.Column="1" IsEnabled="{Binding ElementName=Radin, Path=IsChecked}" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="4,0,4,0" Name="RadinHigh" Width="120" Height="24" TextAlignment="Right" HorizontalContentAlignment="Right" TextChanged="RadHigh_TextChanged" Text="4">
+                    <Label Grid.Row="2" Grid.Column="3" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="0" Name="label6" Width="Auto" FontSize="14">points</Label>
+                    <Label Grid.Row="3" Grid.Column="0" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0" Name="label7" Width="Auto" Height="27" VerticalContentAlignment="Top">to</Label>
+                    <TextBox Grid.Row="3" Grid.Column="2" IsEnabled="{Binding ElementName=Radin, Path=IsChecked}" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="4,0,4,0" Name="RadinHighPts" Width="120"  Height="24" HorizontalContentAlignment="Right" IsReadOnly="True" IsTabStop="False" IsUndoEnabled="False"></TextBox>
+                    <TextBox Grid.Row="3" Grid.Column="1" IsEnabled="{Binding ElementName=Radin, Path=IsChecked}" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="4,0,4,0" Name="RadinHigh" Width="120" Height="24" TextAlignment="Right" HorizontalContentAlignment="Right" TextChanged="RadHigh_TextChanged" Text="4">
                         <TextBox.ToolTip>Enter end of Radin reference region</TextBox.ToolTip>
                     </TextBox>
-                    <Label Name="label8" Grid.Row="4" Grid.Column="3" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="0" Width="Auto" >points</Label>
+                    <Label Name="label8" Grid.Row="3" Grid.Column="3" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="0" Width="Auto" >points</Label>
                 </Grid>
                 <Grid Name="Offsets">
                     <Grid.ColumnDefinitions>
@@ -145,11 +143,11 @@
                 <RadioButton Grid.Row="2" GroupName="Ref" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="8,5,0,6" Name="radioButton3" Width="Auto" Checked="radioButton_Changed" IsChecked="True">No correction (CMS/DRL)</RadioButton>
             </Grid>
         </GroupBox>
-        <StackPanel Grid.Row="7" Grid.Column="1" Orientation="Horizontal" Grid.ColumnSpan="2" FlowDirection="RightToLeft">
+        <StackPanel Grid.Row="6" Grid.Column="1" Orientation="Horizontal" Grid.ColumnSpan="2" FlowDirection="RightToLeft">
                 <Button VerticalAlignment="Center" Margin="12,4,8,4" Height="24" Name="ConvertFM" Width="80" FontSize="14" Click="ConvertFM_Click">Convert</Button>
                 <Button VerticalAlignment="Center" Margin="8,4,8,4" Height="24" Name="Cancel" Width="80" FontSize="14" Click="Cancel_Click">Cancel</Button>
             </StackPanel>
-        <Grid Grid.Row="8">
+        <Grid Grid.Row="7">
             <TextBlock FontSize="14" Margin="8,0,8,2" Name="StatusLine">Status: preliminary</TextBlock>
         </Grid>
     </Grid>

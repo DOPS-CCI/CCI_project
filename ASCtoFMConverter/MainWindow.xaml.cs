@@ -33,8 +33,6 @@ namespace ASCtoFMConverter
         int samplingRate;
         ASCtoFMConverter.ASCConverter asc = null;
 
-        double _extThreshold;
-        private double _extSearch;
         int _decimation;
         List<int> channels;
 
@@ -74,7 +72,7 @@ namespace ASCtoFMConverter
 
             InitializeComponent();
 
-            this.EpisodeEntries.Items.Add(new EpisodeDescriptionEntry(head)); //include initial episode description
+            this.EpisodeEntries.Items.Add(new EpisodeDescriptionEntry(head, checkError)); //include initial episode description
 
             this.Title = "Convert " + System.IO.Path.GetFileNameWithoutExtension(dlg.FileName);
             this.TitleLine.Text = head.Title + " - " + head.Date + " " + head.Time + " S=" + head.Subject.ToString("0000");
@@ -100,11 +98,14 @@ namespace ASCtoFMConverter
             }
         }
 
+        public delegate void Validate(); //central validation for Window2
+ 
         private void AddSpec_Click(object sender, RoutedEventArgs e)
         {
-            EpisodeDescriptionEntry episode = new EpisodeDescriptionEntry(head);
+            EpisodeDescriptionEntry episode = new EpisodeDescriptionEntry(head, checkError);
             EpisodeEntries.Items.Add(episode);
             if (EpisodeEntries.Items.Count > 1) RemoveSpec.IsEnabled = true;
+            checkError();
         }
 
         private void RemoveSpec_Click(object sender, RoutedEventArgs e)
@@ -112,6 +113,7 @@ namespace ASCtoFMConverter
             EpisodeDescriptionEntry episode = (EpisodeDescriptionEntry)EpisodeEntries.SelectedItem;
             EpisodeEntries.Items.Remove(episode);
             if (EpisodeEntries.Items.Count == 1) RemoveSpec.IsEnabled = false;
+            checkError();
         }
 
         private void All_Click(object sender, RoutedEventArgs e)
@@ -138,7 +140,6 @@ namespace ASCtoFMConverter
             createConverterBase(asc);
 
             asc.length = _recLength;
-            asc.offset = _recOffset;
 
             // Execute conversion in background
 
@@ -219,22 +220,6 @@ namespace ASCtoFMConverter
             checkError();
         }
 
-        double _recOffset;
-        private void RecOffset_TextChanged(object sender, TextChangedEventArgs e)
-        {
-            try
-            {
-                _recOffset = System.Convert.ToDouble(RecOffset.Text);
-                RecOffset.BorderBrush = Brushes.MediumBlue;
-            }
-            catch (Exception)
-            {
-                _recOffset = double.MinValue;
-                RecOffset.BorderBrush = Brushes.Red;
-            }
-            checkError();
-        }
-
         double _recLength;
         private void RecLength_TextChanged(object sender, TextChangedEventArgs e)
         {
@@ -286,60 +271,6 @@ namespace ASCtoFMConverter
                 RadinHighPts.Text = "Error";
             }
             checkError();
-        }
-
-        private void AllSamples_Checked(object sender, RoutedEventArgs e)
-        {
-            Decimation_TextChanged(null, null);
-            label1.IsEnabled = false;
-            label2.IsEnabled = false;
-            label3.IsEnabled = false;
-            label4.IsEnabled = false;
-            label6.IsEnabled = false;
-            label7.IsEnabled = false;
-            label8.IsEnabled = false;
-            RecOffset.Text = "0";
-            RecOffset_TextChanged(null, null);
-            RecOffset.IsEnabled = false;
-            RecOffsetPts.IsEnabled = false;
-            RecLength.Text = bdf.RecordDuration.ToString("0");
-            RecLength_TextChanged(null, null);
-            RecLength.IsEnabled = false;
-            RecLengthPts.IsEnabled = false;
-            Radin.IsChecked = false;
-            Radin.IsEnabled = false;
-            ConvertFM.Visibility = Visibility.Hidden;
-            listView2.SelectionMode = SelectionMode.Single;
-            removeTrends.IsChecked = false;
-            removeTrends.IsEnabled = false;
-            removeOffsets.IsChecked = false;
-            removeOffsets.IsEnabled = false;
-            None.IsEnabled = false;
-            All.IsEnabled = false;
-        }
-
-        private void AllSamples_Unchecked(object sender, RoutedEventArgs e)
-        {
-            Decimation_TextChanged(null, null);
-            label1.IsEnabled = true;
-            label2.IsEnabled = true;
-            label3.IsEnabled = true;
-            label4.IsEnabled = true;
-            label6.IsEnabled = true;
-            label7.IsEnabled = true;
-            label8.IsEnabled = true;
-            RecOffset.IsEnabled = true;
-            RecOffsetPts.IsEnabled = true;
-            RecLength.IsEnabled = true;
-            RecLengthPts.IsEnabled = true;
-            Radin.IsEnabled = true;
-            ConvertFM.Visibility = Visibility.Visible;
-            listView2.SelectionMode = SelectionMode.Multiple;
-            removeOffsets.IsEnabled = true;
-            removeTrends.IsEnabled = true;
-            None.IsEnabled = true;
-            All.IsEnabled = true;
-
         }
 
         private void removeTrends_Checked(object sender, RoutedEventArgs e)
@@ -529,11 +460,6 @@ namespace ASCtoFMConverter
                     SR.Text = ((double)samplingRate / (double)_decimation).ToString("0.0");
                 }
 
-                if (_recOffset != double.MinValue) // valid record offset
-                    RecOffsetPts.Text = System.Convert.ToInt32(_recOffset * (double)samplingRate / (double)_decimation).ToString("0");
-                else
-                    ConvertFM.IsEnabled = false;
-
                 if (_recLength != 0D)
                     RecLengthPts.Text = System.Convert.ToInt32(Math.Ceiling(_recLength * (double)samplingRate / (double)_decimation)).ToString("0");
                 else
@@ -545,7 +471,6 @@ namespace ASCtoFMConverter
                 ConvertFM.IsEnabled = false;
                 SR.Text = "Error";
                 RecLengthPts.Text = "Error";
-                RecOffsetPts.Text = "Error";
             }
 
             if ((bool)Radin.IsChecked)
@@ -575,6 +500,8 @@ namespace ASCtoFMConverter
             else if ((bool)radioButton4.IsChecked && (_refChanExp == null || _refChanExp.Count == 0))
                 ConvertFM.IsEnabled = false;
 
+            foreach (EpisodeDescriptionEntry ede in EpisodeEntries.Items)
+                if (!ede.Validate()) ConvertFM.IsEnabled = false;
         }
 
         private void radioButton_Changed(object sender, RoutedEventArgs e)
@@ -587,7 +514,6 @@ namespace ASCtoFMConverter
             ConvertFM.Visibility = Visibility.Hidden;
             conv.channels = this.channels;
             conv.risingEdge = conv.EDE.rise; // fixed entry until we allow discordant edges
-            conv.threshold = _extThreshold;
             conv.directory = this.directory;
             conv.GV = listView2.SelectedItems.Cast<GVEntry>().ToList<GVEntry>();
             conv.eventHeader = this.head;
