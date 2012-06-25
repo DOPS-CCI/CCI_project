@@ -68,7 +68,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ASCConverter.cs" />
-    <Compile Include="Converter.cs" />
+    <Compile Include="EpisodeDescription.cs" />
     <Compile Include="EpisodeDescriptionEntry.xaml.cs">
       <DependentUpon>EpisodeDescriptionEntry.xaml</DependentUpon>
     </Compile>
@@ -93,6 +93,7 @@
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
     </EmbeddedResource>
+    <None Include="app.config" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>

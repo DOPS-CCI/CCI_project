@@ -51,7 +51,7 @@ namespace ASCtoFMConverter
 
         public Window2()
         {
-            CCIUtilities.Log.writeToLog("Starting FileConverter " + Assembly.GetExecutingAssembly().GetName().Version.ToString());
+            CCIUtilities.Log.writeToLog("Starting ASCtoFMConverter " + Assembly.GetExecutingAssembly().GetName().Version.ToString());
 
             OpenFileDialog dlg = new OpenFileDialog();
             dlg.Title = "Open Header file ...";
@@ -137,9 +137,10 @@ namespace ASCtoFMConverter
             if (asc == null) /* Just in time singleton */
                 asc = new ASCtoFMConverter.ASCConverter();
 
-            createConverterBase(asc);
+            createASCConverter(asc);
 
-            asc.length = _recLength;
+            asc.ED = ED;
+            asc.FMRecLength = _recLength;
 
             // Execute conversion in background
 
@@ -151,7 +152,7 @@ namespace ASCtoFMConverter
             bw.RunWorkerAsync();
         }
 
-        private void correctReferenceLists(Converter conv)
+        private void correctReferenceLists(ASCConverter conv)
         {
             List<List<int>> list = conv.referenceGroups;
             for (int c = 1; c < list.Count; c++) //don't need to check first list
@@ -196,8 +197,8 @@ namespace ASCtoFMConverter
             else
             {
                 int[] res = (int[])e.Result;
-                StatusLine.Text = "Status: Completed conversion with " + res[0].ToString() + " records in " + res[1].ToString() + " recordsets generated.";
-                CCIUtilities.Log.writeToLog("Completed conversion, generating " + res[1].ToString() + " recordsets");
+//                StatusLine.Text = "Status: Completed conversion with " + res[0].ToString() + " records in " + res[1].ToString() + " recordsets generated.";
+//                CCIUtilities.Log.writeToLog("Completed conversion, generating " + res[1].ToString() + " recordsets");
             }
             Cancel.Content = "Done";
             checkError();
@@ -439,7 +440,7 @@ namespace ASCtoFMConverter
 
         private void Window_Closed(object sender, EventArgs e)
         {
-            CCIUtilities.Log.writeToLog("FileConverter ending");
+            CCIUtilities.Log.writeToLog("ASCtoFMConverter ending");
             bdf.Close();
         }
 
@@ -509,14 +510,20 @@ namespace ASCtoFMConverter
                 checkError();
         }
 
-        private void createConverterBase(Converter conv)
+        private void createASCConverter(ASCConverter conv)
         {
             ConvertFM.Visibility = Visibility.Hidden;
+
+            conv.specs = new EpisodeDescription[this.EpisodeEntries.Items.Count];
+            for (int i = 0; i < this.EpisodeEntries.Items.Count; i++)
+            {
+                conv.specs[i] = getEpisode((EpisodeDescriptionEntry)this.EpisodeEntries.Items.GetItemAt(i));
+            }
+
             conv.channels = this.channels;
-            conv.risingEdge = conv.EDE.rise; // fixed entry until we allow discordant edges
             conv.directory = this.directory;
             conv.GV = listView2.SelectedItems.Cast<GVEntry>().ToList<GVEntry>();
-            conv.eventHeader = this.head;
+            conv.head = this.head;
             conv.decimation = _decimation;
             conv.removeOffsets = removeOffsets.IsEnabled && (bool)removeOffsets.IsChecked;
             conv.removeTrends = removeTrends.IsEnabled && (bool)removeTrends.IsChecked;
@@ -550,7 +557,43 @@ namespace ASCtoFMConverter
                 conv.referenceGroups = null;
                 conv.referenceChannels = null;
             }
-            conv.BDF = bdf;
+            conv.bdf = this.bdf;
+            conv.ED = this.ED;
+            conv.FMRecLength = this._recLength;
         }
+
+        private EpisodeDescription getEpisode(EpisodeDescriptionEntry ede)
+        {
+            EpisodeDescription epi = new EpisodeDescription();
+            epi.GVValue = Convert.ToInt32(ede.GVSpec.Text);
+            epi.Start._Event = ede.Event1.SelectedItem; //may be EDE or string
+            epi.End._Event = ede.Event2.SelectedItem; //may be EDE or string
+            Object o = ede.GV1.SelectedItem;
+            if (o != null && o.GetType().Name == "GVEntry")
+                epi.Start._GV = (GVEntry)o;
+            else
+                epi.Start._GV = null;
+            o = ede.GV2.SelectedItem;
+            if (o != null && o.GetType().Name == "GVEntry")
+                epi.End._GV = (GVEntry)o;
+            else
+                epi.End._GV = null;
+            string str = ede.Comp1.Text;
+            epi.Start._comp = str == "=" ? Comp.equals : str == "!=" ? Comp.notequal : str == ">" ? Comp.greaterthan : Comp.lessthan;
+            str = ede.Comp2.Text;
+            epi.End._comp = str == "=" ? Comp.equals : str == "!=" ? Comp.notequal : str == ">" ? Comp.greaterthan : Comp.lessthan;
+            if (ede.GVValue1TB.IsVisible && ede.GVValue1TB.IsEnabled)
+                epi.Start._GVVal = Convert.ToInt32(ede.GVValue1TB.Text);
+            else if (ede.GVValue1CB.IsEnabled)
+                epi.Start._GVVal = epi.Start._GV.ConvertGVValueStringToInteger((string)ede.GVValue1CB.SelectedItem); //
+            if (ede.GVValue2TB.IsVisible && ede.GVValue2TB.IsEnabled)
+                epi.End._GVVal = Convert.ToInt32(ede.GVValue2TB.Text);
+            else if (ede.GVValue2CB.IsEnabled)
+                epi.End._GVVal = epi.End._GV.ConvertGVValueStringToInteger((string)ede.GVValue2CB.SelectedItem);
+            epi.Start._offset = Convert.ToDouble(ede.Offset1.Text);
+            epi.End._offset = Convert.ToDouble(ede.Offset2.Text);
+            return epi;
+        }
+
     }
 }
