@@ -26,8 +26,6 @@ namespace ASCtoFMConverter
         Header.Header head;
         EventDictionary.EventDictionary ED;
         BDFFileReader bdf;
-        List<EventDictionaryEntry> _EDEList;
-        public List<EventDictionaryEntry> EDEList { get { return _EDEList; } }
         List<GVEntry> _GVList;
         string directory;
         int samplingRate;
@@ -77,15 +75,13 @@ namespace ASCtoFMConverter
             this.Title = "Convert " + System.IO.Path.GetFileNameWithoutExtension(dlg.FileName);
             this.TitleLine.Text = head.Title + " - " + head.Date + " " + head.Time + " S=" + head.Subject.ToString("0000");
 
-            _EDEList = ED.Values.ToList<EventDictionaryEntry>();
-
             Binding GVBinding = new Binding();
             GVBinding.Source = this;
             GVBinding.NotifyOnSourceUpdated = true;
             GVBinding.Path = new PropertyPath("GVList");
             GVBinding.Mode = BindingMode.OneWay;
             listView2.SetBinding(ListView.ItemsSourceProperty, GVBinding);
-            GVList = EDEList[0].GroupVars;
+            GVList = head.GroupVars.Values.ToList<GVEntry>();
         }
 
         public event PropertyChangedEventHandler PropertyChanged;
@@ -138,9 +134,6 @@ namespace ASCtoFMConverter
                 asc = new ASCtoFMConverter.ASCConverter();
 
             createASCConverter(asc);
-
-            asc.ED = ED;
-            asc.FMRecLength = _recLength;
 
             // Execute conversion in background
 
@@ -197,8 +190,8 @@ namespace ASCtoFMConverter
             else
             {
                 int[] res = (int[])e.Result;
-//                StatusLine.Text = "Status: Completed conversion with " + res[0].ToString() + " records in " + res[1].ToString() + " recordsets generated.";
-//                CCIUtilities.Log.writeToLog("Completed conversion, generating " + res[1].ToString() + " recordsets");
+                StatusLine.Text = "Status: Completed conversion with " + res[0].ToString() + " records in " + res[1].ToString() + " recordsets generated.";
+                CCIUtilities.Log.writeToLog("Completed conversion, generating " + res[1].ToString() + " recordsets");
             }
             Cancel.Content = "Done";
             checkError();
@@ -560,6 +553,7 @@ namespace ASCtoFMConverter
             conv.bdf = this.bdf;
             conv.ED = this.ED;
             conv.FMRecLength = this._recLength;
+            conv.samplingRate = this.samplingRate;
         }
 
         private EpisodeDescription getEpisode(EpisodeDescriptionEntry ede)

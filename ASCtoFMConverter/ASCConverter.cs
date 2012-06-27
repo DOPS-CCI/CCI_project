@@ -32,6 +32,7 @@ namespace ASCtoFMConverter
         public BDFFileReader bdf;
         public List<GVEntry> GV;
         public double FMRecLength;
+        public int samplingRate;
 
         protected int newRecordLength;
         protected BackgroundWorker bw;
@@ -39,7 +40,7 @@ namespace ASCtoFMConverter
         protected int[] status;
         protected int mask;
         protected LogFile log;
-        protected int samplingRate;
+        protected FILMANOutputStream FMStream;
 
         public EpisodeDescription[] specs;
 
@@ -63,10 +64,11 @@ namespace ASCtoFMConverter
             dlg.FileName = System.IO.Path.GetFileNameWithoutExtension(head.BDFFile);
             Nullable<bool> result = dlg.ShowDialog();
             int newRecordLength = Convert.ToInt32(Math.Ceiling(FMRecLength * samplingRate / (float)decimation));
+            int BDFRecordLength = Convert.ToInt32(FMRecLength * samplingRate);
 
             FILMANOutputStream FMStream = new FILMANOutputStream(
                 File.Open(dlg.FileName, FileMode.Create, FileAccess.ReadWrite),
-                head.GroupVars.Count + 2, 0, bdf.NumberOfChannels - 1,
+                GV.Count + 5, 0, bdf.NumberOfChannels - 1,
                 newRecordLength,
                 FILMANFileStream.FILMANFileStream.Format.Real);
             LogFile log = new LogFile(dlg.FileName + ".log.xml");
@@ -77,8 +79,11 @@ namespace ASCtoFMConverter
             /***** Create FILMAN header records *****/
             FMStream.GVNames(0, "Channel");
             FMStream.GVNames(1, "Montage");
-            int j = 2;
-            foreach (string gv in head.GroupVars.Keys) FMStream.GVNames(j++, gv); //generate group variable names
+            FMStream.GVNames(2, "NewGroupVariable");
+            FMStream.GVNames(3, "EpisodeNumber");
+            FMStream.GVNames(4, "EpisodeRecordNumber");
+            int j = 5;
+            foreach (GVEntry gv in GV) FMStream.GVNames(j++, gv.Name); //generate group variable names
 
             for (j = 0; j < FMStream.NC; j++) //generate channel labels
             {
@@ -103,33 +108,38 @@ namespace ASCtoFMConverter
             for (j = 1; j < specs.Length; j++) sb.Append("/" + specs[j].ToString());
             string str = sb.ToString();
             j = str.Length;
-            if (j < 72) FMStream.Description(2, str);
+            int k;
+            if (j < 72) { FMStream.Description(2, str); k = 3; }
             else
             {
                 FMStream.Description(2, str.Substring(0, 72));
-                if (j < 144) FMStream.Description(3, str.Substring(72));
+                if (j < 144) { FMStream.Description(3, str.Substring(72)); k = 4; }
                 else
                 {
                     FMStream.Description(3, str.Substring(72, 72));
+                    k = 0;
                     if (j < 216) FMStream.Description(4, str.Substring(144));
                     else FMStream.Description(4, str.Substring(144, 72));
                 }
             }
-            /*            if (referenceGroups == null || referenceGroups.Count == 0) sb.Append(" No reference");
-                        else if (referenceGroups.Count == 1)
-                        {
-                            sb.Append(" Single ref group with");
-                            if (referenceGroups[0].Count >= FMStream.NC)
-                                if (referenceChannels[0].Count == bdf.NumberOfChannels) sb.Append(" common average ref");
-                                else if (referenceChannels.Count == 1)
-                                    sb.Append(" ref channel " + referenceChannels[0][0].ToString("0") + "=" + bdf.channelLabel(referenceChannels[0][0]));
-                                else sb.Append(" multiple ref channels=" + referenceChannels[0].Count.ToString("0"));
-                        }
-                        else // complex reference expression
-                        {
-                            sb.Append(" Multiple reference groups=" + referenceGroups.Count.ToString("0"));
-                        }
-                        FMStream.Description(3, sb.ToString()); */
+            if (k != 0)
+            {
+                if (referenceGroups == null || referenceGroups.Count == 0) sb.Append(" No reference");
+                else if (referenceGroups.Count == 1)
+                {
+                    sb.Append(" Single ref group with");
+                    if (referenceGroups[0].Count >= FMStream.NC)
+                        if (referenceChannels[0].Count == bdf.NumberOfChannels) sb.Append(" common average ref");
+                        else if (referenceChannels.Count == 1)
+                            sb.Append(" ref channel " + referenceChannels[0][0].ToString("0") + "=" + bdf.channelLabel(referenceChannels[0][0]));
+                        else sb.Append(" multiple ref channels=" + referenceChannels[0].Count.ToString("0"));
+                }
+                else // complex reference expression
+                {
+                    sb.Append(" Multiple reference groups=" + referenceGroups.Count.ToString("0"));
+                }
+                FMStream.Description(3, sb.ToString());
+            }
 
             FMStream.Description(5, bdf.LocalRecordingId);
 
@@ -139,9 +149,12 @@ namespace ASCtoFMConverter
 
             EventFactory.Instance(ED);
 
+            int epiNo = 0; //found episode number
+
             for (int i = 0; i < specs.Length; i++) //loop through episode specifications
             {
                 EpisodeDescription currentEpisode = specs[i];
+                FMStream.record.GV[2] = currentEpisode.GVValue;
                 EpisodeMark em;
                 IEnumerator<InputEvent> EFREnum = (new EventFileReader(
                     new FileStream(System.IO.Path.Combine(directory, head.EventFile),
@@ -203,10 +216,29 @@ namespace ASCtoFMConverter
                     if (endEvent != null) //process found complete episode, up to offset running off end-of-file!
                     {
                         double startTime = startEvent.Time + currentEpisode.Start._offset - bdf.zeroTime;
+                        bw.ReportProgress(0, "Found episode " + (++epiNo).ToString("0") + " at " + startTime.ToString("0.000"));
                         int numberOfFMRecs = (int)Math.Floor((endEvent.Time - startEvent.Time + currentEpisode.End._offset - currentEpisode.Start._offset) / FMRecLength);
                         BDFPoint startBDFPoint = new BDFPoint(bdf);
                         startBDFPoint.FromSecs(startTime);
-                        log.openFoundEpisode(startTime, numberOfFMRecs);
+                        BDFPoint endBDFPoint=new BDFPoint(startBDFPoint);
+                        log.openFoundEpisode(epiNo, startTime, numberOfFMRecs);
+                        FMStream.record.GV[3] = epiNo;
+
+                        /***** Get group variables for this record *****/
+                        int GrVar = 5; //Load up group variables
+                        foreach (GVEntry gve in GV)
+                        {
+                            j = startEvent.GetIntValueForGVName(gve.Name);
+                            FMStream.record.GV[GrVar++] = j < 0 ? 0 : j;
+                        }
+
+                        /***** Process each FILMAN record *****/
+                        for (int rec = 1; rec <= numberOfFMRecs; rec++)
+                        {
+                            FMStream.record.GV[4] = rec;
+                            endBDFPoint += BDFRecordLength;
+                            createFILMANRecord(startBDFPoint, endBDFPoint, startEvent);
+                        }
                         log.closeFoundEpisode();
                     }
                 }
@@ -218,5 +250,96 @@ namespace ASCtoFMConverter
             log.Close();
             CCIUtilities.Log.writeToLog("Completed ASCConversion with " + FMStream.NR.ToString("0") + " FM records created");
         }
+
+        private void createFILMANRecord(BDFPoint startingPt, BDFPoint endPt, InputEvent evt)
+        {
+            if (startingPt.Rec < 0) return; //start of record outside of file coverage; so skip it
+            if (endPt.Rec >= bdf.NumberOfRecords) return; //end of record outside of file coverage
+
+            /***** Read correct portion of BDF file and decimate *****/
+            int pt = 0;
+            int j;
+            int k;
+            int p = 0; //set to avoid compiler complaining about uninitialized variable!
+            for (int rec = startingPt.Rec; rec <= endPt.Rec; rec++)
+            {
+                if (bdf.read(rec) == null) throw new Exception("Unable to read BDF record #" + rec.ToString("0"));
+                if (rec == startingPt.Rec) j = startingPt.Pt;
+                else j = p - bdf.NSamp; // calculate point offset at beginning of new record
+                if (rec == endPt.Rec) k = endPt.Pt;
+                else k = bdf.NSamp;
+                for (p = j; p < k; p += decimation, pt++)
+                    for (int c = 0; c < bdf.NumberOfChannels - 1; c++)
+                        bigBuff[c, pt] = (float)bdf.getSample(c, p);
+            }
+
+            //NOTE: after this point bigBuff containes all channels in BDF file,
+            // includes all BDF records that contribute to this output record,
+            // but has been decimated to include only those points that will actually be written out!!!
+            // This is necessary because referencing channels may not be actually included in the recordSet.
+
+            /***** Update bigBuff to referenced data *****/
+            calculateReferencedData();
+
+            /***** Write out channel after loading appropriate data *****/
+            for (int iChan = 0; iChan < FMStream.NC; iChan++)
+            {
+                int channel = channels[iChan]; // translate channel numbers
+                double ave = 0.0;
+                double beta = 0.0;
+                double fn = (double)FMStream.ND;
+                if (radinOffset) //calculate Radin offset for this channel, based on a segment of the data specified by radinLow and radinHigh
+                {
+                    for (int i = radinLow; i < radinHigh; i++) ave += bigBuff[channel, i];
+                    ave = ave / (double)(radinHigh - radinLow);
+                }
+                if (removeOffsets || removeTrends) //calculate average for this channel; this will always be true if removeTrends true
+                {
+                    for (int i = 0; i < FMStream.ND; i++) ave += bigBuff[channel, i];
+                    ave = ave / fn;
+                }
+                double t = 0D;
+                if (removeTrends) //calculate linear trend for this channel; see Bloomfield p. 115
+                {
+                    t = (fn - 1.0D) / 2.0D;
+                    fn *= fn * fn - 1D;
+                    for (int i = 0; i < FMStream.ND; i++) beta += (bigBuff[channel, i] - ave) * ((double)i - t);
+                    beta = 12.0D * beta / fn;
+                }
+                for (int i = 0; i < FMStream.ND; i++)
+                    FMStream.record[i] = (double)bigBuff[channel, i] - (ave + beta * ((double)i - t));
+                FMStream.write(); //Channel number group variable taken care of here
+            }
+        }
+
+        private void calculateReferencedData()
+        {
+            if (referenceChannels != null) // then some channels need reference correction
+            {
+                double[] references = new double[referenceChannels.Count];
+                for (int i = 0; i < bigBuff.GetLength(1); i++) //for each point in the record
+                {
+                    //First calculate all needed references for this point
+                    for (int i1 = 0; i1 < referenceChannels.Count; i1++)
+                    {
+                        references[i1] = 0.0D; //zero them out
+                        if (referenceChannels[i1] != null)
+                        {
+                            foreach (int chan in referenceChannels[i1]) references[i1] += bigBuff[chan, i]; //add them up
+                            references[i1] /= (double)referenceChannels[i1].Count; //divide to get average
+                        }
+                    }
+
+                    //Then, subtract them from each channel in each channel group
+                    float refer;
+                    for (int i1 = 0; i1 < referenceGroups.Count; i1++)
+                    {
+                        refer = (float)references[i1];
+                        for (int i2 = 0; i2 < referenceGroups[i1].Count; i2++) bigBuff[referenceGroups[i1][i2], i] -= refer;
+                    }
+                }
+            }
+        }
+
     }
 }

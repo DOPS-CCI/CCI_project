@@ -113,11 +113,12 @@ namespace ASCtoFMConverter
             logStream.WriteEndElement(/* Conversion */);
         }
 
-        public void openFoundEpisode(double time, int nRecs)
+        public void openFoundEpisode(int episodeNumber, double time, int nRecs)
         {
             logStream.WriteStartElement("Episode");
-            logStream.WriteAttributeString("Time",time.ToString("0.000"));
-            logStream.WriteAttributeString("Records",nRecs.ToString("0"));
+            logStream.WriteAttributeString("Index", episodeNumber.ToString("0"));
+            logStream.WriteAttributeString("Time", time.ToString("0.000"));
+            logStream.WriteAttributeString("Records", nRecs.ToString("0"));
         }
 
         public void closeFoundEpisode()

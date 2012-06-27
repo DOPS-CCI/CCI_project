@@ -30,6 +30,7 @@ namespace ASCtoFMConverter
         private double _offset1 = 0D;
         private double _offset2 = 0D;
         private Window2.Validate validate;
+
         public EpisodeDescriptionEntry(Header.Header head, Window2.Validate v)
         {
             this.hdr = head;
