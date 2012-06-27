@@ -217,7 +217,7 @@ namespace Event
         public int GetIntValueForGVName(string name)
         {
             int i = GetGVIndex(name);
-            return ede.GroupVars[i].ConvertGVValueStringToInteger(GVValue[i]);
+            return i < 0 ? -1 : ede.GroupVars[i].ConvertGVValueStringToInteger(GVValue[i]);
         }
 
         public override string ToString()
