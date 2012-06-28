@@ -18,7 +18,7 @@ namespace ASCtoFMConverter
         public override string ToString()
         {
             StringBuilder sb = new StringBuilder();
-            if (GVValue != null) sb.Append("GV " + ((int)GVValue).ToString("0") + ": ");
+            if (GVValue != 0) sb.Append("GV " + ((int)GVValue).ToString("0") + ": ");
             else sb.Append("NoVal: ");
             sb.Append("From " + Start.ToString() + " to " + End.ToString());
             return sb.ToString();

@@ -191,7 +191,6 @@ namespace ASCtoFMConverter
             {
                 int[] res = (int[])e.Result;
                 StatusLine.Text = "Status: Completed conversion with " + res[0].ToString() + " records in " + res[1].ToString() + " recordsets generated.";
-                CCIUtilities.Log.writeToLog("Completed conversion, generating " + res[1].ToString() + " recordsets");
             }
             Cancel.Content = "Done";
             checkError();
