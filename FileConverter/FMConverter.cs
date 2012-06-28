@@ -89,7 +89,7 @@ namespace FileConverter
                 sb.Append(" Single ref group with");
                 if (referenceGroups[0].Count >= FMStream.NC)
                     if (referenceChannels[0].Count == BDF.NumberOfChannels) sb.Append(" common average ref");
-                    else if (referenceChannels.Count == 1)
+                    else if (referenceChannels[0].Count == 1)
                         sb.Append(" ref channel " + referenceChannels[0][0].ToString("0") + "=" + BDF.channelLabel(referenceChannels[0][0]));
                     else sb.Append(" multiple ref channels=" + referenceChannels[0].Count.ToString("0"));
             }
