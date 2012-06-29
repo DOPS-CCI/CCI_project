@@ -239,18 +239,21 @@ namespace ASCtoFMConverter
                 GVSpec.BorderBrush = Brushes.Red;
             }
             else GVSpec.BorderBrush = Brushes.MediumBlue;
+
             if (double.IsNaN(_offset1))
             {
                 valid = false;
                 Offset1.BorderBrush = Brushes.Red;
             }
             else Offset1.BorderBrush = Brushes.MediumBlue;
+
             if (double.IsNaN(_offset2))
             {
                 valid = false;
                 Offset2.BorderBrush = Brushes.Red;
             }
             else Offset2.BorderBrush = Brushes.MediumBlue;
+
             if(!double.IsNaN(_offset1) && !double.IsNaN(_offset2))
                 if (Event2.SelectedItem.GetType().Name == "String" &&
                     (string)Event2.SelectedItem == "Same Event")
@@ -262,8 +265,9 @@ namespace ASCtoFMConverter
                         valid = false;
                     }
                 }
+
             object o = GV1.SelectedItem;
-            if (o.GetType().Name != "String" &&
+            if (o != null && o.GetType().Name != "String" &&
                 ((GVEntry)o).GVValueDictionary == null)
             {
                 if (_GVVal1 <= 0)
@@ -273,8 +277,10 @@ namespace ASCtoFMConverter
                 }
                 else GVValue1TB.BorderBrush = Brushes.MediumBlue;
             }
+            else GVValue1TB.BorderBrush = Brushes.MediumBlue;
+
             o = GV2.SelectedItem;
-            if (o.GetType().Name != "String" &&
+            if (o != null && o.GetType().Name != "String" &&
                 ((GVEntry)o).GVValueDictionary == null)
             {
                 if (_GVVal2 <= 0)
@@ -284,6 +290,7 @@ namespace ASCtoFMConverter
                 }
                 else GVValue2TB.BorderBrush = Brushes.MediumBlue;
             }
+            else GVValue2TB.BorderBrush = Brushes.MediumBlue;
 
             return valid;
         }

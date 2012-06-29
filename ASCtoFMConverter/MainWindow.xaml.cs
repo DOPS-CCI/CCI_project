@@ -122,14 +122,12 @@ namespace ASCtoFMConverter
             listView2.SelectedItem = null;
         }
 
-        private void Cancel_Click(object sender, RoutedEventArgs e)
-        {
-            this.Close();
-            Environment.Exit(0);
-        }
-
         private void ConvertFM_Click(object sender, RoutedEventArgs e)
         {
+            ConvertFM.Visibility = Visibility.Hidden;
+            Done.Visibility = Visibility.Collapsed;
+            Cancel.Visibility = Visibility.Visible;
+
             if (asc == null) /* Just in time singleton */
                 asc = new ASCtoFMConverter.ASCConverter();
 
@@ -142,6 +140,7 @@ namespace ASCtoFMConverter
             bw.ProgressChanged += new ProgressChangedEventHandler(bw_ProgressChanged);
             bw.RunWorkerCompleted += bw_RunWorkerCompleted;
             bw.WorkerReportsProgress = true;
+            bw.WorkerSupportsCancellation = true;
             bw.RunWorkerAsync();
         }
 
@@ -181,18 +180,24 @@ namespace ASCtoFMConverter
         void bw_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
         {
             ConvertFM.Visibility = Visibility.Visible;
-            if (e.Error != null)
+            Cancel.Visibility = Visibility.Hidden;
+            Done.Visibility = Visibility.Visible;
+
+            if (e.Cancelled)
+            {
+                CCIUtilities.Log.writeToLog("Cancelled ASC conversion");
+            }
+            else if (e.Error != null)
             {
                 StatusLine.Foreground = new SolidColorBrush(Colors.Red);
                 StatusLine.Text = "Error: " + e.Error.Message;
-                CCIUtilities.Log.writeToLog("Error in conversion: " + e.Error.Message);
+                CCIUtilities.Log.writeToLog("Error in ASC conversion: " + e.Error.Message);
             }
             else
             {
                 int[] res = (int[])e.Result;
-                StatusLine.Text = "Status: Completed conversion with " + res[0].ToString() + " records in " + res[1].ToString() + " recordsets generated.";
+                StatusLine.Text = "Status: Conversion completed with " + res[0].ToString("0") + " records in " + res[1].ToString("0") + " recordsets generated.";
             }
-            Cancel.Content = "Done";
             checkError();
         }
 
@@ -504,8 +509,6 @@ namespace ASCtoFMConverter
 
         private void createASCConverter(ASCConverter conv)
         {
-            ConvertFM.Visibility = Visibility.Hidden;
-
             conv.specs = new EpisodeDescription[this.EpisodeEntries.Items.Count];
             for (int i = 0; i < this.EpisodeEntries.Items.Count; i++)
             {
@@ -586,6 +589,17 @@ namespace ASCtoFMConverter
             epi.Start._offset = Convert.ToDouble(ede.Offset1.Text);
             epi.End._offset = Convert.ToDouble(ede.Offset2.Text);
             return epi;
+        }
+
+        private void Done_Click(object sender, RoutedEventArgs e)
+        {
+            this.Close();
+            Environment.Exit(0);
+        }
+
+        private void Cancel_Click(object sender, RoutedEventArgs e)
+        {
+            bw.CancelAsync();
         }
 
     }

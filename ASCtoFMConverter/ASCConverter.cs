@@ -46,7 +46,7 @@ namespace ASCtoFMConverter
             bw = (BackgroundWorker)sender;
 
             bw.ReportProgress(0, "Starting ASC conversion");
-            CCIUtilities.Log.writeToLog("Started ASCConverter on records in " + directory);
+            CCIUtilities.Log.writeToLog("Started ASC conversion on records in " + directory);
 
             /***** Read electrode file *****/
             ElectrodeInputFileStream etrFile = new ElectrodeInputFileStream(
@@ -60,6 +60,12 @@ namespace ASCtoFMConverter
             dlg.Filter = "FILMAN Files (.fmn)|*.fmn"; // Filter files by extension
             dlg.FileName = System.IO.Path.GetFileNameWithoutExtension(head.BDFFile);
             Nullable<bool> result = dlg.ShowDialog();
+            if (result == null || !(bool)result)
+            {
+                bw.ReportProgress(0, "Conversion cancelled before FM file created.");
+                e.Cancel = true;
+                return;
+            }
             int newRecordLength = Convert.ToInt32(Math.Ceiling(FMRecLength * samplingRate / (double)decimation));
             int BDFRecordLength = Convert.ToInt32(FMRecLength * samplingRate);
 
@@ -151,20 +157,35 @@ namespace ASCtoFMConverter
             {
                 EpisodeDescription currentEpisode = specs[i];
                 FMStream.record.GV[2] = currentEpisode.GVValue;
-                EpisodeMark em;
                 IEnumerator<InputEvent> EFREnum = (new EventFileReader(
                     new FileStream(System.IO.Path.Combine(directory, head.EventFile),
                     FileMode.Open, FileAccess.Read))).GetEnumerator();
+
                 bool more = EFREnum.MoveNext(); //move to first Event
-                if (i == 0 && more) //use first Event to calculate indexTime via call to zeroTime
+                if (i == 0 && more) // and use it to calculate indexTime via call to zeroTime
                     bdf.setZeroTime(EFREnum.Current);
-                while (more) //through end of Event file
+
+                // Technique is to loop through Event file until an Event is found that matches the
+                // current startEvent in spec[i]; from that point and a matching endEvent is sought;
+                // episode is then processed; note that this implies that overlapping episodes are not
+                // generally permitted except when caused by offsets.
+                while (more) //loop through end of Event file
                 {
-                    em = currentEpisode.Start;
+                    EpisodeMark em = currentEpisode.Start;
                     InputEvent startEvent = null;
                     InputEvent endEvent = null;
                     do //find all Events/Episodes that match spec
                     {
+                        if (bw.CancellationPending)
+                        {
+                            bw.ReportProgress(0, "Conversion cancelled with " + FMStream.NR.ToString("0") + 
+                                " records in " + (FMStream.NR / FMStream.NC).ToString("0") + " recordsets generated.");
+                            EFREnum.Dispose();
+                            FMStream.Close();
+                            log.Close();
+                            e.Cancel = true;
+                            return;
+                        }
                         InputEvent ev = EFREnum.Current;
                         if (em._Event.GetType().Name == "EventDictionaryEntry")
                             if (em.Match(ev)) //found matching Event
@@ -204,24 +225,26 @@ namespace ASCtoFMConverter
                             else more = false; //shouldn't occur -- skip this spec by simulating EOF
                         }
                     } while (endEvent == null && more);
-                    // At this point, startEvent refers to an Event that satisfies the criterium for starting an episode,
-                    // and endEvent to the Event satisfying criterium for ending an episode. Thus if endEvent != null,
-                    // then the episode is complete. In addition if more is false, then end-of-file has been reached,
-                    // endEvent will be null, and, if startEvent is not null, one could use the end-of-file as the end
-                    // of the episode **************
+
+                    // At this point, startEvent refers to an Event that satisfies the criteria for starting an episode,
+                    // and endEvent to the Event satisfying criterium for ending an episode. If endEvent != null,
+                    // then the episode is complete. If more is false, then end-of-file has been reached and
+                    // endEvent will be null. In this case, if startEvent is not null, one could use the end-of-file as the end
+                    // of the episode **************NOT IMPLEMENTED
                     if (endEvent != null) //process found complete episode, up to offset running off end-of-file!
                     {
                         double startTime = startEvent.Time + currentEpisode.Start._offset - bdf.zeroTime;
-                        bw.ReportProgress(0, "Found episode " + (++epiNo).ToString("0") + " at " + startTime.ToString("0.000"));
-                        int numberOfFMRecs = (int)Math.Floor((endEvent.Time - startEvent.Time + currentEpisode.End._offset - currentEpisode.Start._offset) / FMRecLength);
+                        double endTime = endEvent.Time + currentEpisode.End._offset - bdf.zeroTime;
+                        bw.ReportProgress(0, "Found episode " + (++epiNo).ToString("0") + " from " + startTime.ToString("0.000") + " to " + endTime.ToString("0.000"));
+                        int numberOfFMRecs = (int)Math.Floor((endTime - startTime) / FMRecLength);
                         BDFPoint startBDFPoint = new BDFPoint(bdf);
                         startBDFPoint.FromSecs(startTime);
                         BDFPoint endBDFPoint=new BDFPoint(startBDFPoint);
-                        log.openFoundEpisode(epiNo, startTime, numberOfFMRecs);
-                        FMStream.record.GV[3] = epiNo;
+                        log.openFoundEpisode(epiNo, startTime, endTime, numberOfFMRecs);
 
                         /***** Get group variables for this record *****/
-                        int GrVar = 5; //Load up group variables
+                        FMStream.record.GV[3] = epiNo;
+                        int GrVar = 5; //Load up group variables, based on the start Event
                         foreach (GVEntry gve in GV)
                         {
                             j = startEvent.GetIntValueForGVName(gve.Name);
@@ -245,7 +268,7 @@ namespace ASCtoFMConverter
             e.Result = new int[] { FMStream.NR, FMStream.NR / FMStream.NC };
             FMStream.Close();
             log.Close();
-            Log.writeToLog("Completed ASCConversion with " + FMStream.NR.ToString("0") + " FM records created");
+            Log.writeToLog("Completed ASC conversion with " + FMStream.NR.ToString("0") + " FM records created");
         }
 
         private void createFILMANRecord(BDFPoint startingPt, BDFPoint endPt, InputEvent evt)

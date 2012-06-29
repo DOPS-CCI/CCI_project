@@ -8,12 +8,6 @@ namespace ASCtoFMConverter
     class LogFile
     {
         XmlWriter logStream;
-        double nominalOffsetMax = 0D;
-        double nominalOffsetSum = 0D;
-        double nominalOffsetActualProd = 0;
-        double actualSum = 0D;
-        double actualSumSq = 0D;
-        int nEvents = 0;
 
         public LogFile(string fileName)
         {
@@ -113,12 +107,14 @@ namespace ASCtoFMConverter
             logStream.WriteEndElement(/* Conversion */);
         }
 
-        public void openFoundEpisode(int episodeNumber, double time, int nRecs)
+        public void openFoundEpisode(int episodeNumber, double startTime, double endTime, int nRecs)
         {
             logStream.WriteStartElement("Episode");
             logStream.WriteAttributeString("Index", episodeNumber.ToString("0"));
-            logStream.WriteAttributeString("Time", time.ToString("0.000"));
+            logStream.WriteAttributeString("StartTime", startTime.ToString("0.000"));
+            logStream.WriteAttributeString("EndTime", endTime.ToString("0.000"));
             logStream.WriteAttributeString("Records", nRecs.ToString("0"));
+            gatherStats(nRecs);
         }
 
         public void closeFoundEpisode()
@@ -137,24 +133,21 @@ namespace ASCtoFMConverter
         public void Close()
         {
             logStream.WriteStartElement("Summary");
-            logStream.WriteElementString("EventFileDiffMax", nominalOffsetMax.ToString("0.0000"));
-            double n = (double)nEvents;
-            logStream.WriteElementString("EventFileDiffAve", (nominalOffsetSum / n).ToString("0.0000"));
-            double b = 1000D * (n * nominalOffsetActualProd - actualSum * nominalOffsetSum) / (n * actualSumSq - actualSum * actualSum);
-            logStream.WriteElementString("EventFileDiffSlope", b.ToString("0.0000") + "msec/sec");
+            logStream.WriteElementString("NumberOfEpisodes", nEpisodes.ToString("0"));
+            logStream.WriteElementString("NumberFMRecords", totalRecs.ToString("0"));
+            double b = (double)totalRecs / (double)nEpisodes;
+            logStream.WriteElementString("AverageRecsPerEpisode", b.ToString("0.00"));
             logStream.WriteEndElement(/*Summary*/);
             logStream.WriteEndDocument();
             logStream.Close();
         }
 
-        private void gatherStats(double actual, double nominalOffset)
+        int totalRecs = 0;
+        int nEpisodes = 0;
+        private void gatherStats(int nRecs)
         {
-            if (Math.Abs(nominalOffset) > Math.Abs(nominalOffsetMax)) nominalOffsetMax = nominalOffset;
-            actualSum += actual;
-            actualSumSq += actual * actual;
-            nominalOffsetSum += nominalOffset;
-            nominalOffsetActualProd += nominalOffset * actual;
-            nEvents++;
+            totalRecs += nRecs;
+            nEpisodes++;
         }
     }
 }
