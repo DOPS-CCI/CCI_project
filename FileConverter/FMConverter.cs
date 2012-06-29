@@ -36,7 +36,7 @@ namespace FileConverter
             dlg.Filter = "FILMAN Files (.fmn)|*.fmn"; // Filter files by extension
             dlg.FileName=Path.GetFileNameWithoutExtension(eventHeader.BDFFile);
             Nullable<bool> result = dlg.ShowDialog();
-            if (result == false)
+            if (result == null || !(bool)result)
             {
                 e.Result = new int[] { 0, 0 };
                 return;
