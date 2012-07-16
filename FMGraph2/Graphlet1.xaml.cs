@@ -131,8 +131,14 @@ namespace FMGraph2
                 points = new StreamGeometry();
                 ctx = points.Open();
                 ctx.BeginFigure(new Point(0, offset - mg.gp.halfMargin - dc.buffer[0] * graphletYScale), false, false);
+                double maxY = 10D * MainWindow.graphletSize;
                 for (int x = 1; x < dc.buffer.GetLength(0); x++)
-                    ctx.LineTo(new Point((double)x * graphletXScale, offset - mg.gp.halfMargin - dc.buffer[x] * graphletYScale), true, true);
+                {
+                    double y = offset - mg.gp.halfMargin - dc.buffer[x] * graphletYScale;
+                    if (y > maxY) y = maxY; //limit size of displayed point
+                    else if (y < -maxY) y = -maxY;
+                    ctx.LineTo(new Point((double)x * graphletXScale, y), true, true);
+                }
                 ctx.Close();
                 points.Freeze();
                 Path p = new Path();
