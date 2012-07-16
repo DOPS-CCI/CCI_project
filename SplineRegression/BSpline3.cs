@@ -104,14 +104,14 @@ namespace SplineRegression
                 for (int j = k; j < n; j++)
                 {
                     sum = 0;
-                    for (int s = 1; s <= k - 1; s++)
+                    for (int s = 0; s <= k - 1; s++)
                         sum += l[k, s] * u[s, j];
                     u[k, j] = A[k, j] - sum;
                 }
                 for (int i = k + 1; i < n; i++)
                 {
                     sum = 0;
-                    for (int s = 1; s <= k - 1; s++)
+                    for (int s = 0; s <= k - 1; s++)
                         sum += l[i, s] * u[s, k];
                     l[i, k] = (A[i, k] - sum) / u[k, k];
                 }
