@@ -97,18 +97,27 @@
                 </Grid>
                 <Grid Name="Offsets">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="211*"/>
-                        <ColumnDefinition Width="244"/>
-                        <ColumnDefinition Width="179" />
+                        <ColumnDefinition Width="0.45*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
-                    <CheckBox Grid.Column="0" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="12,2,0,2" Height="17"  Name="removeOffsets" VerticalContentAlignment="Top" Visibility="Visible" IsChecked="True">
-                        <CheckBox.Content>Remove channel offsets</CheckBox.Content>
-                        <CheckBox.ToolTip>Check to remove average value from each channel</CheckBox.ToolTip>
-                    </CheckBox>
-                    <CheckBox Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="0,2,0,0" Height="17"  Name="removeTrends" IsEnabled="True" VerticalContentAlignment="Top" Visibility="Visible" Checked="removeTrends_Checked" Unchecked="removeTrends_Checked">
-                        <CheckBox.Content>Remove channel trends</CheckBox.Content>
-                        <CheckBox.ToolTip>Check to remove linear trend from each channel</CheckBox.ToolTip>
-                    </CheckBox>
+                    <RadioButton Grid.Column="0" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="12,2,0,2" Height="17"  Name="noneOffsets" VerticalContentAlignment="Top" IsChecked="True">
+                        <RadioButton.Content>None</RadioButton.Content>
+                        <RadioButton.ToolTip>No offset correction</RadioButton.ToolTip>
+                    </RadioButton>
+                    <RadioButton Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="2,2,0,2" Height="17"  Name="removeOffsets" VerticalContentAlignment="Top">
+                        <RadioButton.Content>Remove channel offsets</RadioButton.Content>
+                        <RadioButton.ToolTip>Check to remove average value from each channel</RadioButton.ToolTip>
+                    </RadioButton>
+                    <RadioButton Grid.Column="2" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="2,2,0,2" Height="17"  Name="removeTrends" IsEnabled="True" VerticalContentAlignment="Top">
+                        <RadioButton.Content>Remove channel trends</RadioButton.Content>
+                        <RadioButton.ToolTip>Check to remove linear trend from each channel</RadioButton.ToolTip>
+                    </RadioButton>
+                    <RadioButton Grid.Column="3" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="2,2,0,2" Height="17"  Name="splineOffsets" IsEnabled="True" VerticalContentAlignment="Top">
+                        <RadioButton.Content>Remove drift by spline</RadioButton.Content>
+                        <RadioButton.ToolTip>Check to trends based on spline fit</RadioButton.ToolTip>
+                    </RadioButton>
                 </Grid>
             </StackPanel>
         </GroupBox>

@@ -271,15 +271,6 @@ namespace ASCtoFMConverter
             checkError();
         }
 
-        private void removeTrends_Checked(object sender, RoutedEventArgs e)
-        {
-            if (removeOffsets != null)
-            {
-                removeOffsets.IsChecked = true;
-                removeOffsets.IsEnabled = !(bool)removeTrends.IsChecked;
-            }
-        }
-
         List<int> _refChan;
         private void RefChan_TextChanged(object sender, TextChangedEventArgs e)
         {
@@ -520,8 +511,9 @@ namespace ASCtoFMConverter
             conv.GV = listView2.SelectedItems.Cast<GVEntry>().ToList<GVEntry>();
             conv.head = this.head;
             conv.decimation = _decimation;
-            conv.removeOffsets = removeOffsets.IsEnabled && (bool)removeOffsets.IsChecked;
-            conv.removeTrends = removeTrends.IsEnabled && (bool)removeTrends.IsChecked;
+            conv.removeOffsets = (bool)removeOffsets.IsChecked;
+            conv.removeTrends = (bool)removeTrends.IsChecked;
+            conv.removeSpline = (bool)splineOffsets.IsChecked;
             conv.radinOffset = Radin.IsEnabled && (bool)Radin.IsChecked;
             if (conv.radinOffset)
             {

@@ -11,6 +11,7 @@ using FILMANFileStream;
 using GroupVarDictionary;
 using BDFFileStream;
 using CCIUtilities;
+using SplineRegression;
 using Microsoft.Win32;
 
 namespace ASCtoFMConverter
@@ -23,6 +24,7 @@ namespace ASCtoFMConverter
         public int decimation;
         public bool removeOffsets;
         public bool removeTrends;
+        public bool removeSpline;
         public bool radinOffset;
         public int radinLow;
         public int radinHigh;
@@ -270,7 +272,7 @@ namespace ASCtoFMConverter
             log.Close();
             Log.writeToLog("Completed ASC conversion with " + FMStream.NR.ToString("0") + " FM records created");
         }
-
+        BSpline3 bSpline = null;
         private void createFILMANRecord(BDFPoint startingPt, BDFPoint endPt, InputEvent evt)
         {
             if (startingPt.Rec < 0) return; //start of record outside of file coverage; so skip it
@@ -326,10 +328,15 @@ namespace ASCtoFMConverter
                     for (int i = 0; i < FMStream.ND; i++) beta += (bigBuff[channel, i] - ave) * ((double)i - t);
                     beta = 12.0D * beta / fn;
                 }
+                if (removeSpline) //calculate offset for removal by spline regression
+                {
+                    throw new NotImplementedException("Spline removal of offsets not yet implemented.");
+                }
                 for (int i = 0; i < FMStream.ND; i++)
                     FMStream.record[i] = bigBuff[channel, i] - (ave + beta * ((double)i - t));
                 FMStream.write(); //Channel number group variable taken care of here
             }
+            bSpline=null;
         }
 
         private void calculateReferencedData()
