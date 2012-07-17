@@ -38,17 +38,15 @@ namespace TestSplines
             for (int i = 0; i < nPts; i++)
                 y[i] = Math.Sin((double)i * coef) + noise * r.NextDouble() - noise / 2D;
             double[] xy = new double[knots + 4];
-            for (int i = 1; i <= knots + 2; i++)
+            for (int i = 0; i < knots + 4; i++)
             {
                 double sum = 0D;
                 for (int k = 0; k < nPts; k++)
                     sum += bs.X[k, i] * y[k];
                 xy[i] = sum;
             }
-            xy[0] = 0D;
-            xy[knots + 3] = 0D;
             double[] yest=new double[nPts];
-            double[] c = bs.LUSolve(bs.L, bs.U, xy);
+            double[] c = bs.LUSolve(xy);
             for (int i = 0; i < nPts; i++)
             {
                 double sum = 0D;

@@ -41,7 +41,7 @@ namespace SplineRegression
                 }
             generateX();
             double[,] XTX = new double[nKnots + 4, nKnots + 4];
-            for (int i = 1; i <= nKnots + 2; i++) //skip first and last rows => natural spline
+            for (int i = 0; i < nKnots + 4; i++) //skip first and last rows => natural spline
             {
                 for (int j = 0; j < nKnots + 4; j++)
                 {
@@ -53,12 +53,6 @@ namespace SplineRegression
                     XTX[i, j] = sum;
                 }
             }
-            XTX[0, 0] = 1D;
-            XTX[0, 1] = -2D;
-            XTX[0, 2] = 1D;
-            XTX[nKnots + 3, nKnots + 1] = 1D;
-            XTX[nKnots + 3, nKnots + 2] = -2D;
-            XTX[nKnots + 3, nKnots + 3] = 1D;
             LUDecomposition(XTX);
             cache.Add(this);
         }
@@ -95,45 +89,40 @@ namespace SplineRegression
         void LUDecomposition(double[,] A)
         {
             int n = A.GetLength(1);
-            double[,] l = new double[n, n];
-            double[,] u = new double[n, n];
+            L = new double[n][];
+            U = new double[n][];
+            for (int i = 0; i < n; i++)
+            {
+                L[i] = new double[i + 1];
+                U[i] = new double[n - i];
+            }
             double sum;
             for (int k = 0; k < n; k++)
             {
-                l[k, k] = 1D;
+                L[k][k] = 1D;
                 for (int j = k; j < n; j++)
                 {
                     sum = 0;
                     for (int s = 0; s <= k - 1; s++)
-                        sum += l[k, s] * u[s, j];
-                    u[k, j] = A[k, j] - sum;
+                        sum += L[k][s] * U[s][j - s];
+                    U[k][j - k] = A[k, j] - sum;
                 }
                 for (int i = k + 1; i < n; i++)
                 {
                     sum = 0;
                     for (int s = 0; s <= k - 1; s++)
-                        sum += l[i, s] * u[s, k];
-                    l[i, k] = (A[i, k] - sum) / u[k, k];
+                        sum += L[i][s] * U[s][k - s];
+                    L[i][k] = (A[i, k] - sum) / U[k][0];
                 }
             }
-
-            //copy into triangluar storage to save space
-            L = new double[n][];
-            U = new double[n][];
-            for (int i = 0, k = n - 1; i < n; i++, k--)
-            {
-                L[i] = new double[i + 1];
-                U[k] = new double[i + 1];
-                for (int j = 0; j <= i; j++)
-                {
-                    L[i][j] = l[i, j];
-                    U[k][j] = u[k, k + j];
-                }
-            }
-
         }
 
-        public double[] LUSolve(double[][] L, double[][] U, double[] b)
+        public double[] LUSolve(double[] b)
+        {
+            return BSpline3.LUSolve(this.L, this.U, b);
+        }
+
+        public static double[] LUSolve(double[][] L, double[][] U, double[] b)
         {
             // Ax = b -> LUx = b. Then y is defined to be Ux
             int n = b.Length;
