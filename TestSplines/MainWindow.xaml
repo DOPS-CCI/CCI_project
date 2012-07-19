@@ -9,8 +9,9 @@
         <Label Content="Number of points" Height="28" HorizontalAlignment="Left" Margin="95,21,0,0" Name="label1" VerticalAlignment="Top" />
         <Label Content="Number of internal knots" Height="28" HorizontalAlignment="Left" Margin="95,63,0,0" Name="label2" VerticalAlignment="Top" />
         <Label Content="Cosine frequency in Hz over record" Height="28" HorizontalAlignment="Left" Margin="95,0,0,176" Name="label3" VerticalAlignment="Bottom" />
-        <Button Content="Do it" Height="34" HorizontalAlignment="Left" Margin="26,200,0,0" Name="button1" VerticalAlignment="Top" Width="82" Click="button1_Click" />
+        <Button Content="Do it" Height="34" HorizontalAlignment="Left" Margin="26,227,0,0" Name="button1" VerticalAlignment="Top" Width="82" Click="button1_Click" />
         <TextBox Height="25" HorizontalAlignment="Left" Margin="26,150,0,0" Name="Noise" VerticalAlignment="Top" Width="63" />
         <Label Content="Noise" Height="28" HorizontalAlignment="Left" Margin="95,0,0,134" Name="label4" VerticalAlignment="Bottom" />
+        <CheckBox Content="Natural spline" Height="18" HorizontalAlignment="Left" Margin="26,193,0,0" Name="natCheck" VerticalAlignment="Top" Width="100" />
     </Grid>
 </Window>

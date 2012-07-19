@@ -31,20 +31,22 @@ namespace TestSplines
             int knots = Convert.ToInt32(knts.Text);
             double freq = Convert.ToDouble(f.Text);
             double noise = Convert.ToDouble(Noise.Text);
-            BSpline3 bs = new BSpline3(knots, nPts);
+            BSpline3 bs = new BSpline3(knots, nPts, (bool)natCheck.IsChecked);
+
             double[] y = new double[nPts];
             double coef = freq * 2D * Math.PI / (double)nPts;
             Random r = new Random();
             for (int i = 0; i < nPts; i++)
-                y[i] = Math.Sin((double)i * coef) + noise * r.NextDouble() - noise / 2D;
-            double[] xy = new double[knots + 4];
-            for (int i = 0; i < knots + 4; i++)
+                y[i] = Math.Cos((double)i * coef) + noise * r.NextDouble() - noise / 2D;
+            double[] xy = new double[bs.dimX()];
+            for (int i = 0; i < bs.dimX(); i++)
             {
                 double sum = 0D;
                 for (int k = 0; k < nPts; k++)
-                    sum += bs.X[k, i] * y[k];
+                    sum += bs.getX(k, i) * y[k];
                 xy[i] = sum;
             }
+
             double[] yest=new double[nPts];
             double[] c = bs.LUSolve(xy);
             for (int i = 0; i < nPts; i++)

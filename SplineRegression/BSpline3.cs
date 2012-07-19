@@ -11,17 +11,19 @@ namespace SplineRegression
 
         int _N;
         int _nKnots; //number of internal knots
+        bool natural;
 
         double _n; //total number of points
         int delKnot;  //distance between knots
 
-        public double[,] X; //abscissa description matrix
+        double[,] X; //abscissa description matrix
         public double[][] L; //lower triangular matrix LU-decomposition of X'X
         public double[][] U; //upper triangular matrix LU-decomposition of X'X
         // These three matrices make the equation LUc = X'Y, which can be solved 
         //for c, the control point values for the splines, given the ordinates Y
+        public double[,] Q; //matrix for creation of natural spline calculation
         
-        public BSpline3(int nKnots, int n)
+        public BSpline3(int nKnots, int n, bool nat)
         {
             if (nKnots < 0)
                 throw new Exception("Invalid number of internal knots in BSpline = " + nKnots.ToString("0"));
@@ -29,27 +31,34 @@ namespace SplineRegression
             if (delKnot * (nKnots + 1) != n)
                 throw new Exception("Number of points must be a multiple of number of internal knots + 1");
             _nKnots = nKnots;
+            natural = nat;
             _N = n;
             _n = (double)n;
             foreach (BSpline3 bs in cache) //check in cache first
-                if (bs._N == n && bs._nKnots == nKnots)
+                if (bs._N == n && bs._nKnots == nKnots && bs.natural == nat)
                 {
                     X = bs.X;
                     L = bs.L;
                     U = bs.U;
+                    Q = bs.Q;
                     return;
                 }
+
             generateX();
-            double[,] XTX = new double[nKnots + 4, nKnots + 4];
-            for (int i = 0; i < nKnots + 4; i++) //skip first and last rows => natural spline
+            double[,] XTX = new double[dimX(), dimX()];
+            if (natural)
             {
-                for (int j = 0; j < nKnots + 4; j++)
+                generateQ();
+                X = MMult(X, Q);
+            }
+            int l = dimX();
+            for (int i = 0; i < l; i++)
+            {
+                for (int j = 0; j < l; j++)
                 {
                     double sum = 0;
                     for (int k = 0; k < _N; k++)
-                    {
-                        sum = sum + X[k, i] * X[k, j];
-                    }
+                        sum = sum + getX(k, i) * getX(k, j);
                     XTX[i, j] = sum;
                 }
             }
@@ -86,6 +95,41 @@ namespace SplineRegression
                 }
         }
 
+        public double getX(int i, int j)
+        {
+            return X[i, natural ? j + 2 : j];
+        }
+
+        public int dimX()
+        {
+            return natural ? _nKnots + 2 : _nKnots + 4;
+        }
+
+        void generateQ()
+        {
+            if (_nKnots < 2)
+                throw new Exception("Unable to generate matrix Q for natural spline creation; number of knots = "
+                    + _nKnots.ToString("0"));
+            int n = _nKnots + 4;
+            double sq6 = Math.Sqrt(6D);
+            Q = new double[n, n];
+            Q[0, 0] = Q[0, 2] = Q[2, 0] = Q[n - 3, 1] = Q[n - 1, 1] = -sq6 / 6D;
+            Q[0, n - 3] = Q[0, n - 1] = -1D / 3D;
+            Q[0, n - 2] = 2D / 3D;
+            Q[1, 0] = Q[n - 2, 1] = sq6 / 3D;
+            Q[1, 2] = (6D - sq6) / 15D;
+            Q[1, n - 3] = Q[1, n - 1] = (-4D - sq6) / 30D;
+            Q[1, n - 2] = (4 + sq6) / 15D;
+            Q[2, 2] = (24 + sq6) / 30;
+            Q[2, n - 3] = Q[2, n - 1] = (1D - sq6) / 15D;
+            Q[2, n - 2] = 2D * (-1D + sq6) / 15D;
+            Q[n - 3, n - 3] = Q[n - 1, n - 1] = 5D / 6D;
+            Q[n - 3, n - 2] = Q[n - 2, n - 3] = Q[n - 2, n - 2] = Q[n - 2, n - 1] = Q[n - 3, n - 2] = 1D / 3D;
+            Q[n - 3, n - 1] = Q[n - 1, n - 3] = -1D / 6D;
+            for (int i = 3; i < n - 3; i++)
+                Q[i, i] = 1D;
+        }
+
         void LUDecomposition(double[,] A)
         {
             int n = A.GetLength(1);
@@ -117,12 +161,27 @@ namespace SplineRegression
             }
         }
 
-        public double[] LUSolve(double[] b)
+        public static double[,] MMult(double[,] A, double[,] B)
         {
-            return BSpline3.LUSolve(this.L, this.U, b);
+            int i2 = A.GetLength(1);
+            if (i2 != B.GetLength(0))
+                throw new Exception("Incompatable indices in MMult.");
+            int i1 = A.GetLength(0);
+            int i3 = B.GetLength(1);
+            double[,] R = new double[i1, i3];
+            double sum;
+            for (int i = 0; i < i1; i++)
+                for (int j = 0; j < i3; j++)
+                {
+                    sum = 0D;
+                    for (int k = 0; k < i2; k++)
+                        sum += A[i, k] * B[k, j];
+                    R[i, j] = sum;
+                }
+            return R;
         }
 
-        public static double[] LUSolve(double[][] L, double[][] U, double[] b)
+        public double[] LUSolve(double[] b)
         {
             // Ax = b -> LUx = b. Then y is defined to be Ux
             int n = b.Length;
@@ -145,7 +204,20 @@ namespace SplineRegression
                     sum -= U[i][j - i] * x[j];
                 x[i] = sum / U[i][0];
             }
-            return x;
+            if (natural)
+            {
+                double[] z = new double[n+2];
+                for (int i = 0; i < n + 2; i++)
+                {
+                    sum = 0D;
+                    for (int j = 0; j < n ; j++)
+                        sum += Q[i, j + 2] * x[j];
+                    z[i] = sum;
+                }
+                return z;
+            }
+            else
+                return x;
         }
     }
 }
