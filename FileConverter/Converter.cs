@@ -32,8 +32,6 @@ namespace FileConverter
         public bool continuousSearch;
         public List<GVEntry> GV;
 
-
-        
         protected int newRecordLength;
         protected BackgroundWorker bw;
         protected float[,] bigBuff;
@@ -44,7 +42,6 @@ namespace FileConverter
         protected statusPt actualT; //actual Event time in Status channel
         //Note: these should be the same if the two clocks run the same rate (DAQ and computer)
         protected int samplingRate;
-        
 
         bool setEpoch = false;
         double epoch;

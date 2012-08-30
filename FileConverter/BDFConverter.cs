@@ -12,12 +12,15 @@ namespace FileConverter
     class BDFConverter: Converter
     {
         public bool allSamps;
+        public int StatusMarkerType;
         public int length;
         GVEntry GV0;
         public BDFFileWriter BDFWriter;
 
         int[] newStatus;
         int lastStatus = 0;
+        int oldOffsetInPts;
+        int newOffsetInPts;
 
         public void Execute(object sender, DoWorkEventArgs e)
         {
@@ -44,8 +47,9 @@ namespace FileConverter
                 return;
             }
             samplingRate = BDF.NSamp / BDF.RecordDuration; //Old sampling rate; exact as number of samples and duration are always an exact multiple
+            oldOffsetInPts = Convert.ToInt32(offset * samplingRate);
             int newSamplingRate = (int)((double)samplingRate / (double)decimation + 0.5); //Make best estimate possible with integers
-
+            newOffsetInPts = Convert.ToInt32(offset * newSamplingRate);
             newRecordLength = length * newSamplingRate; //new record length must be exact multiple of the sampling rate in BDF
             newStatus = new int[newRecordLength];
             status = new int[BDF.NSamp];
@@ -193,7 +197,7 @@ namespace FileConverter
 
         private void createBDFRecord(statusPt eventLocation, InputEvent evt)
         {
-            statusPt startingPt = eventLocation + Convert.ToInt32(offset * samplingRate); //calculate starting point
+            statusPt startingPt = eventLocation + oldOffsetInPts; //calculate starting point
             if (startingPt.Rec < 0) return; //start of record outside of file coverage; so skip it
             statusPt endPt = startingPt + newRecordLength * decimation; //calculate ending point
             if (endPt.Rec >= BDF.NumberOfRecords) return; //end of record outside of file coverage
@@ -215,13 +219,11 @@ namespace FileConverter
                         bigBuff[c, pt] = (float)BDF.getSample(c, p);
             }
 
-            /***** Get group variable for this record *****/
+            /***** Get group variable for this record and set Status channel values *****/
             string s = evt.GVValue[EDE.GroupVars.FindIndex(n => n.Equals(GV0))]; //Find value for this GV
-            if (GV0.GVValueDictionary != null)
-                newStatus[0] = GV0.GVValueDictionary[s]; //Lookup in GV value dictionary to convert to integer
-            else
-                newStatus[0] = Convert.ToInt32(s); //Or not; value of GV numnber representing itself
-            for (int i = 1; i < newRecordLength; i++) newStatus[i] = newStatus[i - 1]; // then propagate throughout Status channel
+            newStatus[StatusMarkerType == 1 ? 0 : -newOffsetInPts] = GV0.ConvertGVValueStringToInteger(s);
+            // then propagate throughout Status channel
+            for (int i = (StatusMarkerType == 1 ? 1 : 1 - newOffsetInPts); i < newRecordLength; i++) newStatus[i] = newStatus[i - 1];
             BDFWriter.putStatus(newStatus);
 
             /***** Calculate referenced data *****/
@@ -239,7 +241,7 @@ namespace FileConverter
                     for (int i = radinLow; i < radinHigh; i++) ave += bigBuff[channel, i];
                     ave = ave / (double)(radinHigh - radinLow);
                 }
-                if (removeOffsets) //calculate average for this channel; this will always be true if removeTrends true
+                if (removeOffsets || removeTrends) //calculate average for this channel
                 {
                     for (int i = 0; i < newRecordLength; i++) ave += bigBuff[channel, i];
                     ave = ave / fn;

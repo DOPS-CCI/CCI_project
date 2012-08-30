@@ -17,6 +17,8 @@ namespace FileConverter
         public FILMANOutputStream FMStream;
         public double length;
 
+        int offsetInPts;
+
         public void Execute(object sender, DoWorkEventArgs e)
         {
             bw = (BackgroundWorker)sender;
@@ -42,6 +44,7 @@ namespace FileConverter
                 return;
             }
             samplingRate = BDF.NSamp / BDF.RecordDuration;
+            offsetInPts = Convert.ToInt32(offset * samplingRate);
             newRecordLength = Convert.ToInt32(Math.Ceiling(length * samplingRate / (float)decimation));
 
             FMStream = new FILMANOutputStream(
@@ -145,7 +148,7 @@ namespace FileConverter
 
         private void createFILMANRecord(FileConverter.statusPt stp, InputEvent evt)
         {
-            FileConverter.statusPt startingPt = stp + Convert.ToInt32(offset * samplingRate); //calculate starting point
+            FileConverter.statusPt startingPt = stp + offsetInPts; //calculate starting point
             if (startingPt.Rec < 0) return; //start of record outside of file coverage; so skip it
             FileConverter.statusPt endPt = startingPt + Convert.ToInt32(length * samplingRate); //calculate ending point
             if (endPt.Rec >= BDF.NumberOfRecords) return; //end of record outside of file coverage
@@ -177,10 +180,7 @@ namespace FileConverter
             foreach (GVEntry gve in GV)
             {
                 string s = evt.GVValue[EDE.GroupVars.FindIndex(n => n.Equals(gve))]; //Find value for this GV
-                if (gve.GVValueDictionary != null)
-                    FMStream.record.GV[GrVar++] = gve.GVValueDictionary[s]; //Lookup in dictionary
-                else
-                    FMStream.record.GV[GrVar++] = Convert.ToInt32(s); //Or not
+                FMStream.record.GV[GrVar++] = gve.ConvertGVValueStringToInteger(s); //Lookup in dictionary
             }
 
             /***** Include any ancillary data *****/
@@ -209,7 +209,7 @@ namespace FileConverter
                     for (int i = radinLow; i < radinHigh; i++) ave += bigBuff[channel, i];
                     ave = ave / (double)(radinHigh - radinLow);
                 }
-                if (removeOffsets||removeTrends) //calculate average for this channel; this will always be true if removeTrends true
+                if (removeOffsets || removeTrends) //calculate average for this channel; this will always be true if removeTrends true
                 {
                     for (int i = 0; i < FMStream.ND; i++) ave += bigBuff[channel, i];
                     ave = ave / fn;

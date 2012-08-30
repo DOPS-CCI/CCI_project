@@ -333,6 +333,7 @@ namespace FileConverter
             removeOffsets.IsEnabled = false;
             None.IsEnabled = false;
             All.IsEnabled = false;
+            checkError();
         }
 
         private void AllSamples_Unchecked(object sender, RoutedEventArgs e)
@@ -356,7 +357,7 @@ namespace FileConverter
             removeTrends.IsEnabled = true;
             None.IsEnabled = true;
             All.IsEnabled = true;
-
+            checkError();
         }
 
         private void removeTrends_Checked(object sender, RoutedEventArgs e)
@@ -520,6 +521,7 @@ namespace FileConverter
             createConverterBase(bdfc);
 
             bdfc.allSamps = (bool)AllSamples.IsChecked;
+            bdfc.StatusMarkerType = (bool)SMType1.IsChecked ? 1 : 2;
             bdfc.length = bdfc.allSamps ? bdf.RecordDuration : (int)_recLength;
             bdfc.offset = bdfc.allSamps ? 0F : _recOffset;
 
@@ -625,6 +627,10 @@ namespace FileConverter
             else if ((bool)radioButton4.IsChecked && (_refChanExp == null || _refChanExp.Count == 0))
                 ConvertBDF.IsEnabled = ConvertFM.IsEnabled = false;
 
+            // only show Status Marker Type for legal BDF conversions where Event is included inside record
+            if (ConvertBDF.IsEnabled && !(bool)AllSamples.IsChecked && _recOffset < 0D && _recLength + _recOffset > 0D)
+                SMType.IsEnabled = true;
+            else SMType.IsEnabled = false;
         }
 
         private void ExtThreshold_TextChanged(object sender, TextChangedEventArgs e)
