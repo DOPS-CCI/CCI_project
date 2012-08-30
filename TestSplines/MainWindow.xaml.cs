@@ -37,7 +37,7 @@ namespace TestSplines
             double coef = freq * 2D * Math.PI / (double)nPts;
             Random r = new Random();
             for (int i = 0; i < nPts; i++)
-                y[i] = Math.Cos((double)i * coef) + noise * r.NextDouble() - noise / 2D;
+                y[i] = Math.Sin((double)i * coef) + noise * r.NextDouble() - noise / 2D;
             double[] xy = new double[bs.dimX()];
             for (int i = 0; i < bs.dimX(); i++)
             {

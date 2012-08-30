@@ -1,7 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 
 namespace SplineRegression
 {
@@ -119,12 +117,12 @@ namespace SplineRegression
             Q[1, 0] = Q[n - 2, 1] = sq6 / 3D;
             Q[1, 2] = (6D - sq6) / 15D;
             Q[1, n - 3] = Q[1, n - 1] = (-4D - sq6) / 30D;
-            Q[1, n - 2] = (4 + sq6) / 15D;
-            Q[2, 2] = (24 + sq6) / 30;
+            Q[1, n - 2] = (4D + sq6) / 15D;
+            Q[2, 2] = (24D + sq6) / 30D;
             Q[2, n - 3] = Q[2, n - 1] = (1D - sq6) / 15D;
             Q[2, n - 2] = 2D * (-1D + sq6) / 15D;
             Q[n - 3, n - 3] = Q[n - 1, n - 1] = 5D / 6D;
-            Q[n - 3, n - 2] = Q[n - 2, n - 3] = Q[n - 2, n - 2] = Q[n - 2, n - 1] = Q[n - 3, n - 2] = 1D / 3D;
+            Q[n - 3, n - 2] = Q[n - 2, n - 3] = Q[n - 2, n - 2] = Q[n - 2, n - 1] = Q[n - 1, n - 2] = 1D / 3D;
             Q[n - 3, n - 1] = Q[n - 1, n - 3] = -1D / 6D;
             for (int i = 3; i < n - 3; i++)
                 Q[i, i] = 1D;
