@@ -21,7 +21,7 @@ namespace HeaderFileStream
 /// <param name="str">FileStream to be opened</param>
         public HeaderFileReader(Stream str)
         {
-            if (!str.CanRead) throw new IOException("Unable to read from stream in HeaderFileReader");
+            if (!str.CanRead) throw new IOException("HeaderFileReader: unable to read from input stream");
             XmlReaderSettings settings = new XmlReaderSettings();
             settings.IgnoreWhitespace = true;
             settings.IgnoreComments = true;
@@ -29,12 +29,13 @@ namespace HeaderFileStream
             try
             {
                 xr = XmlReader.Create(str, settings);
-                if (xr.MoveToContent() != XmlNodeType.Element) throw new XmlException("Not a valid Header file");
+                if (xr.MoveToContent() != XmlNodeType.Element) throw new XmlException("input stream not a valid Header file");
                 nameSpace = xr.NamespaceURI;
                 xr.ReadStartElement("Header");
             }
             catch (Exception x)
             {
+                // re-throw exceptions with source method label
                 throw new Exception("HeaderFileReader: " + x.Message);
             }
         }
@@ -113,7 +114,7 @@ namespace HeaderFileStream
                                 GVEntry gve;
                                 if (header.GroupVars.TryGetValue(gvName, out gve))
                                     ede.GroupVars.Add(gve);
-                                else throw new Exception("Invalid GroupVar in Event: " + gvName);
+                                else throw new Exception("invalid GroupVar in Event: " + gvName);
                                 xr.ReadElementContentAsString();
                             } while (xr.Name == "GroupVar");
                         }
@@ -152,7 +153,10 @@ namespace HeaderFileStream
             }
             catch (Exception e)
             {
-                throw new Exception("Header.read: " + e.Message);
+                XmlNodeType nodeType = xr.NodeType;
+                string name = xr.Name;
+                throw new Exception("HeaderFileReader.read: Error processing " + nodeType.ToString() + 
+                    " named " + name + ": " + e.Message);
             }
         }
 
@@ -165,9 +169,12 @@ namespace HeaderFileStream
 
     public class HeaderFileWriter
     {
+        XmlWriter xw;
+
         public HeaderFileWriter(Stream str, Header.Header head)
         {
-            if (!str.CanWrite) throw new IOException("Unable to write to stream in HeaderFileReader");
+            if (str == null) return;
+            if (!str.CanWrite) throw new IOException("HeaderFileWSriter: unable to write to stream");
             XmlWriterSettings settings = new XmlWriterSettings();
             settings.Indent = true;
             settings.CloseOutput = true;
@@ -175,7 +182,7 @@ namespace HeaderFileStream
             settings.CheckCharacters = true;
             try
             {
-                XmlWriter xw = XmlWriter.Create(str, settings);
+                xw = XmlWriter.Create(str, settings);
                 xw.WriteStartDocument();
                 xw.WriteStartElement("Header");
                 xw.WriteStartElement("ExperimentDescription");
