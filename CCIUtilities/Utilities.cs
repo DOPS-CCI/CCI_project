@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -86,6 +87,12 @@ namespace CCIUtilities
             }
             list.Sort();
             return list;
+        }
+
+        public static string getVersionNumber()
+        {
+            Assembly ass = Assembly.GetCallingAssembly();
+            return ass.GetName().Version.ToString();
         }
     }
 }
