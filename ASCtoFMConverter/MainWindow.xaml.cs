@@ -49,7 +49,7 @@ namespace ASCtoFMConverter
 
         public Window2()
         {
-            CCIUtilities.Log.writeToLog("Starting ASCtoFMConverter " + Assembly.GetExecutingAssembly().GetName().Version.ToString());
+            CCIUtilities.Log.writeToLog("Starting ASCtoFMConverter " + CCIUtilities.Utilities.getVersionNumber());
 
             OpenFileDialog dlg = new OpenFileDialog();
             dlg.Title = "Open Header file ...";

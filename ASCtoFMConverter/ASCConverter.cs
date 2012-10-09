@@ -11,6 +11,7 @@ using FILMANFileStream;
 using GroupVarDictionary;
 using BDFFileStream;
 using CCIUtilities;
+using CCILibrary;
 using SplineRegression;
 using Microsoft.Win32;
 
