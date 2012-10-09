@@ -54,7 +54,7 @@ namespace FileConverter
 
         public Window2()
         {
-            CCIUtilities.Log.writeToLog("Starting FileConverter " + Assembly.GetExecutingAssembly().GetName().Version.ToString());
+            CCIUtilities.Log.writeToLog("Starting FileConverter " + CCIUtilities.Utilities.getVersionNumber());
 
             OpenFileDialog dlg = new OpenFileDialog();
             dlg.Title = "Open Header file ...";
