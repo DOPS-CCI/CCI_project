@@ -1,7 +1,7 @@
 ﻿using System;
 using BDFFileStream;
 
-namespace CCIUtilities
+namespace CCILibrary
 {
 
     /// <summary>
