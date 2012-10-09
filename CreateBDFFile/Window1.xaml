@@ -2,10 +2,11 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="clr-namespace:CreateBDFFile"
-    Title="Create CCI dataset" Height="950" Width="534" FontSize="14" ResizeMode="NoResize" WindowStartupLocation="CenterScreen">
+    Title="Create CCI dataset" Height="800" MinHeight="600" Width="534" MinWidth="534" MaxWidth="534" FontSize="14" ResizeMode="CanResizeWithGrip" WindowStartupLocation="CenterScreen" WindowStyle="ThreeDBorderWindow">
     <Window.Resources>
         <local:Parameters x:Key="params"/>
     </Window.Resources>
+    <ScrollViewer>
     <Grid DataContext="{StaticResource params}">
         <Grid Name="Page1" Panel.ZIndex="1" Background="AliceBlue" VerticalAlignment="Stretch" Visibility="Visible">
             <Grid>
@@ -139,4 +140,5 @@
         </StackPanel>
     </Grid>
     </Grid>
+    </ScrollViewer>
 </Window>
