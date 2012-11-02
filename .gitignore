@@ -10,5 +10,7 @@
 *.suo
 *.pfx
 *.snk
+*/.DS_Store
+.DS_Store
 # also ignore .gitignore itself
 .gitignore
