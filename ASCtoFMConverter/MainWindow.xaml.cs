@@ -75,13 +75,24 @@ namespace ASCtoFMConverter
             this.Title = "Convert " + System.IO.Path.GetFileNameWithoutExtension(dlg.FileName);
             this.TitleLine.Text = head.Title + " - " + head.Date + " " + head.Time + " S=" + head.Subject.ToString("0000");
 
-            Binding GVBinding = new Binding();
-            GVBinding.Source = this;
-            GVBinding.NotifyOnSourceUpdated = true;
-            GVBinding.Path = new PropertyPath("GVList");
-            GVBinding.Mode = BindingMode.OneWay;
-            listView2.SetBinding(ListView.ItemsSourceProperty, GVBinding);
-            GVList = head.GroupVars.Values.ToList<GVEntry>();
+            if (head.GroupVars != null)
+            {
+                Binding GVBinding = new Binding();
+                GVBinding.Source = this;
+                GVBinding.NotifyOnSourceUpdated = true;
+                GVBinding.Path = new PropertyPath("GVList");
+                GVBinding.Mode = BindingMode.OneWay;
+                listView2.SetBinding(ListView.ItemsSourceProperty, GVBinding);
+                GVList = head.GroupVars.Values.ToList<GVEntry>();
+                All.IsEnabled = true;
+                None.IsEnabled = true;
+            }
+            else
+            {
+                GVList = new List<GVEntry>(0);
+                All.IsEnabled = false;
+                None.IsEnabled = false;
+            }
         }
 
         public event PropertyChangedEventHandler PropertyChanged;

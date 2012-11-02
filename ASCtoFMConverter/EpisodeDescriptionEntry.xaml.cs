@@ -67,12 +67,13 @@ namespace ASCtoFMConverter
             Object o = Event1.SelectedItem;
             if (o.GetType().Name=="String")
             {
-                foreach (GVEntry gv in hdr.GroupVars.Values)
-                    GV1.Items.Add(gv);
+                if (hdr.GroupVars != null)
+                    foreach (GVEntry gv in hdr.GroupVars.Values)
+                        GV1.Items.Add(gv);
             }
             else
             {
-                if(((EventDictionaryEntry)o).GroupVars!=null)
+                if (((EventDictionaryEntry)o).GroupVars != null)
                     foreach (GVEntry gv in ((EventDictionaryEntry)o).GroupVars)
                         GV1.Items.Add(gv);
             }
@@ -96,8 +97,9 @@ namespace ASCtoFMConverter
                     GVPanel2.IsEnabled = false;
                     return;
                 }
-                foreach (GVEntry gv in hdr.GroupVars.Values)
-                    GV2.Items.Add(gv);
+                if (hdr.GroupVars != null)
+                    foreach (GVEntry gv in hdr.GroupVars.Values)
+                        GV2.Items.Add(gv);
             }
             else
             {
