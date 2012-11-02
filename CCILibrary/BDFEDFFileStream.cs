@@ -333,7 +333,7 @@ namespace CCILibrary
         {
             get
             {
-                if (_zeroTime == null) throw new Exception("In BDFFileReader: zeroTime not initialized");
+                if (_zeroTime == null) throw new Exception("In BDFEDFFileReader: zeroTime not initialized");
                 return (double)_zeroTime;
             }
         }
@@ -525,7 +525,7 @@ namespace CCILibrary
             }
             else
             {
-                str.BaseStream.WriteByte((byte)0);
+                str.Write("0       ");
             }
             str.Write("{0,-80}", localSubjectId);
             str.Write("{0,-80}", localRecordingId);
@@ -534,7 +534,7 @@ namespace CCILibrary
             if (_BDFFile)
                 str.Write("{0,-44}", "24BIT");
             else
-                str.Write("{0,-44}", "EDF+C");
+                str.Write("{0,-44}", "BIOSEMI");
             str.Write("-1      "); //Number of records
             str.Write("{0,-8}", recordDuration);
             str.Write("{0,-4}", numberChannels);
@@ -561,104 +561,127 @@ namespace CCILibrary
             str.Flush();
         }
 
+        const int MinLength = 256;
         internal void read(BinaryReader reader) {
-            char[] cBuf = new char[80];
-            int b = reader.BaseStream.ReadByte();
-            int nChar = reader.Read(cBuf, 0, 7);
-            string s1 = new string(cBuf, 0, 7);
-            if (b == 255) //BDF format
+            try
             {
-                if (s1 != "BIOSEMI") throw new BDFEDFException("Invalid BDF format");
-                _BDFFile = true;
+                if (reader.BaseStream.Length < BDFEDFHeader.MinLength) throw new BDFEDFException("Header less than minimum length");
+                char[] cBuf = new char[80];
+                int b = reader.BaseStream.ReadByte();
+                int nChar = reader.Read(cBuf, 0, 7);
+                string s1 = new string(cBuf, 0, 7);
+                if (b == 255) //BDF format
+                {
+                    if (s1 != "BIOSEMI") throw new BDFEDFException("Invalid BDF format");
+                    _BDFFile = true;
+                }
+                else if (b == 0x30) //EDF format
+                {
+                    _BDFFile = false;
+                }
+                else
+                    throw new BDFEDFException("Not valid BDF or EDF format");
+                nChar = reader.Read(cBuf, 0, 80);
+                localSubjectId = new string(cBuf, 0, 80).TrimEnd();
+                nChar = reader.Read(cBuf, 0, 80);
+                localRecordingId = new string(cBuf, 0, 80).TrimEnd();
+                nChar = reader.Read(cBuf, 0, 16);
+                string s2 = new string(cBuf, 0, 16);
+                int day = int.Parse(s2.Substring(0, 2));
+                int mon = int.Parse(s2.Substring(3, 2));
+                int yr = 2000 + int.Parse(s2.Substring(6, 2));
+                int hr = int.Parse(s2.Substring(8, 2));
+                int min = int.Parse(s2.Substring(11, 2));
+                int sec = int.Parse(s2.Substring(14, 2));
+                timeOfRecording = new DateTime(yr, mon, day, hr, min, sec);
+                nChar = reader.Read(cBuf, 0, 8);
+                headerSize = int.Parse(new string(cBuf, 0, 8));
+                nChar = reader.Read(cBuf, 0, 44);
+                string s3 = new string(cBuf, 0, 44).TrimEnd();
+                if (_BDFFile)
+                {
+                    if (s3 != "24BIT") throw new BDFEDFException("Invalid BDF format");
+                }
+                else
+                {
+                    if (s3 != "BIOSEMI" && s3 != "EDF+C")
+                        throw new BDFEDFException("Invalid EDF format");
+                }
+                nChar = reader.Read(cBuf, 0, 8);
+                numberOfRecords = int.Parse(new string(cBuf, 0, 8));
+                nChar = reader.Read(cBuf, 0, 8);
+                recordDuration = int.Parse(new string(cBuf, 0, 8));
+                nChar = reader.Read(cBuf, 0, 4);
+                numberChannels = int.Parse(new string(cBuf, 0, 4));
+                if ((numberChannels + 1) * 256 != headerSize)
+                    throw new BDFEDFException("Incorrect header size for number of channels = " + 
+                        numberChannels.ToString("0"));
+                channelLabels = new string[numberChannels];
+                for (int i = 0; i < numberChannels; i++)
+                {
+                    nChar = reader.Read(cBuf, 0, 16);
+                    channelLabels[i] = new string(cBuf, 0, 16).TrimEnd();
+                }
+                transducerTypes = new string[numberChannels];
+                for (int i = 0; i < numberChannels; i++)
+                {
+                    nChar = reader.Read(cBuf, 0, 80);
+                    transducerTypes[i] = new string(cBuf, 0, 80).TrimEnd();
+                }
+                physicalDimensions = new string[numberChannels];
+                for (int i = 0; i < numberChannels; i++)
+                {
+                    nChar = reader.Read(cBuf, 0, 8);
+                    physicalDimensions[i] = new string(cBuf, 0, 8).TrimEnd();
+                }
+                physicalMinimums = new int[numberChannels];
+                for (int i = 0; i < numberChannels; i++)
+                {
+                    nChar = reader.Read(cBuf, 0, 8);
+                    physicalMinimums[i] = int.Parse(new string(cBuf, 0, 8));
+                }
+                physicalMaximums = new int[numberChannels];
+                for (int i = 0; i < numberChannels; i++)
+                {
+                    nChar = reader.Read(cBuf, 0, 8);
+                    physicalMaximums[i] = int.Parse(new string(cBuf, 0, 8));
+                }
+                digitalMinimums = new int[numberChannels];
+                for (int i = 0; i < numberChannels; i++)
+                {
+                    nChar = reader.Read(cBuf, 0, 8);
+                    digitalMinimums[i] = int.Parse(new string(cBuf, 0, 8));
+                }
+                digitalMaximums = new int[numberChannels];
+                for (int i = 0; i < numberChannels; i++)
+                {
+                    nChar = reader.Read(cBuf, 0, 8);
+                    digitalMaximums[i] = int.Parse(new string(cBuf, 0, 8));
+                }
+                channelPrefilters = new string[numberChannels];
+                for (int i = 0; i < numberChannels; i++)
+                {
+                    nChar = reader.Read(cBuf, 0, 80);
+                    channelPrefilters[i] = new string(cBuf, 0, 80).TrimEnd();
+                }
+                numberSamples = new int[numberChannels];
+                for (int i = 0; i < numberChannels; i++)
+                {
+                    nChar = reader.Read(cBuf, 0, 8);
+                    numberSamples[i] = int.Parse(new string(cBuf, 0, 8));
+                }
+                reader.BaseStream.Position = headerSize; //skip rest of record; position for first record
             }
-            else if (b == 0) //EDF format
+            catch (Exception e)
             {
-                _BDFFile = false;
+                throw new Exception("In BDFEDFHeader.read at byte " + reader.BaseStream.Position + 
+                    ": " + e.Message);
             }
-            else
-                throw new BDFEDFException("Not valid BDF or EDF format");
-            nChar = reader.Read(cBuf, 0, 80);
-            localSubjectId = new string(cBuf, 0, 80).TrimEnd();
-            nChar = reader.Read(cBuf, 0, 80);
-            localRecordingId = new string(cBuf, 0, 80).TrimEnd();
-            nChar = reader.Read(cBuf, 0, 16);
-            string s2 = new string(cBuf, 0, 16);
-            int day = int.Parse(s2.Substring(0, 2));
-            int mon = int.Parse(s2.Substring(3, 2));
-            int yr = 2000 + int.Parse(s2.Substring(6, 2));
-            int hr = int.Parse(s2.Substring(8, 2));
-            int min = int.Parse(s2.Substring(11, 2));
-            int sec = int.Parse(s2.Substring(14, 2));
-            timeOfRecording = new DateTime(yr, mon, day, hr, min, sec);
-            nChar = reader.Read(cBuf, 0, 8);
-            headerSize = int.Parse(new string(cBuf, 0, 8));
-            nChar = reader.Read(cBuf, 0, 44);
-            string s3 = new string(cBuf, 0, 44).TrimEnd();
-            if (_BDFFile)
-            {
-                if (s3 != "24BIT") throw new BDFEDFException("Invalid BDF format");
-            }
-            else
-            {
-                if (s3 != "EDF+C") throw new BDFEDFException("Invalid EDF format");
-            }
-            nChar = reader.Read(cBuf, 0, 8);
-            numberOfRecords = int.Parse(new string(cBuf, 0, 8));
-            nChar = reader.Read(cBuf, 0, 8);
-            recordDuration = int.Parse(new string(cBuf, 0, 8));
-            nChar = reader.Read(cBuf, 0, 4);
-            numberChannels = int.Parse(new string(cBuf, 0, 4));
-            channelLabels = new string[numberChannels];
-            transducerTypes = new string[numberChannels];
-            physicalDimensions = new string[numberChannels];
-            channelPrefilters = new string[numberChannels];
-            physicalMinimums = new int[numberChannels];
-            physicalMaximums = new int[numberChannels];
-            digitalMinimums = new int[numberChannels];
-            digitalMaximums = new int[numberChannels];
-            numberSamples = new int[numberChannels];
             gain = new double[numberChannels];
             offset = new double[numberChannels];
             for (int i = 0; i < numberChannels; i++) offset[i] = Double.PositiveInfinity;
-            for (int i = 0; i < numberChannels; i++)
-            {
-                nChar = reader.Read(cBuf, 0, 16);
-                channelLabels[i] = new string(cBuf, 0, 16).TrimEnd();
-            }
-            for (int i = 0; i < numberChannels; i++) {
-                nChar = reader.Read(cBuf, 0, 80);
-                transducerTypes[i] = new string(cBuf, 0, 80).TrimEnd();
-            }
-            for (int i = 0; i < numberChannels; i++) {
-                nChar = reader.Read(cBuf, 0, 8);
-                physicalDimensions[i] = new string(cBuf, 0, 8).TrimEnd();
-            }
-            for (int i = 0; i < numberChannels; i++) {
-                nChar = reader.Read(cBuf, 0, 8);
-                physicalMinimums[i] = int.Parse(new string(cBuf, 0, 8));
-            }
-            for (int i = 0; i < numberChannels; i++) {
-                nChar = reader.Read(cBuf, 0, 8);
-                physicalMaximums[i] = int.Parse(new string(cBuf, 0, 8));
-            }
-            for (int i = 0; i < numberChannels; i++) {
-                nChar = reader.Read(cBuf, 0, 8);
-                digitalMinimums[i] = int.Parse(new string(cBuf, 0, 8));
-            }
-            for (int i = 0; i < numberChannels; i++) {
-                nChar = reader.Read(cBuf, 0, 8);
-                digitalMaximums[i] = int.Parse(new string(cBuf, 0, 8));
-            }
-            for (int i = 0; i < numberChannels; i++) {
-                nChar = reader.Read(cBuf, 0, 80);
-                channelPrefilters[i] = new string(cBuf, 0, 80).TrimEnd();
-            }
-            for (int i = 0; i < numberChannels; i++) {
-                nChar = reader.Read(cBuf, 0, 8);
-                numberSamples[i] = int.Parse(new string(cBuf, 0, 8));
-            }
-            reader.BaseStream.Position = headerSize; //skip rest of record; position for first record
         }
+
         public void Dispose() {
 
         }
@@ -713,14 +736,22 @@ namespace CCILibrary
                 recordLength += n;
                 i++;
             }
-            recordLength *= hdr.BDFFile?3:2; // calculate length in bytes
+            recordLength *= hdr.BDFFile ? 3 : 2; // calculate length in bytes
             record = new byte[recordLength];
             header = hdr;
         }
 
         internal void read(BinaryReader reader) {
-            record = reader.ReadBytes(recordLength);
-            if (record.Length < recordLength) throw new EndOfStreamException("End of BDF/EDF file reached");
+            try
+            {
+                record = reader.ReadBytes(recordLength);
+                if (record.Length < recordLength) throw new EndOfStreamException("End of BDF/EDF file reached");
+            }
+            catch (Exception e)
+            {
+                throw new Exception("BDFEDFRecord.read at record " + 
+                    currentRecordNumber.ToString("0") + ": " + e.Message);
+            }
             currentRecordNumber++;
             int i = 0;
             for (int channel = 0; channel < header.numberChannels; channel++)
@@ -756,7 +787,15 @@ namespace CCILibrary
                         record[i++] = b.b2;
                     }
                 }
-            writer.Write(record);
+            try
+            {
+                writer.Write(record);
+            }
+            catch (Exception e)
+            {
+                throw new Exception("BDFEDFRecord.write at record " +
+                    currentRecordNumber.ToString("0") + ": " + e.Message);
+            }
             currentRecordNumber++;
             header.numberOfRecords++;
         }

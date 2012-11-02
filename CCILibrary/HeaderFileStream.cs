@@ -21,13 +21,13 @@ namespace HeaderFileStream
 /// <param name="str">FileStream to be opened</param>
         public HeaderFileReader(Stream str)
         {
-            if (!str.CanRead) throw new IOException("HeaderFileReader: unable to read from input stream");
-            XmlReaderSettings settings = new XmlReaderSettings();
-            settings.IgnoreWhitespace = true;
-            settings.IgnoreComments = true;
-            settings.IgnoreProcessingInstructions = true;
             try
             {
+                if (!str.CanRead) throw new IOException("unable to read from input stream");
+                XmlReaderSettings settings = new XmlReaderSettings();
+                settings.IgnoreWhitespace = true;
+                settings.IgnoreComments = true;
+                settings.IgnoreProcessingInstructions = true;
                 xr = XmlReader.Create(str, settings);
                 if (xr.MoveToContent() != XmlNodeType.Element) throw new XmlException("input stream not a valid Header file");
                 nameSpace = xr.NamespaceURI;
@@ -73,13 +73,20 @@ namespace HeaderFileStream
                         xr.ReadStartElement(/* GroupVar */);
                         GroupVarDictionary.GVEntry gve = new GVEntry();
                         string name = xr.ReadElementContentAsString("Name", nameSpace);
+                        if (name.Length > 24)
+                            throw new Exception("name too long for GV " + name);
                         gve.Description = xr.ReadElementContentAsString("Description", nameSpace);
                         if (xr.Name == "GV")
                         {
                             gve.GVValueDictionary = new Dictionary<string, int>();
-                            do gve.GVValueDictionary.Add(
-                                xr["Desc", nameSpace],
-                                Convert.ToInt32(xr.ReadElementContentAsString()));
+                            do
+                            {
+                                int val = Convert.ToInt32(xr.ReadElementContentAsString());
+                                if (val > 0)
+                                    gve.GVValueDictionary.Add(xr["Desc", nameSpace], val);
+                                else
+                                    throw new Exception("invalid value for GV "+ name);
+                            }
                             while (xr.Name == "GV");
                         }
                         header.GroupVars.Add(name, gve);
@@ -103,6 +110,8 @@ namespace HeaderFileStream
                             ede.location = (xr.Name == "Location" ? (xr.ReadElementContentAsString() == "after") : false); //leads by default
                             ede.channelMax = xr.Name == "Max" ? xr.ReadElementContentAsDouble() : 0D; //zero by default
                             ede.channelMin = xr.Name == "Min" ? xr.ReadElementContentAsDouble() : 0D; //zero by default
+                            if (ede.channelMax < ede.channelMin)
+                                throw new Exception("invalid max/min signal values in extrinsic Event " + name);
                             //Note: Max and Min are optional; if neither is specified, 0.0 will always be used as threshold
                         }
                         if (xr.Name == "Ancillary") ede.ancillarySize = xr.ReadElementContentAsInt();
@@ -114,7 +123,7 @@ namespace HeaderFileStream
                                 GVEntry gve;
                                 if (header.GroupVars.TryGetValue(gvName, out gve))
                                     ede.GroupVars.Add(gve);
-                                else throw new Exception("invalid GroupVar in Event: " + gvName);
+                                else throw new Exception("invalid GroupVar " + gvName + " in Event " + name);
                                 xr.ReadElementContentAsString();
                             } while (xr.Name == "GroupVar");
                         }
@@ -173,15 +182,15 @@ namespace HeaderFileStream
 
         public HeaderFileWriter(Stream str, Header.Header head)
         {
-            if (str == null) return;
-            if (!str.CanWrite) throw new IOException("HeaderFileWSriter: unable to write to stream");
-            XmlWriterSettings settings = new XmlWriterSettings();
-            settings.Indent = true;
-            settings.CloseOutput = true;
-            settings.Encoding = Encoding.UTF8;
-            settings.CheckCharacters = true;
             try
             {
+                if (str == null) return;
+                if (!str.CanWrite) throw new IOException("unable to write to stream");
+                XmlWriterSettings settings = new XmlWriterSettings();
+                settings.Indent = true;
+                settings.CloseOutput = true;
+                settings.Encoding = Encoding.UTF8;
+                settings.CheckCharacters = true;
                 xw = XmlWriter.Create(str, settings);
                 xw.WriteStartDocument();
                 xw.WriteStartElement("Header");
@@ -205,7 +214,7 @@ namespace HeaderFileStream
                     xw.WriteStartElement("GroupVar");
                     xw.WriteElementString("Name", gve.Name);
                     xw.WriteElementString("Description", gve.Description);
-                    if(gve.GVValueDictionary != null) // may be null if integer values just stand for themselves
+                    if(gve.GVValueDictionary != null) // will be null if integer values just stand for themselves
                         foreach (KeyValuePair<string, int> i in gve.GVValueDictionary)
                         {
                             xw.WriteElementString("GV", i.Value.ToString("0"));

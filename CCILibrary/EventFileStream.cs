@@ -28,14 +28,14 @@ namespace EventFile
         /// <param name="str">Event file stream to read</param>
         public EventFileReader(Stream str)
         {
-            if (!str.CanRead) throw new IOException("Unable to read from stream in EventFileReader");
-            XmlReaderSettings settings = new XmlReaderSettings();
-            settings.IgnoreWhitespace = true;
-            settings.IgnoreComments = true;
-            settings.IgnoreProcessingInstructions = true;
             try {
+                if (!str.CanRead) throw new IOException("Unable to read from stream");
+                XmlReaderSettings settings = new XmlReaderSettings();
+                settings.IgnoreWhitespace = true;
+                settings.IgnoreComments = true;
+                settings.IgnoreProcessingInstructions = true;
                 xr = XmlReader.Create(str, settings);
-                if (xr.MoveToContent() != XmlNodeType.Element) throw new XmlException("Not a valid event file");
+                if (xr.MoveToContent() != XmlNodeType.Element) throw new XmlException("Not a valid Event file");
                 nameSpace = xr.NamespaceURI; 
                 xr.ReadStartElement("Events");
             } catch(Exception x) {
@@ -90,7 +90,8 @@ namespace EventFile
             }
             catch (XmlException e)
             {
-                throw new Exception("InputEvent.readEvent: " + e.Message);
+                throw new Exception("InputEvent.readEvent: Error processing " + xr.NodeType.ToString() +
+                    " named " + xr.Name + ": " + e.Message);
             }
         }
 
@@ -166,12 +167,12 @@ namespace EventFile
         /// <param name="str">Stream to write OutputEvents to</param>
         public EventFileWriter(Stream str)
         {
-            if (!str.CanWrite) throw new IOException("Unable to write to stream in EventFileWriter");
-            XmlWriterSettings settings = new XmlWriterSettings();
-            settings.Indent = true;
-            settings.Encoding = System.Text.Encoding.UTF8;
             try
             {
+                if (!str.CanWrite) throw new IOException("Unable to write to stream");
+                XmlWriterSettings settings = new XmlWriterSettings();
+                settings.Indent = true;
+                settings.Encoding = System.Text.Encoding.UTF8;
                 xw = XmlWriter.Create(str, settings);
                 xw.WriteStartDocument();
                 xw.WriteStartElement("Events");
@@ -188,28 +189,35 @@ namespace EventFile
         /// <param name="ev"><code>OuputEvent</code> to be written</param>
         public void writeRecord(OutputEvent ev)
         {
-            xw.WriteStartElement("Event");
-            xw.WriteAttributeString("Name", ev.Name);
-            xw.WriteElementString("Index",ev.Index.ToString("0"));
-            xw.WriteElementString("GrayCode", ev.GC.ToString("0"));
-            xw.WriteElementString("Time",ev.Time.ToString("00000000000.0000000"));
-            xw.WriteStartElement("GroupVars");
-            if (ev.GVValue != null)
-                for (int j = 0; j < ev.GVValue.Length; j++)
-                {
-                    xw.WriteStartElement("GV");
-                    xw.WriteAttributeString("Name", ev.GetGVName(j));
-                    xw.WriteValue(ev.GVValue[j]);
-                    xw.WriteEndElement(/* GV */);
-                }
-            xw.WriteEndElement(/* GroupVars */);
-            if (ev.ancillary != null && ev.ancillary.Length > 0)
+            try
             {
-                xw.WriteStartElement("Ancillary");
-                xw.WriteBase64(ev.ancillary, 0, ev.ancillary.Length);
-                xw.WriteEndElement(/* Ancillary */);
+                xw.WriteStartElement("Event");
+                xw.WriteAttributeString("Name", ev.Name);
+                xw.WriteElementString("Index", ev.Index.ToString("0"));
+                xw.WriteElementString("GrayCode", ev.GC.ToString("0"));
+                xw.WriteElementString("Time", ev.Time.ToString("00000000000.0000000"));
+                xw.WriteStartElement("GroupVars");
+                if (ev.GVValue != null)
+                    for (int j = 0; j < ev.GVValue.Length; j++)
+                    {
+                        xw.WriteStartElement("GV");
+                        xw.WriteAttributeString("Name", ev.GetGVName(j));
+                        xw.WriteValue(ev.GVValue[j]);
+                        xw.WriteEndElement(/* GV */);
+                    }
+                xw.WriteEndElement(/* GroupVars */);
+                if (ev.ancillary != null && ev.ancillary.Length > 0)
+                {
+                    xw.WriteStartElement("Ancillary");
+                    xw.WriteBase64(ev.ancillary, 0, ev.ancillary.Length);
+                    xw.WriteEndElement(/* Ancillary */);
+                }
+                xw.WriteEndElement(/* Event */);
             }
-            xw.WriteEndElement(/* Event */);
+            catch (Exception e)
+            {
+                throw new Exception("EventFileWriter.writeRecord: " + e.Message);
+            }
         }
 
         public void Dispose() {
