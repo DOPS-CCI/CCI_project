@@ -1,5 +1,6 @@
 ﻿using System;
 using BDFFileStream;
+using NUnit.Framework;
 
 namespace CCILibrary
 {
@@ -103,7 +104,7 @@ namespace CCILibrary
         /// <returns>number of seconds in BDFPoint</returns>
         public double ToSecs()
         {
-            return (double)this._rec + ((double)this._pt / (double)_recSize) * _sec;
+            return ((double)this._rec + (double)this._pt / (double)_recSize) * _sec;
         }
 
         /// <summary>
@@ -114,12 +115,12 @@ namespace CCILibrary
         {
             double f = Math.Floor(seconds / _sec);
             _rec = (int)f;
-            _pt = Convert.ToInt32((seconds - f) * _recSize / _sec);
+            _pt = Convert.ToInt32((seconds - f * _sec) * (double)_recSize / _sec);
         }
 
         public override string ToString()
         {
-            return "Record " + Rec.ToString("0") + ", point " + Pt.ToString("0");
+            return "Record " + _rec.ToString("0") + ", point " + _pt.ToString("0");
         }
     }
 }
