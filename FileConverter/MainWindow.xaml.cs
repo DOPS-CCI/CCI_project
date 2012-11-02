@@ -11,6 +11,7 @@ using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Media;
 using BDFFileStream;
+using CCIUtilities;
 using EventDictionary;
 using GroupVarDictionary;
 using HeaderFileStream;
@@ -54,10 +55,10 @@ namespace FileConverter
 
         public Window2()
         {
-            CCIUtilities.Log.writeToLog("Starting FileConverter " + CCIUtilities.Utilities.getVersionNumber());
+            Log.writeToLog("Starting FileConverter " + Utilities.getVersionNumber());
 
             OpenFileDialog dlg = new OpenFileDialog();
-            dlg.Title = "Open Header file ...";
+            dlg.Title = "Open Header file for conversion...";
             dlg.DefaultExt = ".hdr"; // Default file extension
             dlg.Filter = "HDR Files (.hdr)|*.hdr"; // Filter files by extension
             Nullable<bool> result = dlg.ShowDialog();
@@ -107,10 +108,19 @@ namespace FileConverter
                 ExtRow.Visibility = Visibility.Hidden;
             else /* extrinsic Event */
             {
-                extChannel.Text = ede.channelName;
-                if (ede.channel == -1) //find channel number corresponding to channelName
+                if (ede.channel == -1) //then need to look up channel number
                     for (int i = 0; i < bdf.NumberOfChannels; i++)
                         if (bdf.channelLabel(i) == ede.channelName) { ede.channel = i; break; }
+                if (ede.channel == -1) //channel name not found
+                {
+                    extChannel.Foreground = Brushes.Red;
+                    extChannel.Text = ede.channelName + "(unknown)";
+                }
+                else
+                {
+                    extChannel.Foreground = Brushes.Black;
+                    extChannel.Text = ede.channelName;
+                }
                 ExtDescription.Text = (ede.location ? "lagging" : "leading") + ", " + (ede.rise ? "rising" : "falling") + " edge:";
                 ExtRow.Visibility = Visibility.Visible;
             }
@@ -560,6 +570,9 @@ namespace FileConverter
             if (ExtThreshold.IsVisible && _extThreshold == 0D) { ConvertBDF.IsEnabled = ConvertFM.IsEnabled = false; return; }
 
             if (ExtSearch.IsVisible && ExtSearch.Text != null && _extSearch == 0D) { ConvertBDF.IsEnabled = ConvertFM.IsEnabled = false; return; }
+
+            EventDictionaryEntry ede = (EventDictionaryEntry)listView1.SelectedItem;
+            if (!ede.intrinsic && ede.channel < 0) { ConvertBDF.IsEnabled = ConvertFM.IsEnabled = false; return; }
 
             ConvertBDF.IsEnabled = true;
             ConvertFM.IsEnabled = true;
