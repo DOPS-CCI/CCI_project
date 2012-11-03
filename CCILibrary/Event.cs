@@ -226,11 +226,12 @@ namespace Event
             StringBuilder str = new StringBuilder("Event name: " + name + nl);
             str.Append("Index: " + Index.ToString("0") + nl);
             str.Append("GreyCode: " + GC.ToString("0") + nl);
-            str.Append("Time: " + Time.ToString("00000000000.0000000") + nl);
+            DateTime t = new DateTime((long)(Time * 1E7));
+            str.Append("Time: " + t.ToString("yyyy-MM-dd@HH:mm:ss.ffff") + nl);
             int j=0;
             foreach (GVEntry gve in ede.GroupVars)
             {
-                str.Append("GV #" + j.ToString("0") + ": " + ede.GroupVars[j].Name + " = " + GVValue[j] + nl);
+                str.Append("GV #" + (j + 1).ToString("0") + ": " + ede.GroupVars[j].Name + " = " + GVValue[j] + nl);
                 j++;
             }
             return str.ToString();
