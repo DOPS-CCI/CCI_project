@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -9,6 +10,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Documents;
+using System.Windows.Forms;
 using System.Windows.Media;
 using BDFFileStream;
 using EventDictionary;
@@ -44,6 +46,16 @@ namespace ASCtoFMConverter
                 if (value == _GVList) return;
                 _GVList = value;
                 NotifyPropertyChanged("GVList");
+                if (_GVList == null || _GVList.Count == 0)
+                {
+                    All.IsEnabled = false;
+                    None.IsEnabled = false;
+                }
+                else
+                {
+                    All.IsEnabled = true;
+                    None.IsEnabled = true;
+                }
             }
         }
 
@@ -51,7 +63,7 @@ namespace ASCtoFMConverter
         {
             CCIUtilities.Log.writeToLog("Starting ASCtoFMConverter " + CCIUtilities.Utilities.getVersionNumber());
 
-            OpenFileDialog dlg = new OpenFileDialog();
+            Microsoft.Win32.OpenFileDialog dlg = new Microsoft.Win32.OpenFileDialog();
             dlg.Title = "Open Header file ...";
             dlg.DefaultExt = ".hdr"; // Default file extension
             dlg.Filter = "HDR Files (.hdr)|*.hdr"; // Filter files by extension
@@ -70,6 +82,7 @@ namespace ASCtoFMConverter
 
             InitializeComponent();
 
+            this.MinHeight = SystemInformation.WorkingArea.Height - 240;
             this.EpisodeEntries.Items.Add(new EpisodeDescriptionEntry(head, checkError)); //include initial episode description
 
             this.Title = "Convert " + System.IO.Path.GetFileNameWithoutExtension(dlg.FileName);
@@ -77,22 +90,16 @@ namespace ASCtoFMConverter
 
             if (head.GroupVars != null)
             {
-                Binding GVBinding = new Binding();
+                System.Windows.Data.Binding GVBinding = new System.Windows.Data.Binding();
                 GVBinding.Source = this;
                 GVBinding.NotifyOnSourceUpdated = true;
                 GVBinding.Path = new PropertyPath("GVList");
                 GVBinding.Mode = BindingMode.OneWay;
-                listView2.SetBinding(ListView.ItemsSourceProperty, GVBinding);
+                listView2.SetBinding(System.Windows.Controls.ListView.ItemsSourceProperty, GVBinding);
                 GVList = head.GroupVars.Values.ToList<GVEntry>();
-                All.IsEnabled = true;
-                None.IsEnabled = true;
             }
             else
-            {
                 GVList = new List<GVEntry>(0);
-                All.IsEnabled = false;
-                None.IsEnabled = false;
-            }
         }
 
         public event PropertyChangedEventHandler PropertyChanged;
@@ -219,12 +226,12 @@ namespace ASCtoFMConverter
                 _decimation = System.Convert.ToInt32(Decimation.Text);
                 if (_decimation <= 0) throw new Exception();
                 SR.Text = ((float)samplingRate / (float)_decimation).ToString("0.0");
-                Decimation.BorderBrush = Brushes.MediumBlue;
+                Decimation.BorderBrush = System.Windows.Media.Brushes.MediumBlue;
             }
             catch (Exception)
             {
                 _decimation = 0;
-                Decimation.BorderBrush = Brushes.Red;
+                Decimation.BorderBrush = System.Windows.Media.Brushes.Red;
             }
             checkError();
         }
@@ -236,12 +243,12 @@ namespace ASCtoFMConverter
             {
                 _recLength = System.Convert.ToDouble(RecLength.Text);
                 if (_recLength <= 0) throw new Exception();
-                RecLength.BorderBrush = Brushes.MediumBlue;
+                RecLength.BorderBrush = System.Windows.Media.Brushes.MediumBlue;
             }
             catch (Exception)
             {
                 _recLength = 0D;
-                RecLength.BorderBrush = Brushes.Red;
+                RecLength.BorderBrush = System.Windows.Media.Brushes.Red;
             }
             checkError();
         }
@@ -253,12 +260,12 @@ namespace ASCtoFMConverter
             {
                 _radinLow = System.Convert.ToDouble(RadinLow.Text);
                 if (_radinLow < 0D) throw new Exception();
-                RadinLow.BorderBrush = Brushes.MediumBlue;
+                RadinLow.BorderBrush = System.Windows.Media.Brushes.MediumBlue;
             }
             catch
             {
                 _radinLow = -1D;
-                RadinLow.BorderBrush = Brushes.Red;
+                RadinLow.BorderBrush = System.Windows.Media.Brushes.Red;
                 RadinLowPts.Text = "Error";
             }
             checkError();
@@ -271,12 +278,12 @@ namespace ASCtoFMConverter
             {
                 _radinHigh = System.Convert.ToDouble(RadinHigh.Text);
                 if (_radinHigh <= 0D) throw new Exception();
-                RadinHigh.BorderBrush = Brushes.MediumBlue;
+                RadinHigh.BorderBrush = System.Windows.Media.Brushes.MediumBlue;
             }
             catch
             {
                 _radinHigh = double.MaxValue;
-                RadinHigh.BorderBrush = Brushes.Red;
+                RadinHigh.BorderBrush = System.Windows.Media.Brushes.Red;
                 RadinHighPts.Text = "Error";
             }
             checkError();
@@ -286,16 +293,16 @@ namespace ASCtoFMConverter
         private void RefChan_TextChanged(object sender, TextChangedEventArgs e)
         {
             if (RefChanName == null) return;
-            string str = ((TextBox)sender).Text;
+            string str = ((System.Windows.Controls.TextBox)sender).Text;
             _refChan = parseList(str);
             if (_refChan == null || _refChan.Count == 0)
             {
-                RefChan.BorderBrush = Brushes.Red;
+                RefChan.BorderBrush = System.Windows.Media.Brushes.Red;
                 RefChanName.Text = "Error";
             }
             else
             {
-                RefChan.BorderBrush = Brushes.MediumBlue;
+                RefChan.BorderBrush = System.Windows.Media.Brushes.MediumBlue;
                 if (_refChan.Count > 1)
                     RefChanName.Text = _refChan.Count.ToString("0") + " channels";
                 else
@@ -325,12 +332,12 @@ namespace ASCtoFMConverter
             _refChanExp = parseReferenceString(str);
             if (_refChanExp == null || _refChanExp.Count == 0)
             {
-                RefChanExpression.BorderBrush = Brushes.Red;
+                RefChanExpression.BorderBrush = System.Windows.Media.Brushes.Red;
                 RefChanExpDesc.Text = "Error";
             }
             else
             {
-                RefChanExpression.BorderBrush = Brushes.MediumBlue;
+                RefChanExpression.BorderBrush = System.Windows.Media.Brushes.MediumBlue;
                 int lc = _refChanExp.Count / 2;
                 RefChanExpDesc.Text = lc.ToString("0") + " reference set" + (lc <= 1 ? "" : "s");
             }
@@ -340,16 +347,16 @@ namespace ASCtoFMConverter
         private void SelChan_TextChanged(object sender, TextChangedEventArgs e)
         {
             if (SelChanName == null) return;
-            string str = ((TextBox)sender).Text;
+            string str = ((System.Windows.Controls.TextBox)sender).Text;
             channels = parseList(str);
             if (channels == null || channels.Count == 0)
             {
-                SelChan.BorderBrush = Brushes.Red;
+                SelChan.BorderBrush = System.Windows.Media.Brushes.Red;
                 SelChanName.Text = "Error";
             }
             else
             {
-                SelChan.BorderBrush = Brushes.MediumBlue;
+                SelChan.BorderBrush = System.Windows.Media.Brushes.MediumBlue;
                 if (channels.Count > 1)
                     SelChanName.Text = channels.Count.ToString("0") + " channels";
                 else
@@ -406,7 +413,7 @@ namespace ASCtoFMConverter
 
         private void Radin_TextChanged(object sender, TextChangedEventArgs e)
         {
-            TextBox tb = (TextBox)sender;
+            System.Windows.Controls.TextBox tb = (System.Windows.Controls.TextBox)sender;
             if (tb == null) return;
             string s = tb.Text;
             try
