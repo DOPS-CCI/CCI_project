@@ -1,7 +1,7 @@
 ﻿<Window x:Class="FileConverter.Window2"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Width="680" Background="LightBlue" WindowStartupLocation="CenterScreen"
-        ContentRendered="Window_ContentRendered" Closed="Window_Closed" FontSize="14" FontFamily="Calibri" Height="800" ResizeMode="NoResize" SizeToContent="Width">
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Background="LightBlue" WindowStartupLocation="CenterScreen" MaxHeight="1020"
+        ContentRendered="Window_ContentRendered" Closed="Window_Closed" FontSize="14" FontFamily="Calibri" ResizeMode="NoResize" SizeToContent="Width">
     <ScrollViewer>
     <Grid Height="Auto">
         <Grid.RowDefinitions>
@@ -106,8 +106,8 @@
                     <Label Margin="6,-4,-6,-4">Total selected =</Label>
                     <Label Margin="0,-4,0,-4" Content="{Binding Path=SelectedItems.Count, ElementName=listView2}"/>
                 </StackPanel>
-                <Button Grid.Row="1" Height="24" HorizontalAlignment="Left" Margin="160,0,0,0" Name="All" VerticalAlignment="Center" Width="90" FontSize="14" Click="All_Click">Select All</Button>
-                <Button Grid.Row="1" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,160,0" Name="None" Height="24" Width="90" FontSize="14" Click="None_Click">Select None</Button>
+                <Button Grid.Row="1" Height="24" HorizontalAlignment="Left" Margin="160,0,0,0" Name="All" VerticalAlignment="Center" Width="90" FontSize="14" Click="All_Click" IsEnabled="False">Select All</Button>
+                <Button Grid.Row="1" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,160,0" Name="None" Height="24" Width="90" FontSize="14" Click="None_Click" IsEnabled="False">Select None</Button>
             </Grid>
         </GroupBox>
         <GroupBox Grid.Row="3" Header="Channels" BorderBrush="Black" Margin="6,0,6,0" FontSize="14">

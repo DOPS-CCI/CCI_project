@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -9,6 +10,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Documents;
+using System.Windows.Forms;
 using System.Windows.Media;
 using BDFFileStream;
 using CCIUtilities;
@@ -50,6 +52,16 @@ namespace FileConverter
                 if (value == _GVList) return;
                 _GVList = value;
                 NotifyPropertyChanged("GVList");
+                if (_GVList == null || _GVList.Count == 0)
+                {
+                    All.IsEnabled = false;
+                    None.IsEnabled = false;
+                }
+                else
+                {
+                    All.IsEnabled = true;
+                    None.IsEnabled = true;
+                }
             }
         }
 
@@ -57,7 +69,7 @@ namespace FileConverter
         {
             Log.writeToLog("Starting FileConverter " + Utilities.getVersionNumber());
 
-            OpenFileDialog dlg = new OpenFileDialog();
+            Microsoft.Win32.OpenFileDialog dlg = new Microsoft.Win32.OpenFileDialog();
             dlg.Title = "Open Header file for conversion...";
             dlg.DefaultExt = ".hdr"; // Default file extension
             dlg.Filter = "HDR Files (.hdr)|*.hdr"; // Filter files by extension
@@ -76,6 +88,7 @@ namespace FileConverter
 
             InitializeComponent();
 
+            this.MinHeight = SystemInformation.WorkingArea.Height - 240;
             this.Title = "Convert " + System.IO.Path.GetFileNameWithoutExtension(dlg.FileName);
             this.TitleLine.Text = head.Title + " - " + head.Date + " " + head.Time + " S=" + head.Subject.ToString("0000");
 
@@ -84,12 +97,12 @@ namespace FileConverter
             listView1.Focus();
             listView1.ItemsSource = EDEList;
 
-            Binding GVBinding = new Binding();
+            System.Windows.Data.Binding GVBinding = new System.Windows.Data.Binding();
             GVBinding.Source = this;
             GVBinding.NotifyOnSourceUpdated = true;
             GVBinding.Path = new PropertyPath("GVList");
             GVBinding.Mode = BindingMode.OneWay;
-            listView2.SetBinding(ListView.ItemsSourceProperty, GVBinding);
+            listView2.SetBinding(System.Windows.Controls.ListView.ItemsSourceProperty, GVBinding);
             GVList = EDEList[0].GroupVars;
         }
 
@@ -113,12 +126,12 @@ namespace FileConverter
                         if (bdf.channelLabel(i) == ede.channelName) { ede.channel = i; break; }
                 if (ede.channel == -1) //channel name not found
                 {
-                    extChannel.Foreground = Brushes.Red;
+                    extChannel.Foreground = System.Windows.Media.Brushes.Red;
                     extChannel.Text = ede.channelName + "(unknown)";
                 }
                 else
                 {
-                    extChannel.Foreground = Brushes.Black;
+                    extChannel.Foreground = System.Windows.Media.Brushes.Black;
                     extChannel.Text = ede.channelName;
                 }
                 ExtDescription.Text = (ede.location ? "lagging" : "leading") + ", " + (ede.rise ? "rising" : "falling") + " edge:";
@@ -236,12 +249,12 @@ namespace FileConverter
                 _decimation = System.Convert.ToInt32(Decimation.Text);
                 if (_decimation <= 0) throw new Exception();
                 SR.Text = ((float)samplingRate / (float)_decimation).ToString("0.0");
-                Decimation.BorderBrush = Brushes.MediumBlue;
+                Decimation.BorderBrush = System.Windows.Media.Brushes.MediumBlue;
             }
             catch (Exception)
             {
                 _decimation = 0;
-                Decimation.BorderBrush = Brushes.Red;
+                Decimation.BorderBrush = System.Windows.Media.Brushes.Red;
             }
             checkError();
         }
@@ -252,12 +265,12 @@ namespace FileConverter
             try
             {
                 _recOffset = System.Convert.ToDouble(RecOffset.Text);
-                RecOffset.BorderBrush = Brushes.MediumBlue;
+                RecOffset.BorderBrush = System.Windows.Media.Brushes.MediumBlue;
             }
             catch (Exception)
             {
                 _recOffset = double.MinValue;
-                RecOffset.BorderBrush = Brushes.Red;
+                RecOffset.BorderBrush = System.Windows.Media.Brushes.Red;
             }
             checkError();
         }
@@ -269,12 +282,12 @@ namespace FileConverter
             {
                 _recLength = System.Convert.ToDouble(RecLength.Text);
                 if (_recLength <= 0) throw new Exception();
-                RecLength.BorderBrush = Brushes.MediumBlue;
+                RecLength.BorderBrush = System.Windows.Media.Brushes.MediumBlue;
             }
             catch (Exception)
             {
                 _recLength = 0D;
-                RecLength.BorderBrush = Brushes.Red;
+                RecLength.BorderBrush = System.Windows.Media.Brushes.Red;
             }
             checkError();
         }
@@ -286,12 +299,12 @@ namespace FileConverter
             {
                 _radinLow = System.Convert.ToDouble(RadinLow.Text);
                 if (_radinLow < 0D) throw new Exception();
-                RadinLow.BorderBrush = Brushes.MediumBlue;
+                RadinLow.BorderBrush = System.Windows.Media.Brushes.MediumBlue;
             }
             catch
             {
                 _radinLow = -1D;
-                RadinLow.BorderBrush = Brushes.Red;
+                RadinLow.BorderBrush = System.Windows.Media.Brushes.Red;
                 RadinLowPts.Text = "Error";
             }
             checkError();
@@ -304,12 +317,12 @@ namespace FileConverter
             {
                 _radinHigh = System.Convert.ToDouble(RadinHigh.Text);
                 if (_radinHigh <= 0D) throw new Exception();
-                RadinHigh.BorderBrush = Brushes.MediumBlue;
+                RadinHigh.BorderBrush = System.Windows.Media.Brushes.MediumBlue;
             }
             catch
             {
                 _radinHigh = double.MaxValue;
-                RadinHigh.BorderBrush = Brushes.Red;
+                RadinHigh.BorderBrush = System.Windows.Media.Brushes.Red;
                 RadinHighPts.Text = "Error";
             }
             checkError();
@@ -336,7 +349,7 @@ namespace FileConverter
             Radin.IsChecked = false;
             Radin.IsEnabled = false;
             ConvertFM.Visibility = Visibility.Hidden;
-            listView2.SelectionMode = SelectionMode.Single;
+            listView2.SelectionMode = System.Windows.Controls.SelectionMode.Single;
             removeTrends.IsChecked = false;
             removeTrends.IsEnabled = false;
             removeOffsets.IsChecked = false;
@@ -362,7 +375,7 @@ namespace FileConverter
             RecLengthPts.IsEnabled = true;
             Radin.IsEnabled = true;
             ConvertFM.Visibility = Visibility.Visible;
-            listView2.SelectionMode = SelectionMode.Multiple;
+            listView2.SelectionMode = System.Windows.Controls.SelectionMode.Multiple;
             removeOffsets.IsEnabled = true;
             removeTrends.IsEnabled = true;
             None.IsEnabled = true;
@@ -383,16 +396,16 @@ namespace FileConverter
         private void RefChan_TextChanged(object sender, TextChangedEventArgs e)
         {
             if (RefChanName == null) return;
-            string str = ((TextBox)sender).Text;
+            string str = ((System.Windows.Controls.TextBox)sender).Text;
             _refChan = parseList(str);
             if (_refChan == null || _refChan.Count == 0)
             {
-                RefChan.BorderBrush = Brushes.Red;
+                RefChan.BorderBrush = System.Windows.Media.Brushes.Red;
                 RefChanName.Text = "Error";
             }
             else
             {
-                RefChan.BorderBrush = Brushes.MediumBlue;
+                RefChan.BorderBrush = System.Windows.Media.Brushes.MediumBlue;
                 if (_refChan.Count > 1)
                     RefChanName.Text = _refChan.Count.ToString("0") + " channels";
                 else
@@ -422,12 +435,12 @@ namespace FileConverter
             _refChanExp = parseReferenceString(str);
             if (_refChanExp == null || _refChanExp.Count == 0)
             {
-                RefChanExpression.BorderBrush = Brushes.Red;
+                RefChanExpression.BorderBrush = System.Windows.Media.Brushes.Red;
                 RefChanExpDesc.Text = "Error";
             }
             else
             {
-                RefChanExpression.BorderBrush = Brushes.MediumBlue;
+                RefChanExpression.BorderBrush = System.Windows.Media.Brushes.MediumBlue;
                 int lc = _refChanExp.Count / 2;
                 RefChanExpDesc.Text = lc.ToString("0") + " reference set" + (lc <= 1 ? "" : "s");
             }
@@ -437,16 +450,16 @@ namespace FileConverter
         private void SelChan_TextChanged(object sender, TextChangedEventArgs e)
         {
             if (SelChanName == null) return;
-            string str = ((TextBox)sender).Text;
+            string str = ((System.Windows.Controls.TextBox)sender).Text;
             channels = parseList(str);
             if (channels == null || channels.Count == 0)
             {
-                SelChan.BorderBrush = Brushes.Red;
+                SelChan.BorderBrush = System.Windows.Media.Brushes.Red;
                 SelChanName.Text = "Error";
             }
             else
             {
-                SelChan.BorderBrush = Brushes.MediumBlue;
+                SelChan.BorderBrush = System.Windows.Media.Brushes.MediumBlue;
                 if (channels.Count > 1)
                     SelChanName.Text = channels.Count.ToString("0") + " channels";
                 else
@@ -503,7 +516,7 @@ namespace FileConverter
 
         private void Radin_TextChanged(object sender, TextChangedEventArgs e)
         {
-            TextBox tb = (TextBox)sender;
+            System.Windows.Controls.TextBox tb = (System.Windows.Controls.TextBox)sender;
             if (tb == null) return;
             string s = tb.Text;
             try
@@ -654,12 +667,12 @@ namespace FileConverter
             {
                 _extThreshold = Convert.ToDouble(str) / 100D;
                 if (_extThreshold <= 0D) throw new Exception();
-                ExtThreshold.BorderBrush = Brushes.MediumBlue;
+                ExtThreshold.BorderBrush = System.Windows.Media.Brushes.MediumBlue;
             }
             catch
             {
                 _extThreshold = 0D;
-                ExtThreshold.BorderBrush = Brushes.Red;
+                ExtThreshold.BorderBrush = System.Windows.Media.Brushes.Red;
             }
             checkError();
         }
@@ -673,12 +686,12 @@ namespace FileConverter
                 {
                     _extSearch = Convert.ToDouble(str) / 1000D;
                     if (_extSearch <= 0D) throw new Exception();
-                    ExtSearch.BorderBrush = Brushes.MediumBlue;
+                    ExtSearch.BorderBrush = System.Windows.Media.Brushes.MediumBlue;
                 }
                 catch
                 {
                     _extSearch = 0D;
-                    ExtSearch.BorderBrush = Brushes.Red;
+                    ExtSearch.BorderBrush = System.Windows.Media.Brushes.Red;
                 }
             checkError();
         }
