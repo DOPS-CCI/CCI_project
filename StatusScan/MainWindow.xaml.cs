@@ -2,13 +2,16 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Drawing;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Forms;
 using BDFFileStream;
 using EventFile;
 using HeaderFileStream;
 using Microsoft.Win32;
+using CCIUtilities;
 
 namespace StatusScan
 {
@@ -28,63 +31,78 @@ namespace StatusScan
 
         public MainWindow()
         {
-            OpenFileDialog dlg = new OpenFileDialog();
-            dlg.Title = "Open Header or BDF file ...";
-            dlg.DefaultExt = ".hdr"; // Default file extension
-            dlg.Filter = "HDR or BDF file|*.hdr;*.bdf"; // Filter files by extension
-            Nullable<bool> result = dlg.ShowDialog();
-            if (result == false) Environment.Exit(0);
-
-            InitializeComponent();
-            string directory = System.IO.Path.GetDirectoryName(dlg.FileName);
-            string ext = System.IO.Path.GetExtension(dlg.FileName);
-            BDFFileReader bdf;
-            int bits;
-            if (ext == ".bdf")
-            { //need to ask for Status bit count
-                _fileName = System.IO.Path.GetFileNameWithoutExtension(dlg.FileName);
-                Window1 w = new Window1();
-                w.DataContext = this;
-                bool? rs = w.ShowDialog();
-                if (rs == null || !(bool)rs) System.Environment.Exit(0);
-                bits = System.Convert.ToInt32(w.Bits.Text);
-                bdf = new BDFFileReader(new FileStream(dlg.FileName, FileMode.Open, FileAccess.Read));
-                this.textBlock1.Text = "Cannot select Event";
-            }
-            else //get Status bit count from Header file
+            try
             {
-                Header.Header head = (new HeaderFileReader(dlg.OpenFile())).read();
-                bits = head.Status;
-                bdf = new BDFFileReader(
-                    new FileStream(System.IO.Path.Combine(directory, head.BDFFile),
-                        FileMode.Open, FileAccess.Read));
+                Microsoft.Win32.OpenFileDialog dlg = new Microsoft.Win32.OpenFileDialog();
+                dlg.Title = "Open Header or BDF file ...";
+                dlg.DefaultExt = ".hdr"; // Default file extension
+                dlg.Filter = "HDR or BDF file|*.hdr;*.bdf"; // Filter files by extension
+                Nullable<bool> result = dlg.ShowDialog();
+                if (result == false) Environment.Exit(0);
 
-                events = new Dictionary<int,Event.InputEvent>();
-                Event.EventFactory.Instance(head.Events); // set up the factory
-                efr = new EventFileReader(
-                    new FileStream(System.IO.Path.Combine(directory, head.EventFile),
-                        FileMode.Open, FileAccess.Read)); // open Event file
-                foreach (Event.InputEvent ie in efr)// read in all Events into dictionary
-                {
-                    if(!events.ContainsKey(ie.GC)) //quietly skip duplicates
-                        events.Add(ie.GC, ie);
+                Log.writeToLog("Starting StatusScan " + Utilities.getVersionNumber() + " on " + dlg.FileName);
+
+                InitializeComponent();
+
+                this.MaxHeight = SystemInformation.WorkingArea.Height - 240;
+                string directory = System.IO.Path.GetDirectoryName(dlg.FileName);
+                string ext = System.IO.Path.GetExtension(dlg.FileName);
+                BDFFileReader bdf;
+                int bits;
+                if (ext == ".bdf")
+                { //need to ask for Status bit count
+                    _fileName = System.IO.Path.GetFileNameWithoutExtension(dlg.FileName);
+                    Window1 w = new Window1();
+                    w.DataContext = this;
+                    bool? rs = w.ShowDialog();
+                    if (rs == null || !(bool)rs) System.Environment.Exit(0);
+                    bits = System.Convert.ToInt32(w.Bits.Text);
+                    bdf = new BDFFileReader(new FileStream(dlg.FileName, FileMode.Open, FileAccess.Read));
+                    this.textBlock1.Text = "Cannot select Event";
                 }
-                this.textBlock1.Text = "Select Event for more information";
+                else //get Status bit count from Header file
+                {
+                    Header.Header head = (new HeaderFileReader(dlg.OpenFile())).read();
+                    bits = head.Status;
+                    bdf = new BDFFileReader(
+                        new FileStream(System.IO.Path.Combine(directory, head.BDFFile),
+                            FileMode.Open, FileAccess.Read));
+
+                    events = new Dictionary<int, Event.InputEvent>();
+                    Event.EventFactory.Instance(head.Events); // set up the factory
+                    efr = new EventFileReader(
+                        new FileStream(System.IO.Path.Combine(directory, head.EventFile),
+                            FileMode.Open, FileAccess.Read)); // open Event file
+                    foreach (Event.InputEvent ie in efr)// read in all Events into dictionary
+                    {
+                        if (!events.ContainsKey(ie.GC)) //quietly skip duplicates
+                            events.Add(ie.GC, ie);
+                    }
+                    this.textBlock1.Text = "Select Event for more information";
+                }
+
+                mask = (int)((uint)0xFFFFFFFF >> (32 - bits));
+                ef = new EntryFactory(bdf.RecordDuration, bdf.NSamp);
+
+                this.DataContext = this;
+                this.Title = directory;
+                this.Show();
+
+                BackgroundWorker bw = new BackgroundWorker();
+                bw.WorkerReportsProgress = true;
+                bw.WorkerSupportsCancellation = true;
+                bw.DoWork += new DoWorkEventHandler(Execute);
+                bw.ProgressChanged += new ProgressChangedEventHandler(bw_ProgressChanged);
+                bw.RunWorkerAsync(bdf);
             }
-
-            mask=(int)((uint)0xFFFFFFFF >> (32 - bits));
-            ef = new EntryFactory(bdf.RecordDuration, bdf.NSamp);
-
-            this.DataContext = this;
-            this.Title = directory;
-            this.Show();
-
-            BackgroundWorker bw = new BackgroundWorker();
-            bw.WorkerReportsProgress = true;
-            bw.WorkerSupportsCancellation = true;
-            bw.DoWork += new DoWorkEventHandler(Execute);
-            bw.ProgressChanged += new ProgressChangedEventHandler(bw_ProgressChanged);
-            bw.RunWorkerAsync(bdf);
+            catch (Exception e)
+            {
+                string mess = "In StatusScan: " + e.Message;
+                Log.writeToLog("***** ERROR ***** " + mess);
+                ErrorWindow ew = new ErrorWindow();
+                ew.errorMessage.Text = mess;
+                ew.ShowDialog();
+            }
         }
 
         void bw_ProgressChanged(object sender, ProgressChangedEventArgs e)
