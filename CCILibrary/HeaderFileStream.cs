@@ -46,14 +46,26 @@ namespace HeaderFileStream
             try
             {
                 xr.ReadStartElement("ExperimentDescription", nameSpace);
-                header.SoftwareVersion = xr.ReadElementContentAsString("SoftwareVersion", nameSpace);
-                header.Title = xr.ReadElementContentAsString("Title", nameSpace);
-                header.LongDescription = xr.ReadElementContentAsString("LongDescription", nameSpace);
+                xr.ReadStartElement("SoftwareVersion", nameSpace);
+                header.SoftwareVersion = xr.ReadContentAsString();
+                xr.ReadEndElement(/* SoftwareVersion */);
+                xr.ReadStartElement("Title", nameSpace);
+                header.Title = xr.ReadContentAsString();
+                xr.ReadEndElement(/* Title */);
+                xr.ReadStartElement("LongDescription", nameSpace);
+                header.LongDescription = xr.ReadContentAsString();
+                xr.ReadEndElement(/* LongDescription */);
 
                 header.Experimenter = new List<string>();
                 while (xr.Name == "Experimenter")
-                    header.Experimenter.Add(xr.ReadElementContentAsString("Experimenter", nameSpace));
-                header.Status = xr.ReadElementContentAsInt("Status", nameSpace);
+                {
+                    xr.ReadStartElement(/* Experimenter */);
+                    header.Experimenter.Add(xr.ReadContentAsString());
+                    xr.ReadEndElement(/* Experimenter */);
+                }
+                xr.ReadStartElement("Status", nameSpace);
+                header.Status = xr.ReadContentAsInt();
+                xr.ReadEndElement(/* Status */);
 
                 if (xr.Name == "Other")
                 {
@@ -61,8 +73,10 @@ namespace HeaderFileStream
                     do
                     {
                         string name = xr["Name"];
-                        string value = xr.ReadElementContentAsString();
+                        xr.ReadStartElement(/* Other */);
+                        string value = xr.ReadContentAsString();
                         header.OtherExperimentInfo.Add(name, value);
+                        xr.ReadEndElement(/* Other */);
                     } while (xr.Name == "Other");
                 }
 
@@ -72,20 +86,27 @@ namespace HeaderFileStream
                     do {
                         xr.ReadStartElement(/* GroupVar */);
                         GroupVarDictionary.GVEntry gve = new GVEntry();
-                        string name = xr.ReadElementContentAsString("Name", nameSpace);
+                        xr.ReadStartElement("Name", nameSpace);
+                        string name = xr.ReadContentAsString();
                         if (name.Length > 24)
                             throw new Exception("name too long for GV " + name);
-                        gve.Description = xr.ReadElementContentAsString("Description", nameSpace);
+                        xr.ReadEndElement(/* Name */);
+                        xr.ReadStartElement("Description", nameSpace);
+                        gve.Description = xr.ReadContentAsString();
+                        xr.ReadEndElement(/* Description */);
                         if (xr.Name == "GV")
                         {
                             gve.GVValueDictionary = new Dictionary<string, int>();
                             do
                             {
-                                int val = Convert.ToInt32(xr.ReadElementContentAsString());
+                                string key = xr["Desc", nameSpace];
+                                xr.ReadStartElement(/* GV */);
+                                int val = xr.ReadContentAsInt();
                                 if (val > 0)
-                                    gve.GVValueDictionary.Add(xr["Desc", nameSpace], val);
+                                    gve.GVValueDictionary.Add(key, val);
                                 else
                                     throw new Exception("invalid value for GV "+ name);
+                                xr.ReadEndElement(/* GV */);
                             }
                             while (xr.Name == "GV");
                         }
@@ -100,7 +121,7 @@ namespace HeaderFileStream
                     do {
                         EventDictionaryEntry ede = new EventDictionaryEntry();
                         ede.intrinsic = (xr.MoveToAttribute("Type") ? (xr.ReadContentAsString() != "extrinsic") : true); //intrinsic by default
-                        xr.ReadStartElement();
+                        xr.ReadStartElement(/* Event */);
                         string name = xr.ReadElementContentAsString("Name", nameSpace);
                         ede.Description = xr.ReadElementContentAsString("Description", nameSpace);
                         if (!ede.intrinsic)

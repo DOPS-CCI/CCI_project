@@ -53,14 +53,20 @@ namespace EventFile
             try
             {
                 InputEvent ev = EventFactory.Instance().CreateInputEvent(xr["Name", nameSpace]);
-                xr.ReadStartElement(/* Event */);
-                ev.Index = xr.ReadElementContentAsInt("Index", nameSpace);
-                ev.GC = xr.ReadElementContentAsInt("GrayCode", nameSpace);
-                string t = xr.ReadElementContentAsString("Time", nameSpace);
+                xr.ReadStartElement("Event");
+                xr.ReadStartElement("Index", nameSpace);
+                ev.Index = xr.ReadContentAsInt();
+                xr.ReadEndElement(/* Index */);
+                xr.ReadStartElement("GrayCode", nameSpace);
+                ev.GC = xr.ReadContentAsInt();
+                xr.ReadEndElement(/* GrayCode */);
+                xr.ReadStartElement("Time", nameSpace);
+                string t = xr.ReadContentAsString();
                 if (t.Contains(".")) //new style
                     ev.Time = System.Convert.ToDouble(t);
                 else //old style
                     ev.Time = System.Convert.ToDouble(t.Substring(0, 11) + "." + t.Substring(11));
+                xr.ReadEndElement(/* Time */);
                 bool isEmpty = xr.IsEmptyElement; // Use this to handle <GroupVars /> construct
                 xr.ReadStartElement("GroupVars", nameSpace);
                 if (!isEmpty)
@@ -69,26 +75,31 @@ namespace EventFile
                     while (xr.Name == "GV")
                     {
                         string GVName = xr["Name", nameSpace];
+                        xr.ReadStartElement(/* GV */);
                         if (ev.GetGVName(j) != GVName)
-                            throw new Exception("Event GV does not match definition: " + GVName);
-                        ev.GVValue[j] = xr.ReadElementContentAsString("GV", nameSpace);
+                            throw new Exception("GV named " + GVName + " does not match Event " + ev.Name + " definition");
+                        ev.GVValue[j] = xr.ReadContentAsString();
                         j++;
+                        xr.ReadEndElement(/* GV */);
                     }
                     xr.ReadEndElement(/* GroupVars */);
                 }
                 if (xr.Name == "Ancillary")
-                { //do it this way to assure correct number of bytes
-                    byte[] anc = Convert.FromBase64String(xr.ReadElementContentAsString());
+                {
+                    xr.ReadStartElement(/* Ancillary */);
+                    //do it this way to assure correct number of bytes
+                    byte[] anc = Convert.FromBase64String(xr.ReadContentAsString());
                     if (anc.Length != ev.ancillary.Length)
-                        throw new Exception("Ancillary data size mismatch");
+                        throw new Exception("Ancillary data size mismatch in Event " + ev.Name);
                     for (int i = 0; i < ev.ancillary.Length; i++) ev.ancillary[i] = anc[i];
+                    xr.ReadEndElement(/* Ancillary */);
                 }
                 else if (ev.ancillary != null && ev.ancillary.Length > 0)
-                    throw new Exception("No ancillary data in Event record " + ev.Name);
+                    throw new Exception("Ancillary data expected in Event " + ev.Name);
                 xr.ReadEndElement(/* Event */);
                 return ev;
             }
-            catch (XmlException e)
+            catch (Exception e)
             {
                 throw new Exception("InputEvent.readEvent: Error processing " + xr.NodeType.ToString() +
                     " named " + xr.Name + ": " + e.Message);
