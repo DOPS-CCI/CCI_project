@@ -17,7 +17,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
-using BDFFileStream;
+using CCILibrary;
 using ElectrodeFileStream;
 using Event;
 using EventFile;
@@ -48,12 +48,13 @@ namespace CreateBDFFile
 
             parameters.fileName = di.FullName + Path.DirectorySeparatorChar + parameters.fileName;
 
-            /* ***** Create new BDF file ***** */
-            BDFFileWriter file = new BDFFileWriter(
-                File.Open(parameters.fileName + ".bdf", FileMode.Create, FileAccess.ReadWrite),
+            /* ***** Create new BDF/EDF file ***** */
+            BDFEDFFileWriter file = new BDFEDFFileWriter(
+                File.Open(parameters.fileName + (parameters.BDFFormat ? ".bdf" : ".edf"), FileMode.Create, FileAccess.ReadWrite),
                 parameters.nChan + 1, // add one to include Status
                 parameters.recordDuration,
-                parameters.samplingRate);
+                parameters.samplingRate,
+                parameters.BDFFormat);
 
             file.LocalRecordingId = parameters.LocalRecordingId;
             file.LocalSubjectId = parameters.LocalSubjectId;
@@ -324,6 +325,7 @@ namespace CreateBDFFile
         internal int dMin;
         internal int dMax;
         internal int nBits;
+        internal bool BDFFormat = true;
         internal int totalFileLength;
         internal List<Event> eventList;
         internal string directoryPath { get; set; }
@@ -410,7 +412,7 @@ namespace CreateBDFFile
                     {
                         signal += s.parameters[0] * Math.Exp(-s.time * s.parameters[1]) *
                             Math.Sin(2D * Math.PI * (s.time * s.parameters[2] + s.parameters[3] / 360D));
-                        if (s.time * s.parameters[1] > 10D) removeSignals.Add(s); // stop criteria
+                        if (s.time * s.parameters[1] > 10D + Math.Log(s.parameters[0])) removeSignals.Add(s); // stop criteria
                     }
                 }
                 else if (sType == SignalType.Impulse)

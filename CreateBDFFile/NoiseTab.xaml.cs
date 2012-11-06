@@ -93,7 +93,7 @@ namespace CreateBDFFile
                 v = p.pinkRND();
             }
             else v = Utilities.UniformRND();
-            return Utilities.ApplyCR(v, CCoef, channel);
+            return Coef * Utilities.ApplyCR(v, CCoef, channel);
         }
 
         private void Radio_Click(object sender, RoutedEventArgs e)

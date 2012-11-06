@@ -272,7 +272,7 @@ namespace CreateBDFFile
             if (estimatedLength == null) return;
             long size = (((long)parameters.nChan + 1) * (long)parameters.samplingRate *
                 (long)(Math.Ceiling((double)parameters.totalFileLength / parameters.recordDuration) *
-                (long)parameters.recordDuration) * 3 + ((long)parameters.nChan + 2) * 256) / 1024;
+                (long)parameters.recordDuration) * (parameters.BDFFormat ? 3 : 2) + ((long)parameters.nChan + 2) * 256) / 1024;
             estimatedLength.Inlines.Clear();
             estimatedLength.Inlines.Add(new Bold(new Run(size.ToString("G") + "kB")));
         }
@@ -484,6 +484,13 @@ namespace CreateBDFFile
                 }
             }
             LogError(nBitsTB);
+        }
+
+        private void format_Checked(object sender, RoutedEventArgs e)
+        {
+            parameters.BDFFormat = (bool)BDFFormat.IsChecked;
+            calculateFileSize();
+            return;
         }
     }
 }

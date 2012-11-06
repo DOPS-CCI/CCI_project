@@ -3,14 +3,26 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     FontSize="14">
     <TabItem.Header>
-        <StackPanel Orientation="Horizontal">
-            <TextBlock Margin="0,0,4,0" VerticalAlignment="Center" Text="{Binding ElementName=name,Path=Text}" />
-            <Button Name="XButton"  Margin="0,-3,-12,0" Height="12" VerticalAlignment="top" Click="XButton_Click">
-                <TextBlock FontSize="8" Margin="-1" VerticalAlignment="Center">
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition/>
+                <ColumnDefinition/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" Margin="1" VerticalAlignment="Center" Text="{Binding ElementName=name,Path=Text}" />
+            <Button Grid.Column="1" Name="XButton"  Margin="0" Height="12" VerticalAlignment="top" Click="XButton_Click" HorizontalAlignment="Right">
+                <TextBlock FontSize="8" Margin="0" VerticalAlignment="Center">
                     <Bold>X</Bold>
                 </TextBlock>
             </Button>
-        </StackPanel>
+        </Grid>
+<!--        <StackPanel Orientation="Horizontal">
+            <TextBlock Margin="0,0,2,0" VerticalAlignment="Center" Text="{Binding ElementName=name,Path=Text}" />
+            <Button Name="XButton"  Margin="1" Height="12" VerticalAlignment="top" Click="XButton_Click" HorizontalAlignment="Right">
+                <TextBlock FontSize="8" Margin="0" VerticalAlignment="Center">
+                    <Bold>X</Bold>
+                </TextBlock>
+            </Button>
+        </StackPanel> -->
     </TabItem.Header>
     <TabItem.Content>
         <Grid>
@@ -70,7 +82,7 @@
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Column="0" HorizontalAlignment="Right" Margin="2">Min(sec):</TextBlock>
                                 <TextBox Name="UMin" Grid.Column="1" TextChanged="UMin_TextChanged">0.0</TextBox>
-                                <TextBlock Grid.Column="2" HorizontalAlignment="Right">Max(sec):</TextBlock>
+                                <TextBlock Grid.Column="2" HorizontalAlignment="Right" Margin="2">Max(sec):</TextBlock>
                                 <TextBox Name="UMax" Grid.Column="3" TextChanged="UMax_TextChanged">1.0</TextBox>
                             </Grid>
                         </Grid>

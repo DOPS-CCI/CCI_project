@@ -72,7 +72,7 @@ namespace CreateBDFFile
             }
         }
 
-        Polynominal p;
+        Polynominal p = new Polynominal("v", 'v');
 //        double a = 0D;
 //        double b = 1D;
         private void Map_TextChanged(object sender, TextChangedEventArgs e)

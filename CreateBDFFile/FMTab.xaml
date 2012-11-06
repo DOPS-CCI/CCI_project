@@ -14,7 +14,7 @@
     <TabItem.Header>
         <StackPanel Orientation="Horizontal">
             <TextBlock Margin="0,0,4,0" VerticalAlignment="Center">FM</TextBlock>
-            <Button Margin="0,-3,-12,0" Height="12" VerticalAlignment="top" Click="XButton_Click">
+            <Button Margin="0,-3,-6,0" Height="12" VerticalAlignment="top" Click="XButton_Click">
                 <TextBlock FontSize="8" Margin="-1" VerticalAlignment="Center">
                     <Bold>X</Bold>
                 </TextBlock>
