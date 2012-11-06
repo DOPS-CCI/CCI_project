@@ -225,7 +225,7 @@
             </Grid.ColumnDefinitions>
             <CheckBox Grid.Column="0" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="8,4,0,4" Name="ancillarydata" Width="245.788" IsEnabled="True" VerticalContentAlignment="Center" Visibility="Hidden" FontSize="14">Include ancillary data</CheckBox>
             <StackPanel Grid.Column="1" Orientation="Horizontal" Grid.ColumnSpan="2">
-                <Button VerticalAlignment="Center" Margin="8,4,8,4" Height="24" Name="Cancel" Width="80" FontSize="14" Click="Cancel_Click">Cancel</Button>
+                <Button VerticalAlignment="Center" Margin="8,4,8,4" Height="24" Name="Cancel" Width="80" FontSize="14" Click="Cancel_Click">Exit</Button>
                 <Button VerticalAlignment="Center" Margin="8,4,8,4" Height="24" Name="ConvertFM" Width="120" FontSize="14" Click="ConvertFM_Click">Convert to FM</Button>
                 <Button VerticalAlignment="Center" Margin="8,4,8,4" Height="24" Name="ConvertBDF" Width="120" FontSize="14" Click="ConvertBDF_Click">Convert to BDF</Button>
             </StackPanel>

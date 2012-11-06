@@ -73,6 +73,12 @@
     <AssemblyOriginatorKeyFile>
     </AssemblyOriginatorKeyFile>
   </PropertyGroup>
+  <PropertyGroup>
+    <TargetZone>LocalIntranet</TargetZone>
+  </PropertyGroup>
+  <PropertyGroup>
+    <ApplicationManifest>Properties\app.manifest</ApplicationManifest>
+  </PropertyGroup>
   <ItemGroup>
     <Reference Include="CCILibrary">
       <HintPath>..\CCILibrary\bin\Debug\CCILibrary.dll</HintPath>
@@ -127,6 +133,7 @@
     </Compile>
     <None Include="FileConverter_1_TemporaryKey.pfx" />
     <AppDesigner Include="Properties\" />
+    <None Include="Properties\app.manifest" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
