@@ -1,7 +1,7 @@
 ﻿<Window x:Class="ASCtoFMConverter.Window2"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" ResizeMode="NoResize" Background="LightBlue" WindowStartupLocation="CenterScreen"
-        ContentRendered="Window_ContentRendered" Closed="Window_Closed" FontSize="14" MaxHeight="1000">
+        ContentRendered="Window_ContentRendered" Closed="Window_Closed" FontSize="14" MaxHeight="1000" SizeToContent="Width">
     <ScrollViewer>
     <Grid>
         <Grid.RowDefinitions>
@@ -155,7 +155,7 @@
         </GroupBox>
         <StackPanel Grid.Row="6" Grid.Column="1" Orientation="Horizontal" Grid.ColumnSpan="2" FlowDirection="RightToLeft">
                 <Button VerticalAlignment="Center" Margin="12,4,8,4" Height="24" Name="ConvertFM" Width="80" FontSize="14" Click="ConvertFM_Click">Convert</Button>
-                <Button VerticalAlignment="Center" Margin="8,4,8,4" Height="24" Name="Done" Width="80" FontSize="14" Click="Done_Click">Done</Button>
+                <Button VerticalAlignment="Center" Margin="8,4,8,4" Height="24" Name="Done" Width="80" FontSize="14" Click="Done_Click">Exit</Button>
                 <Button VerticalAlignment="Center" Margin="8,4,8,4" Height="24" Name="Cancel" Width="80" FontSize="14" Click="Cancel_Click" Visibility="Hidden">Cancel</Button>
         </StackPanel>
         <Grid Grid.Row="7">
