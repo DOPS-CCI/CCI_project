@@ -122,12 +122,20 @@ namespace HeaderFileStream
                         EventDictionaryEntry ede = new EventDictionaryEntry();
                         ede.intrinsic = (xr.MoveToAttribute("Type") ? (xr.ReadContentAsString() != "extrinsic") : true); //intrinsic by default
                         xr.ReadStartElement(/* Event */);
-                        string name = xr.ReadElementContentAsString("Name", nameSpace);
-                        ede.Description = xr.ReadElementContentAsString("Description", nameSpace);
+                        xr.ReadStartElement("Name", nameSpace);
+                        string name = xr.ReadContentAsString();
+                        xr.ReadEndElement(/* Event */);
+                        xr.ReadStartElement("Description", nameSpace);
+                        ede.Description = xr.ReadContentAsString();
+                        xr.ReadEndElement(/* Description */);
                         if (!ede.intrinsic)
                         {
-                            ede.channelName = xr.ReadElementContentAsString("Channel", nameSpace);
-                            ede.rise = xr.ReadElementContentAsString("Edge", nameSpace) == "rising";
+                            xr.ReadStartElement("Channel", nameSpace);
+                            ede.channelName = xr.ReadContentAsString();
+                            xr.ReadEndElement(/* Channel */);
+                            xr.ReadStartElement("Edge", nameSpace);
+                            ede.rise = xr.ReadContentAsString() == "rising";
+                            xr.ReadEndElement(/* Edge */);
                             ede.location = (xr.Name == "Location" ? (xr.ReadElementContentAsString() == "after") : false); //leads by default
                             ede.channelMax = xr.Name == "Max" ? xr.ReadElementContentAsDouble() : 0D; //zero by default
                             ede.channelMin = xr.Name == "Min" ? xr.ReadElementContentAsDouble() : 0D; //zero by default
@@ -135,17 +143,24 @@ namespace HeaderFileStream
                                 throw new Exception("invalid max/min signal values in extrinsic Event " + name);
                             //Note: Max and Min are optional; if neither is specified, 0.0 will always be used as threshold
                         }
-                        if (xr.Name == "Ancillary") ede.ancillarySize = xr.ReadElementContentAsInt();
+                        if (xr.Name == "Ancillary")
+                        {
+                            xr.ReadStartElement(/* Ancillary */);
+                            ede.ancillarySize = xr.ReadContentAsInt();
+                            xr.ReadEndElement(/* Ancillary */);
+                        }
                         if (xr.Name == "GroupVar")
                         {
                             ede.GroupVars = new List<GVEntry>();
                             do {
                                 string gvName = xr["Name", nameSpace];
+                                bool isEmpty = xr.IsEmptyElement;
+                                xr.ReadStartElement(/* GroupVar */);
                                 GVEntry gve;
                                 if (header.GroupVars.TryGetValue(gvName, out gve))
                                     ede.GroupVars.Add(gve);
                                 else throw new Exception("invalid GroupVar " + gvName + " in Event " + name);
-                                xr.ReadElementContentAsString();
+                                if(!isEmpty) xr.ReadEndElement(/* GroupVar */);
                             } while (xr.Name == "GroupVar");
                         }
                         header.Events.Add(name, ede);
@@ -154,30 +169,54 @@ namespace HeaderFileStream
                 }
                 xr.ReadEndElement(/* ExperimentDescription */);
                 xr.ReadStartElement("SessionDescription", nameSpace);
-                header.Date = xr.ReadElementContentAsString("Date", nameSpace);
-                header.Time = xr.ReadElementContentAsString("Time", nameSpace);
-                header.Subject = xr.ReadElementContentAsInt("Subject", nameSpace);
+                xr.ReadStartElement("Date", nameSpace);
+                header.Date = xr.ReadContentAsString();
+                xr.ReadEndElement(/* Date */);
+                xr.ReadStartElement("Time", nameSpace);
+                header.Time = xr.ReadContentAsString();
+                xr.ReadEndElement(/* Time */);
+                xr.ReadStartElement("Subject", nameSpace);
+                header.Subject = xr.ReadContentAsInt();
+                xr.ReadEndElement(/* Subject */);
                 if (xr.Name == "Agent")
-                    header.Agent = xr.ReadElementContentAsInt();
-
+                {
+                    xr.ReadStartElement(/* Agent */);
+                    header.Agent = xr.ReadContentAsInt();
+                    xr.ReadEndElement(/* Agent */);
+                }
                 header.Technician = new List<string>();
                 while (xr.Name == "Technician")
-                    header.Technician.Add(xr.ReadElementContentAsString("Technician", nameSpace));
-
+                {
+                    xr.ReadStartElement(/* Technician */);
+                    header.Technician.Add(xr.ReadContentAsString());
+                    xr.ReadEndElement(/* Technician */);
+                }
                 if (xr.Name == "Other") {
                     header.OtherSessionInfo = new Dictionary<string, string>();
                     do
                     {
                         string name = xr["Name"];
-                        string value = xr.ReadElementContentAsString();
+                        xr.ReadStartElement(/* Other */);
+                        string value = xr.ReadContentAsString();
+                        xr.ReadEndElement(/* Other */);
                         header.OtherSessionInfo.Add(name, value);
                     } while (xr.Name == "Other");
                 }
-                header.BDFFile = xr.ReadElementContentAsString("BDFFile", nameSpace);
-                header.EventFile = xr.ReadElementContentAsString("EventFile", nameSpace);
-                header.ElectrodeFile = xr.ReadElementContentAsString("ElectrodeFile", nameSpace);
+                xr.ReadStartElement("BDFFile", nameSpace);
+                header.BDFFile = xr.ReadContentAsString();
+                xr.ReadEndElement(/* BDFFile */);
+                xr.ReadStartElement("EventFile", nameSpace);
+                header.EventFile = xr.ReadContentAsString();
+                xr.ReadEndElement(/* EventFile */);
+                xr.ReadStartElement("ElectrodeFile", nameSpace);
+                header.ElectrodeFile = xr.ReadContentAsString();
+                xr.ReadEndElement(/* ElectrodeFile */);
                 if (xr.Name == "Comment")
-                    header.Comment = xr.ReadElementContentAsString("Comment", nameSpace); //Optional comment
+                {
+                    xr.ReadStartElement(/* Comment */);
+                    header.Comment = xr.ReadContentAsString(); //Optional comment
+                    xr.ReadEndElement(/* Comment */);
+                }
                 xr.ReadEndElement(/* SessionDescription */);
                 return header;
             }
