@@ -42,7 +42,7 @@ namespace CCILibrary
             }
         }
 
-        public BDFPoint(BDFFileReader bdf)
+        public BDFPoint(BDFEDFFileReader bdf)
         {
             _rec = 0;
             _pt = 0;
@@ -81,14 +81,31 @@ namespace CCILibrary
 
         public static BDFPoint operator ++(BDFPoint pt)
         {
-            pt.Pt++;
+            if (++pt._pt >= pt._recSize)
+            {
+                pt._pt = 0;
+                pt._rec++;
+            }
             return pt;
         }
 
         public static BDFPoint operator --(BDFPoint pt)
         {
-            pt.Pt--;
+            if (--pt._pt < 0)
+            {
+                pt._pt = pt._recSize - 1;
+                pt._rec--;
+            }
             return pt;
+        }
+
+        public void Increment(int p)
+        {
+            Pt = _pt + p;
+        }
+        public void Decrement(int p)
+        {
+            Pt = _pt - p;
         }
 
         public bool lessThan(BDFPoint pt)
@@ -115,7 +132,15 @@ namespace CCILibrary
         {
             double f = Math.Floor(seconds / _sec);
             _rec = (int)f;
-            _pt = Convert.ToInt32((seconds - f * _sec) * (double)_recSize / _sec);
+            _pt = Convert.ToInt32(Math.Floor((seconds - f * _sec) * (double)_recSize / _sec));
+        }
+
+        public long distanceInPts(BDFPoint p)
+        {
+            if (_recSize != p._recSize) throw new Exception("BDFPoint.distanceInPts: record sizes not equal");
+            long d = (_rec - p._rec) * _recSize;
+            d += _pt - p._pt;
+            return d < 0 ? -d : d;
         }
 
         public override string ToString()

@@ -140,6 +140,14 @@ namespace CCILibrary
         /// </summary>
         public int NSamp{ get { return header.numberSamples[0]; } }
 
+        public int ChannelNumberFromLabel(string name)
+        {
+            if(header._isValid)
+                for (int i = 0; i < header.numberChannels; i++)
+                    if (header.channelLabels[i] == name) return i;
+            return -1;
+        }
+
         /// <summary>
         /// BDF/EDF header information
         /// </summary>
