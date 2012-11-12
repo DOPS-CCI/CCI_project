@@ -7,14 +7,16 @@
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
-        <Line Name="MidLine" Grid.Row="0" X1="0" X2="0" Y1="0" Y2="0" VerticalAlignment="top" Panel.ZIndex="1" Stroke="Black" IsHitTestVisible="False" />
-        <Line Name="IndexLine" Grid.Row="0" X1="0" X2="0" Y1="0" Y2="0" Panel.ZIndex="1" HorizontalAlignment="Left" VerticalAlignment="Stretch" IsHitTestVisible="False" Stroke="Black" />
+        <Line Name="IndexLine" Grid.Row="0" X1="0" X2="0" Y1="0" Y2="0" Panel.ZIndex="1" HorizontalAlignment="Left" VerticalAlignment="Stretch" IsHitTestVisible="False"
+              Stroke="Red" StrokeDashArray="2" />
         <ScrollViewer Name="Viewer" Grid.Row="0" VerticalScrollBarVisibility="Visible" HorizontalScrollBarVisibility="Visible"
-                      SizeChanged="ScrollViewer_SizeChanged" ScrollChanged="Viewer_ScrollChanged" MouseUp="Viewer_MouseUp" MouseMove="Viewer_MouseMove" MouseLeave="Viewer_MouseLeave" PreviewMouseDown="Viewer_MouseDown">
-            <Line X1="0" X2="20000" Y1="0" Y2="220" Stroke="Red" IsHitTestVisible="False" />
+                      SizeChanged="ScrollViewer_SizeChanged" ScrollChanged="Viewer_ScrollChanged" MouseUp="Viewer_MouseUp" MouseMove="Viewer_MouseMove" PreviewMouseDown="Viewer_MouseDown">
+            <StackPanel Name="GraphCanvas" Orientation="Vertical" VerticalAlignment="Top" HorizontalAlignment="Left" />
         </ScrollViewer>
         <WrapPanel Name="InfoPanel" Grid.Row="1" Height="80" VerticalAlignment="Bottom" Orientation="Vertical">
             <TextBlock Name="Loc" Margin="5" FontSize="14">0</TextBlock>
+            <Button Click="Button_Click">10</Button>
+            <Button Click="Button_Click">0.1</Button>
         </WrapPanel>
     </Grid>
 </Window>
