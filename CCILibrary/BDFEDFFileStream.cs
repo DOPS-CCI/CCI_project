@@ -310,6 +310,22 @@ namespace CCILibrary
             return (double)record.channelData[channel][point.Pt] * header.Gain(channel) + header.Offset(channel);
         }
 
+        public int getStatusSample(BDFPoint point)
+        {
+            int channel = header.numberChannels - 1;
+            if (point.Pt < 0 || point.Pt >= header.numberSamples[channel]) throw new BDFEDFException("Invalid sample number (" + point.Pt + ")");
+            if (point.Rec != record.currentRecordNumber) //need to read in new record
+            {
+                if (!reader.BaseStream.CanSeek) throw new IOException("File stream not able to perform Seek.");
+                if ((header.isValid && point.Rec >= header.numberOfRecords) || point.Rec < 0) return int.MinValue; //read beyond EOF
+                long pos = (long)header.headerSize + (long)point.Rec * (long)record.recordLength; //these files get BIG!!
+                reader.BaseStream.Seek(pos, SeekOrigin.Begin);
+                record.currentRecordNumber = point.Rec - 1; //one less as read() increments it
+                read();
+            }
+            return record.channelData[channel][point.Pt];
+        }
+
         /// <summary>
         /// Calculates the time of start of file (record 0, point 0) based on the InputEvent.
         /// After this, value may be accessed via property <code>zeroTime</code>
