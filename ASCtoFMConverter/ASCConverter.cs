@@ -9,9 +9,8 @@ using EventFile;
 using EventDictionary;
 using FILMANFileStream;
 using GroupVarDictionary;
-using BDFFileStream;
-using CCIUtilities;
 using CCILibrary;
+using CCIUtilities;
 using SplineRegression;
 using Microsoft.Win32;
 
@@ -32,7 +31,7 @@ namespace ASCtoFMConverter
         public List<int> channels;
         public List<List<int>> referenceGroups = null;
         public List<List<int>> referenceChannels = null;
-        public BDFFileReader bdf;
+        public BDFEDFFileReader bdf;
         public List<GVEntry> GV;
         public double FMRecLength;
         public int samplingRate;
@@ -74,7 +73,7 @@ namespace ASCtoFMConverter
 
             FMStream = new FILMANOutputStream(
                 File.Open(dlg.FileName, FileMode.Create, FileAccess.ReadWrite),
-                GV.Count + 5, 0, channels.Count,
+                GV.Count + 6, 0, channels.Count,
                 newRecordLength,
                 FILMANFileStream.FILMANFileStream.Format.Real);
             log = new LogFile(dlg.FileName + ".log.xml");
@@ -88,7 +87,8 @@ namespace ASCtoFMConverter
             FMStream.GVNames(2, "NewGroupVariable");
             FMStream.GVNames(3, "EpisodeNumber");
             FMStream.GVNames(4, "EpisodeRecordNumber");
-            int j = 5;
+            FMStream.GVNames(5, "SecondsFromStart");
+            int j = 6;
             foreach (GVEntry gv in GV) FMStream.GVNames(j++, gv.Name); //generate group variable names
 
             for (j = 0; j < FMStream.NC; j++) //generate channel labels
@@ -247,7 +247,7 @@ namespace ASCtoFMConverter
 
                         /***** Get group variables for this record *****/
                         FMStream.record.GV[3] = epiNo;
-                        int GrVar = 5; //Load up group variables, based on the start Event
+                        int GrVar = 6; //Load up group variables, based on the start Event
                         foreach (GVEntry gve in GV)
                         {
                             j = startEvent.GetIntValueForGVName(gve.Name);
@@ -257,7 +257,8 @@ namespace ASCtoFMConverter
                         /***** Process each FILMAN record *****/
                         for (int rec = 1; rec <= numberOfFMRecs; rec++)
                         {
-                            FMStream.record.GV[4] = rec;
+                            FMStream.record.GV[4] = rec; //Record number in this episode
+                            FMStream.record.GV[5] = Convert.ToInt32(Math.Ceiling(startBDFPoint.ToSecs())); //Approximate seconds since start of BDF file
                             endBDFPoint += BDFRecordLength;
                             createFILMANRecord(startBDFPoint, endBDFPoint, startEvent);
                             startBDFPoint = endBDFPoint;

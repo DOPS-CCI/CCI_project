@@ -12,7 +12,7 @@ using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Forms;
 using System.Windows.Media;
-using BDFFileStream;
+using CCILibrary;
 using EventDictionary;
 using GroupVarDictionary;
 using HeaderFileStream;
@@ -27,7 +27,7 @@ namespace ASCtoFMConverter
     {
         Header.Header head;
         EventDictionary.EventDictionary ED;
-        BDFFileReader bdf;
+        BDFEDFFileReader bdf;
         List<GVEntry> _GVList;
         string directory;
         int samplingRate;
@@ -75,7 +75,7 @@ namespace ASCtoFMConverter
             head = (new HeaderFileReader(dlg.OpenFile())).read();
             ED = head.Events;
 
-            bdf = new BDFFileReader(
+            bdf = new BDFEDFFileReader(
                 new FileStream(System.IO.Path.Combine(directory, head.BDFFile),
                     FileMode.Open, FileAccess.Read));
             samplingRate = bdf.NSamp / bdf.RecordDuration;
