@@ -15,7 +15,26 @@ namespace Header
         public List<string> Experimenter { get; set; }
         public GroupVarDictionary.GroupVarDictionary GroupVars { get; set; }
         public EventDictionary.EventDictionary Events { get; set; }
-        public int Status { get; set; }
+        int _status;
+        uint _mask = 0;
+        public int Status
+        {
+            get
+            {
+                return _status;
+            }
+            set
+            {
+                if (value < 2 || value > 24)
+                    throw new Exception("Header: Invalid Status value of " + value.ToString("0"));
+                _status = value;
+                _mask = 0xFFFFFFFF >> (32 - _status);
+            }
+        }
+        public uint Mask
+        {
+            get { return _mask; }
+        }
         public string Date { get; set; }
         public string Time { get; set; }
         public int Subject { get; set; }
