@@ -59,11 +59,13 @@ namespace StatusScan
                     bits = System.Convert.ToInt32(w.Bits.Text);
                     bdf = new BDFFileReader(new FileStream(dlg.FileName, FileMode.Open, FileAccess.Read));
                     this.textBlock1.Text = "Cannot select Event";
+                    mask = (int)((uint)0xFFFFFFFF >> (32 - bits));
                 }
                 else //get Status bit count from Header file
                 {
                     Header.Header head = (new HeaderFileReader(dlg.OpenFile())).read();
                     bits = head.Status;
+                    mask = (int)head.Mask;
                     bdf = new BDFFileReader(
                         new FileStream(System.IO.Path.Combine(directory, head.BDFFile),
                             FileMode.Open, FileAccess.Read));
@@ -81,7 +83,6 @@ namespace StatusScan
                     this.textBlock1.Text = "Select Event for more information";
                 }
 
-                mask = (int)((uint)0xFFFFFFFF >> (32 - bits));
                 ef = new EntryFactory(bdf.RecordDuration, bdf.NSamp);
 
                 this.DataContext = this;
