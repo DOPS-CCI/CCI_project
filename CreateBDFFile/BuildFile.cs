@@ -116,9 +116,9 @@ namespace CreateBDFFile
             {
                 for (int p = 0; p < nPts; p++)
                 {
-                    foreach (Event evt in parameters.eventList)
+                    foreach (Event evt in parameters.eventList) //loop through each Event definition
                     {
-                        if (evt.IsNow(T)) // are there events occuring at this tick?
+                        if (evt.IsNow(T)) // is next occurence of Event at this tick?
                         {
                             lastN = (lastN % ((1 << parameters.nBits) - 2)) + 1; // get next index value
                             OutputEvent oe = new OutputEvent(evt.EDEntry, dt.AddSeconds(T), lastN);
@@ -133,7 +133,7 @@ namespace CreateBDFFile
                         }
                     }
 
-                    statusChannel[p] = lastG;
+                    statusChannel[p] = lastG; //Status channel
                     double eventcontribution = calculateEventSignal(parameters);
                     for (int chan = 1; chan <= parameters.nChan; chan++)
                     {
@@ -343,31 +343,36 @@ namespace CreateBDFFile
         }
     }
 
-    internal class Event
+    internal class Event //Encapsulates information for each Event type and
+        //maintains list of signals currently contributing to calculation
+        //of output values
     {
-        internal EventDictionaryEntry EDEntry;
-        internal OccType oType;
-        internal double oP1;
+        internal EventDictionaryEntry EDEntry; //Link to definition in Header
+        internal OccType oType; //Occurence type: periodic, uniform, gaussian
+        internal double oP1; //Parameters for calculating next occurence
         internal double oP2;
-        internal SignalType sType;
-        internal double sP1;
+        internal SignalType sType; //Attached signal type
+        internal double sP1; //Parameters for calculating attached signal
         internal double sP2;
         internal double sP3;
         internal double sP4;
-        internal double nextTime;
-        internal int[] gvValues;
-        internal List<GV> GVs;
-        internal List<SignalPs> times = new List<SignalPs>(); //list of times this Event occured, including one future event;
-        //the list gets shortened eventually as the associated signals become insignificant
+        internal double nextTime; //Next time this Event is to occur
+        internal int[] gvValues; //GV values to be assigned at next occurence
+        internal List<GV> GVs; //Definitions of GVs attached to this Event
+        internal List<SignalPs> times = new List<SignalPs>(); //list of times this Event has occured,
+        //including next Event occurence; the list gets shortened eventually as the associated signals
+        //become insignificant
 
         internal enum OccType { Periodic, Gaussian, Uniform };
         internal enum SignalType { None, Impulse, DampedSine };
 
-        internal bool IsNow(double t)
+        internal bool IsNow(double t) //determines if we need to enqueue a new signal and calculate
+            //the next occurence of this Event type
         {
-            if (nextTime > t) // have not yet reached next occurence of this Event
+            if (nextTime > t) // have not yet reached next occurence of this Event, so just
                 return false;
-            // event has occurred
+            // otherwise, Event has occurred
+
             SignalPs s = new SignalPs(); //create next occurence of Event in signal list
             s.parameters[0]=sP1;
             s.parameters[1]=sP2;
@@ -420,7 +425,7 @@ namespace CreateBDFFile
                     signal += Impulse(s.parameters[0], s.time); //after first event
                     if (s.time > 500D) removeSignals.Add(s); //stop criteria
                 }
-                else removeSignals.Add(s); // no associated signal, thus can remove
+                else removeSignals.Add(s); // no residual signal, thus can remove
             }
             foreach (SignalPs sdone in removeSignals)
                 times.Remove(sdone);
@@ -441,7 +446,7 @@ namespace CreateBDFFile
         internal double[] parameters = new double[4]; // parameter values for associated signal; dependent on GV values for this event
     }
 
-    internal class GV
+    internal class GV //Encapsulates information re:GV for a given Event type
     {
         internal string Name;
         internal int NValues;
