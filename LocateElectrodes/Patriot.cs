@@ -58,19 +58,19 @@ namespace LocateElectrodes
                 baseStream.WriteByte((byte)0x0D);
                 baseStream.WriteByte((byte)0x0A);
                 baseStream.Flush();
-                Thread.Sleep(120); //wait for completion
-                reader.ReadBytes(mySerialPort.BytesToRead); //Clear out header string
-                Head h;
+//                Thread.Sleep(12000); //wait for completion
+                Head h = frames[0];
+                frames.Remove(h);
                 h = IssueCommand("F1"); //set binary mode
-                if (h != null)
+                if (h != null && h.ErrorIndicator != (byte)0)
                     throw new Exception("Unable to set binary mode: " + h.ExtractErrorMessage());
                 h = IssueCommand("U1"); //set metric scale (cm)
-                if (h != null)
+                if (h != null && h.ErrorIndicator != (byte)0)
                     throw new Exception("Unable to set metric units: " + h.ExtractErrorMessage());
-                IssueCommand("O*,2"); //position data only
+                h = IssueCommand("O*,2"); //position data only
                 reader.ReadBytes(h.ResponseSize); //skip returned
                 h = IssueCommand("L1,1"); //set button on stylus to work
-                if (h != null)
+                if (h != null && h.ErrorIndicator != (byte)0)
                     throw new Exception("Unable to set stylus button mode: " + h.ExtractErrorMessage());
 
             }
@@ -108,7 +108,7 @@ namespace LocateElectrodes
             while (frames.Count == 0 && timeout > 0) { Thread.Sleep(looptime); timeout -= looptime; }
             if (timeout <= 0) return null;
             Head h = frames[0];
-            frames.Remove(h);
+            frames.RemoveAt(0);
             return h;
         }
 
@@ -126,29 +126,13 @@ namespace LocateElectrodes
             try
             {
                 Thread.Sleep(100); //Wait for possible response
-                char[] c = new char[2];
-                try
+                if (frames.Count > 0)
                 {
-                    c = reader.ReadChars(2); //Look for "PA", start of digital header
+                    Head h = frames[0];
+                    frames.RemoveAt(0);
+                    return h;
                 }
-                catch (IOException)
-                {
-                    return null;
-                }
-                string s = new string(c);
-                if (s != "PA")
-                    throw new Exception("Data response frame out-of-sync");
-                Head h = new Head();
-                h.FrameTag = s;
-                h.StationNumber = reader.ReadByte();
-                h.InitiatingCommand = reader.ReadByte();
-                h.ErrorIndicator = reader.ReadByte();
-                reader.ReadByte(); //Unassigned
-                h.ResponseSize = reader.ReadInt16();
-                reader.ReadBytes(h.ResponseSize);
-                byte[] b = new byte[h.ResponseSize];
-                h.response = new MemoryStream(b, false); //read-only memory stream
-                return h;
+                else return null;
             }
             catch(Exception e)
             {
@@ -222,7 +206,7 @@ namespace LocateElectrodes
                 {
                     currentFrame.Seek(-2, SeekOrigin.Current); //see if last two bytes indicate header origin
                     int FrameOrigin = (int)currentFrame.Position;
-                    FrameIsValid = (currentFrame.ReadByte() == 0x51) & (currentFrame.ReadByte() == 0x41); //PA
+                    FrameIsValid = (currentFrame.ReadByte() == 0x50) & (currentFrame.ReadByte() == 0x41); //PA
                     if (FrameIsValid && FrameOrigin != 0) //Found data outside of valid frame
                     {
                         hd = new Head(); //Create "pseudo"-response with earlier data
@@ -231,27 +215,27 @@ namespace LocateElectrodes
                         currentFrame.CopyTo(hd.response); // and put all of data before PA into it
                         frames.Add(hd); //and add to queue
                         currentFrame.SetLength(0); //Start new valid frame with "PA"
-                        currentFrame.WriteByte(0x51);
-                        currentFrame.WriteByte(0x40);
+                        currentFrame.WriteByte(0x50);
+                        currentFrame.WriteByte(0x41);
                     }
                 }
                 else if (!HeadIsDone && currentFrame.Length == 8) //then we should have a complete header
                 {
                     HeadIsDone = true;
+                    currentFrame.Position = 0;
                     BinaryReader t = new BinaryReader(currentFrame);
                     hd = new Head();
-                    hd.FrameTag = new string(t.ReadChars(2));
+                    hd.FrameTag = new string(t.ReadChars(2)); //PA
                     hd.StationNumber = t.ReadByte();
                     hd.InitiatingCommand = t.ReadByte();
-                    hd.ErrorIndicator = t.ReadByte();
-                    t.ReadByte();
-                    hd.ResponseSize = t.ReadInt16();
-                    t.Dispose();
+                    hd.ErrorIndicator = t.ReadByte(); //0 for no error
+                    t.ReadByte(); //unassigned
+                    hd.ResponseSize = t.ReadInt16(); //response size
                 }
                 else if (HeadIsDone) //then we have header and are accumulating response data
                 {
                     hd.response.WriteByte(b); //Put current byte into response
-                    if (currentFrame.Length - hd.ResponseSize == 8) //completed response field
+                    if (hd.response.Length == hd.ResponseSize) //completed response field
                     {
                         frames.Add(hd); //Add header to queue
                         currentFrame.SetLength(0); // and reset for next frame
@@ -270,14 +254,15 @@ namespace LocateElectrodes
         internal byte InitiatingCommand = 0;
         internal byte ErrorIndicator = 0xFF;
         internal short ResponseSize;
-        internal MemoryStream response;
+        internal MemoryStream response = new MemoryStream();
 
         public string ExtractErrorMessage()
         {
             BinaryReader b = new BinaryReader(response);
             char[] c = new char[ResponseSize];
             c = b.ReadChars(ResponseSize);
-            return new string(c);
+            string message = ErrorIndicator.ToString("0") + ": " + (new string(c));
+            return message;
         }
 
         public override string ToString()

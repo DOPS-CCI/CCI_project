@@ -3,6 +3,8 @@ Microsoft Visual Studio Solution File, Format Version 11.00
 # Visual C# Express 2010
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LocateElectrodes", "LocateElectrodes.csproj", "{2E0686EA-60EF-4B40-A3F2-262F891FF83F}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SerialPortIO", "..\SerialPortIO\SerialPortIO.csproj", "{B5803B9D-9270-4E7D-88F5-6524C2041E72}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x86 = Debug|x86
@@ -13,6 +15,10 @@ Global
 		{2E0686EA-60EF-4B40-A3F2-262F891FF83F}.Debug|x86.Build.0 = Debug|x86
 		{2E0686EA-60EF-4B40-A3F2-262F891FF83F}.Release|x86.ActiveCfg = Release|x86
 		{2E0686EA-60EF-4B40-A3F2-262F891FF83F}.Release|x86.Build.0 = Release|x86
+		{B5803B9D-9270-4E7D-88F5-6524C2041E72}.Debug|x86.ActiveCfg = Debug|x86
+		{B5803B9D-9270-4E7D-88F5-6524C2041E72}.Debug|x86.Build.0 = Debug|x86
+		{B5803B9D-9270-4E7D-88F5-6524C2041E72}.Release|x86.ActiveCfg = Release|x86
+		{B5803B9D-9270-4E7D-88F5-6524C2041E72}.Release|x86.Build.0 = Release|x86
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

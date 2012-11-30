@@ -6,8 +6,13 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="*"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="40"/>
         </Grid.RowDefinitions>
         <TextBlock Grid.Row="0" HorizontalAlignment="Stretch" Margin="4" Name="textBlock1" Text="{Binding Path=stringOut, Mode=OneWay}" VerticalAlignment="Stretch" Background="#FF4040FF" Foreground="White" />
-        <TextBox Grid.Row="1" HorizontalAlignment="Stretch" Margin="4" Name="textBox1" VerticalAlignment="Stretch" TextChanged="textBox1_TextChanged" />
+        <TextBox Grid.Row="1" HorizontalAlignment="Stretch" Margin="4" Name="textBox1" Text="{Binding Path=typedChars, Mode=TwoWay}" VerticalAlignment="Stretch" TextChanged="textBox1_TextChanged" />
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="right">
+            <Button Content="Exit" Width="100" FontSize="14" Margin="4" Click="Finished_Click" />
+            <Button Name="Finished" Content="Finished Input" Width="100" FontSize="14" Margin="4" Click="Finished_Click" />
+        </StackPanel>
     </Grid>
 </Window>

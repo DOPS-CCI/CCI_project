@@ -18,45 +18,15 @@ namespace LocateElectrodes
     /// <summary>
     /// Interaction logic for Window1.xaml
     /// </summary>
-    public partial class IOWindow : Window, INotifyPropertyChanged
+    public partial class IOWindow : Window
     {
-        byte[] outBuff = new byte[1000];
-        bool outBuffFull = false; // indicates when buffer is full
-        int outBuffHead = 0;
-        public string stringOut
-        {
-            get
-            {
-                if (outBuffFull)
-                {
-                    return convertToString(outBuff, outBuffHead, 1000) +
-                        convertToString(outBuff, 0, outBuffHead);
-                }
-                return convertToString(outBuff, 0, outBuffHead);
-            }
-        }
-
-        public object outByteLock = new object();
-        byte _outByte;
-        public byte outByte
-        {
-            set
-            {
-                if (outBuffHead >= 1000) { outBuffHead = 0; outBuffFull = true; }
-                outBuff[outBuffHead++] = value;
-                Notify("stringOut");
-            }
-        }
-        public object awaitingInputLock = new object();
-        public ManualResetEvent awaitingInput = new ManualResetEvent(false);
-
-        ByteStream _baseStream;
-        public IOWindow(string title, ByteStream stream)
+        IOWindowBackingStore _iowBS;
+        public IOWindow(string title, IOWindowBackingStore iowBS)
         {
             InitializeComponent();
             this.Title = title;
-            this.DataContext = this;
-            _baseStream = stream;
+            _iowBS = iowBS;
+            this.DataContext = _iowBS;
         }
 
         char[] lastChar = new char[2];
@@ -69,6 +39,7 @@ namespace LocateElectrodes
             {
                 if (tc.AddedLength > 0)
                 {
+                    if (_iowBS.typedChars.Length <= _iowBS.numberOfTypedChars) return;
                     textBox1.BorderBrush = Brushes.Black;
                     for (int i = 0; i < tc.AddedLength; i++)
                     {
@@ -82,49 +53,26 @@ namespace LocateElectrodes
                             {
                                 lastChar[1] = c;
                                 string s = new string(lastChar);
-                                lock (_baseStream.inByteLock)
-                                {
-                                    _baseStream.inByte = Convert.ToByte(s, 16);
-                                }
+                                _iowBS.inByte = Convert.ToByte(s, 16);
                                 inHex = false;
                                 charCount = 0;
                             }
                         }
                         else
                         {
-                            lock (_baseStream.inByteLock)
-                            {
-                                _baseStream.inByte = (byte)c;
-                            }
+                            _iowBS.inByte = (byte)c;
                         }
                     }
                 }
             }
         }
 
-        string convertToString(byte[] bArray, int first, int last)
+        private void Finished_Click(object sender, RoutedEventArgs e)
         {
-            StringBuilder sb = new StringBuilder();
-            for (int i = first; i < last; i++)
-            {
-                byte b = bArray[i];
-                if (b < 0x20)
-                {
-                    sb.Append("0x" + b.ToString("X2") + " ");
-                }
-                else
-                    sb.Append((char)b + " ");
-            }
-            return sb.ToString();
-        }
-
-
-        public event PropertyChangedEventHandler PropertyChanged;
-
-        protected void Notify(string name)
-        {
-            if (this.PropertyChanged != null)
-                PropertyChanged(this, new PropertyChangedEventArgs(name));
+            if (((Button)sender).Name == "Finished")
+                DialogResult = true;
+            else
+                Environment.Exit(0);
         }
     }
 }
