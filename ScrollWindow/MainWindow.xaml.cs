@@ -227,15 +227,15 @@ namespace ScrollWindow
         List<Point> pointList = new List<Point>();
         public void reDraw(double lowSecs, double highSecs)
         {
-            this.Children.Clear();
-            BDFPoint low = new BDFPoint(_BDF);
-            low.FromSecs(lowSecs);
-            BDFPoint hi = new BDFPoint(_BDF);
-            hi.FromSecs(highSecs);
+            BDFPoint lowBDFP = new BDFPoint(_BDF);
+            lowBDFP.FromSecs(lowSecs);
+            BDFPoint highBDFP = new BDFPoint(_BDF);
+            highBDFP.FromSecs(highSecs);
+            //find min, max and average of the range to be displayed
             double ave = 0D;
             double lowValue = double.PositiveInfinity;
             double hiValue = double.NegativeInfinity;
-            for (BDFPoint i = new BDFPoint(low); i.lessThan(hi); i++)
+            for (BDFPoint i = new BDFPoint(lowBDFP); i.lessThan(highBDFP); i++)
             {
                 if (i.Rec >= 0 && i.Rec < _BDF.NumberOfRecords)
                 {
@@ -245,7 +245,7 @@ namespace ScrollWindow
                     if (sample < lowValue) lowValue = sample;
                 }
             }
-            ave /= low.distanceInPts(hi);
+            ave /= lowBDFP.distanceInPts(highBDFP);
             double offset = (hiValue + lowValue) / 2;
             double scale = CanvasHeight / (lowValue - hiValue);
             System.Windows.Shapes.Path path = new System.Windows.Shapes.Path();
@@ -257,41 +257,15 @@ namespace ScrollWindow
             StreamGeometryContext ctx = geometry.Open();
             int decimate = Convert.ToInt32((highSecs - lowSecs) * _BDF.NSamp / 1536D);
             if (decimate < 1) decimate = 1;
-            while (pointList.Count > 0 && lowSecs > pointList[0].X)
+            while (pointList.Count > 0 && lowSecs > pointList[0].X) //remove points from below
                 pointList.RemoveAt(0);
-            while (pointList.Count > 0 && highSecs < pointList.Last().X)
+            while (pointList.Count > 0 && highSecs < pointList.Last().X) //remove points from above
                 pointList.RemoveAt(pointList.Count - 1);
-            if (pointList.Count > 0 && lowSecs > pointList[0].X)
+            if (pointList.Count > 0 && lowSecs < pointList[0].X) //fill in points below current point list
             {
-                low.FromSecs(pointList.Last().X);
-                for (BDFPoint i = low + 1; i.lessThan(hi); )
-                {
-                    if (i.Rec >= 0 && i.Rec < _BDF.NumberOfRecords)
-                    {
-                        double sample;
-                        double max = double.NegativeInfinity;
-                        double min = double.PositiveInfinity;
-                        for (int j = 0; j < decimate; j++)
-                        {
-                            sample = _BDF.getSample(_channel, ++i);
-                            max = Math.Max(max, sample);
-                            min = Math.Min(min, sample);
-                        }
-                        pointList.Add(new Point(i.ToSecs(), scale * (max - offset) + CanvasHeight / 2D));
-                        if (max != min)
-                            pointList.Add(new Point(i.ToSecs(), scale * (min - offset) + CanvasHeight / 2D));
-                    }
-                    else
-                    {
-                        i.Increment(decimate);
-                    }
-                }
-            }
-            else if (pointList.Count > 0 && highSecs < pointList.Last().X)
-            {
-                hi.FromSecs(pointList[0].X);
+                highBDFP.FromSecs(pointList[0].X);
                 int index = 0;
-                for (BDFPoint i = low + 1; i.lessThan(hi); )
+                for (BDFPoint i = lowBDFP; i.lessThan(highBDFP); i.Increment(decimate))
                 {
                     if (i.Rec >= 0 && i.Rec < _BDF.NumberOfRecords)
                     {
@@ -300,7 +274,7 @@ namespace ScrollWindow
                         double min = double.PositiveInfinity;
                         for (int j = 0; j < decimate; j++)
                         {
-                            sample = _BDF.getSample(_channel, ++i);
+                            sample = _BDF.getSample(_channel, i + j);
                             max = Math.Max(max, sample);
                             min = Math.Min(min, sample);
                         }
@@ -308,15 +282,12 @@ namespace ScrollWindow
                         if (max != min)
                             pointList.Insert(index++, new Point(i.ToSecs(), scale * (min - offset) + CanvasHeight / 2D));
                     }
-                    else
-                    {
-                        i.Increment(decimate);
-                    }
                 }
             }
-            else if (pointList.Count == 0)
+            else if (pointList.Count > 0 && highSecs > pointList.Last().X) //fill in points above current point list
             {
-                for (BDFPoint i = low + 1; i.lessThan(hi); )
+                lowBDFP.FromSecs(pointList.Last().X);
+                for (BDFPoint i = lowBDFP; i.lessThan(highBDFP); i.Increment(decimate))
                 {
                     if (i.Rec >= 0 && i.Rec < _BDF.NumberOfRecords)
                     {
@@ -325,7 +296,7 @@ namespace ScrollWindow
                         double min = double.PositiveInfinity;
                         for (int j = 0; j < decimate; j++)
                         {
-                            sample = _BDF.getSample(_channel, ++i);
+                            sample = _BDF.getSample(_channel, i + j);
                             max = Math.Max(max, sample);
                             min = Math.Min(min, sample);
                         }
@@ -333,9 +304,26 @@ namespace ScrollWindow
                         if (max != min)
                             pointList.Add(new Point(i.ToSecs(), scale * (min - offset) + CanvasHeight / 2D));
                     }
-                    else
+                }
+            }
+            else if (pointList.Count == 0)
+            {
+                for (BDFPoint i = lowBDFP; i.lessThan(highBDFP); i.Increment(decimate))
+                {
+                    if (i.Rec >= 0 && i.Rec < _BDF.NumberOfRecords)
                     {
-                        i.Increment(decimate);
+                        double sample;
+                        double max = double.NegativeInfinity;
+                        double min = double.PositiveInfinity;
+                        for (int j = 0; j < decimate; j++)
+                        {
+                            sample = _BDF.getSample(_channel, i + j);
+                            max = Math.Max(max, sample);
+                            min = Math.Min(min, sample);
+                        }
+                        pointList.Add(new Point(i.ToSecs(), scale * (max - offset) + CanvasHeight / 2D));
+                        if (max != min)
+                            pointList.Add(new Point(i.ToSecs(), scale * (min - offset) + CanvasHeight / 2D));
                     }
                 }
             }
@@ -344,6 +332,7 @@ namespace ScrollWindow
             ctx.Close();
             geometry.Freeze();
             path.Data = geometry;
+            this.Children.Clear();
             this.Children.Add(path);
         }
     }
