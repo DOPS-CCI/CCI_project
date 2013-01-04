@@ -77,6 +77,7 @@ namespace SecondaryWindow
                                 }
                                 catch (FormatException) { byteCount--; /*IGNORE*/ }
 
+
                             }
                         }
                         else if (c == '\\') { inHex = true; charCount = 0; }
