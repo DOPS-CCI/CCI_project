@@ -7,6 +7,7 @@ namespace CCILibrary
 {
     public class BDFEDFFileStream: IDisposable {
         internal BDFEDFHeader header;
+        internal FileStream baseStream;
         public BDFEDFRecord record;
 
         /// <summary>
@@ -156,7 +157,7 @@ namespace CCILibrary
         {
             if (!header.isValid) return "BDFEDFFileSream header not valid.";
             string nl = Environment.NewLine;
-            StringBuilder str = new StringBuilder("File type: " + (header.BDFFile ? "BDF" : "EDF") + nl);
+            StringBuilder str = new StringBuilder("File type: " + (header.isBDFFile ? "BDF" : "EDF") + nl);
             str.Append("Local Subject Id: " + header.localSubjectId + nl);
             str.Append("Local Recording Id: " + header.localRecordingId + nl);
             str.Append("Time of Recording: " + header.timeOfRecording.ToString("o") + nl);
@@ -209,6 +210,7 @@ namespace CCILibrary
         public BDFEDFFileReader(Stream str) {
 
             if (!str.CanRead) throw new BDFEDFException("BDFEDFFileStream must be able to read from Stream.");
+            if(str is FileStream ) baseStream = (FileStream)str;
             reader = new BinaryReader(str, Encoding.ASCII);
             header = new BDFEDFHeader();
             header.read(reader); //Read in header
@@ -276,7 +278,7 @@ namespace CCILibrary
         /// <exception cref="BDFEDFException">Not a BDF file</exception>
         public int[] getStatus() {
             if (reader != null && record.currentRecordNumber < 0) throw new BDFEDFException("No records have yet been read.");
-            if (!header.BDFFile) throw new BDFEDFException("Not a BDF file.");
+            if (!header.isBDFFile) throw new BDFEDFException("Not a BDF file.");
             return record.channelData[header.numberChannels - 1];
         }
 
@@ -384,6 +386,7 @@ namespace CCILibrary
         public BDFEDFFileWriter(Stream str, int nChan, int recordDuration, int samplingRate, bool isBDF)
         {
             if (!str.CanWrite) throw new BDFEDFException("BDFEDFFileStream must be able to write to Stream.");
+            if (str is FileStream) baseStream = (FileStream)str;
             header = new BDFEDFHeader(nChan, recordDuration, samplingRate);
             header._BDFFile = isBDF;
             record = new BDFEDFRecord(header);
@@ -432,7 +435,7 @@ namespace CCILibrary
         /// <exception cref="BDFException">Not a BDF file</exception>
         public void putStatus(int[] values)
         {
-            if (!header.BDFFile) throw new BDFEDFException("In BDFEDFFileWriter.putStatus: not a BDF file.");
+            if (!header.isBDFFile) throw new BDFEDFException("In BDFEDFFileWriter.putStatus: not a BDF file.");
             for (int i = 0; i < header.numberSamples[header.numberChannels - 1]; i++)
                 record.channelData[header.numberChannels - 1][i] = values[i];
         }
@@ -508,7 +511,7 @@ namespace CCILibrary
         internal bool _BDFFile;
         internal bool _isValid = false;
         public bool isValid { get { return _isValid; } }
-        public bool BDFFile { get { return _BDFFile; } }
+        public bool isBDFFile { get { return _BDFFile; } }
 
         internal BDFEDFHeader(){} //Usual read constructor
 
@@ -735,8 +738,8 @@ namespace CCILibrary
     /// <remarks>No public constructor; created by BDFFileReader and accessed through <code>BDFEDFFileReader read()</code> methods.</remarks>
     public class BDFEDFRecord : IDisposable {
 
-        private struct i24 { internal byte b1, b2, b3; }
-        private struct i16 { internal byte b1, b2;}
+        internal struct i24 { internal byte b1, b2, b3; }
+        internal struct i16 { internal byte b1, b2;}
 
         internal int currentRecordNumber = -1;
 
@@ -760,7 +763,7 @@ namespace CCILibrary
                 recordLength += n;
                 i++;
             }
-            recordLength *= hdr.BDFFile ? 3 : 2; // calculate length in bytes
+            recordLength *= hdr.isBDFFile ? 3 : 2; // calculate length in bytes
             record = new byte[recordLength];
             header = hdr;
         }
@@ -780,7 +783,7 @@ namespace CCILibrary
             int i = 0;
             for (int channel = 0; channel < header.numberChannels; channel++)
                 for (int sample = 0; sample < header.numberSamples[channel]; sample++) {
-                    if (header.BDFFile)
+                    if (header.isBDFFile)
                     {
                         channelData[channel][sample] = convert34(record[i], record[i + 1], record[i + 2]);
                         i += 3;
@@ -797,7 +800,7 @@ namespace CCILibrary
             int i = 0;
             for (int channel = 0; channel < header.numberChannels; channel++)
                 for (int sample = 0; sample < header.numberSamples[channel]; sample++) {
-                    if (header.BDFFile)
+                    if (header.isBDFFile)
                     {
                         i24 b = convert43(channelData[channel][sample]);
                         record[i++] = b.b1;
@@ -824,7 +827,7 @@ namespace CCILibrary
             header.numberOfRecords++;
         }
 
-        private static int convert34(byte b1, byte b2, byte b3) {
+        internal static int convert34(byte b1, byte b2, byte b3) {
             uint i = (uint)b1 + ((uint)b2 + 256 * (uint)b3) * 256;
             if (b3 >= 128) i |= 0xFF000000; //extend sign
             return (int)i;
@@ -838,7 +841,7 @@ namespace CCILibrary
             return b;
         }
 
-        private static int convert24(byte b1, byte b2)
+        internal static int convert24(byte b1, byte b2)
         {
             uint i = (uint)b1 + (uint)b2  * 256;
             if (b2 >= 128) i |= 0xFFFF0000; //extend sign

@@ -99,13 +99,15 @@ namespace CCILibrary
             return pt;
         }
 
-        public void Increment(int p)
+        public BDFPoint Increment(int p) //essentially += operator
         {
             Pt = _pt + p;
+            return this;
         }
-        public void Decrement(int p)
+        public BDFPoint Decrement(int p) //essentially -= operator
         {
             Pt = _pt - p;
+            return this;
         }
 
         public bool lessThan(BDFPoint pt)
@@ -128,11 +130,13 @@ namespace CCILibrary
         /// Converts a number of seconds to a BDFPoint
         /// </summary>
         /// <param name="seconds">seconds to convert</param>
-        public void FromSecs(double seconds)
+        /// <returns>reference to self, so it can be chained with other operations</returns>
+        public BDFPoint FromSecs(double seconds)
         {
             double f = Math.Floor(seconds / _sec);
             _rec = (int)f;
             _pt = Convert.ToInt32(Math.Floor((seconds - f * _sec) * (double)_recSize / _sec));
+            return this;
         }
 
         public long distanceInPts(BDFPoint p)
