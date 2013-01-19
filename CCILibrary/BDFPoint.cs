@@ -99,6 +99,13 @@ namespace CCILibrary
             return pt;
         }
 
+        public static long operator -(BDFPoint p1, BDFPoint p2)
+        {
+            if (p1._recSize == p2._recSize)
+                return (long)(p1._rec - p2._rec) * p1._recSize + p1._pt - p2._pt;
+            throw new Exception("BDFPoint: Cannot subtract two BDFPoints with different record sizes");
+        }
+
         public BDFPoint Increment(int p) //essentially += operator
         {
             Pt = _pt + p;
@@ -114,6 +121,13 @@ namespace CCILibrary
         {
             if (this._rec < pt._rec) return true;
             if (this._rec == pt._rec && this._pt < pt._pt) return true;
+            return false;
+        }
+
+        public bool greaterThan(BDFPoint pt)
+        {
+            if (this._rec > pt._rec) return true;
+            if (this._rec == pt._rec && this._pt > pt._pt) return true;
             return false;
         }
 
