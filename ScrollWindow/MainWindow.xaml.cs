@@ -31,12 +31,13 @@ namespace ScrollWindow
         const double ScrollBarSize = 17D;
         double BDFLength;
         double XScaleSecsToInches;
-        double YScaleUnitsToInches;
-        double currentDisplayWidthInSecs = 10D;
-        double currentDisplayOffsetInSecs = -5D;
+        public double YScaleUnitsToInches;
+        public double currentDisplayWidthInSecs = 10D;
+        public double currentDisplayOffsetInSecs = 0D;
         Dictionary<int, Event.InputEvent> events = new Dictionary<int, Event.InputEvent>();
-        BDFEDFFileReader bdf;
+        public BDFEDFFileReader bdf;
         Header.Header head;
+        List<int> channelList = new List<int>(); //list of currently displayed channels
 
         public MainWindow()
         {
@@ -58,7 +59,7 @@ namespace ScrollWindow
             int samplingRate = bdf.NSamp / bdf.RecordDuration;
             BDFLength = (double)bdf.NumberOfRecords * bdf.RecordDuration;
 
-            List<int> channelList = new List<int>();
+            //set initial channel list: channel 0 and all referenced ANA channels
             channelList.Add(0);
             foreach (EventDictionaryEntry ede in ED.Values) // add ANA channels that are referenced by extrinsic Events
             {
@@ -66,13 +67,6 @@ namespace ScrollWindow
             }
 
             InitializeComponent();
-
-            foreach (int i in channelList)
-            {
-                ChannelGraph pg = new ChannelGraph(bdf, i);
-                GraphCanvas.Children.Add(pg);
-            }
-            GraphCanvas.Children.Add(new ChannelGraph(bdf, bdf.NumberOfChannels - 1, 100D)); //finally add Status channel
 
             Event.EventFactory.Instance(head.Events); // set up the factory
             EventFileReader efr = new EventFileReader(
@@ -93,21 +87,44 @@ namespace ScrollWindow
         {
             if (e.HeightChanged)
             {
-                double h = e.NewSize.Height - ScrollBarSize;
+                double h = e.NewSize.Height - ScrollBarSize - EventMarkers.ActualHeight;
                 IndexLine.Y2 = h;
                 YScaleUnitsToInches = h / GraphCanvas.ActualHeight;
+//                GraphCanvas.Height = h;
             }
             if (e.WidthChanged)
             {
-                double w = e.NewSize.Width - ScrollBarSize;
+                double w = e.NewSize.Width;
                 IndexLine.X1 = IndexLine.X2 = w / 2;
                 XScaleSecsToInches = w / currentDisplayWidthInSecs;
+                //rescale X-axis, so that scale units remain seconds
+                GraphCanvas.LayoutTransform = new ScaleTransform(XScaleSecsToInches, 1);
+                Viewer.ScrollToHorizontalOffset(currentDisplayOffsetInSecs * XScaleSecsToInches);
             }
-
-            GraphCanvas.LayoutTransform = new ScaleTransform(XScaleSecsToInches,
-                YScaleUnitsToInches, currentDisplayOffsetInSecs + currentDisplayWidthInSecs / 2D, 0D);
         }
 
+        private void GraphCanvas_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            if (e.HeightChanged)
+            {
+                double height = e.NewSize.Height / channelList.Count;
+                if (GraphCanvas.Children.Count == 0) // initialize channelGraphs
+                {
+                    foreach (int i in channelList)
+                    {
+                        ChannelGraph pg = new ChannelGraph(this, i, height);
+                        GraphCanvas.Children.Add(pg);
+                    }
+                }
+                else
+                {// must set actual Height of ChannelGraph as it derives from Canvas, which doesn't use Stretch
+                    foreach (ChannelGraph pg in GraphCanvas.Children)
+                        pg.Height = height;
+                }
+                Info.Text = height.ToString("0.000");
+            }
+        }
+        
         private void Viewer_ScrollChanged(object sender, ScrollChangedEventArgs e)
         {
             double loc = e.HorizontalOffset;
@@ -173,7 +190,7 @@ namespace ScrollWindow
             Viewer.ScrollToHorizontalOffset(startDragScrollLocation - e.GetPosition(Viewer).X + startDragMouseLocation.X);
         }
 
-// Time-scal change button clicks handled here
+// Time-scale change button clicks handled here
         private void Button_Click(object sender, RoutedEventArgs e)
         {
             Button b = (Button)sender;
@@ -181,17 +198,18 @@ namespace ScrollWindow
             double oldDisplayWidthInSecs = currentDisplayWidthInSecs;
             currentDisplayWidthInSecs /= d;
             XScaleSecsToInches *= d;
-            TransformGroup t = new TransformGroup();
-            t.Children.Add(GraphCanvas.LayoutTransform);
-            t.Children.Add(new ScaleTransform(d, 1, Viewer.ContentHorizontalOffset + Viewer.ViewportWidth / 2, 0D));
-            GraphCanvas.LayoutTransform = new MatrixTransform(t.Value);
+            GraphCanvas.LayoutTransform = new ScaleTransform(XScaleSecsToInches, 1, Viewer.ContentHorizontalOffset + Viewer.ViewportWidth / 2, 0D); //new transform: keep scale seconds
+            //and change horizontal scroll to make inflation/deflation around center point
             Viewer.ScrollToHorizontalOffset(XScaleSecsToInches * (currentDisplayOffsetInSecs + (oldDisplayWidthInSecs - currentDisplayWidthInSecs) / 2D));
         }
 
 // Re-draw routines here
         private void RedrawGraphicCanvas(){
-            foreach (ChannelGraph g in GraphCanvas.Children)
-                g.reDraw(currentDisplayOffsetInSecs, currentDisplayOffsetInSecs + currentDisplayWidthInSecs);
+            for (int i = 0; i < GraphCanvas.Children.Count;i++ )
+            {
+                ChannelGraph g = (ChannelGraph)GraphCanvas.Children[i];
+                g.reDraw();
+            }
         }
 
         private void DrawGrid()
@@ -201,47 +219,58 @@ namespace ScrollWindow
             double scaleWidth = canvasWidth - viewWidth;
             double scale = BDFLength / scaleWidth;
         }
-
     }
 
     public class ChannelGraph : Canvas
     {
-        double CanvasHeight = 200D;
+
         int _channel;
         BDFEDFFileReader _BDF;
+        StreamGeometry geometry = new StreamGeometry();
         double BrushScale;
-        public ChannelGraph(BDFEDFFileReader BDF, int channelNumber)
+        public double CanvasHeight = 0;
+        MainWindow ContainingWindow;
+
+        public ChannelGraph(MainWindow containingWindow, int channelNumber, double height)
             : base()
         {
             _channel = channelNumber;
-            _BDF = BDF;
-            this.Height = CanvasHeight;
-            this.Width = (double)(BDF.RecordDuration * BDF.NumberOfRecords); //NOTE: always scaled in seconds
-            BrushScale = ((double)BDF.RecordDuration) / ((double)(3 * BDF.NSamp));
+            _BDF = containingWindow.bdf;
+            ContainingWindow = containingWindow;
+            CanvasHeight = height;
+            this.Width = (double)(_BDF.RecordDuration * _BDF.NumberOfRecords); //NOTE: always scaled in seconds
+            this.SizeChanged += new SizeChangedEventHandler(ChannelGraph_SizeChanged);
+            BrushScale = ((double)_BDF.RecordDuration) / ((double)(3 * _BDF.NSamp));
+            this.VerticalAlignment = VerticalAlignment.Stretch;
         }
 
-        public ChannelGraph(BDFEDFFileReader BDF, int channelNumber, double height)
-            : base()
+        void ChannelGraph_SizeChanged(object sender, SizeChangedEventArgs e)
         {
-            CanvasHeight = height;
-            _channel = channelNumber;
-            _BDF = BDF;
-            this.Height = CanvasHeight;
-            this.Width = (double)(BDF.RecordDuration * BDF.NumberOfRecords); //NOTE: always scaled in seconds
-            BrushScale = ((double)BDF.RecordDuration) / ((double)(3 * BDF.NSamp));
+            if (e.HeightChanged)
+            {
+                ChannelGraph pg = (ChannelGraph)sender;
+                pg.CanvasHeight = e.NewSize.Height;
+                pg.reDraw();
+            }
         }
 
         List<FilePoint> FilePointList = new List<FilePoint>(4096);
         List<Point> pointList = new List<Point>(4096);
         int decimateOld = 0;
-        public void reDraw(double lowSecs, double highSecs)
+        double scaleOld;
+        double offsetOld;
+        double maxOld = double.NegativeInfinity;
+        double minOld = double.PositiveInfinity;
+        public void reDraw()
         {
+            double lowSecs = ContainingWindow.currentDisplayOffsetInSecs;
+            double highSecs = lowSecs + ContainingWindow.currentDisplayWidthInSecs;
             BDFPoint lowBDFP = (new BDFPoint(_BDF)).FromSecs(lowSecs);
             BDFPoint highBDFP = (new BDFPoint(_BDF)).FromSecs(highSecs);
             //find min, max and average of the range to be displayed
             double ave = 0D;
-            double lowValue = double.PositiveInfinity;
-            double hiValue = double.NegativeInfinity;
+            double lowValue = minOld;
+            double hiValue = maxOld;
             for (BDFPoint i = new BDFPoint(lowBDFP); i.lessThan(highBDFP); i++)
             {
                 if (i.Rec >= 0 && i.Rec < _BDF.NumberOfRecords)
@@ -256,19 +285,19 @@ namespace ScrollWindow
             double offset = (hiValue + lowValue) / 2;
             double scale = CanvasHeight / (lowValue - hiValue);
             System.Windows.Shapes.Path path = new System.Windows.Shapes.Path();
-            Brush b = Brushes.Black;
-            
             path.Stroke = Brushes.Black;
-            path.StrokeThickness = Math.Max((highSecs - lowSecs) * BrushScale, 0.002);
-            StreamGeometry geometry = new StreamGeometry();
+            path.StrokeThickness = Math.Max((highSecs - lowSecs) * BrushScale, 0.001);
             StreamGeometryContext ctx = geometry.Open();
-            int decimateNew = (int)Math.Ceiling((highSecs - lowSecs) * _BDF.NSamp / 1024D); //*****this might depend on window width too
-            if (decimateNew != decimateOld)
+            int decimateNew = Convert.ToInt32(Math.Ceiling((highBDFP - lowBDFP) / 768D)); //*****this might depend on window width too
+            Console.WriteLine("New=" + decimateNew.ToString("0") + " Old=" + decimateOld.ToString("0"));
+            if (decimateNew != decimateOld || scale != scaleOld || offset != offsetOld)
             {
                 pointList.Clear();
                 FilePointList.Clear();
+                decimateOld = decimateNew;
+                scaleOld = scale;
+                offsetOld = offset;
             }
-
             while (FilePointList.Count > 0 && FilePointList[0].fileLocation.lessThan(lowBDFP)) //remove points from below
                 DeletePoint(FilePointList[0]);
             while (FilePointList.Count > 0 && highBDFP.lessThan(FilePointList.Last().fileLocation)) //remove points from above
@@ -276,30 +305,33 @@ namespace ScrollWindow
 
             if (FilePointList.Count == 0) //starting over
             {
-                for (BDFPoint i = lowBDFP; i.lessThan(highBDFP); i.Increment(decimateNew))
+                for (BDFPoint i = new BDFPoint(lowBDFP); i.lessThan(highBDFP); i.Increment(decimateNew))
                 {
                     if (i.Rec >= 0 && i.Rec < _BDF.NumberOfRecords)
                     {
                         double sample;
                         double max = double.NegativeInfinity;
                         double min = double.PositiveInfinity;
+                        BDFPoint temp = new BDFPoint(i);
                         for (int j = 0; j < decimateNew; j++)
                         {
-                            sample = _BDF.getSample(_channel, i + j);
+                            sample = _BDF.getSample(_channel, temp++);
                             max = Math.Max(max, sample);
                             min = Math.Min(min, sample);
                         }
                         FilePoint fp = new FilePoint();
-                        fp.fileLocation = i;
+                        fp.fileLocation = new BDFPoint(i);
                         fp.sampleSecs = i.ToSecs();
                         fp.sampleMax = max;
                         fp.sampleMin = min;
-                        fp.pointMax = new Point(fp.sampleSecs, scale * (max - offset) + CanvasHeight / 2D);
+                        fp.pointMax.X = fp.sampleSecs;
+                        fp.pointMax.Y = scale * (max - offset) + CanvasHeight / 2D;
                         pointList.Add(fp.pointMax);
                         if (max != min)
                         {
                             fp.MinValid = true;
-                            fp.pointMin = new Point(fp.sampleSecs, scale * (min - offset) + CanvasHeight / 2D);
+                            fp.pointMin.X = fp.sampleSecs;
+                            fp.pointMin.Y = scale * (min - offset) + CanvasHeight / 2D;
                             pointList.Add(fp.pointMin);
                         }
                         FilePointList.Add(fp);
@@ -308,58 +340,75 @@ namespace ScrollWindow
             }
             else
             {
-                if (FilePointList.Count > 0 && lowBDFP.lessThan(FilePointList[0].fileLocation)) //fill in points below current point list
+                if (FilePointList.Count > 0 && lowBDFP.lessThan(FilePointList[0].fileLocation - decimateNew)) //fill in points below current point list
                 {
-                    int index = 0;
-                    double endPt = FilePointList[0].pointMax.X;
-                    for (BDFPoint i = lowBDFP; i.ToSecs() < endPt; i.Increment(decimateNew))
+                    for (BDFPoint i = (new BDFPoint(FilePointList[0].fileLocation)).Decrement(decimateNew);
+                        lowBDFP.lessThan(i); i.Decrement(decimateNew))
                     {
                         if (i.Rec >= 0 && i.Rec < _BDF.NumberOfRecords)
                         {
-                            /*                        double sample;
-                                                    double max = double.NegativeInfinity;
-                                                    double min = double.PositiveInfinity;
-                                                    for (int j = 0; j < decimate; j++)
-                                                    {
-                                                        sample = _BDF.getSample(_channel, i + j);
-                                                        max = Math.Max(max, sample);
-                                                        min = Math.Min(min, sample);
-                                                    }
-                                                    pointList.Insert(index++, new Point(i.ToSecs(), scale * (max - offset) + CanvasHeight / 2D));
-                                                    if (max != min)
-                                                        pointList.Insert(index++, new Point(i.ToSecs(), scale * (min - offset) + CanvasHeight / 2D)); */
+                            double sample;
+                            double max = double.NegativeInfinity;
+                            double min = double.PositiveInfinity;
+                            BDFPoint temp = new BDFPoint(i);
+                            for (int j = 0; j < decimateNew; j++)
+                            {
+                                sample = _BDF.getSample(_channel, temp++);
+                                max = Math.Max(max, sample);
+                                min = Math.Min(min, sample);
+                            }
                             FilePoint fp = new FilePoint();
-                            fp.pointMax = new Point(i.ToSecs(), scale * (_BDF.getSample(_channel, i) - offset) + CanvasHeight / 2D);
-                            fp.fileLocation = i;
-                            FilePointList.Insert(index, fp);
-                            pointList.Insert(index++, fp.pointMax);
+                            fp.fileLocation = new BDFPoint(i);
+                            fp.sampleSecs = i.ToSecs();
+                            fp.sampleMax = max;
+                            fp.sampleMin = min;
+                            fp.pointMax.X = fp.sampleSecs;
+                            fp.pointMax.Y = scale * (max - offset) + CanvasHeight / 2D;
+                            pointList.Insert(0, fp.pointMax);
+                            if (max != min)
+                            {
+                                fp.MinValid = true;
+                                fp.pointMin.X = fp.sampleSecs;
+                                fp.pointMin.Y = scale * (min - offset) + CanvasHeight / 2D;
+                                pointList.Insert(1, fp.pointMin);
+                            }
+                            FilePointList.Insert(0, fp); //add to beginning of list
                         }
                     }
                 }
-                if (FilePointList.Count > 0 && highSecs > FilePointList.Last().pointMax.X) //fill in points above current point list
+                if (FilePointList.Count > 0 && (FilePointList.Last().fileLocation + decimateNew).lessThan(highBDFP)) //fill in points above current point list
                 {
-                    lowBDFP.FromSecs(FilePointList.Last().pointMax.X);
-                    for (BDFPoint i = lowBDFP; i.ToSecs() < highSecs; i.Increment(decimateNew))
+                    for (BDFPoint i = (new BDFPoint(FilePointList.Last().fileLocation)).Increment(decimateNew);
+                        i.lessThan(highBDFP); i.Increment(decimateNew))
                     {
                         if (i.Rec >= 0 && i.Rec < _BDF.NumberOfRecords)
                         {
-                            /*                        double sample;
-                                                    double max = double.NegativeInfinity;
-                                                    double min = double.PositiveInfinity;
-                                                    for (int j = 0; j < decimate; j++)
-                                                    {
-                                                        sample = _BDF.getSample(_channel, i + j);
-                                                        max = Math.Max(max, sample);
-                                                        min = Math.Min(min, sample);
-                                                    }
-                                                    FilePointList.Add(new Point(i.ToSecs(), scale * (max - offset) + CanvasHeight / 2D));
-                                                    if (max != min)
-                                                        FilePointList.Add(new Point(i.ToSecs(), scale * (min - offset) + CanvasHeight / 2D)); */
+                            double sample;
+                            double max = double.NegativeInfinity;
+                            double min = double.PositiveInfinity;
+                            BDFPoint temp = new BDFPoint(i);
+                            for (int j = 0; j < decimateNew; j++)
+                            {
+                                sample = _BDF.getSample(_channel, temp++);
+                                max = Math.Max(max, sample);
+                                min = Math.Min(min, sample);
+                            }
                             FilePoint fp = new FilePoint();
-                            fp.pointMax = new Point(i.ToSecs(), scale * (_BDF.getSample(_channel, i) - offset) + CanvasHeight / 2D);
-                            fp.fileLocation = i;
-                            FilePointList.Add(fp);
+                            fp.fileLocation = new BDFPoint(i);
+                            fp.sampleSecs = i.ToSecs();
+                            fp.sampleMax = max;
+                            fp.sampleMin = min;
+                            fp.pointMax.X = fp.sampleSecs;
+                            fp.pointMax.Y= scale * (max - offset) + CanvasHeight / 2D;
                             pointList.Add(fp.pointMax);
+                            if (max != min)
+                            {
+                                fp.MinValid = true;
+                                fp.pointMin.X = fp.sampleSecs;
+                                fp.pointMin.Y = scale * (min - offset) + CanvasHeight / 2D;
+                                pointList.Add(fp.pointMin);
+                            }
+                            FilePointList.Add(fp); //add to end of list
                         }
                     }
                 }
@@ -367,7 +416,6 @@ namespace ScrollWindow
             ctx.BeginFigure(pointList[0], false, false);
             ctx.PolyLineTo(pointList, true, true);
             ctx.Close();
-            geometry.Freeze();
             path.Data = geometry;
             this.Children.Clear();
             this.Children.Add(path);
