@@ -42,12 +42,19 @@ namespace CCILibrary
             }
         }
 
+        double _st;
+        public double SampleTime
+        {
+            get { return _st; }
+        }
+
         public BDFPoint(BDFEDFFileReader bdf)
         {
             _rec = 0;
             _pt = 0;
             _recSize = bdf.NSamp;
             _sec = (double)bdf.RecordDuration;
+            _st = _sec / (double)_recSize;
         }
 
         public BDFPoint(int recordSize)
@@ -55,6 +62,7 @@ namespace CCILibrary
             _rec = 0;
             _pt = 0;
             _recSize = recordSize;
+            _st = _sec / _recSize;
         }
 
         public BDFPoint(BDFPoint pt) //Copy constructor
@@ -63,6 +71,7 @@ namespace CCILibrary
             this._pt = pt._pt;
             this._recSize = pt._recSize;
             this._sec = pt._sec;
+            this._st = pt._st;
         }
 
         public static BDFPoint operator +(BDFPoint pt, int pts) //adds pts points to current location stp
