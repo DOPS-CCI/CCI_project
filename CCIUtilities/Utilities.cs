@@ -94,5 +94,11 @@ namespace CCIUtilities
             Assembly ass = Assembly.GetCallingAssembly();
             return ass.GetName().Version.ToString();
         }
+
+        public static uint greyCode(uint n)
+        {
+            return n ^ (n >> 1);
+        }
+
     }
 }
