@@ -14,7 +14,7 @@ namespace CCILibrary
         private int _recSize;
         private int _rec;
         private int _pt;
-        private double _sec = 1D;
+        private double _sec = 1D; //default record time is assumed = 1 second
 
         public int Rec
         {
@@ -35,7 +35,7 @@ namespace CCILibrary
                 }
                 else if (_pt < 0)
                 {
-                    int del = 1 - (_pt + 1) / _recSize;
+                    int del = 1 - (_pt + 1) / _recSize; //trust me, it works!
                     _rec -= del;
                     _pt += del * _recSize;
                 }
@@ -77,14 +77,14 @@ namespace CCILibrary
         public static BDFPoint operator +(BDFPoint pt, int pts) //adds pts points to current location stp
         {
             BDFPoint stp = new BDFPoint(pt);
-            stp.Pt += pts; //use property set to get record correction
+            stp.Pt += pts; //set property to get record correction
             return stp;
         }
 
         public static BDFPoint operator -(BDFPoint pt, int pts) //subtracts pts points to current location stp
         {
             BDFPoint stp = new BDFPoint(pt);
-            stp.Pt -= pts; //use property set to get record correction
+            stp.Pt -= pts; //set property to get record correction
             return stp;
         }
 
