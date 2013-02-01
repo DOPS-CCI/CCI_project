@@ -34,6 +34,8 @@ namespace ScrollWindow
         public double YScaleUnitsToInches;
         public double currentDisplayWidthInSecs = 10D;
         public double currentDisplayOffsetInSecs = 0D;
+        public double oldDisplayWidthInSecs = 10D;
+        public double oldDisplayOffsetInSecs = -10D;
         Dictionary<int, Event.InputEvent> events = new Dictionary<int, Event.InputEvent>();
         public BDFEDFFileReader bdf;
         Header.Header head;
@@ -83,7 +85,7 @@ namespace ScrollWindow
             //from here on the program is GUI-event driven
         }
 
-// ScrollViewer change routines are here: lead to redraws of window
+        // ScrollViewer change routines are here: lead to redraws of window
         private void ScrollViewer_SizeChanged(object sender, SizeChangedEventArgs e)
         {
             if (e.HeightChanged)
@@ -120,26 +122,20 @@ namespace ScrollWindow
                 }
             }
         }
-        
+
         private void Viewer_ScrollChanged(object sender, ScrollChangedEventArgs e)
         {
-/*            Console.WriteLine("Viewer scroll change: ExtentChange=" +
-                e.ExtentWidthChange.ToString("0.00") + "," + e.ExtentHeightChange.ToString("0.00"));
-            Console.WriteLine("    ScrollChange=" +
-                e.HorizontalChange.ToString("0.00") + "," + e.VerticalChange.ToString("0.00"));
-            Console.WriteLine("    ViewPortChange=" +
-                e.ViewportWidthChange.ToString("0.00") + "," + e.ViewportHeightChange.ToString("0.00")); */
             if (e.HorizontalChange != 0D || e.ExtentWidthChange != 0D)
             {
                 double loc = e.HorizontalOffset;
+                oldDisplayOffsetInSecs = currentDisplayOffsetInSecs;
                 currentDisplayOffsetInSecs = loc / XScaleSecsToInches;
 
                 //change Event/location information in bottom panel
                 double midPoint = currentDisplayOffsetInSecs + currentDisplayWidthInSecs / 2D;
                 Loc.Text = midPoint.ToString("0.000");
 
-                BDFPoint mid = new BDFPoint(bdf);
-                mid.FromSecs(midPoint);
+                BDFLoc mid = bdf.LocationFactory.New().FromSecs(midPoint);
                 int sample = (int)head.Mask & bdf.getStatusSample(mid);
                 InputEvent ie;
                 bool r = events.TryGetValue(sample, out ie);
@@ -148,7 +144,7 @@ namespace ScrollWindow
                 else
                     EventPastInfo.Text = "No Event";
                 int past = sample;
-                for (BDFPoint p = mid; ; p++)
+                for (BDFLoc p = mid; ; p++)
                 {
                     sample = bdf.getStatusSample(p);
                     if (sample == int.MinValue) //reached EOF
@@ -171,15 +167,12 @@ namespace ScrollWindow
             if (e.ViewportHeightChange != 0D)
             {
                 double height = (e.ViewportHeight - 20) / GraphCanvas.Children.Count;
-                foreach (ChannelGraph pg in GraphCanvas.Children)
-                {
-                    pg.CanvasHeight = height;
-                }
+                ChannelGraph.CanvasHeight = height;
             }
             RedrawGraphicCanvas();
         }
 
-// Here are the routines for handling the dragging of the display window
+        // Here are the routines for handling the dragging of the display window
         bool InDrag = false;
         Point startDragMouseLocation;
         double startDragScrollLocation;
@@ -206,12 +199,12 @@ namespace ScrollWindow
             Viewer.ScrollToHorizontalOffset(startDragScrollLocation - e.GetPosition(Viewer).X + startDragMouseLocation.X);
         }
 
-// Time-scale change button clicks handled here
+        // Time-scale change button clicks handled here
         private void Button_Click(object sender, RoutedEventArgs e)
         {
             Button b = (Button)sender;
             double d = Convert.ToDouble(b.Content);
-            double oldDisplayWidthInSecs = currentDisplayWidthInSecs;
+            oldDisplayWidthInSecs = currentDisplayWidthInSecs;
             currentDisplayWidthInSecs = Math.Min(currentDisplayWidthInSecs / d, BDFLength);
             XScaleSecsToInches = Viewer.ViewportWidth / currentDisplayWidthInSecs;
             Transform t = new ScaleTransform(XScaleSecsToInches, 1, Viewer.ContentHorizontalOffset + Viewer.ViewportWidth / 2, 0D);
@@ -221,23 +214,24 @@ namespace ScrollWindow
             Viewer.ScrollToHorizontalOffset(XScaleSecsToInches * (currentDisplayOffsetInSecs + (oldDisplayWidthInSecs - currentDisplayWidthInSecs) / 2D));
         }
 
-// Re-draw routines here
-        private void RedrawGraphicCanvas(){
-            for (int i = 0; i < GraphCanvas.Children.Count;i++ )
-            {
-                ChannelGraph g = (ChannelGraph)GraphCanvas.Children[i];
-                g.reDraw();
-            }
+        // Re-draw routines here
+        private void RedrawGraphicCanvas()
+        {
+            reDrawAllChannels();
             reDrawEvents();
         }
 
         private void reDrawEvents()
         {
             EventMarkers.Children.Clear();
-            BDFPoint start = (new BDFPoint(bdf)).FromSecs(currentDisplayOffsetInSecs);
-            BDFPoint end = (new BDFPoint(bdf)).FromSecs(currentDisplayOffsetInSecs + currentDisplayWidthInSecs);
-            uint lastSample = (uint)bdf.getStatusSample(start++) & head.Mask;
-            for (BDFPoint p = start; p.lessThan(end); p++)
+            BDFLoc start = bdf.LocationFactory.New().FromSecs(currentDisplayOffsetInSecs);
+            BDFLoc end = bdf.LocationFactory.New().FromSecs(currentDisplayOffsetInSecs + currentDisplayWidthInSecs);
+            uint lastSample = 0;
+            if ((--start).IsInFile)
+                lastSample = (uint)bdf.getStatusSample(start++) & head.Mask; //get sample before start of segment
+            else
+                start++;
+            for (BDFLoc p = start; p.lessThan(end); p++)
             {
                 uint sample = (uint)bdf.getStatusSample(p) & head.Mask;
                 if (sample != lastSample)
@@ -263,203 +257,260 @@ namespace ScrollWindow
             double scaleWidth = canvasWidth - viewWidth;
             double scale = BDFLength / scaleWidth;
         }
-    }
 
-    public class ChannelGraph : Canvas
-    {
-
-        int _channel;
-        BDFEDFFileReader _BDF;
-        StreamGeometry geometry = new StreamGeometry();
-        double BrushScale;
-        public double CanvasHeight = 0;
-        MainWindow ContainingWindow;
-        System.Windows.Shapes.Path path = new System.Windows.Shapes.Path();
-
-        public ChannelGraph(MainWindow containingWindow, int channelNumber)
-            : base()
+        public void reDrawAllChannels()
         {
-            _channel = channelNumber;
-            _BDF = containingWindow.bdf;
-            ContainingWindow = containingWindow;
-            this.Width = containingWindow.BDFLength; //NOTE: always scaled in seconds
-            BrushScale = ((double)_BDF.RecordDuration) / ((double)(3 * _BDF.NSamp));
-            this.VerticalAlignment = VerticalAlignment.Stretch;
-            path.Stroke = Brushes.Black;
-            path.StrokeLineJoin = PenLineJoin.Round;
-            path.Data = geometry;
-        }
+            UIElementCollection chans = GraphCanvas.Children;
 
-        List<FilePoint> FilePointList = new List<FilePoint>(4096);
-        List<Point> pointList = new List<Point>(4096);
-        int decimateOld = 0;
-        double scaleOld;
-        double offsetOld;
-        double scale;
-        double offset;
-        double maxOld = double.NegativeInfinity;
-        double minOld = double.PositiveInfinity;
-        public void reDraw()
-        {
-//            Console.WriteLine("ReDraw channel " + _channel.ToString("0"));
-            double lowSecs = ContainingWindow.currentDisplayOffsetInSecs;
-            double highSecs = lowSecs + ContainingWindow.currentDisplayWidthInSecs;
-            BDFPoint lowBDFP = (new BDFPoint(_BDF)).FromSecs(lowSecs);
-            BDFPoint highBDFP = (new BDFPoint(_BDF)).FromSecs(highSecs);
-            //find min, max and average of the range to be displayed
-            double lowValue = minOld;
-            double hiValue = maxOld;
-            for (BDFPoint i = new BDFPoint(lowBDFP); i.lessThan(highBDFP); i++)
+            double lowSecs = currentDisplayOffsetInSecs;
+            double highSecs = lowSecs + currentDisplayWidthInSecs;
+            BDFLoc lowBDFP = bdf.LocationFactory.New().FromSecs(lowSecs);
+            BDFLoc highBDFP = bdf.LocationFactory.New().FromSecs(highSecs);
+
+            //determine if overlap of new display with old
+            bool overlap = false;
+            if (lowSecs > oldDisplayOffsetInSecs && lowSecs < oldDisplayOffsetInSecs + oldDisplayWidthInSecs) overlap = true;
+            if (highSecs > oldDisplayOffsetInSecs && highSecs < oldDisplayOffsetInSecs + oldDisplayWidthInSecs) overlap = true;
+            oldDisplayWidthInSecs = currentDisplayWidthInSecs;
+
+            //calculate new decimation, depending on seconds displayed and viewer width
+            ChannelGraph.decimateNew = Convert.ToInt32(Math.Ceiling(2D * (highBDFP - lowBDFP) / Viewer.ActualWidth));
+            if (ChannelGraph.decimateNew == 2) ChannelGraph.decimateNew = 1; //No advantage to decimating by 2
+
+            bool completeRedraw = ChannelGraph.decimateNew != ChannelGraph.decimateOld || !overlap; //complete redraw of all channels if ...
+            // change in decimation or if completely new screen (no overlap of old and new)
+            ChannelGraph.decimateOld = ChannelGraph.decimateNew;
+
+            //calculate number of points to remove above and below current point set
+            int removeLow = 0;
+            int removeHigh = 0;
+            List<FilePoint> s = ((ChannelGraph)chans[0]).FilePointList;
+            if (s.Count > 0)
             {
-                if (i.Rec >= 0 && i.Rec < _BDF.NumberOfRecords)
+                removeLow = (int)((lowBDFP - s[0].fileLocation) / ChannelGraph.decimateNew);
+                removeHigh = (int)((s.Last().fileLocation - highBDFP) / ChannelGraph.decimateNew);
+            }
+
+            //now loop through each channel graph to remove unneeded points and find new max and min
+            foreach (ChannelGraph cg in chans)
+            {
+                cg.overallMin = double.PositiveInfinity;
+                cg.overallMax = double.NegativeInfinity;
+                cg.needsRedraw = false;
+
+                if (completeRedraw) //shortcut, if complete redraw
                 {
-                    double sample = _BDF.getSample(_channel, i);
-                    if (sample > hiValue) hiValue = sample;
-                    if (sample < lowValue) lowValue = sample;
+                    cg.FilePointList.Clear();
+                    cg.needsRedraw = true;
+                }
+                else //then this channel may require partial redraw:
+                {
+                    if (removeLow > 0) //then must remove removed below
+                    {
+                        cg.FilePointList.RemoveRange(0, removeLow);
+                        cg.needsRedraw = true;
+                    }
+
+                    if (removeHigh > 0) //then must remove points above
+                    {
+                        cg.FilePointList.RemoveRange(cg.FilePointList.Count - removeHigh, removeHigh);
+                        cg.needsRedraw = true;
+                    }
+                    completeRedraw = completeRedraw || cg.FilePointList.Count == 0;
+
+                    //find overallMax/overallMin in any remaining points
+                    foreach (FilePoint fp in cg.FilePointList)
+                    {
+                        if (fp.sampleFirst > cg.overallMax) cg.overallMax = fp.sampleFirst;
+                        if (fp.sampleFirst < cg.overallMin) cg.overallMin = fp.sampleFirst;
+                        if (fp.SecondValid)
+                        {
+                            if (fp.sampleSecond > cg.overallMax) cg.overallMax = fp.sampleSecond;
+                            if (fp.sampleSecond < cg.overallMin) cg.overallMin = fp.sampleSecond;
+                        }
+                    }
                 }
             }
-            offset = (hiValue + lowValue) / 2D;
-            scale = CanvasHeight / (lowValue - hiValue);
-            this.Height = CanvasHeight;
-            path.StrokeThickness = Math.Max((highSecs - lowSecs) * 0.00075D, 0.0008D);
-            int decimateNew = Convert.ToInt32(Math.Ceiling(2D * (highBDFP - lowBDFP) / ContainingWindow.Viewer.ActualWidth));
-            if (decimateNew == 2) decimateNew = 1; //No advantage to decimating by 2
-//            ContainingWindow.Info.Text = "Display Points=" + ((highBDFP-lowBDFP)/decimateNew).ToString("0");
-//            ContainingWindow.Info.Text = ContainingWindow.Info.Text + "\nDecimation=" + decimateNew.ToString("0");
-//            ContainingWindow.Info.Text = ContainingWindow.Info.Text + "\nWidth=" + (highSecs - lowSecs).ToString("0.00") + "sec";
-            //criteria for complete redraw of this graph
-            bool t = Math.Abs((scale - scaleOld) / scaleOld) > 0.01 || //scale changes sufficiently
-                Math.Abs((offset - offsetOld) / offsetOld) > 0.01 || //offset changes sufficiently
-                decimateNew != decimateOld; //decimation change
-            if (t)
+            
+            //now, update the fields as required:
+            if (completeRedraw)
+                //1. Redraw everything
             {
-                pointList.Clear();
-                FilePointList.Clear();
-                decimateOld = decimateNew;
-                scaleOld = scale;
-                offsetOld = offset;
-            }
-            while (FilePointList.Count > 0 && FilePointList[0].fileLocation.lessThan(lowBDFP)) //remove points from below
-                DeletePoint(FilePointList[0]);
-            while (FilePointList.Count > 0 && highBDFP.lessThan(FilePointList.Last().fileLocation)) //remove points from above
-                DeletePoint(FilePointList.Last());
-
-            if (FilePointList.Count == 0) //starting over
-            {
-                for (BDFPoint i = new BDFPoint(lowBDFP); i.lessThan(highBDFP); i.Increment(decimateNew))
+                for (BDFLoc i = lowBDFP; i.lessThan(highBDFP); i.Increment(ChannelGraph.decimateNew))
                 {
-                    if (i.Rec >= 0 && i.Rec < _BDF.NumberOfRecords)
+                    if (i.IsInFile)
                     {
-                        FilePoint fp = createFilePoint(i, decimateNew);
-                        pointList.Add(fp.firstPoint);
-                        if (fp.SecondValid) pointList.Add(fp.secondPoint);
-                        FilePointList.Add(fp);
+                        foreach (ChannelGraph cg in chans)
+                        {
+                            FilePoint fp = cg.createFilePoint(i);
+                            cg.FilePointList.Add(fp);
+                        }
                     }
                 }
             }
             else
             {
-                if (FilePointList.Count > 0 && lowBDFP.lessThan(FilePointList[0].fileLocation - decimateNew)) //fill in points below current point list
+                if (removeHigh > 0)
+                    //2. Add points below current point list
                 {
-                    for (BDFPoint i = (new BDFPoint(FilePointList[0].fileLocation)).Decrement(decimateNew);
-                        lowBDFP.lessThan(i); i.Decrement(decimateNew))
+                    for (BDFLoc i = ((ChannelGraph)chans[0]).FilePointList[0].fileLocation - ChannelGraph.decimateNew;
+                        lowBDFP.lessThan(i); i.Decrement(ChannelGraph.decimateNew))
                     {
-                        if (i.Rec >= 0 && i.Rec < _BDF.NumberOfRecords)
+                        if (i.IsInFile)
                         {
-                            FilePoint fp = createFilePoint(i,decimateNew);
-                            pointList.Insert(0, fp.firstPoint);
-                            if (fp.SecondValid) pointList.Insert(1, fp.secondPoint);
-                            FilePointList.Insert(0, fp); //add to beginning of list
+                            foreach (ChannelGraph cg in chans)
+                            {
+                                if (cg.needsRedraw)
+                                {
+                                    FilePoint fp = cg.createFilePoint(i);
+                                    cg.FilePointList.Insert(0, fp); //add to beginning of list
+                                }
+                            }
                         }
                     }
                 }
-                if (FilePointList.Count > 0 && (FilePointList.Last().fileLocation + decimateNew).lessThan(highBDFP)) //fill in points above current point list
+                if (removeLow > 0)
+                    //3. Add points above current point list
                 {
-                    for (BDFPoint i = (new BDFPoint(FilePointList.Last().fileLocation)).Increment(decimateNew);
-                        i.lessThan(highBDFP); i.Increment(decimateNew))
+                    for (BDFLoc i = ((ChannelGraph)chans[0]).FilePointList.Last().fileLocation + ChannelGraph.decimateNew;
+                        i.lessThan(highBDFP); i.Increment(ChannelGraph.decimateNew))
                     {
-                        if (i.Rec >= 0 && i.Rec < _BDF.NumberOfRecords)
+                        if (i.IsInFile)
                         {
-                            FilePoint fp = createFilePoint(i,decimateNew);
-                            pointList.Add(fp.firstPoint);
-                            if (fp.SecondValid) pointList.Add(fp.secondPoint);
-                            FilePointList.Add(fp); //add to end of list
+                            foreach (ChannelGraph cg in chans)
+                            {
+                                if (cg.needsRedraw)
+                                {
+                                    FilePoint fp = cg.createFilePoint(i);
+                                    cg.FilePointList.Add(fp); //add to end of list
+                                }
+                            }
                         }
                     }
                 }
             }
-            StreamGeometryContext ctx = geometry.Open();
-            ctx.BeginFigure(pointList[0], false, false);
-            ctx.PolyLineTo(pointList, true, true);
-            ctx.Close();
-            this.Children.Clear();
+
+            //Now, we've got the data we need to plot each of the channels
+            foreach (ChannelGraph cg in chans)
+            {
+                cg.newOffset = (cg.overallMax + cg.overallMin) / 2D;
+                cg.newScale = ChannelGraph.CanvasHeight / (cg.overallMin - cg.overallMax);
+                cg.Height = ChannelGraph.CanvasHeight;
+                cg.path.StrokeThickness = Math.Max(currentDisplayWidthInSecs * 0.0006D, 0.0008D);
+
+                bool rescale = Math.Abs((cg.newScale - cg.currentScale) / cg.currentScale) > 0.01 || //if scale changes sufficiently or...
+                    Math.Abs((cg.newOffset - cg.currentOffset) / (cg.overallMax - cg.overallMin)) > 0.01; //if offset changes sufficiently
+
+                //only redraw if Y-scale has changed sufficiently, decimation changed, points have been removed, or there's no overlap
+                if (rescale || cg.needsRedraw)
+                {
+                    cg.currentScale = cg.newScale;
+                    cg.currentOffset = cg.newOffset;
+                    cg.rescalePoints(); //create new pointList
+                    //and install it in window
+                    StreamGeometryContext ctx = cg.geometry.Open();
+                    ctx.BeginFigure(cg.pointList[0], false, false);
+                    ctx.PolyLineTo(cg.pointList, true, true);
+                    ctx.Close();
+                }
+            }
+        }
+    }
+
+    internal class ChannelGraph : Canvas
+    {
+        internal int _channel;
+        internal StreamGeometry geometry = new StreamGeometry();
+        internal System.Windows.Shapes.Path path = new System.Windows.Shapes.Path();
+
+        internal List<FilePoint> FilePointList = new List<FilePoint>(4096);
+        internal List<Point> pointList = new List<Point>(4096);
+        internal double currentScale;
+        internal double currentOffset;
+        internal double newScale;
+        internal double newOffset;
+        internal bool needsRedraw = true;
+        internal double overallMax;
+        internal double overallMin;
+
+        internal static BDFEDFFileReader bdf;
+        internal static int decimateOld = 0;
+        internal static int decimateNew;
+        internal static double CanvasHeight = 0;
+
+
+        public ChannelGraph(MainWindow containingWindow, int channelNumber)
+            : base()
+        {
+            _channel = channelNumber;
+            this.Width = containingWindow.BDFLength; //NOTE: always scaled in seconds
+            bdf = containingWindow.bdf;
+            this.VerticalAlignment = VerticalAlignment.Stretch;
+            path.Stroke = Brushes.Black;
+            path.StrokeLineJoin = PenLineJoin.Round;
+            path.Data = geometry;
             this.Children.Add(path);
         }
 
-        private FilePoint createFilePoint(BDFPoint index, int decimation)
+        internal FilePoint createFilePoint(BDFLoc index)
         {
             double sample;
             double max = double.NegativeInfinity;
             double min = double.PositiveInfinity;
             int imax = -1;
             int imin = -1;
-            BDFPoint temp = new BDFPoint(index);
-            for (int j = 0; j < decimation; j++)
+            BDFLoc temp = index;
+            for (int j = 0; j < decimateNew; j++)
             {
-                sample = _BDF.getSample(_channel, temp++);
+                sample = bdf.getSample(_channel, temp++);
                 if (sample > max) { max = sample; imax = j; }
                 if (sample < min) { min = sample; imin = j; }
             }
+            if (max > overallMax) overallMax = max;
+            if (min < overallMin) overallMin = min;
             FilePoint fp = new FilePoint();
-            fp.fileLocation = new BDFPoint(index);
+            fp.fileLocation = index;
             fp.sampleSecs = index.ToSecs();
             if (imax < imin)
             {
                 fp.sampleFirst = max;
                 fp.sampleSecond = min;
-                fp.firstPoint.X = fp.sampleSecs;
-                fp.firstPoint.Y = scaleOld * (max - offsetOld) + CanvasHeight / 2D;
-                fp.secondPoint.X = fp.sampleSecs + index.SampleTime * decimation / 2D;
-                fp.secondPoint.Y = scaleOld * (min - offsetOld) + CanvasHeight / 2D;
                 fp.SecondValid = true;
             }
             else if (imax > imin)
             {
                 fp.sampleFirst = min;
                 fp.sampleSecond = max;
-                fp.firstPoint.X = fp.sampleSecs;
-                fp.firstPoint.Y = scaleOld * (min - offsetOld) + CanvasHeight / 2D;
-                fp.secondPoint.X = fp.sampleSecs + index.SampleTime * decimation / 2D;
-                fp.secondPoint.Y = scaleOld * (max - offsetOld) + CanvasHeight / 2D;
                 fp.SecondValid = true;
             }
             else
             {
                 fp.sampleFirst = max;
-                fp.firstPoint.X = fp.sampleSecs;
-                fp.firstPoint.Y = scaleOld * (max - offsetOld) + CanvasHeight / 2D;
                 fp.SecondValid = false;
             }
             return fp;
         }
 
-        private void DeletePoint(FilePoint fp)
+        internal void rescalePoints()
         {
-            pointList.Remove(fp.firstPoint);
-            if (fp.SecondValid)
-                pointList.Remove(fp.secondPoint);
-            FilePointList.Remove(fp);
+            double t2 = bdf.SampTime * decimateNew / 2D;
+            pointList.Clear();
+            foreach(FilePoint fp in FilePointList)
+            {
+                pointList.Add(new Point(fp.sampleSecs, (fp.sampleFirst - currentOffset) * currentScale + CanvasHeight / 2D));
+                if (fp.SecondValid)
+                    pointList.Add(new Point(fp.sampleSecs + t2, (fp.sampleSecond - currentOffset) * currentScale + CanvasHeight / 2D));
+            }
         }
 
-        private struct FilePoint
-        {
-            public BDFPoint fileLocation;
-            public double sampleSecs;
-            public double sampleFirst;
-            public double sampleSecond;
-            public Point firstPoint;
-            public Point secondPoint;
-            public bool SecondValid;
-        }
+    }
+
+    internal struct FilePoint
+    {
+        public BDFLoc fileLocation;
+        public double sampleSecs;
+        public double sampleFirst;
+        public double sampleSecond;
+        public bool SecondValid;
     }
 }
