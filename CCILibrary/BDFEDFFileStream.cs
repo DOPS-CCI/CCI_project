@@ -5,10 +5,19 @@ using Event;
 
 namespace CCILibrary
 {
-    public class BDFEDFFileStream: IDisposable {
+    public class BDFEDFFileStream : IDisposable
+    {
         internal BDFEDFHeader header;
         internal FileStream baseStream;
         public BDFEDFRecord record;
+        protected BDFLocFactory _locationFactory;
+        public BDFLocFactory LocationFactory
+        {
+            get
+            {
+                return _locationFactory;
+            }
+        }
 
         /// <summary>
         /// Number of records currently in BDF/EDF file; read-only
@@ -28,7 +37,8 @@ namespace CCILibrary
         /// <summary>
         /// Local Subject Id field in BDF/EDF file
         /// </summary>
-        public string LocalSubjectId {
+        public string LocalSubjectId
+        {
             get { return header.localSubjectId; }
             set { if (!header.isValid) header.localSubjectId = value; }
         }
@@ -36,7 +46,8 @@ namespace CCILibrary
         /// <summary>
         /// Local recording Id in BDF/EDF file
         /// </summary>
-        public string LocalRecordingId {
+        public string LocalRecordingId
+        {
             get { return header.localRecordingId; }
             set { if (!header.isValid) header.localRecordingId = value; }
         }
@@ -52,14 +63,15 @@ namespace CCILibrary
         /// </summary>
         /// <param name="index">Channel number</param>
         /// <returns>Prefilter string</returns>
-        public string prefilter(int index) {return header.channelPrefilters[index];}
+        public string prefilter(int index) { return header.channelPrefilters[index]; }
 
         /// <summary>
         /// Writes prefilter strings into BDF/EDF file
         /// </summary>
         /// <param name="index">Channel number; zero based</param>
         /// <param name="value">Value of prefilter string</param>
-        public void prefilter(int index, string value) {
+        public void prefilter(int index, string value)
+        {
             if (!header.isValid) header.channelPrefilters[index] = value;
         }
 
@@ -68,14 +80,15 @@ namespace CCILibrary
         /// </summary>
         /// <param name="index">Channel number; zero based</param>
         /// <returns>Channel label</returns>
-        public string channelLabel(int index) {return header.channelLabels[index];}
+        public string channelLabel(int index) { return header.channelLabels[index]; }
 
         /// <summary>
         /// Writes channel labels into BDF/EDF file
         /// </summary>
         /// <param name="index">Channel number; zero based</param>
         /// <param name="value">Value of channel label</param>
-        public void channelLabel(int index, string value) {
+        public void channelLabel(int index, string value)
+        {
             if (!header.isValid) header.channelLabels[index] = value;
         }
 
@@ -84,14 +97,15 @@ namespace CCILibrary
         /// </summary>
         /// <param name="index">Channel number; zero based</param>
         /// <returns>Transducer string</returns>
-        public string transducer(int index) {return header.transducerTypes[index];}
+        public string transducer(int index) { return header.transducerTypes[index]; }
 
         /// <summary>
         /// Writes transducer value
         /// </summary>
         /// <param name="index">Channel number; zero based</param>
         /// <param name="value">Transducer string</param>
-        public void transducer(int index, string value) {
+        public void transducer(int index, string value)
+        {
             if (!header.isValid) header.transducerTypes[index] = value;
         }
 
@@ -100,30 +114,35 @@ namespace CCILibrary
         /// </summary>
         /// <param name="index">Channel number; zero based</param>
         /// <returns>Physical dimension string</returns>
-        public string dimension(int index) {return header.physicalDimensions[index];}
+        public string dimension(int index) { return header.physicalDimensions[index]; }
 
         /// <summary>
         /// Writes physical dimension
         /// </summary>
         /// <param name="index">Channel number; zero based</param>
         /// <param name="value">Value of physical dimension</param>
-        public void dimension(int index, string value) {
+        public void dimension(int index, string value)
+        {
             if (!header.isValid) header.physicalDimensions[index] = value;
         }
         public int pMin(int index) { return header.physicalMinimums[index]; }
-        public void pMin(int index, int value) {
+        public void pMin(int index, int value)
+        {
             if (!header.isValid) header.physicalMinimums[index] = value;
         }
         public int pMax(int index) { return header.physicalMaximums[index]; }
-        public void pMax(int index, int value) {
+        public void pMax(int index, int value)
+        {
             if (!header.isValid) header.physicalMaximums[index] = value;
         }
         public int dMin(int index) { return header.digitalMinimums[index]; }
-        public void dMin(int index, int value) {
+        public void dMin(int index, int value)
+        {
             if (!header.isValid) header.digitalMinimums[index] = value;
         }
         public int dMax(int index) { return header.digitalMaximums[index]; }
-        public void dMax(int index, int value) {
+        public void dMax(int index, int value)
+        {
             if (!header.isValid) header.digitalMaximums[index] = value;
         }
 
@@ -132,18 +151,36 @@ namespace CCILibrary
         /// </summary>
         /// <param name="channel">Channel number; zero based</param>
         /// <returns>Number of samples in the channel</returns>
-        public int NumberOfSamples(int channel) {
+        public int NumberOfSamples(int channel)
+        {
             return header.numberSamples[channel];
         }
 
         /// <summary>
+        /// Returns time between samples for a channel
+        /// </summary>
+        /// <param name="channel">Channel number; zero based</param>
+        /// <returns>Sampling time for channel</returns>
+        public double SampleTime(int channel)
+        {
+            if(header._isValid)
+                return (double)RecordDuration / (double)header.numberSamples[channel];
+            return 0D;
+        }
+
+        /// <summary>
+        ///  Courtesy function: returns sampling time for channel 0, which is usually same for all channels
+        /// </summary>
+        public double SampTime { get { return (double)RecordDuration / (double)NSamp; } }
+
+        /// <summary>
         /// Courtesy function: returns number of samples in channel 0, which is usually same for all channels
         /// </summary>
-        public int NSamp{ get { return header.numberSamples[0]; } }
+        public int NSamp { get { return header.numberSamples[0]; } }
 
         public int ChannelNumberFromLabel(string name)
         {
-            if(header._isValid)
+            if (header._isValid)
                 for (int i = 0; i < header.numberChannels; i++)
                     if (header.channelLabels[i] == name) return i;
             return -1;
@@ -192,7 +229,8 @@ namespace CCILibrary
             return str.ToString();
         }
 
-        public virtual void Dispose() {
+        public virtual void Dispose()
+        {
             header.Dispose();
             record.Dispose();
         }
@@ -202,31 +240,36 @@ namespace CCILibrary
     /// <summary>
     /// Class for reading a BDF or EDF file
     /// </summary>
-    public class BDFEDFFileReader : BDFEDFFileStream, IDisposable{
+    public class BDFEDFFileReader : BDFEDFFileStream, IDisposable
+    {
 
         protected BinaryReader reader;
         double? _zeroTime = null;
 
-        public BDFEDFFileReader(Stream str) {
-
+        public BDFEDFFileReader(Stream str)
+        {
             if (!str.CanRead) throw new BDFEDFException("BDFEDFFileStream must be able to read from Stream.");
-            if(str is FileStream ) baseStream = (FileStream)str;
+            if (str is FileStream) baseStream = (FileStream)str;
             reader = new BinaryReader(str, Encoding.ASCII);
             header = new BDFEDFHeader();
             header.read(reader); //Read in header
             record = new BDFEDFRecord(header); //Now can create BDFEDFRecord
             header._isValid = true;
-       }
+            _locationFactory = new BDFLocFactory(this);
+        }
 
         /// <summary>
         /// Reads next available record
         /// </summary>
         /// <returns>Resulting <see cref="BDFRecord">BDFRecord</see> or <code>null</code> if end of file</returns>
-        public BDFEDFRecord read() {
-            try {
+        public BDFEDFRecord read()
+        {
+            try
+            {
                 record.read(reader);
             }
-            catch (EndOfStreamException) {
+            catch (EndOfStreamException)
+            {
                 return null;
             }
             return record;
@@ -256,14 +299,16 @@ namespace CCILibrary
         /// <param name="channel">Channel number; zero-based</param>
         /// <returns>Array of samples from channel</returns>
         /// <exception cref="BDFEDFException">No record read or invalid input</exception>
-        public double[] getChannel(int channel) {
+        public double[] getChannel(int channel)
+        {
             if (reader != null && record.currentRecordNumber < 0) throw new BDFEDFException("No records have yet been read.");
             if (channel < 0 || channel >= header.numberChannels) throw new BDFEDFException("Invalid channel number (" + channel + ")");
             double[] chan = new double[header.numberSamples[channel]];
             double g = header.Gain(channel);
             double o = header.Offset(channel);
             int i = 0;
-            foreach (int d in record.channelData[channel]) {
+            foreach (int d in record.channelData[channel])
+            {
                 chan[i] = (double)d * g + o;
                 i++;
             }
@@ -276,7 +321,8 @@ namespace CCILibrary
         /// <returns>Array of integers from status channel</returns>
         /// <exception cref="BDFEDFException">No records yet read</exception>
         /// <exception cref="BDFEDFException">Not a BDF file</exception>
-        public int[] getStatus() {
+        public int[] getStatus()
+        {
             if (reader != null && record.currentRecordNumber < 0) throw new BDFEDFException("No records have yet been read.");
             if (!header.isBDFFile) throw new BDFEDFException("Not a BDF file.");
             return record.channelData[header.numberChannels - 1];
@@ -289,7 +335,8 @@ namespace CCILibrary
         /// <param name="sample">Sample number; zero-based</param>
         /// <returns>Value of requested sample</returns>
         /// <exception cref="BDFException">No records read or invalid input</exception>
-        public double getSample(int channel, int sample) {
+        public double getSample(int channel, int sample)
+        {
             if (reader != null && record.currentRecordNumber < 0) throw new BDFEDFException("No records have yet been read.");
             if (channel < 0 || channel >= header.numberChannels) throw new BDFEDFException("Invalid channel number (" + channel + ")");
             if (sample < 0 || sample >= header.numberSamples[channel]) throw new BDFEDFException("Invalid sample number (" + sample + ")");
@@ -313,6 +360,37 @@ namespace CCILibrary
         }
 
         public int getStatusSample(BDFPoint point)
+        {
+            int channel = header.numberChannels - 1;
+            if (point.Pt < 0 || point.Pt >= header.numberSamples[channel]) throw new BDFEDFException("Invalid sample number (" + point.Pt + ")");
+            if (point.Rec != record.currentRecordNumber) //need to read in new record
+            {
+                if (!reader.BaseStream.CanSeek) throw new IOException("File stream not able to perform Seek.");
+                if ((header.isValid && point.Rec >= header.numberOfRecords) || point.Rec < 0) return int.MinValue; //read beyond EOF
+                long pos = (long)header.headerSize + (long)point.Rec * (long)record.recordLength; //these files get BIG!!
+                reader.BaseStream.Seek(pos, SeekOrigin.Begin);
+                record.currentRecordNumber = point.Rec - 1; //one less as read() increments it
+                read();
+            }
+            return record.channelData[channel][point.Pt];
+        }
+        public double getSample(int channel, BDFLoc point)
+        {
+            if (channel < 0 || channel >= header.numberChannels) throw new BDFEDFException("Invalid channel number (" + channel + ")");
+            if (point.Pt < 0 || point.Pt >= header.numberSamples[channel]) throw new BDFEDFException("Invalid sample number (" + point.Pt + ")");
+            if (point.Rec != record.currentRecordNumber) //need to read in new record
+            {
+                if (!reader.BaseStream.CanSeek) throw new IOException("File stream not able to perform Seek.");
+                if ((header.isValid && point.Rec >= header.numberOfRecords) || point.Rec < 0) return double.NaN; //read beyond EOF
+                long pos = (long)header.headerSize + (long)point.Rec * (long)record.recordLength; //these files get BIG!!
+                reader.BaseStream.Seek(pos, SeekOrigin.Begin);
+                record.currentRecordNumber = point.Rec - 1; //one less as read() increments it
+                read();
+            }
+            return (double)record.channelData[channel][point.Pt] * header.Gain(channel) + header.Offset(channel);
+        }
+
+        public int getStatusSample(BDFLoc point)
         {
             int channel = header.numberChannels - 1;
             if (point.Pt < 0 || point.Pt >= header.numberSamples[channel]) throw new BDFEDFException("Invalid sample number (" + point.Pt + ")");
@@ -364,7 +442,8 @@ namespace CCILibrary
             }
         }
 
-        public new void Dispose() {
+        public new void Dispose()
+        {
             Close();
             base.Dispose();
         }
@@ -393,7 +472,8 @@ namespace CCILibrary
             writer = new BinaryWriter(str);
         }
 
-        public void write() {
+        public void write()
+        {
             if (!header.isValid)
             { //header not yet written -- do this once for each stream
                 header.write(new StreamWriter(writer.BaseStream, Encoding.ASCII));
@@ -401,19 +481,20 @@ namespace CCILibrary
             }
             record.write(writer);
         }
-        
+
         /// <summary>
         /// Puts data into channel; with correction for gain and offset
         /// </summary>
         /// <param name="channel">Channel number</param>
         /// <param name="values">Array of samples for channel</param>
-         /// <exception cref="BDFEDFException">Invalid channel number</exception>
-       public void putChannel(int channel, double[] values) {
-           if (channel < 0 || channel >= header.numberChannels) throw new BDFEDFException("Invalid channel number (" + channel + ")");
-           double g = header.Gain(channel);
-           double o = header.Offset(channel);
-           for (int i = 0; i < header.numberSamples[channel]; i++)
-               record.channelData[channel][i] = Convert.ToInt32((values[i] - o) / g);
+        /// <exception cref="BDFEDFException">Invalid channel number</exception>
+        public void putChannel(int channel, double[] values)
+        {
+            if (channel < 0 || channel >= header.numberChannels) throw new BDFEDFException("Invalid channel number (" + channel + ")");
+            double g = header.Gain(channel);
+            double o = header.Offset(channel);
+            for (int i = 0; i < header.numberSamples[channel]; i++)
+                record.channelData[channel][i] = Convert.ToInt32((values[i] - o) / g);
         }
 
         /// <summary>
@@ -422,7 +503,8 @@ namespace CCILibrary
         /// <param name="channel">Channel number</param>
         /// <param name="values">Array of integer samples for channel</param>
         /// <exception cref="BDFException">Invalid channel number</exception>
-        public void putChannel(int channel, int[] values) {
+        public void putChannel(int channel, int[] values)
+        {
             if (channel < 0 || channel >= header.numberChannels) throw new BDFEDFException("Invalid channel number (" + channel + ")");
             for (int i = 0; i < header.numberSamples[channel]; i++)
                 record.channelData[channel][i] = values[i];
@@ -447,7 +529,8 @@ namespace CCILibrary
         /// <param name="sample">Sample number</param>
         /// <param name="value">Value to be stored</param>
         /// <exception cref="BDFEDFException">Invalid input</exception>
-        public void putSample(int channel, int sample, double value) {
+        public void putSample(int channel, int sample, double value)
+        {
             if (channel < 0 || channel >= header.numberChannels) throw new BDFEDFException("Invalid channel number (" + channel + ")");
             if (sample < 0 || sample >= header.numberSamples[channel]) throw new BDFEDFException("Invalid sample number (" + sample + ")");
             record.channelData[channel][sample] = Convert.ToInt32((value - header.Offset(channel)) / header.Gain(channel));
@@ -460,7 +543,8 @@ namespace CCILibrary
         /// <param name="sample">Sample number</param>
         /// <param name="value">Integer value to be stored</param>
         /// <exception cref="BDFEDFException">Invalid input</exception>
-        public void putSample(int channel, int sample, int value) {
+        public void putSample(int channel, int sample, int value)
+        {
             if (channel < 0 || channel >= header.numberChannels) throw new BDFEDFException("Invalid channel number (" + channel + ")");
             if (sample < 0 || sample >= header.numberSamples[channel]) throw new BDFEDFException("Invalid sample number (" + sample + ")");
             record.channelData[channel][sample] = value;
@@ -469,7 +553,8 @@ namespace CCILibrary
         public void Close()
         {
             writer.Flush();
-            if (writer.BaseStream.CanSeek) { //Update number of records in header
+            if (writer.BaseStream.CanSeek)
+            { //Update number of records in header
                 writer.BaseStream.Seek(236, SeekOrigin.Begin); //location of number of records in header
                 StreamWriter sw = new StreamWriter(writer.BaseStream, Encoding.ASCII);
                 sw.Write("{0,-8}", header.numberOfRecords);
@@ -489,7 +574,8 @@ namespace CCILibrary
     /// Class embodying the information included in the header record of a BDF or EDF file
     /// Class created only by the creation of a BDFEDFFileReader or BDFEDFFileWriter
     /// </summary>
-    internal class BDFEDFHeader : IDisposable {
+    internal class BDFEDFHeader : IDisposable
+    {
         internal string localSubjectId;
         internal string localRecordingId;
         internal DateTime timeOfRecording;
@@ -513,7 +599,7 @@ namespace CCILibrary
         public bool isValid { get { return _isValid; } }
         public bool isBDFFile { get { return _BDFFile; } }
 
-        internal BDFEDFHeader(){} //Usual read constructor
+        internal BDFEDFHeader() { } //Usual read constructor
 
         /// <summary>
         /// General constructor for creating a new (unwritten) BDF/EDF file header record
@@ -523,7 +609,8 @@ namespace CCILibrary
         /// <param name="duration">Duration of each record</param>
         /// <param name="samplingRate">General sampling rate for this data stream. NB: currently permit only single 
         /// sampling rate for all channels.</param>
-        internal BDFEDFHeader(int nChan, int duration, int samplingRate) { //Usual write constructor
+        internal BDFEDFHeader(int nChan, int duration, int samplingRate)
+        { //Usual write constructor
             channelLabels = new string[nChan];
             transducerTypes = new string[nChan];
             physicalDimensions = new string[nChan];
@@ -539,11 +626,12 @@ namespace CCILibrary
             this.numberChannels = nChan;
             this.headerSize = (nChan + 1) * 256;
             this.recordDuration = duration;
-            for (int i=0; i < nChan; i++) //Not allowing sampling rate variation between channels
+            for (int i = 0; i < nChan; i++) //Not allowing sampling rate variation between channels
                 this.numberSamples[i] = duration * samplingRate;
         }
 
-        internal void write(StreamWriter str) { //Writes header record, checking for correct initialization
+        internal void write(StreamWriter str)
+        { //Writes header record, checking for correct initialization
             this.timeOfRecording = DateTime.Now;
             if (_BDFFile)
             {
@@ -577,19 +665,20 @@ namespace CCILibrary
                 str.Write("{0,-8}", pMax);
             foreach (int dMin in digitalMinimums)
                 str.Write("{0,-8}", dMin);
-            foreach(int dMax in digitalMaximums)
+            foreach (int dMax in digitalMaximums)
                 str.Write("{0,-8}", dMax);
             foreach (string cP in channelPrefilters)
                 str.Write("{0,-80}", cP);
             foreach (int nS in numberSamples)
                 str.Write("{0,-8}", nS);
-            for (int i=0; i < numberChannels; i++)
+            for (int i = 0; i < numberChannels; i++)
                 str.Write("{0,-32}", " ");
             str.Flush();
         }
 
         const int MinLength = 256;
-        internal void read(BinaryReader reader) {
+        internal void read(BinaryReader reader)
+        {
             try
             {
                 if (reader.BaseStream.Length < BDFEDFHeader.MinLength) throw new BDFEDFException("Header less than minimum length");
@@ -641,7 +730,7 @@ namespace CCILibrary
                 nChar = reader.Read(cBuf, 0, 4);
                 numberChannels = int.Parse(new string(cBuf, 0, 4));
                 if ((numberChannels + 1) * 256 != headerSize)
-                    throw new BDFEDFException("Incorrect header size for number of channels = " + 
+                    throw new BDFEDFException("Incorrect header size for number of channels = " +
                         numberChannels.ToString("0"));
                 channelLabels = new string[numberChannels];
                 for (int i = 0; i < numberChannels; i++)
@@ -701,7 +790,7 @@ namespace CCILibrary
             }
             catch (Exception e)
             {
-                throw new Exception("In BDFEDFHeader.read at byte " + reader.BaseStream.Position + 
+                throw new Exception("In BDFEDFHeader.read at byte " + reader.BaseStream.Position +
                     ": " + e.Message);
             }
             gain = new double[numberChannels];
@@ -709,7 +798,8 @@ namespace CCILibrary
             for (int i = 0; i < numberChannels; i++) offset[i] = Double.PositiveInfinity;
         }
 
-        public void Dispose() {
+        public void Dispose()
+        {
 
         }
 
@@ -718,7 +808,7 @@ namespace CCILibrary
             if (gain[channel] != 0.0) return gain[channel];
             int num = physicalMaximums[channel] - physicalMinimums[channel];
             int den = digitalMaximums[channel] - digitalMinimums[channel];
-            if(den == 0 || num == 0) return gain[channel] = 1.0;
+            if (den == 0 || num == 0) return gain[channel] = 1.0;
             return gain[channel] = (double)num / (double)den;
         }
 
@@ -735,8 +825,9 @@ namespace CCILibrary
     /// <summary>
     /// Class embodying one BDF/EDF file data record
     /// </summary>
-    /// <remarks>No public constructor; created by BDFFileReader and accessed through <code>BDFEDFFileReader read()</code> methods.</remarks>
-    public class BDFEDFRecord : IDisposable {
+    /// <remarks>No public constructor; created by BDFEDFFileReader and accessed through <code>BDFEDFFileReader.read()</code> methods.</remarks>
+    public class BDFEDFRecord : IDisposable
+    {
 
         internal struct i24 { internal byte b1, b2, b3; }
         internal struct i16 { internal byte b1, b2;}
@@ -768,7 +859,8 @@ namespace CCILibrary
             header = hdr;
         }
 
-        internal void read(BinaryReader reader) {
+        internal void read(BinaryReader reader)
+        {
             try
             {
                 record = reader.ReadBytes(recordLength);
@@ -776,13 +868,14 @@ namespace CCILibrary
             }
             catch (Exception e)
             {
-                throw new Exception("BDFEDFRecord.read at record " + 
+                throw new Exception("BDFEDFRecord.read at record " +
                     currentRecordNumber.ToString("0") + ": " + e.Message);
             }
             currentRecordNumber++;
             int i = 0;
             for (int channel = 0; channel < header.numberChannels; channel++)
-                for (int sample = 0; sample < header.numberSamples[channel]; sample++) {
+                for (int sample = 0; sample < header.numberSamples[channel]; sample++)
+                {
                     if (header.isBDFFile)
                     {
                         channelData[channel][sample] = convert34(record[i], record[i + 1], record[i + 2]);
@@ -796,10 +889,12 @@ namespace CCILibrary
                 }
         }
 
-        internal void write(BinaryWriter writer) {
+        internal void write(BinaryWriter writer)
+        {
             int i = 0;
             for (int channel = 0; channel < header.numberChannels; channel++)
-                for (int sample = 0; sample < header.numberSamples[channel]; sample++) {
+                for (int sample = 0; sample < header.numberSamples[channel]; sample++)
+                {
                     if (header.isBDFFile)
                     {
                         i24 b = convert43(channelData[channel][sample]);
@@ -827,13 +922,15 @@ namespace CCILibrary
             header.numberOfRecords++;
         }
 
-        internal static int convert34(byte b1, byte b2, byte b3) {
-            uint i = (uint)b1 + ((uint)b2 + 256 * (uint)b3) * 256;
+        internal static int convert34(byte b1, byte b2, byte b3)
+        {
+            uint i = (uint)b1 + (((uint)b2 + ((uint)b3 << 8)) << 8);
             if (b3 >= 128) i |= 0xFF000000; //extend sign
             return (int)i;
         }
 
-        private static i24 convert43(int i3){
+        private static i24 convert43(int i3)
+        {
             i24 b;
             b.b1 = (byte)((uint)i3 & 0x000000FF);
             b.b2 = (byte)(((uint)i3 & 0x0000FF00) >> 8);
@@ -843,7 +940,7 @@ namespace CCILibrary
 
         internal static int convert24(byte b1, byte b2)
         {
-            uint i = (uint)b1 + (uint)b2  * 256;
+            uint i = (uint)b1 + ((uint)b2 << 8);
             if (b2 >= 128) i |= 0xFFFF0000; //extend sign
             return (int)i;
         }
@@ -863,7 +960,188 @@ namespace CCILibrary
 
     }
 
-    public class BDFEDFException : Exception {
+    public class BDFEDFException : Exception
+    {
         public BDFEDFException(string message) : base(message) { }
+    }
+
+    public class BDFLocFactory
+    {
+        internal int _recSize; //number of points in record of underlying BDF/EDF file
+        internal int _sec; //record length in seconds of underlying BDF/EDF file
+        internal double _st; //calculated sample time of underlying BDF/EDF file
+        internal BDFEDFFileStream _bdf;
+
+        public BDFLocFactory(BDFEDFFileStream bdf)
+        {
+            _recSize = bdf.NSamp;
+            _sec = bdf.RecordDuration;
+            _st = (double)_sec / (double)_recSize;
+            _bdf = bdf;
+        }
+
+        public BDFLoc New()
+        {
+            return new BDFLoc(this);
+        }
+    }
+
+    public struct BDFLoc
+    {
+        int _pt;
+        int _rec;
+        BDFLocFactory myFactory;
+
+        internal BDFLoc(BDFLocFactory BDFLocFactory)
+        {
+            _pt = 0;
+            _rec = 0;
+            this.myFactory = BDFLocFactory;
+        }
+
+        public int Rec
+        {
+            get { return _rec; }
+            set { _rec = value; }
+        }
+
+        public int Pt
+        {
+            get { return _pt; }
+            set
+            {
+                _pt = value;
+                if (_pt >= myFactory._recSize)
+                {
+                    _rec += _pt / myFactory._recSize;
+                    _pt = _pt % myFactory._recSize;
+                }
+                else if (_pt < 0)
+                {
+                    int del = 1 - (_pt + 1) / myFactory._recSize; //trust me, it works!
+                    _rec -= del;
+                    _pt += del * myFactory._recSize;
+                }
+            }
+        }
+
+        public double SampleTime
+        {
+            get { return myFactory._st; }
+        }
+
+        public bool IsInFile
+        {
+            get
+            {
+                if (_rec < 0) return false;
+                if (_rec >= myFactory._bdf.NumberOfRecords) return false;
+                return true;
+            }
+        }
+
+        public static BDFLoc operator +(BDFLoc pt, int pts) //adds pts points to current location stp
+        {
+            BDFLoc stp = pt;
+            stp._rec = pt._rec;
+            stp.Pt += pts; //set property to get record correction
+            return stp;
+        }
+
+        public static BDFLoc operator -(BDFLoc pt, int pts) //subtracts pts points to current location stp
+        {
+            BDFLoc stp = pt;
+            stp._rec = pt._rec;
+            stp.Pt -= pts; //set property to get record correction
+            return stp;
+        }
+
+        public static BDFLoc operator ++(BDFLoc pt)
+        {
+            if (++pt._pt >= pt.myFactory._recSize)
+            {
+                pt._pt = 0;
+                pt._rec++;
+            }
+            return pt;
+        }
+
+        public static BDFLoc operator --(BDFLoc pt)
+        {
+            if (--pt._pt < 0)
+            {
+                pt._pt = pt.myFactory._recSize - 1;
+                pt._rec--;
+            }
+            return pt;
+        }
+
+        public static long operator -(BDFLoc p1, BDFLoc p2)
+        {
+            if (p1.myFactory != p2.myFactory)
+                throw new Exception("BDFLoc.distance: locations not from same factory");
+            return (long)(p1._rec - p2._rec) * p1.myFactory._recSize + p1._pt - p2._pt;
+        }
+
+        public BDFLoc Increment(int p) //essentially += operator
+        {
+            Pt = _pt + p;
+            return this;
+        }
+
+        public BDFLoc Decrement(int p) //essentially -= operator
+        {
+            Pt = _pt - p;
+            return this;
+        }
+
+        public bool lessThan(BDFLoc pt)
+        {
+            if (this._rec < pt._rec) return true;
+            if (this._rec == pt._rec && this._pt < pt._pt) return true;
+            return false;
+        }
+
+        public bool greaterThan(BDFLoc pt)
+        {
+            if (this._rec > pt._rec) return true;
+            if (this._rec == pt._rec && this._pt > pt._pt) return true;
+            return false;
+        }
+
+        /// <summary>
+        /// Convert a BDFLoc to seconds of length
+        /// </summary>
+        /// <returns>number of seconds in BDFLoc</returns>
+        public double ToSecs()
+        {
+            return ((double)_rec + (double)_pt / (double)myFactory._recSize) * myFactory._sec;
+        }
+
+        /// <summary>
+        /// Converts a number of seconds to a BDFLoc
+        /// </summary>
+        /// <param name="seconds">seconds to convert</param>
+        /// <returns>reference to self, so it can be chained with other operations</returns>
+        public BDFLoc FromSecs(double seconds)
+        {
+            double f = Math.Floor(seconds / myFactory._sec);
+            _rec = (int)f;
+            _pt = Convert.ToInt32(Math.Floor((seconds - f * myFactory._sec) * (double)myFactory._recSize / myFactory._sec));
+            return this;
+        }
+
+        public long distanceInPts(BDFLoc p)
+        {
+            if (myFactory != p.myFactory) throw new Exception("BDFLoc.distanceInPts: locations not from same factory");
+            long d = (_rec - p._rec) * myFactory._recSize;
+            d += _pt - p._pt;
+            return d < 0 ? -d : d;
+        }
+
+        public override string ToString()
+        {
+            return "Record " + _rec.ToString("0") + ", point " + _pt.ToString("0");
+        }
     }
 }
