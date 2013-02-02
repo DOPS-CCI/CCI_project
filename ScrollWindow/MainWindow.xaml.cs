@@ -31,7 +31,6 @@ namespace ScrollWindow
         const double ScrollBarSize = 17D;
         public double BDFLength;
         public double XScaleSecsToInches;
-        public double YScaleUnitsToInches;
         public double currentDisplayWidthInSecs = 10D;
         public double currentDisplayOffsetInSecs = 0D;
         public double oldDisplayWidthInSecs = 10D;
@@ -81,6 +80,21 @@ namespace ScrollWindow
             }
             efr.Close(); //now events is Dictionary of Events in the dataset; lookup by GC
             EventMarkers.Width = BDFLength;
+            //initialize gridline array
+            for (int i = 0; i < 18; i++)
+            {
+                Line l = new Line();
+                Grid.SetRow(l, 0);
+                l.Y1 = 0D;
+                l.HorizontalAlignment = HorizontalAlignment.Left;
+                l.VerticalAlignment = VerticalAlignment.Stretch;
+                l.IsHitTestVisible = false;
+                l.Stroke = Brushes.LightBlue;
+                l.Visibility = Visibility.Hidden;
+                Panel.SetZIndex(l, int.MinValue);
+                MainFrame.Children.Add(l);
+                gridlines[i] = l;
+            }
 
             //from here on the program is GUI-event driven
         }
@@ -90,15 +104,11 @@ namespace ScrollWindow
         {
             if (e.HeightChanged)
             {
-                double h = e.NewSize.Height - ScrollBarSize - EventMarkers.ActualHeight;
-                Console.WriteLine("Viewer height change: " + h.ToString("0.00"));
-                IndexLine.Y2 = h;
-                YScaleUnitsToInches = h / GraphCanvas.ActualHeight;
+                IndexLine.Y2 = e.NewSize.Height - ScrollBarSize;
             }
             if (e.WidthChanged)
             {
                 double w = e.NewSize.Width;
-                IndexLine.X1 = IndexLine.X2 = w / 2;
                 XScaleSecsToInches = w / currentDisplayWidthInSecs;
                 //rescale X-axis, so that scale units remain seconds
                 Transform t = new ScaleTransform(XScaleSecsToInches, 1);
@@ -219,6 +229,7 @@ namespace ScrollWindow
         {
             reDrawAllChannels();
             reDrawEvents();
+            DrawGrid();
         }
 
         private void reDrawEvents()
@@ -250,12 +261,42 @@ namespace ScrollWindow
             }
         }
 
+        double[] menu = { 0.1, 0.2, 0.25, 0.25, 0.5, 0.5, 0.5, 0.5, 1.0 };
+        Line[] gridlines = new Line[18];
+        int numberOfGridlines = 0;
         private void DrawGrid()
         {
-            double canvasWidth = GraphCanvas.Width;
-            double viewWidth = Viewer.ActualWidth;
-            double scaleWidth = canvasWidth - viewWidth;
-            double scale = BDFLength / scaleWidth;
+            for (int i = 0; i < numberOfGridlines; i++)
+                gridlines[i].Visibility = Visibility.Hidden; //erase previous grid
+            numberOfGridlines = 0;
+            int log10 = 0;
+            double r = currentDisplayWidthInSecs;
+            if (r >= 10D)
+                do
+                {
+                    r /= 10D;
+                    log10++;
+                } while (r >= 10D);
+            else if (r < 1D)
+                do
+                {
+                    r *= 10D;
+                    log10--;
+                } while (r < 1D);
+            double incr = menu[(int)r - 1] * Math.Pow(10D, log10);
+            double h = Viewer.ActualHeight - ScrollBarSize;
+            r = currentDisplayWidthInSecs / 2D;
+            for (double s = incr; s < r; s += incr)
+            {
+                Line l = gridlines[numberOfGridlines++];
+                l.Visibility = Visibility.Visible;
+                l.X1 = l.X2 = (r - s) * XScaleSecsToInches;
+                l.Y2 = h;
+                l = gridlines[numberOfGridlines++];
+                l.Visibility = Visibility.Visible;
+                l.X1 = l.X2 = (r + s) * XScaleSecsToInches;
+                l.Y2 = h;
+            }
         }
 
         public void reDrawAllChannels()
@@ -272,11 +313,11 @@ namespace ScrollWindow
             if (lowSecs > oldDisplayOffsetInSecs && lowSecs < oldDisplayOffsetInSecs + oldDisplayWidthInSecs) overlap = true;
             if (highSecs > oldDisplayOffsetInSecs && highSecs < oldDisplayOffsetInSecs + oldDisplayWidthInSecs) overlap = true;
             oldDisplayWidthInSecs = currentDisplayWidthInSecs;
-
+            Info.Text = "Display width = " + currentDisplayWidthInSecs.ToString("0.000");
             //calculate new decimation, depending on seconds displayed and viewer width
             ChannelGraph.decimateNew = Convert.ToInt32(Math.Ceiling(2D * (highBDFP - lowBDFP) / Viewer.ActualWidth));
             if (ChannelGraph.decimateNew == 2) ChannelGraph.decimateNew = 1; //No advantage to decimating by 2
-
+            Info.Text = Info.Text + "\nDecimation = " + ChannelGraph.decimateNew.ToString("0");
             bool completeRedraw = ChannelGraph.decimateNew != ChannelGraph.decimateOld || !overlap; //complete redraw of all channels if ...
             // change in decimation or if completely new screen (no overlap of old and new)
             ChannelGraph.decimateOld = ChannelGraph.decimateNew;
@@ -290,6 +331,7 @@ namespace ScrollWindow
                 removeLow = (int)((lowBDFP - s[0].fileLocation) / ChannelGraph.decimateNew);
                 removeHigh = (int)((s.Last().fileLocation - highBDFP) / ChannelGraph.decimateNew);
             }
+            Info.Text = Info.Text + "\nRemove: left, right =" + removeLow.ToString("0") + "," + removeHigh.ToString("0");
 
             //now loop through each channel graph to remove unneeded points and find new max and min
             foreach (ChannelGraph cg in chans)
@@ -321,12 +363,12 @@ namespace ScrollWindow
                     //find overallMax/overallMin in any remaining points
                     foreach (FilePoint fp in cg.FilePointList)
                     {
-                        if (fp.sampleFirst > cg.overallMax) cg.overallMax = fp.sampleFirst;
-                        if (fp.sampleFirst < cg.overallMin) cg.overallMin = fp.sampleFirst;
+                        if (fp.first.Y > cg.overallMax) cg.overallMax = fp.first.Y;
+                        if (fp.first.Y < cg.overallMin) cg.overallMin = fp.first.Y;
                         if (fp.SecondValid)
                         {
-                            if (fp.sampleSecond > cg.overallMax) cg.overallMax = fp.sampleSecond;
-                            if (fp.sampleSecond < cg.overallMin) cg.overallMin = fp.sampleSecond;
+                            if (fp.second.Y > cg.overallMax) cg.overallMax = fp.second.Y;
+                            if (fp.second.Y < cg.overallMin) cg.overallMin = fp.second.Y;
                         }
                     }
                 }
@@ -412,6 +454,14 @@ namespace ScrollWindow
                     ctx.BeginFigure(cg.pointList[0], false, false);
                     ctx.PolyLineTo(cg.pointList, true, true);
                     ctx.Close();
+                    double t = ChannelGraph.CanvasHeight / 2D - cg.currentOffset * cg.currentScale;
+                    if (t < 0 || t > ChannelGraph.CanvasHeight)
+                        cg.baseline.Visibility = Visibility.Hidden;
+                    else
+                    {
+                        cg.baseline.Y1 = cg.baseline.Y2 = t;
+                        cg.baseline.Visibility = Visibility.Visible;
+                    }
                 }
             }
         }
@@ -438,6 +488,7 @@ namespace ScrollWindow
         internal static int decimateNew;
         internal static double CanvasHeight = 0;
 
+        internal Line baseline = new Line();
 
         public ChannelGraph(MainWindow containingWindow, int channelNumber)
             : base()
@@ -450,8 +501,19 @@ namespace ScrollWindow
             path.StrokeLineJoin = PenLineJoin.Round;
             path.Data = geometry;
             this.Children.Add(path);
+            baseline.X1 = 0;
+            baseline.X2 = this.Width;
+            baseline.VerticalAlignment = VerticalAlignment.Top;
+            baseline.Stroke = Brushes.LightBlue;
+            Panel.SetZIndex(baseline, int.MinValue);
+            this.Children.Add(baseline);
         }
-
+        
+        //This routine creates a new entry in the list of plotted points (FilePointList) based on data
+        //at the given location (index) in the BDF/EDF file; it finds the minimum and maximum values in
+        //the next decimateNew points and saves those values in the FilePoint; it also updates the
+        //current maximum and minimum points in the currently displayed segment, so that the plot can
+        //be appropriateloy scaled
         internal FilePoint createFilePoint(BDFLoc index)
         {
             double sample;
@@ -470,22 +532,28 @@ namespace ScrollWindow
             if (min < overallMin) overallMin = min;
             FilePoint fp = new FilePoint();
             fp.fileLocation = index;
-            fp.sampleSecs = index.ToSecs();
+            double secs = index.ToSecs();
+            double st = bdf.SampTime;
             if (imax < imin)
             {
-                fp.sampleFirst = max;
-                fp.sampleSecond = min;
+                fp.first.X = secs + imax * st;
+                fp.first.Y = max;
+                fp.second.X = secs + imin * st;
+                fp.second.Y = min;
                 fp.SecondValid = true;
             }
             else if (imax > imin)
             {
-                fp.sampleFirst = min;
-                fp.sampleSecond = max;
+                fp.first.X = secs + imin * st;
+                fp.first.Y = min;
+                fp.second.X = secs + imax * st;
+                fp.second.Y = max;
                 fp.SecondValid = true;
             }
             else
             {
-                fp.sampleFirst = max;
+                fp.first.X = secs + imax * st;
+                fp.first.Y = max;
                 fp.SecondValid = false;
             }
             return fp;
@@ -493,13 +561,13 @@ namespace ScrollWindow
 
         internal void rescalePoints()
         {
-            double t2 = bdf.SampTime * decimateNew / 2D;
+            double c2 = CanvasHeight / 2D;
             pointList.Clear();
             foreach(FilePoint fp in FilePointList)
             {
-                pointList.Add(new Point(fp.sampleSecs, (fp.sampleFirst - currentOffset) * currentScale + CanvasHeight / 2D));
+                pointList.Add(new Point(fp.first.X, (fp.first.Y - currentOffset) * currentScale + c2));
                 if (fp.SecondValid)
-                    pointList.Add(new Point(fp.sampleSecs + t2, (fp.sampleSecond - currentOffset) * currentScale + CanvasHeight / 2D));
+                    pointList.Add(new Point(fp.second.X, (fp.second.Y - currentOffset) * currentScale + c2));
             }
         }
 
@@ -508,9 +576,8 @@ namespace ScrollWindow
     internal struct FilePoint
     {
         public BDFLoc fileLocation;
-        public double sampleSecs;
-        public double sampleFirst;
-        public double sampleSecond;
+        public Point first;
+        public Point second;
         public bool SecondValid;
     }
 }
