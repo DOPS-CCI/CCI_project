@@ -3,15 +3,12 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Timers;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Controls.Primitives;
-using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
 using System.Windows.Shapes;
 using Microsoft.Win32;
 using CCILibrary;
@@ -38,53 +35,83 @@ namespace ScrollWindow
         Dictionary<int, Event.InputEvent> events = new Dictionary<int, Event.InputEvent>();
         public BDFEDFFileReader bdf;
         Header.Header head;
-        List<int> channelList = new List<int>(); //list of currently displayed channels
+        internal bool includeANAs = true;
+        internal static decimationType dType = decimationType.MinMax;
+        internal TextBlock eventTB;
+
+        internal List<int> channelList; //list of currently displayed channels
+        internal EventDictionary.EventDictionary ED;
 
         public MainWindow()
         {
-            OpenFileDialog dlg = new OpenFileDialog();
-            dlg.Title = "Open Header file...";
-            dlg.DefaultExt = ".hdr"; // Default file extension
-            dlg.Filter = "HDR Files (.hdr)|*.hdr"; // Filter files by extension
-            Nullable<bool> result = dlg.ShowDialog();
-            if (result == null || result == false) { this.Close(); Environment.Exit(0); }
-
-            string directory = System.IO.Path.GetDirectoryName(dlg.FileName); //will use to find other files in dataset
-
-            head = (new HeaderFileReader(dlg.OpenFile())).read();
-            EventDictionary.EventDictionary ED = head.Events;
-
-            bdf = new BDFEDFFileReader(
-                new FileStream(System.IO.Path.Combine(directory, head.BDFFile),
-                    FileMode.Open, FileAccess.Read));
-            int samplingRate = bdf.NSamp / bdf.RecordDuration;
-            BDFLength = (double)bdf.NumberOfRecords * bdf.RecordDuration;
-
-            //set initial channel list: channel 0 and all referenced ANA channels
-            channelList.Add(0);
-            foreach (EventDictionaryEntry ede in ED.Values) // add ANA channels that are referenced by extrinsic Events
+            bool r;
+            string directory;
+            do
             {
-                if (!ede.intrinsic) channelList.Add(bdf.ChannelNumberFromLabel(ede.channelName));
-            }
+                OpenFileDialog dlg = new OpenFileDialog();
+                dlg.Title = "Open Header file to be displayed...";
+                dlg.DefaultExt = ".hdr"; // Default file extension
+                dlg.Filter = "HDR Files (.hdr)|*.hdr"; // Filter files by extension
+                Nullable<bool> result = dlg.ShowDialog();
+                if (result == null || result == false) { this.Close(); Environment.Exit(0); }
+
+                directory = System.IO.Path.GetDirectoryName(dlg.FileName); //will use to find other files in dataset
+
+                head = (new HeaderFileReader(dlg.OpenFile())).read();
+                ED = head.Events;
+
+                bdf = new BDFEDFFileReader(
+                    new FileStream(System.IO.Path.Combine(directory, head.BDFFile),
+                        FileMode.Open, FileAccess.Read));
+                int samplingRate = bdf.NSamp / bdf.RecordDuration;
+                BDFLength = (double)bdf.NumberOfRecords * bdf.RecordDuration;
+
+                Window1 w = new Window1(this);
+                r = (bool)w.ShowDialog();
+
+            } while (r == false);
 
             InitializeComponent();
 
+            if (includeANAs)
+            {
+                foreach (EventDictionaryEntry ede in ED.Values) // add ANA channels that are referenced by extrinsic Events
+                {
+                    if (!ede.intrinsic) channelList.Add(bdf.ChannelNumberFromLabel(ede.channelName));
+                }
+            }
+
+            //initialize the individual channel graphs
+            foreach (int i in channelList)
+            {
+                ChannelGraph pg = new ChannelGraph(this, i);
+                GraphCanvas.Children.Add(pg);
+            }
+
+            Title = System.IO.Path.GetFileName(directory); //set window title
             Event.EventFactory.Instance(head.Events); // set up the factory
             EventFileReader efr = new EventFileReader(
                 new FileStream(System.IO.Path.Combine(directory, head.EventFile),
                     FileMode.Open, FileAccess.Read)); // open Event file
+            
             foreach (Event.InputEvent ie in efr)// read in all Events into dictionary
             {
                 if (!events.ContainsKey(ie.GC)) //quietly skip duplicates
                     events.Add(ie.GC, ie);
             }
             efr.Close(); //now events is Dictionary of Events in the dataset; lookup by GC
+
             EventMarkers.Width = BDFLength;
+            eventTB = new TextBlock(new Run("Events"));
+            Canvas.SetBottom(eventTB, 33D);
+
             //initialize gridline array
             for (int i = 0; i < 18; i++)
             {
                 Line l = new Line();
                 Grid.SetRow(l, 0);
+                Grid.SetColumn(l, 0);
+                Grid.SetColumnSpan(l, 2);
                 l.Y1 = 0D;
                 l.HorizontalAlignment = HorizontalAlignment.Left;
                 l.VerticalAlignment = VerticalAlignment.Stretch;
@@ -95,6 +122,9 @@ namespace ScrollWindow
                 MainFrame.Children.Add(l);
                 gridlines[i] = l;
             }
+
+            timer.AutoReset = true;
+            timer.Elapsed+=new ElapsedEventHandler(timer_Elapsed);
 
             //from here on the program is GUI-event driven
         }
@@ -114,22 +144,7 @@ namespace ScrollWindow
                 Transform t = new ScaleTransform(XScaleSecsToInches, 1);
                 t.Freeze();
                 GraphCanvas.LayoutTransform = EventMarkers.LayoutTransform = t;
-                Viewer.ScrollToHorizontalOffset(currentDisplayOffsetInSecs * XScaleSecsToInches);
-            }
-        }
-
-        private void GraphCanvas_SizeChanged(object sender, SizeChangedEventArgs e)
-        {
-            if (e.HeightChanged)
-            {
-                if (GraphCanvas.Children.Count == 0) // initialize channelGraphs
-                {
-                    foreach (int i in channelList)
-                    {
-                        ChannelGraph pg = new ChannelGraph(this, i);
-                        GraphCanvas.Children.Add(pg);
-                    }
-                }
+                Viewer.ScrollToHorizontalOffset(currentDisplayOffsetInSecs * XScaleSecsToInches); //this will signal the redraw
             }
         }
 
@@ -145,12 +160,13 @@ namespace ScrollWindow
                 double midPoint = currentDisplayOffsetInSecs + currentDisplayWidthInSecs / 2D;
                 Loc.Text = midPoint.ToString("0.000");
 
+                //look up full information on Event preceeding and following index time
                 BDFLoc mid = bdf.LocationFactory.New().FromSecs(midPoint);
                 int sample = (int)head.Mask & bdf.getStatusSample(mid);
                 InputEvent ie;
                 bool r = events.TryGetValue(sample, out ie);
                 if (r)
-                    EventPastInfo.Text = ie.ToString();
+                    EventPastInfo.Text = ie.ToString().Trim();
                 else
                     EventPastInfo.Text = "No Event";
                 int past = sample;
@@ -168,45 +184,74 @@ namespace ScrollWindow
                         r = events.TryGetValue(sample, out ie);
                         if (r)
                         {
-                            EventNextInfo.Text = ie.ToString();
+                            EventNextInfo.Text = ie.ToString().Trim();
                             break;
                         }
                     }
                 }
+            reDrawEvents();
             }
             if (e.ViewportHeightChange != 0D)
             {
-                double height = (e.ViewportHeight - 20) / GraphCanvas.Children.Count;
+                double height = (e.ViewportHeight - 35) / GraphCanvas.Children.Count;
                 ChannelGraph.CanvasHeight = height;
+                reDrawChannelLabels();
             }
-            RedrawGraphicCanvas();
+            reDrawChannels();
+            reDrawGrid();
         }
 
         // Here are the routines for handling the dragging of the display window
+        static System.Timers.Timer timer = new Timer(50D); //establish a 50msec interval timer
         bool InDrag = false;
         Point startDragMouseLocation;
+        Point currentDragLocation;
         double startDragScrollLocation;
         private void Viewer_MouseDown(object sender, MouseButtonEventArgs e)
         {
-            Point pt = e.GetPosition(Viewer);
-            if (Viewer.ActualHeight - pt.Y < ScrollBarSize) return;
-            if (Viewer.ActualWidth - pt.X < ScrollBarSize) return;
-            InDrag = true;
-            startDragMouseLocation = pt;
-            startDragScrollLocation = Viewer.ContentHorizontalOffset;
-            Viewer.CaptureMouse();
+            if (e.LeftButton == MouseButtonState.Pressed)
+            {
+                Point pt = e.GetPosition(Viewer);
+                if (Viewer.ActualHeight - pt.Y < ScrollBarSize) return;
+                if (Viewer.ActualWidth - pt.X < ScrollBarSize) return;
+                InDrag = true;
+                startDragMouseLocation = currentDragLocation = pt;
+                startDragScrollLocation = Viewer.ContentHorizontalOffset;
+                Viewer.CaptureMouse();
+                e.Handled = true;
+                timerCount = 0D;
+                timer.Start();
+            }
         }
 
         private void Viewer_MouseUp(object sender, MouseButtonEventArgs e)
         {
+            timer.Stop();
             InDrag = false;
+            Point loc = e.GetPosition(Viewer);
             Viewer.ReleaseMouseCapture();
+            if (Math.Abs(loc.X - currentDragLocation.X) > 0D)
+                Viewer.ScrollToHorizontalOffset(startDragScrollLocation - loc.X + startDragMouseLocation.X);
         }
 
+        const double TDThreshold = 5D;
         private void Viewer_MouseMove(object sender, MouseEventArgs e)
         {
             if (!InDrag) return;
-            Viewer.ScrollToHorizontalOffset(startDragScrollLocation - e.GetPosition(Viewer).X + startDragMouseLocation.X);
+            Point loc = e.GetPosition(Viewer);
+            double distance = Math.Abs(loc.X - currentDragLocation.X);
+            if (timerCount * distance > TDThreshold)
+            {
+                currentDragLocation = loc;
+                timerCount = 0D;
+                Viewer.ScrollToHorizontalOffset(startDragScrollLocation - loc.X + startDragMouseLocation.X);
+            }
+        }
+
+        static double timerCount = 0;
+        private static void timer_Elapsed(object sender, ElapsedEventArgs e)
+        {
+            timerCount += 0.050;
         }
 
         // Time-scale change button clicks handled here
@@ -225,11 +270,12 @@ namespace ScrollWindow
         }
 
         // Re-draw routines here
-        private void RedrawGraphicCanvas()
+        private void reDrawAll()
         {
-            reDrawAllChannels();
+            reDrawChannels();
             reDrawEvents();
-            DrawGrid();
+            reDrawGrid();
+            reDrawChannelLabels();
         }
 
         private void reDrawEvents()
@@ -247,6 +293,7 @@ namespace ScrollWindow
                 uint sample = (uint)bdf.getStatusSample(p) & head.Mask;
                 if (sample != lastSample)
                 {
+                    InputEvent ev;
                     double s = p.ToSecs();
                     Line l = new Line();
                     l.X1 = l.X2 = s;
@@ -254,7 +301,11 @@ namespace ScrollWindow
                     l.Y2 = 20D;
                     l.Stroke = Brushes.Red;
                     //make stroke thickness = sample time, unless too small
-                    l.StrokeThickness = Math.Max((double)bdf.RecordDuration / bdf.NSamp, currentDisplayWidthInSecs * 0.0005D);
+                    l.StrokeThickness = Math.Max((double)bdf.RecordDuration / bdf.NSamp, currentDisplayWidthInSecs * 0.0008D);
+                    if (events.TryGetValue((int)sample, out ev))
+                        l.ToolTip = ev.ToString().Trim();
+                    else
+                        l.ToolTip = "Unknown in Event file!";
                     EventMarkers.Children.Add(l);
                     lastSample = sample;
                 }
@@ -264,7 +315,8 @@ namespace ScrollWindow
         double[] menu = { 0.1, 0.2, 0.25, 0.25, 0.5, 0.5, 0.5, 0.5, 1.0 };
         Line[] gridlines = new Line[18];
         int numberOfGridlines = 0;
-        private void DrawGrid()
+
+        private void reDrawGrid()
         {
             for (int i = 0; i < numberOfGridlines; i++)
                 gridlines[i].Visibility = Visibility.Hidden; //erase previous grid
@@ -286,20 +338,45 @@ namespace ScrollWindow
             double incr = menu[(int)r - 1] * Math.Pow(10D, log10);
             double h = Viewer.ActualHeight - ScrollBarSize;
             r = currentDisplayWidthInSecs / 2D;
+            GridLabels.Children.Clear();
+            TextBlock tb;
             for (double s = incr; s < r; s += incr)
             {
                 Line l = gridlines[numberOfGridlines++];
                 l.Visibility = Visibility.Visible;
                 l.X1 = l.X2 = (r - s) * XScaleSecsToInches;
                 l.Y2 = h;
+                tb = new TextBlock();
+                tb.Text = (-s).ToString("0.0###");
+                Canvas.SetLeft(tb, -s * XScaleSecsToInches);
+                GridLabels.Children.Add(tb);
                 l = gridlines[numberOfGridlines++];
                 l.Visibility = Visibility.Visible;
                 l.X1 = l.X2 = (r + s) * XScaleSecsToInches;
                 l.Y2 = h;
+                tb = new TextBlock();
+                tb.Text = s.ToString("0.0###");
+                Canvas.SetRight(tb, -s * XScaleSecsToInches);
+                GridLabels.Children.Add(tb);
+
             }
         }
 
-        public void reDrawAllChannels()
+        private void reDrawChannelLabels()
+        {
+            double incr = ChannelGraph.CanvasHeight;
+            double location = incr / 2D - 10D;
+            ChannelLabels.Children.Clear();
+            foreach (ChannelGraph cg in GraphCanvas.Children)
+            {
+                Canvas.SetTop(cg._channelLabel, location);
+                ChannelLabels.Children.Add(cg._channelLabel);
+                location += incr;
+            }
+            ChannelLabels.Children.Add(eventTB);
+        }
+
+        public void reDrawChannels()
         {
             UIElementCollection chans = GraphCanvas.Children;
 
@@ -310,13 +387,19 @@ namespace ScrollWindow
 
             //determine if overlap of new display with old
             bool overlap = false;
-            if (lowSecs > oldDisplayOffsetInSecs && lowSecs < oldDisplayOffsetInSecs + oldDisplayWidthInSecs) overlap = true;
-            if (highSecs > oldDisplayOffsetInSecs && highSecs < oldDisplayOffsetInSecs + oldDisplayWidthInSecs) overlap = true;
+            if (lowSecs >= oldDisplayOffsetInSecs && lowSecs < oldDisplayOffsetInSecs + oldDisplayWidthInSecs) overlap = true;
+            if (highSecs > oldDisplayOffsetInSecs && highSecs <= oldDisplayOffsetInSecs + oldDisplayWidthInSecs) overlap = true;
             oldDisplayWidthInSecs = currentDisplayWidthInSecs;
             Info.Text = "Display width = " + currentDisplayWidthInSecs.ToString("0.000");
+
             //calculate new decimation, depending on seconds displayed and viewer width
-            ChannelGraph.decimateNew = Convert.ToInt32(Math.Ceiling(2D * (highBDFP - lowBDFP) / Viewer.ActualWidth));
-            if (ChannelGraph.decimateNew == 2) ChannelGraph.decimateNew = 1; //No advantage to decimating by 2
+            if (dType == decimationType.None)
+                ChannelGraph.decimateNew = 1;
+            else
+            {
+                ChannelGraph.decimateNew = Convert.ToInt32(Math.Ceiling(2D * (highBDFP - lowBDFP) / Viewer.ActualWidth));
+                if (ChannelGraph.decimateNew == 2) ChannelGraph.decimateNew = 1; //No advantage to decimating by 2
+            }
             Info.Text = Info.Text + "\nDecimation = " + ChannelGraph.decimateNew.ToString("0");
             bool completeRedraw = ChannelGraph.decimateNew != ChannelGraph.decimateOld || !overlap; //complete redraw of all channels if ...
             // change in decimation or if completely new screen (no overlap of old and new)
@@ -331,7 +414,6 @@ namespace ScrollWindow
                 removeLow = (int)((lowBDFP - s[0].fileLocation) / ChannelGraph.decimateNew);
                 removeHigh = (int)((s.Last().fileLocation - highBDFP) / ChannelGraph.decimateNew);
             }
-            Info.Text = Info.Text + "\nRemove: left, right =" + removeLow.ToString("0") + "," + removeHigh.ToString("0");
 
             //now loop through each channel graph to remove unneeded points and find new max and min
             foreach (ChannelGraph cg in chans)
@@ -435,17 +517,22 @@ namespace ScrollWindow
             //Now, we've got the data we need to plot each of the channels
             foreach (ChannelGraph cg in chans)
             {
+                //calculate new scale and offset
                 cg.newOffset = (cg.overallMax + cg.overallMin) / 2D;
                 cg.newScale = ChannelGraph.CanvasHeight / (cg.overallMin - cg.overallMax);
+                //set height, may be new
                 cg.Height = ChannelGraph.CanvasHeight;
+                //calculate and set appropriate stroke thickness
                 cg.path.StrokeThickness = Math.Max(currentDisplayWidthInSecs * 0.0006D, 0.0008D);
 
+                //determine if "rescale" needs to be done: significant change in scale or offset?
                 bool rescale = Math.Abs((cg.newScale - cg.currentScale) / cg.currentScale) > 0.01 || //if scale changes sufficiently or...
                     Math.Abs((cg.newOffset - cg.currentOffset) / (cg.overallMax - cg.overallMin)) > 0.01; //if offset changes sufficiently
 
                 //only redraw if Y-scale has changed sufficiently, decimation changed, points have been removed, or there's no overlap
                 if (rescale || cg.needsRedraw)
                 {
+                    //update scale and offset
                     cg.currentScale = cg.newScale;
                     cg.currentOffset = cg.newOffset;
                     cg.rescalePoints(); //create new pointList
@@ -454,6 +541,8 @@ namespace ScrollWindow
                     ctx.BeginFigure(cg.pointList[0], false, false);
                     ctx.PolyLineTo(cg.pointList, true, true);
                     ctx.Close();
+                    cg.ToolTip = cg.ToolTipString;
+                    //draw new baseline location for this graph, if visible
                     double t = ChannelGraph.CanvasHeight / 2D - cg.currentOffset * cg.currentScale;
                     if (t < 0 || t > ChannelGraph.CanvasHeight)
                         cg.baseline.Visibility = Visibility.Hidden;
@@ -465,11 +554,23 @@ namespace ScrollWindow
                 }
             }
         }
+
+        private void RadioButton_Checked(object sender, RoutedEventArgs e)
+        {
+            RadioButton rb = (RadioButton)sender;
+            if (rb.Tag == null) return;
+            decimationType dT = (decimationType)Convert.ToInt32(rb.Tag);
+            if (dT == dType) return;
+            dType = dT;
+            ChannelGraph.decimateOld = -1; //force complete redraw
+            reDrawChannels();
+        }
     }
 
     internal class ChannelGraph : Canvas
     {
         internal int _channel;
+        internal TextBlock _channelLabel;
         internal StreamGeometry geometry = new StreamGeometry();
         internal System.Windows.Shapes.Path path = new System.Windows.Shapes.Path();
 
@@ -489,6 +590,7 @@ namespace ScrollWindow
         internal static double CanvasHeight = 0;
 
         internal Line baseline = new Line();
+        internal string ToolTipString;
 
         public ChannelGraph(MainWindow containingWindow, int channelNumber)
             : base()
@@ -496,11 +598,13 @@ namespace ScrollWindow
             _channel = channelNumber;
             this.Width = containingWindow.BDFLength; //NOTE: always scaled in seconds
             bdf = containingWindow.bdf;
+            _channelLabel = new TextBlock(new Run(bdf.channelLabel(_channel)));
             this.VerticalAlignment = VerticalAlignment.Stretch;
             path.Stroke = Brushes.Black;
             path.StrokeLineJoin = PenLineJoin.Round;
             path.Data = geometry;
             this.Children.Add(path);
+            ToolTipString = bdf.ToString(_channel).Trim();
             baseline.X1 = 0;
             baseline.X2 = this.Width;
             baseline.VerticalAlignment = VerticalAlignment.Top;
@@ -517,16 +621,33 @@ namespace ScrollWindow
         internal FilePoint createFilePoint(BDFLoc index)
         {
             double sample;
-            double max = double.NegativeInfinity;
-            double min = double.PositiveInfinity;
-            int imax = -1;
-            int imin = -1;
+            double max = 0; //assign to fool compiler
+            double min = 0;
+            int imax = 0;
+            int imin = 0;
             BDFLoc temp = index;
-            for (int j = 0; j < decimateNew; j++)
+            if (MainWindow.dType == decimationType.MinMax)
             {
-                sample = bdf.getSample(_channel, temp++);
-                if (sample > max) { max = sample; imax = j; }
-                if (sample < min) { min = sample; imin = j; }
+                max = double.NegativeInfinity;
+                min = double.PositiveInfinity;
+                for (int j = 0; j < decimateNew; j++)
+                {
+                    sample = bdf.getSample(_channel, temp++);
+                    if (sample > max) { max = sample; imax = j; }
+                    if (sample < min) { min = sample; imin = j; }
+                }
+            }
+            else if (MainWindow.dType == decimationType.Average)
+            {
+                double ave = 0D;
+                for (int j = 0; j < decimateNew; j++)
+                    ave += bdf.getSample(_channel, temp++);
+                max = min = ave / decimateNew;
+                imax = imin = decimateNew / 2;
+            }
+            else //MainWindow.dType == decimationType.FirstPoint || MainWindow.dType == decimationType.None
+            {
+                max = min = bdf.getSample(_channel, temp);
             }
             if (max > overallMax) overallMax = max;
             if (min < overallMin) overallMin = min;
@@ -550,7 +671,7 @@ namespace ScrollWindow
                 fp.second.Y = max;
                 fp.SecondValid = true;
             }
-            else
+            else //imax == imin
             {
                 fp.first.X = secs + imax * st;
                 fp.first.Y = max;
@@ -580,4 +701,6 @@ namespace ScrollWindow
         public Point second;
         public bool SecondValid;
     }
+
+    internal enum decimationType {None, MinMax, Average, FirstPoint}
 }
