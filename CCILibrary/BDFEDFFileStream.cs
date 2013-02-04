@@ -338,72 +338,137 @@ namespace CCILibrary
         public double getSample(int channel, int sample)
         {
             if (reader != null && record.currentRecordNumber < 0) throw new BDFEDFException("No records have yet been read.");
-            if (channel < 0 || channel >= header.numberChannels) throw new BDFEDFException("Invalid channel number (" + channel + ")");
-            if (sample < 0 || sample >= header.numberSamples[channel]) throw new BDFEDFException("Invalid sample number (" + sample + ")");
-            return (double)record.channelData[channel][sample] * header.Gain(channel) + header.Offset(channel);
+            try
+            {
+                return (double)record.channelData[channel][sample] * header.Gain(channel) + header.Offset(channel);
+            }
+            catch (IndexOutOfRangeException e)
+            {
+                if (channel < 0 || channel >= header.numberChannels) throw new BDFEDFException("Invalid channel number (" + channel + ")");
+                if (sample < 0 || sample >= header.numberSamples[channel]) throw new BDFEDFException("Invalid sample number (" + sample + ")");
+                throw new BDFEDFException(e.Message);
+            }
+            catch (Exception e)
+            {
+                throw new BDFEDFException(e.Message);
+            }
+
         }
 
         public double getSample(int channel, BDFPoint point)
         {
-            if (channel < 0 || channel >= header.numberChannels) throw new BDFEDFException("Invalid channel number (" + channel + ")");
-            if (point.Pt < 0 || point.Pt >= header.numberSamples[channel]) throw new BDFEDFException("Invalid sample number (" + point.Pt + ")");
-            if (point.Rec != record.currentRecordNumber) //need to read in new record
+            try
             {
-                if (!reader.BaseStream.CanSeek) throw new IOException("File stream not able to perform Seek.");
-                if ((header.isValid && point.Rec >= header.numberOfRecords) || point.Rec < 0) return double.NaN; //read beyond EOF
-                long pos = (long)header.headerSize + (long)point.Rec * (long)record.recordLength; //these files get BIG!!
-                reader.BaseStream.Seek(pos, SeekOrigin.Begin);
-                record.currentRecordNumber = point.Rec - 1; //one less as read() increments it
-                read();
+                if (point.Rec != record.currentRecordNumber) //need to read in new record
+                {
+                    if ((header.isValid && point.Rec >= header.numberOfRecords) || point.Rec < 0) return double.NaN; //read beyond EOF
+                    long pos = (long)header.headerSize + (long)point.Rec * (long)record.recordLength; //these files get BIG!!
+                    reader.BaseStream.Seek(pos, SeekOrigin.Begin);
+                    record.currentRecordNumber = point.Rec - 1; //one less as read() increments it
+                    read();
+                }
+                return (double)record.channelData[channel][point.Pt] * header.Gain(channel) + header.Offset(channel);
             }
-            return (double)record.channelData[channel][point.Pt] * header.Gain(channel) + header.Offset(channel);
+            catch (NotSupportedException)
+            {
+                throw new IOException("File stream not able to perform Seek.");
+            }
+            catch (IndexOutOfRangeException e)
+            {
+                if (channel < 0 || channel >= header.numberChannels) throw new BDFEDFException("Invalid channel number (" + channel + ")");
+                if (point.Pt < 0 || point.Pt >= header.numberSamples[channel]) throw new BDFEDFException("Invalid sample number (" + point.Pt + ")");
+                throw new BDFEDFException(e.Message);
+            }
+            catch (Exception e)
+            {
+                throw new BDFEDFException(e.Message);
+            }
         }
 
         public int getStatusSample(BDFPoint point)
         {
             int channel = header.numberChannels - 1;
-            if (point.Pt < 0 || point.Pt >= header.numberSamples[channel]) throw new BDFEDFException("Invalid sample number (" + point.Pt + ")");
-            if (point.Rec != record.currentRecordNumber) //need to read in new record
+            try
             {
-                if (!reader.BaseStream.CanSeek) throw new IOException("File stream not able to perform Seek.");
-                if ((header.isValid && point.Rec >= header.numberOfRecords) || point.Rec < 0) return int.MinValue; //read beyond EOF
-                long pos = (long)header.headerSize + (long)point.Rec * (long)record.recordLength; //these files get BIG!!
-                reader.BaseStream.Seek(pos, SeekOrigin.Begin);
-                record.currentRecordNumber = point.Rec - 1; //one less as read() increments it
-                read();
+                if (point.Rec != record.currentRecordNumber) //need to read in new record
+                {
+                    if ((header.isValid && point.Rec >= header.numberOfRecords) || point.Rec < 0) return int.MinValue; //read beyond EOF
+                    long pos = (long)header.headerSize + (long)point.Rec * (long)record.recordLength; //these files get BIG!!
+                    reader.BaseStream.Seek(pos, SeekOrigin.Begin);
+                    record.currentRecordNumber = point.Rec - 1; //one less as read() increments it
+                    read();
+                }
+                return record.channelData[channel][point.Pt];
             }
-            return record.channelData[channel][point.Pt];
+            catch (NotSupportedException)
+            {
+                throw new IOException("File stream not able to perform Seek.");
+            }
+            catch (IndexOutOfRangeException e)
+            {
+                if (point.Pt < 0 || point.Pt >= header.numberSamples[channel]) throw new BDFEDFException("Invalid sample number (" + point.Pt + ")");
+                throw new BDFEDFException(e.Message);
+            }
+            catch (Exception e)
+            {
+                throw new BDFEDFException(e.Message);
+            }
         }
+
         public double getSample(int channel, BDFLoc point)
         {
-            if (channel < 0 || channel >= header.numberChannels) throw new BDFEDFException("Invalid channel number (" + channel + ")");
-            if (point.Pt < 0 || point.Pt >= header.numberSamples[channel]) throw new BDFEDFException("Invalid sample number (" + point.Pt + ")");
-            if (point.Rec != record.currentRecordNumber) //need to read in new record
+            try
             {
-                if (!reader.BaseStream.CanSeek) throw new IOException("File stream not able to perform Seek.");
-                if ((header.isValid && point.Rec >= header.numberOfRecords) || point.Rec < 0) return double.NaN; //read beyond EOF
-                long pos = (long)header.headerSize + (long)point.Rec * (long)record.recordLength; //these files get BIG!!
-                reader.BaseStream.Seek(pos, SeekOrigin.Begin);
-                record.currentRecordNumber = point.Rec - 1; //one less as read() increments it
-                read();
+                if (point.Rec != record.currentRecordNumber) //need to read in new record
+                {
+                    if ((header.isValid && point.Rec >= header.numberOfRecords) || point.Rec < 0) return double.NaN; //read beyond EOF
+                    long pos = (long)header.headerSize + (long)point.Rec * (long)record.recordLength; //these files get BIG!!
+                    reader.BaseStream.Seek(pos, SeekOrigin.Begin);
+                    record.currentRecordNumber = point.Rec - 1; //one less as read() increments it
+                    read();
+                }
+                return (double)record.channelData[channel][point.Pt] * header.Gain(channel) + header.Offset(channel);
             }
-            return (double)record.channelData[channel][point.Pt] * header.Gain(channel) + header.Offset(channel);
+            catch (NotSupportedException)
+            {
+                throw new IOException("File stream not able to perform Seek.");
+            }
+            catch (IndexOutOfRangeException e)
+            {
+                if (channel < 0 || channel >= header.numberChannels) throw new BDFEDFException("Invalid channel number (" + channel + ")");
+                if (point.Pt < 0 || point.Pt >= header.numberSamples[channel]) throw new BDFEDFException("Invalid sample number (" + point.Pt + ")");
+                throw new BDFEDFException(e.Message);
+            }
+            catch (Exception e)
+            {
+                throw new BDFEDFException(e.Message);
+            }
         }
 
         public int getStatusSample(BDFLoc point)
         {
             int channel = header.numberChannels - 1;
-            if (point.Pt < 0 || point.Pt >= header.numberSamples[channel]) throw new BDFEDFException("Invalid sample number (" + point.Pt + ")");
-            if (point.Rec != record.currentRecordNumber) //need to read in new record
+            try
             {
-                if (!reader.BaseStream.CanSeek) throw new IOException("File stream not able to perform Seek.");
-                if ((header.isValid && point.Rec >= header.numberOfRecords) || point.Rec < 0) return int.MinValue; //read beyond EOF
-                long pos = (long)header.headerSize + (long)point.Rec * (long)record.recordLength; //these files get BIG!!
-                reader.BaseStream.Seek(pos, SeekOrigin.Begin);
-                record.currentRecordNumber = point.Rec - 1; //one less as read() increments it
-                read();
+                if (point.Rec != record.currentRecordNumber) //need to read in new record
+                {
+                    if ((header.isValid && point.Rec >= header.numberOfRecords) || point.Rec < 0) return int.MinValue; //read beyond EOF
+                    long pos = (long)header.headerSize + (long)point.Rec * (long)record.recordLength; //these files get BIG!!
+                    reader.BaseStream.Seek(pos, SeekOrigin.Begin);
+                    record.currentRecordNumber = point.Rec - 1; //one less as read() increments it
+                    read();
+                }
+                return record.channelData[channel][point.Pt];
             }
-            return record.channelData[channel][point.Pt];
+            catch (NotSupportedException)
+            {
+                throw new IOException("File stream not able to perform Seek.");
+            }
+            catch (Exception e)
+            {
+                if (point.Pt < 0 || point.Pt >= header.numberSamples[channel]) throw new BDFEDFException("Invalid sample number (" + point.Pt + ")");
+                throw new BDFEDFException(e.Message);
+            }
         }
 
         /// <summary>
