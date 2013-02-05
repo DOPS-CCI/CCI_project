@@ -108,6 +108,8 @@ namespace ElectrodeFileStream
         public abstract void write(ElectrodeOutputFileStream ofs, string nameSpace);
 
         public abstract Point project2D();
+
+        public abstract override string ToString();
     }
 
     public class PhiThetaRecord : ElectrodeRecord
@@ -152,9 +154,14 @@ namespace ElectrodeFileStream
             return p;
         }
 
+        public string ToString(string format)
+        {
+            return Math.Round(Phi).ToString(format) + "," + Math.Round(Theta).ToString(format);
+        }
+
         public override string ToString()
         {
-            return Math.Round(Phi).ToString("0") + "," + Math.Round(Theta).ToString("0");
+            return "PhiTheta: " + Phi.ToString("0.0") + ", " + Theta.ToString("0.0");
         }
     }
 
@@ -194,6 +201,11 @@ namespace ElectrodeFileStream
         public override Point project2D()
         {
             return new Point(X, Y);
+        }
+
+        public override string ToString()
+        {
+            return "XY: " + X.ToString("0.00") + ", " + Y.ToString("0.00");
         }
     }
 
@@ -240,6 +252,11 @@ namespace ElectrodeFileStream
             double r = Math.Atan2(x2y2, Z) * 180D / Math.PI; // = phi of PhiTheta system
             if (r < 0) r = 90 - r;
             return new Point(X * r / x2y2, Y * r / x2y2);
+        }
+
+        public override string ToString()
+        {
+            return "XYZ: " + X.ToString("0.00") + ", " + Y.ToString("0.00") + ", " + Z.ToString("0.00");
         }
     }
 }
