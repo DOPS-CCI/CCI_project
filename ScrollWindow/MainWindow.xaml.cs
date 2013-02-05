@@ -6,9 +6,11 @@ using System.Text;
 using System.Timers;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Effects;
 using System.Windows.Shapes;
 using Microsoft.Win32;
 using CCILibrary;
@@ -17,6 +19,7 @@ using HeaderFileStream;
 using EventFile;
 using EventDictionary;
 using Event;
+using ElectrodeFileStream;
 
 namespace ScrollWindow
 {
@@ -26,26 +29,30 @@ namespace ScrollWindow
     public partial class MainWindow : Window
     {
         const double ScrollBarSize = 17D;
+        const double EventChannelHeight = 20D;
         public double BDFLength;
         public double XScaleSecsToInches;
         public double currentDisplayWidthInSecs = 10D;
         public double currentDisplayOffsetInSecs = 0D;
         public double oldDisplayWidthInSecs = 10D;
         public double oldDisplayOffsetInSecs = -10D;
-        Dictionary<int, Event.InputEvent> events = new Dictionary<int, Event.InputEvent>();
         public BDFEDFFileReader bdf;
         Header.Header head;
+        internal string directory;
         internal bool includeANAs = true;
         internal static decimationType dType = decimationType.MinMax;
         internal TextBlock eventTB;
+        Popup channelPopup = new Popup();
+        TextBlock popupTB = new TextBlock();
 
         internal List<int> channelList; //list of currently displayed channels
         internal EventDictionary.EventDictionary ED;
+        internal Dictionary<int, Event.InputEvent> events = new Dictionary<int, Event.InputEvent>();
+        internal Dictionary<string, ElectrodeRecord> electrodes;
 
         public MainWindow()
         {
             bool r;
-            string directory;
             do
             {
                 OpenFileDialog dlg = new OpenFileDialog();
@@ -77,7 +84,12 @@ namespace ScrollWindow
             {
                 foreach (EventDictionaryEntry ede in ED.Values) // add ANA channels that are referenced by extrinsic Events
                 {
-                    if (!ede.intrinsic) channelList.Add(bdf.ChannelNumberFromLabel(ede.channelName));
+                    if (!ede.intrinsic)
+                    {
+                        int chan = bdf.ChannelNumberFromLabel(ede.channelName);
+                        if (!channelList.Contains(chan)) //don't enter duplicate
+                            channelList.Add(chan);
+                    }
                 }
             }
 
@@ -100,6 +112,11 @@ namespace ScrollWindow
                     events.Add(ie.GC, ie);
             }
             efr.Close(); //now events is Dictionary of Events in the dataset; lookup by GC
+
+            ElectrodeInputFileStream eif = new ElectrodeInputFileStream(
+                new FileStream(System.IO.Path.Combine(directory, head.ElectrodeFile),
+                    FileMode.Open, FileAccess.Read)); //open Electrode file
+            electrodes = eif.etrPositions;
 
             EventMarkers.Width = BDFLength;
             eventTB = new TextBlock(new Run("Events"));
@@ -125,6 +142,22 @@ namespace ScrollWindow
 
             timer.AutoReset = true;
             timer.Elapsed+=new ElapsedEventHandler(timer_Elapsed);
+
+            Color c1 = Color.FromArgb(0xFF, 0xF8, 0xF8, 0xF8);
+            Color c2 = Color.FromArgb(0xFF, 0xC8, 0xC8, 0xC8);
+            popupTB.Background = new LinearGradientBrush(c1, c2, 45D);
+            popupTB.Foreground = Brushes.Black;
+            popupTB.Padding = new Thickness(4D);
+            Border b = new Border();
+            b.BorderThickness = new Thickness(1);
+            b.CornerRadius = new CornerRadius(4);
+            b.BorderBrush = Brushes.Tomato;
+            b.Margin = new Thickness(0, 0, 24, 24); //allows drop shadow to show up
+            b.Effect = new DropShadowEffect();
+            b.Child = popupTB;
+            channelPopup.Placement = PlacementMode.MousePoint;
+            channelPopup.AllowsTransparency = true;
+            channelPopup.Child = b;
 
             //from here on the program is GUI-event driven
         }
@@ -209,11 +242,11 @@ namespace ScrollWindow
         double startDragScrollLocation;
         private void Viewer_MouseDown(object sender, MouseButtonEventArgs e)
         {
+            Point pt = e.GetPosition(Viewer);
+            if (Viewer.ActualHeight - pt.Y < ScrollBarSize) return;
+            if (Viewer.ActualWidth - pt.X < ScrollBarSize) return;
             if (e.LeftButton == MouseButtonState.Pressed)
             {
-                Point pt = e.GetPosition(Viewer);
-                if (Viewer.ActualHeight - pt.Y < ScrollBarSize) return;
-                if (Viewer.ActualWidth - pt.X < ScrollBarSize) return;
                 InDrag = true;
                 startDragMouseLocation = currentDragLocation = pt;
                 startDragScrollLocation = Viewer.ContentHorizontalOffset;
@@ -222,16 +255,40 @@ namespace ScrollWindow
                 timerCount = 0D;
                 timer.Start();
             }
+            else if (e.RightButton == MouseButtonState.Pressed)
+            {
+                int graphNumber = (int)(pt.Y/ChannelGraph.CanvasHeight);
+                if (graphNumber >= channelList.Count) return;
+                int channel = channelList[graphNumber];
+                //get electrode location string for this channel number
+                ElectrodeRecord er;
+                string st;
+                if (electrodes.TryGetValue(bdf.channelLabel(channel), out er))
+                    st = er.ToString();
+                else
+                    st = "None recorded";
+                popupTB.Text = bdf.ToString(channel) + "Location: " + st;
+                channelPopup.IsOpen = true;
+                Viewer.CaptureMouse();
+            }
         }
 
         private void Viewer_MouseUp(object sender, MouseButtonEventArgs e)
         {
-            timer.Stop();
-            InDrag = false;
-            Point loc = e.GetPosition(Viewer);
-            Viewer.ReleaseMouseCapture();
-            if (Math.Abs(loc.X - currentDragLocation.X) > 0D)
-                Viewer.ScrollToHorizontalOffset(startDragScrollLocation - loc.X + startDragMouseLocation.X);
+            if (e.ChangedButton == MouseButton.Left)
+            {
+                timer.Stop();
+                InDrag = false;
+                Point loc = e.GetPosition(Viewer);
+                Viewer.ReleaseMouseCapture();
+                if (Math.Abs(loc.X - currentDragLocation.X) > 0D)
+                    Viewer.ScrollToHorizontalOffset(startDragScrollLocation - loc.X + startDragMouseLocation.X);
+            }
+            else if (e.ChangedButton == MouseButton.Right)
+            {
+                channelPopup.IsOpen = false;
+                Viewer.ReleaseMouseCapture();
+            }
         }
 
         const double TDThreshold = 5D;
@@ -293,19 +350,31 @@ namespace ScrollWindow
                 uint sample = (uint)bdf.getStatusSample(p) & head.Mask;
                 if (sample != lastSample)
                 {
+                    //draw line in Event graph to mark
                     InputEvent ev;
                     double s = p.ToSecs();
                     Line l = new Line();
                     l.X1 = l.X2 = s;
                     l.Y1 = 0D;
                     l.Y2 = 20D;
-                    l.Stroke = Brushes.Red;
                     //make stroke thickness = sample time, unless too small
-                    l.StrokeThickness = Math.Max((double)bdf.RecordDuration / bdf.NSamp, currentDisplayWidthInSecs * 0.0008D);
+                    l.StrokeThickness = Math.Max((double)bdf.SampTime, currentDisplayWidthInSecs * 0.0008D);
+                    //add tooltip containing corresponding Event file entry
                     if (events.TryGetValue((int)sample, out ev))
                         l.ToolTip = ev.ToString().Trim();
                     else
-                        l.ToolTip = "Unknown in Event file!";
+                        l.ToolTip = "No entry in Event file!";
+                    //encode intrinsic/extrinsic in red/blue colors; incorrect Event name encoded in black
+                    EventDictionaryEntry EDE;
+                    if (ev != null && ED.TryGetValue(ev.Name, out EDE))
+                    {
+                        if (EDE.intrinsic)
+                            l.Stroke = Brushes.Red;
+                        else
+                            l.Stroke = Brushes.Blue;
+                    }
+                    else
+                        l.Stroke = Brushes.Black;
                     EventMarkers.Children.Add(l);
                     lastSample = sample;
                 }
@@ -541,7 +610,6 @@ namespace ScrollWindow
                     ctx.BeginFigure(cg.pointList[0], false, false);
                     ctx.PolyLineTo(cg.pointList, true, true);
                     ctx.Close();
-                    cg.ToolTip = cg.ToolTipString;
                     //draw new baseline location for this graph, if visible
                     double t = ChannelGraph.CanvasHeight / 2D - cg.currentOffset * cg.currentScale;
                     if (t < 0 || t > ChannelGraph.CanvasHeight)
@@ -590,7 +658,6 @@ namespace ScrollWindow
         internal static double CanvasHeight = 0;
 
         internal Line baseline = new Line();
-        internal string ToolTipString;
 
         public ChannelGraph(MainWindow containingWindow, int channelNumber)
             : base()
@@ -604,7 +671,6 @@ namespace ScrollWindow
             path.StrokeLineJoin = PenLineJoin.Round;
             path.Data = geometry;
             this.Children.Add(path);
-            ToolTipString = bdf.ToString(_channel).Trim();
             baseline.X1 = 0;
             baseline.X2 = this.Width;
             baseline.VerticalAlignment = VerticalAlignment.Top;

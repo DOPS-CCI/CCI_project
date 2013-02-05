@@ -26,23 +26,27 @@ namespace ScrollWindow
 
             InitializeComponent();
 
+            Title = "Select channels from dataset " + System.IO.Path.GetFileName(main.directory);
             FileInfo.Text = main.bdf.ToString().Trim();
             main.channelList = new List<int>(16);
-            for (int i = 0; i < 16; i++) main.channelList.Add(i); //set defaults
+            int nC = main.bdf.NumberOfChannels;
+            for (int i = 0; i < nC; i++) main.channelList.Add(i); //set defaults
+            SelChan.Text = "1-" + nC.ToString("0");
+            SelChanName.Text = nC.ToString("0") + " channels";
+
             main.includeANAs = true;
             
         }
         private void SelChan_TextChanged(object sender, TextChangedEventArgs e)
         {
-            if (SelChanName == null) return;
-            string str = ((TextBox)sender).Text;
-            main.channelList = parseList(str);
-            if (main.channelList == null || main.channelList.Count == 0)
+            if (SelChanName == null) return; //skip during initial loading
+            main.channelList = parseList(((TextBox)sender).Text); //try to parse string
+            if (main.channelList == null || main.channelList.Count == 0) //then, error
             {
                 SelChan.BorderBrush = Brushes.Red;
                 SelChanName.Text = "Error";
             }
-            else
+            else //parsable entry
             {
                 SelChan.BorderBrush = Brushes.MediumBlue;
                 if (main.channelList.Count > 1)
@@ -53,6 +57,7 @@ namespace ScrollWindow
             checkError();
         }
 
+        //determine if OK can be enabled
         private void checkError()
         {
             if (main.channelList != null && main.channelList.Count > 0)
@@ -61,6 +66,7 @@ namespace ScrollWindow
                 OK.IsEnabled = false;
         }
 
+        //wrapper routine to capture exceptions
         private List<int> parseList(string str)
         {
             try
