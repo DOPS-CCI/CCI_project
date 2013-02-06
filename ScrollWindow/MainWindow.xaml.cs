@@ -237,6 +237,7 @@ namespace ScrollWindow
         // Here are the routines for handling the dragging of the display window
         static System.Timers.Timer timer = new Timer(50D); //establish a 50msec interval timer
         bool InDrag = false;
+        bool HasMoved = false;
         Point startDragMouseLocation;
         Point currentDragLocation;
         double startDragScrollLocation;
@@ -244,10 +245,11 @@ namespace ScrollWindow
         {
             Point pt = e.GetPosition(Viewer);
             if (Viewer.ActualHeight - pt.Y < ScrollBarSize) return;
-            if (Viewer.ActualWidth - pt.X < ScrollBarSize) return;
+//            if (Viewer.ActualWidth - pt.X < ScrollBarSize) return;
             if (e.LeftButton == MouseButtonState.Pressed)
             {
                 InDrag = true;
+                HasMoved = false;
                 startDragMouseLocation = currentDragLocation = pt;
                 startDragScrollLocation = Viewer.ContentHorizontalOffset;
                 Viewer.CaptureMouse();
@@ -257,7 +259,56 @@ namespace ScrollWindow
             }
             else if (e.RightButton == MouseButtonState.Pressed)
             {
-                int graphNumber = (int)(pt.Y/ChannelGraph.CanvasHeight);
+            }
+        }
+
+        private void Viewer_MouseUp(object sender, MouseButtonEventArgs e)
+        {
+            if (e.ChangedButton == MouseButton.Left)
+            {
+                if (channelPopup.IsOpen)
+                {
+                    channelPopup.IsOpen = false;
+                    Viewer.ReleaseMouseCapture();
+                }
+                else
+                {
+                    timer.Stop();
+                    InDrag = false;
+                    HasMoved = false;
+                    Point loc = e.GetPosition(Viewer);
+                    Viewer.ReleaseMouseCapture();
+                    if (Math.Abs(loc.X - currentDragLocation.X) > 0D)
+                        Viewer.ScrollToHorizontalOffset(startDragScrollLocation - loc.X + startDragMouseLocation.X);
+                }
+            }
+            else if (e.ChangedButton == MouseButton.Right)
+            {
+            }
+        }
+
+        const double TDThreshold = 5D;
+        private void Viewer_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (!InDrag) return;
+            Point loc = e.GetPosition(Viewer);
+            double distance = Math.Abs(loc.X - currentDragLocation.X);
+            if (HasMoved)
+            {
+                if (timerCount * distance > TDThreshold)
+                {
+                    currentDragLocation = loc;
+                    timerCount = 0D;
+                    Viewer.ScrollToHorizontalOffset(startDragScrollLocation - loc.X + startDragMouseLocation.X);
+                }
+                else return;
+            }
+            else if (distance < 4D && timerCount > 0.5) //display popup
+            {
+                timer.Stop();
+                InDrag = false;
+                //display popup channel info window
+                int graphNumber = (int)(loc.Y / ChannelGraph.CanvasHeight);
                 if (graphNumber >= channelList.Count) return;
                 int channel = channelList[graphNumber];
                 //get electrode location string for this channel number
@@ -268,48 +319,17 @@ namespace ScrollWindow
                 else
                     st = "None recorded";
                 ChannelGraph cg = (ChannelGraph)GraphCanvas.Children[graphNumber];
-                popupTB.Text = bdf.ToString(channel) + 
+                popupTB.Text = bdf.ToString(channel) +
                     "Location: " + st + "\nMin,Max: " +
                     cg.overallMin.ToString("G4") + "," + cg.overallMax.ToString("G4");
                 channelPopup.IsOpen = true;
                 Viewer.CaptureMouse();
             }
-        }
-
-        private void Viewer_MouseUp(object sender, MouseButtonEventArgs e)
-        {
-            if (e.ChangedButton == MouseButton.Left)
-            {
-                timer.Stop();
-                InDrag = false;
-                Point loc = e.GetPosition(Viewer);
-                Viewer.ReleaseMouseCapture();
-                if (Math.Abs(loc.X - currentDragLocation.X) > 0D)
-                    Viewer.ScrollToHorizontalOffset(startDragScrollLocation - loc.X + startDragMouseLocation.X);
-            }
-            else if (e.ChangedButton == MouseButton.Right)
-            {
-                channelPopup.IsOpen = false;
-                Viewer.ReleaseMouseCapture();
-            }
-        }
-
-        const double TDThreshold = 5D;
-        private void Viewer_MouseMove(object sender, MouseEventArgs e)
-        {
-            if (!InDrag) return;
-            Point loc = e.GetPosition(Viewer);
-            double distance = Math.Abs(loc.X - currentDragLocation.X);
-            if (timerCount * distance > TDThreshold)
-            {
-                currentDragLocation = loc;
-                timerCount = 0D;
-                Viewer.ScrollToHorizontalOffset(startDragScrollLocation - loc.X + startDragMouseLocation.X);
-            }
+            else if (distance >= 4D) HasMoved = true;
         }
 
         static double timerCount = 0;
-        private static void timer_Elapsed(object sender, ElapsedEventArgs e)
+        private void timer_Elapsed(object sender, ElapsedEventArgs e)
         {
             timerCount += 0.050;
         }
