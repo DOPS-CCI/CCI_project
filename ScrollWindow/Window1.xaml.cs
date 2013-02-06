@@ -28,11 +28,7 @@ namespace ScrollWindow
 
             Title = "Select channels from dataset " + System.IO.Path.GetFileName(main.directory);
             FileInfo.Text = main.bdf.ToString().Trim();
-            main.channelList = new List<int>(16);
-            int nC = main.bdf.NumberOfChannels;
-            for (int i = 0; i < nC; i++) main.channelList.Add(i); //set defaults
-            SelChan.Text = "1-" + nC.ToString("0");
-            SelChanName.Text = nC.ToString("0") + " channels";
+            SelChan.Text = "1-" + main.bdf.NumberOfChannels.ToString("0"); //initialize channel selection string
 
             main.includeANAs = true;
             
@@ -40,19 +36,29 @@ namespace ScrollWindow
         private void SelChan_TextChanged(object sender, TextChangedEventArgs e)
         {
             if (SelChanName == null) return; //skip during initial loading
-            main.channelList = parseList(((TextBox)sender).Text); //try to parse string
-            if (main.channelList == null || main.channelList.Count == 0) //then, error
+            string parseString = SelChan.Text;
+            if (parseString == "") //handle empty string case specially
             {
-                SelChan.BorderBrush = Brushes.Red;
-                SelChanName.Text = "Error";
-            }
-            else //parsable entry
-            {
+                main.channelList = new List<int>(0);
                 SelChan.BorderBrush = Brushes.MediumBlue;
-                if (main.channelList.Count > 1)
-                    SelChanName.Text = main.channelList.Count.ToString("0") + " channels";
-                else
-                    SelChanName.Text = main.bdf.channelLabel(main.channelList[0]);
+                SelChanName.Text = "No data channels";
+            }
+            else //not an empty string; parseList works OK
+            {
+                main.channelList = parseList(parseString); //try to parse string
+                if (main.channelList == null) //then, error
+                {
+                    SelChan.BorderBrush = Brushes.Red;
+                    SelChanName.Text = "Error";
+                }
+                else //parsable entry
+                {
+                    SelChan.BorderBrush = Brushes.MediumBlue;
+                    if (main.channelList.Count > 1)
+                        SelChanName.Text = main.channelList.Count.ToString("0") + " channels";
+                    else //single channel
+                        SelChanName.Text = main.bdf.channelLabel(main.channelList[0]);
+                }
             }
             checkError();
         }
@@ -60,10 +66,10 @@ namespace ScrollWindow
         //determine if OK can be enabled
         private void checkError()
         {
-            if (main.channelList != null && main.channelList.Count > 0)
-                OK.IsEnabled = true;
-            else
+            if (main.channelList == null || main.channelList.Count == 0 && !(bool)ANAs.IsChecked)
                 OK.IsEnabled = false;
+            else
+                OK.IsEnabled = true;
         }
 
         //wrapper routine to capture exceptions
@@ -88,6 +94,7 @@ namespace ScrollWindow
         private void ANAs_Click(object sender, RoutedEventArgs e)
         {
             main.includeANAs = (bool)ANAs.IsChecked;
+            checkError();
         }
     }
 }

@@ -30,7 +30,7 @@
             <Grid >
                 <Grid.RowDefinitions>
                     <RowDefinition Height="*"/>
-                    <RowDefinition Height="20"/>
+                    <RowDefinition Height="15"/>
                     <RowDefinition Height="15"/>
                 </Grid.RowDefinitions>
                 <StackPanel Grid.Row="0" Name="GraphCanvas" Orientation="Vertical" HorizontalAlignment="Left" VerticalAlignment="Stretch" />
