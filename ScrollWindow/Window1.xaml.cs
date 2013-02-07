@@ -46,7 +46,7 @@ namespace ScrollWindow
             else //not an empty string; parseList works OK
             {
                 main.channelList = parseList(parseString); //try to parse string
-                if (main.channelList == null) //then, error
+                if (main.channelList == null || main.channelList.Count == 0) //then, error
                 {
                     SelChan.BorderBrush = Brushes.Red;
                     SelChanName.Text = "Error";

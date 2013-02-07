@@ -244,8 +244,7 @@ namespace ScrollWindow
         private void Viewer_MouseDown(object sender, MouseButtonEventArgs e)
         {
             Point pt = e.GetPosition(Viewer);
-            if (Viewer.ActualHeight - pt.Y < ScrollBarSize) return;
-//            if (Viewer.ActualWidth - pt.X < ScrollBarSize) return;
+            if (Viewer.ActualHeight - pt.Y < ScrollBarSize) return; //ignore scrollbar hits
             if (e.LeftButton == MouseButtonState.Pressed)
             {
                 InDrag = true;
@@ -253,7 +252,7 @@ namespace ScrollWindow
                 startDragMouseLocation = currentDragLocation = pt;
                 startDragScrollLocation = Viewer.ContentHorizontalOffset;
                 Viewer.CaptureMouse();
-                e.Handled = true;
+//                e.Handled = true;
                 timerCount = 0D;
                 timer.Start();
             }
@@ -320,8 +319,9 @@ namespace ScrollWindow
                     st = "None recorded";
                 ChannelGraph cg = (ChannelGraph)GraphCanvas.Children[graphNumber];
                 popupTB.Text = bdf.ToString(channel) +
-                    "Location: " + st + "\nMin,Max: " +
-                    cg.overallMin.ToString("G4") + "," + cg.overallMax.ToString("G4");
+                    "Location: " + st + "\nMin,Max(diff): " +
+                    cg.overallMin.ToString("G4") + "," + cg.overallMax.ToString("G4") +
+                    "(" + (cg.overallMax - cg.overallMin).ToString("G3") + ")";
                 channelPopup.IsOpen = true;
                 Viewer.CaptureMouse();
             }
