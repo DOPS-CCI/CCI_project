@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Timers;
+using System.Printing;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -12,6 +13,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Effects;
 using System.Windows.Shapes;
+using System.Windows.Xps;
 using Microsoft.Win32;
 using CCILibrary;
 using Header;
@@ -237,27 +239,78 @@ namespace ScrollWindow
         // Here are the routines for handling the dragging of the display window
         static System.Timers.Timer timer = new Timer(50D); //establish a 50msec interval timer
         bool InDrag = false;
-        bool HasMoved = false;
         Point startDragMouseLocation;
         Point currentDragLocation;
         double startDragScrollLocation;
+        int graphNumber;
         private void Viewer_MouseDown(object sender, MouseButtonEventArgs e)
         {
             Point pt = e.GetPosition(Viewer);
             if (Viewer.ActualHeight - pt.Y < ScrollBarSize) return; //ignore scrollbar hits
             if (e.LeftButton == MouseButtonState.Pressed)
             {
-                InDrag = true;
-                HasMoved = false;
-                startDragMouseLocation = currentDragLocation = pt;
-                startDragScrollLocation = Viewer.ContentHorizontalOffset;
+                if ((Keyboard.Modifiers & ModifierKeys.Control) > 0)
+                {
+                    //display popup channel info window
+                    graphNumber = (int)(pt.Y / ChannelGraph.CanvasHeight);
+                    if (graphNumber >= channelList.Count) return;
+                    int channel = channelList[graphNumber];
+                    //get electrode location string for this channel number
+                    ElectrodeRecord er;
+                    string st;
+                    if (electrodes.TryGetValue(bdf.channelLabel(channel), out er))
+                        st = er.ToString();
+                    else
+                        st = "None recorded";
+                    ChannelGraph cg = (ChannelGraph)GraphCanvas.Children[graphNumber];
+                    popupTB.Text = bdf.ToString(channel) +
+                        "Location: " + st + "\nMin,Max(diff): " +
+                        cg.overallMin.ToString("G4") + "," + cg.overallMax.ToString("G4") +
+                        "(" + (cg.overallMax - cg.overallMin).ToString("G3") + ")";
+                    channelPopup.IsOpen = true;
+                }
+                else //start dragging operation
+                {
+                    InDrag = true;
+                    startDragMouseLocation = currentDragLocation = pt;
+                    startDragScrollLocation = Viewer.ContentHorizontalOffset;
+                    //                e.Handled = true;
+                    timerCount = 0D;
+                    timer.Start();
+                }
                 Viewer.CaptureMouse();
-//                e.Handled = true;
-                timerCount = 0D;
-                timer.Start();
             }
             else if (e.RightButton == MouseButtonState.Pressed)
             {
+                graphNumber = (int)(pt.Y / ChannelGraph.CanvasHeight);
+                if (graphNumber < channelList.Count)
+                {
+                    if (channelList.Count <= 1)
+                        ((MenuItem)(Viewer.ContextMenu.Items[3])).IsEnabled = false;
+                    else
+                        ((MenuItem)(Viewer.ContextMenu.Items[3])).IsEnabled = true;
+                    //set up context menu about to be disdplayed
+                    string channelName = bdf.channelLabel(channelList[graphNumber]);
+                    ((MenuItem)(Viewer.ContextMenu.Items[0])).Header = "Add new channel before " + channelName;
+                    ((MenuItem)(Viewer.ContextMenu.Items[1])).Header = "Add new channel after " + channelName;
+                    ((MenuItem)(Viewer.ContextMenu.Items[3])).Header = "Remove channel " + channelName;
+                    Viewer.ContextMenu.Visibility = Visibility.Visible;
+                    AddBefore.Items.Clear();
+                    AddAfter.Items.Clear();
+                    for (int i = 0; i < bdf.NumberOfChannels; i++)
+                    {
+                        if(channelList.Contains(i)) continue;
+                        MenuItem mi1 = new MenuItem();
+                        MenuItem mi2 = new MenuItem();
+                        mi1.Header = mi2.Header = bdf.channelLabel(i);
+                        mi1.Click += new RoutedEventHandler(MenuItemAdd_Click);
+                        mi2.Click += new RoutedEventHandler(MenuItemAdd_Click);
+                        AddBefore.Items.Add(mi1);
+                        AddAfter.Items.Add(mi2);
+                    }
+                }
+                else
+                    Viewer.ContextMenu.Visibility = Visibility.Hidden;
             }
         }
 
@@ -270,11 +323,10 @@ namespace ScrollWindow
                     channelPopup.IsOpen = false;
                     Viewer.ReleaseMouseCapture();
                 }
-                else
+                else if (InDrag)
                 {
                     timer.Stop();
                     InDrag = false;
-                    HasMoved = false;
                     Point loc = e.GetPosition(Viewer);
                     Viewer.ReleaseMouseCapture();
                     if (Math.Abs(loc.X - currentDragLocation.X) > 0D)
@@ -292,40 +344,12 @@ namespace ScrollWindow
             if (!InDrag) return;
             Point loc = e.GetPosition(Viewer);
             double distance = Math.Abs(loc.X - currentDragLocation.X);
-            if (HasMoved)
+            if (timerCount * distance > TDThreshold) //wait until mouse has moved more than a few pixels
             {
-                if (timerCount * distance > TDThreshold)
-                {
-                    currentDragLocation = loc;
-                    timerCount = 0D;
-                    Viewer.ScrollToHorizontalOffset(startDragScrollLocation - loc.X + startDragMouseLocation.X);
-                }
-                else return;
+                currentDragLocation = loc;
+                timerCount = 0D;
+                Viewer.ScrollToHorizontalOffset(startDragScrollLocation - loc.X + startDragMouseLocation.X);
             }
-            else if (distance < 4D && timerCount > 0.5) //display popup
-            {
-                timer.Stop();
-                InDrag = false;
-                //display popup channel info window
-                int graphNumber = (int)(loc.Y / ChannelGraph.CanvasHeight);
-                if (graphNumber >= channelList.Count) return;
-                int channel = channelList[graphNumber];
-                //get electrode location string for this channel number
-                ElectrodeRecord er;
-                string st;
-                if (electrodes.TryGetValue(bdf.channelLabel(channel), out er))
-                    st = er.ToString();
-                else
-                    st = "None recorded";
-                ChannelGraph cg = (ChannelGraph)GraphCanvas.Children[graphNumber];
-                popupTB.Text = bdf.ToString(channel) +
-                    "Location: " + st + "\nMin,Max(diff): " +
-                    cg.overallMin.ToString("G4") + "," + cg.overallMax.ToString("G4") +
-                    "(" + (cg.overallMax - cg.overallMin).ToString("G3") + ")";
-                channelPopup.IsOpen = true;
-                Viewer.CaptureMouse();
-            }
-            else if (distance >= 4D) HasMoved = true;
         }
 
         static double timerCount = 0;
@@ -351,14 +375,6 @@ namespace ScrollWindow
         }
 
         // Re-draw routines here
-        private void reDrawAll()
-        {
-            reDrawChannels();
-            reDrawEvents();
-            reDrawGrid();
-            reDrawChannelLabels();
-        }
-
         private void reDrawEvents()
         {
             EventMarkers.Children.Clear();
@@ -412,7 +428,7 @@ namespace ScrollWindow
         private void reDrawGrid()
         {
             for (int i = 0; i < numberOfGridlines; i++)
-                gridlines[i].Visibility = Visibility.Hidden; //erase previous grid
+                gridlines[i].Visibility = Visibility.Hidden; //erase previous grid; should we redraw only if new number?
             numberOfGridlines = 0;
             int log10 = 0;
             double r = currentDisplayWidthInSecs;
@@ -448,7 +464,7 @@ namespace ScrollWindow
                 l.X1 = l.X2 = (r + s) * XScaleSecsToInches;
                 l.Y2 = h;
                 tb = new TextBlock();
-                tb.Text = s.ToString("0.0###");
+                tb.Text = s.ToString("+0.0###");
                 Canvas.SetRight(tb, -s * XScaleSecsToInches);
                 GridLabels.Children.Add(tb);
 
@@ -486,12 +502,12 @@ namespace ScrollWindow
             Info.Text = "Display width = " + currentDisplayWidthInSecs.ToString("0.000");
 
             //calculate new decimation, depending on seconds displayed and viewer width
-            if (dType == decimationType.None)
-                ChannelGraph.decimateNew = 1;
-            else
+            if (decVal != -1)
+                ChannelGraph.decimateNew = decVal;
+            else // must automatic decimation
             {
-                ChannelGraph.decimateNew = Convert.ToInt32(Math.Ceiling(2D * (highBDFP - lowBDFP) / Viewer.ActualWidth));
-                if (ChannelGraph.decimateNew == 2) ChannelGraph.decimateNew = 1; //No advantage to decimating by 2
+                ChannelGraph.decimateNew = Convert.ToInt32(Math.Ceiling(2.5D * (highBDFP - lowBDFP) / Viewer.ActualWidth));
+                if (ChannelGraph.decimateNew == 2 && dType==decimationType.MinMax) ChannelGraph.decimateNew = 1; //No advantage to decimating by 2
             }
             Info.Text = Info.Text + "\nDecimation = " + ChannelGraph.decimateNew.ToString("0");
             bool completeRedraw = ChannelGraph.decimateNew != ChannelGraph.decimateOld || !overlap; //complete redraw of all channels if ...
@@ -657,9 +673,90 @@ namespace ScrollWindow
             decimationType dT = (decimationType)Convert.ToInt32(rb.Tag);
             if (dT == dType) return;
             dType = dT;
+            if (decVal != 0)
+            {
+                ChannelGraph.decimateOld = -1; //force complete redraw
+                reDrawChannels();
+            }
+        }
+
+        int decVal = -1;
+        private void DecVal_Changed(object sender, TextChangedEventArgs e)
+        {
+            if (!Viewer.IsLoaded) return; //not ready to generate display
+            if (DecVal.Text.ToUpper() == "AUTO")
+            {
+                decVal = -1; //indicate Auto
+            }
+            else
+            {
+                try
+                {
+                    decVal = Convert.ToInt32(DecVal.Text);
+                }
+                catch
+                {
+                    DecVal.Foreground = Brushes.Red;
+                    return;
+                }
+                if (decVal <= 0)
+                {
+                    DecVal.Foreground = Brushes.Red;
+                    return;
+                }
+            }
+            DecVal.Foreground = Brushes.Black;
             ChannelGraph.decimateOld = -1; //force complete redraw
             reDrawChannels();
         }
+
+        private void MenuItemAdd_Click(object sender, RoutedEventArgs e)
+        {
+            int offset = ((Control)sender).Parent == AddBefore ? 0 : 1;
+            int chan = bdf.ChannelNumberFromLabel((string)((MenuItem)sender).Header);
+            channelList.Insert(graphNumber + offset, chan);
+            GraphCanvas.Children.Insert(graphNumber + offset, new ChannelGraph(this, chan));
+            ChannelGraph.CanvasHeight = (Viewer.ViewportHeight - ScrollBarSize - EventChannelHeight) / channelList.Count;
+            ChannelGraph.decimateOld = -1;
+            reDrawChannelLabels();
+            reDrawChannels();
+        }
+
+        private void MenuItemRemove_Click(object sender, RoutedEventArgs e)
+        {
+            if (graphNumber < channelList.Count && channelList.Count > 1)
+            {
+                channelList.RemoveAt(graphNumber);
+                ChannelGraph cg = (ChannelGraph)GraphCanvas.Children[graphNumber];
+                cg.baseline.Visibility = Visibility.Hidden;
+                GraphCanvas.Children.Remove(cg);
+                ChannelGraph.CanvasHeight = (Viewer.ViewportHeight - ScrollBarSize - EventChannelHeight) / channelList.Count;
+                reDrawChannelLabels();
+                reDrawChannels();
+            }
+        }
+        private void MenuItemPrint_Click(object sender, RoutedEventArgs e)
+        {
+            PrintDocumentImageableArea area = null;
+            XpsDocumentWriter xpsdw = PrintQueue.CreateXpsDocumentWriter(ref area); //select a print queue
+            if (xpsdw != null)
+            {
+                PrintTicket pt = new PrintTicket();
+                pt.PageOrientation = MainFrame.ActualHeight < MainFrame.ActualWidth ?
+                    PageOrientation.Landscape : PageOrientation.Portrait; //choose orientation to maximize size
+
+                double scale = Math.Max(area.ExtentHeight, area.ExtentWidth) / Math.Max(MainFrame.ActualHeight, MainFrame.ActualWidth); //scale to fit orientation
+                scale = Math.Min(Math.Min(area.ExtentHeight, area.ExtentWidth) / Math.Min(MainFrame.ActualHeight, MainFrame.ActualWidth), scale);
+                MainFrame.RenderTransform = new MatrixTransform(scale, 0D, 0D, scale, area.OriginWidth, area.OriginHeight);
+                MainFrame.UpdateLayout();
+
+                xpsdw.Write(MainFrame, pt);
+
+                MainFrame.RenderTransform = Transform.Identity; //return to normal size
+                MainFrame.UpdateLayout();
+            }
+        }
+
     }
 
     internal class ChannelGraph : Canvas
@@ -754,7 +851,7 @@ namespace ScrollWindow
                 max = min = ave / decimateNew;
                 imax = imin = decimateNew / 2;
             }
-            else //MainWindow.dType == decimationType.FirstPoint || MainWindow.dType == decimationType.None
+            else //MainWindow.dType == decimationType.FirstPoint
             {
                 max = min = bdf.getSample(_channel, temp);
             }
@@ -812,5 +909,5 @@ namespace ScrollWindow
         public bool SecondValid;
     }
 
-    internal enum decimationType {None, MinMax, Average, FirstPoint}
+    internal enum decimationType {Fixed, MinMax, Average, FirstPoint}
 }

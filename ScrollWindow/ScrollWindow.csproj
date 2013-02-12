@@ -19,7 +19,7 @@
     <PublishUrl>ftp://zoomlenz.net/public_html/CCI/publish/ScrollWindow/</PublishUrl>
     <Install>true</Install>
     <InstallFrom>Web</InstallFrom>
-    <UpdateEnabled>false</UpdateEnabled>
+    <UpdateEnabled>true</UpdateEnabled>
     <UpdateMode>Foreground</UpdateMode>
     <UpdateInterval>7</UpdateInterval>
     <UpdateIntervalUnits>Days</UpdateIntervalUnits>
@@ -27,6 +27,7 @@
     <UpdateRequired>false</UpdateRequired>
     <MapFileExtensions>true</MapFileExtensions>
     <InstallUrl>http://zoomlenz.net/CCI/publish/ScrollWindow/</InstallUrl>
+    <TargetCulture>en-US</TargetCulture>
     <ApplicationRevision>1</ApplicationRevision>
     <ApplicationVersion>1.0.0.%2a</ApplicationVersion>
     <UseApplicationTrust>false</UseApplicationTrust>
@@ -84,8 +85,10 @@
     <Reference Include="CCIUtilities">
       <HintPath>..\CCIUtilities\bin\Debug\CCIUtilities.dll</HintPath>
     </Reference>
+    <Reference Include="ReachFramework" />
     <Reference Include="System" />
     <Reference Include="System.Data" />
+    <Reference Include="System.Printing" />
     <Reference Include="System.Xml" />
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System.Core" />

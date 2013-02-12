@@ -27,13 +27,24 @@
         </Canvas>
         <ScrollViewer Name="Viewer" Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" HorizontalScrollBarVisibility="Visible" ScrollChanged="Viewer_ScrollChanged" MouseUp="Viewer_MouseUp"
                       MouseMove="Viewer_MouseMove" PreviewMouseDown="Viewer_MouseDown" SizeChanged="ScrollViewer_SizeChanged" VerticalScrollBarVisibility="Disabled">
+                    <ScrollViewer.ContextMenu>
+                        <ContextMenu>
+                        <MenuItem Name="AddBefore" Header="Add channel before "/>
+                    <MenuItem Name="AddAfter" Header="Add channel after "/>
+                        <Separator/>
+                    <MenuItem Header="Remove channel " Click="MenuItemRemove_Click" />
+                    <Separator/>
+                    <MenuItem Header="Print window" Click="MenuItemPrint_Click" />
+                </ContextMenu>
+                    </ScrollViewer.ContextMenu>
             <Grid >
                 <Grid.RowDefinitions>
                     <RowDefinition Height="*"/>
                     <RowDefinition Height="15"/>
                     <RowDefinition Height="15"/>
                 </Grid.RowDefinitions>
-                <StackPanel Grid.Row="0" Name="GraphCanvas" Orientation="Vertical" HorizontalAlignment="Left" VerticalAlignment="Stretch" />
+                <StackPanel Grid.Row="0" Name="GraphCanvas" Orientation="Vertical" HorizontalAlignment="Left" VerticalAlignment="Stretch">
+                </StackPanel>
                 <Canvas Grid.Row="1" Name="EventMarkers" HorizontalAlignment="Left"/>
             </Grid>
         </ScrollViewer>
@@ -53,12 +64,13 @@
                     </Grid.RowDefinitions>
                 <TextBlock Name="EventPastInfo" Grid.Column="0" Grid.Row="0" Grid.RowSpan="4" Margin="5" FontSize="12" VerticalAlignment="Top" />
                 <TextBlock Name="EventNextInfo" Grid.Column="2" Grid.Row="0" Grid.RowSpan="4" Margin="5" FontSize="12" TextAlignment="Right" HorizontalAlignment="Right" VerticalAlignment="Top" />
-                <TextBlock Name="Info" Grid.Column="1" Grid.Row="3" Margin="2" FontSize="14" TextAlignment="Center" HorizontalAlignment="Center" VerticalAlignment="Stretch" />
+                <TextBlock Name="Info" Grid.Column="1" Grid.Row="3" Margin="2" FontSize="12" TextAlignment="Center" HorizontalAlignment="Center" VerticalAlignment="Stretch" />
         <StackPanel Grid.Column="1" Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Bottom" Orientation="Horizontal">
             <StackPanel.Resources>
                 <Style TargetType="Button">
-                    <Setter Property="Width" Value="40"/>
-                    <Setter Property="FontSize" Value="14"/>
+                                <Setter Property="Width" Value="40" />
+                                <Setter Property="Height" Value="22"/>
+                    <Setter Property="FontSize" Value="12"/>
                     <Setter Property="Margin" Value="4"/>
                 </Style>
             </StackPanel.Resources>
@@ -69,20 +81,24 @@
             <Button Click="Button_Click">0.2</Button>
             <Button Click="Button_Click">0.1</Button>
         </StackPanel>
-                    <GroupBox Grid.Row="2" Grid.Column="1" Header="Decimation type">
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                            <StackPanel.Resources>
-                                <Style TargetType="RadioButton">
-                                    <Setter Property="Width" Value="Auto"/>
-                                    <Setter Property="FontSize" Value="12"/>
-                                    <Setter Property="Margin" Value="4"/>
-                                </Style>
-                            </StackPanel.Resources>
-
-                            <RadioButton IsChecked="True" Checked="RadioButton_Checked" Tag="1">Min/Max</RadioButton>
-                            <RadioButton Checked="RadioButton_Checked" Tag="2">Average</RadioButton>
-                            <RadioButton Checked="RadioButton_Checked" Tag="3">First point</RadioButton>
-                            <RadioButton Checked="RadioButton_Checked" Tag="0">None</RadioButton>
+                    <GroupBox Grid.Row="2" Grid.Column="1" Header="Decimation type" Width="240">
+                        <StackPanel Orientation="Vertical" HorizontalAlignment="Center">
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                <StackPanel.Resources>
+                                    <Style TargetType="RadioButton">
+                                        <Setter Property="Width" Value="Auto"/>
+                                        <Setter Property="FontSize" Value="12"/>
+                                        <Setter Property="Margin" Value="4"/>
+                                    </Style>
+                                </StackPanel.Resources>
+                                <RadioButton IsChecked="True" Checked="RadioButton_Checked" Tag="1">Min/Max</RadioButton>
+                                <RadioButton Checked="RadioButton_Checked" Tag="2">Average</RadioButton>
+                                <RadioButton Checked="RadioButton_Checked" Tag="3">First point</RadioButton>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                <TextBlock Padding="3">Decimation:</TextBlock>
+                                <TextBox Name="DecVal" Width="36" TextChanged="DecVal_Changed">Auto</TextBox>
+                            </StackPanel>
                         </StackPanel>
                     </GroupBox>
                 </Grid>
