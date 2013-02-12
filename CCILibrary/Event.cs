@@ -229,11 +229,12 @@ namespace Event
             DateTime t = new DateTime((long)(Time * 1E7));
             str.Append("Time: " + t.ToString("yyyy-MM-dd@HH:mm:ss.ffff") + nl);
             int j=0;
-            foreach (GVEntry gve in ede.GroupVars)
-            {
-                str.Append("GV #" + (j + 1).ToString("0") + ": " + ede.GroupVars[j].Name + " = " + GVValue[j] + nl);
-                j++;
-            }
+            if (ede.GroupVars != null)
+                foreach (GVEntry gve in ede.GroupVars)
+                {
+                    str.Append("GV #" + (j + 1).ToString("0") + ": " + ede.GroupVars[j].Name + " = " + GVValue[j] + nl);
+                    j++;
+                }
             return str.ToString();
         }
     }
