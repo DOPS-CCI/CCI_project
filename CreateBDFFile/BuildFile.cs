@@ -100,8 +100,8 @@ namespace CreateBDFFile
             /* ***** Create new Event file and initialize ***** */
             EventFileWriter events = new EventFileWriter(
                 File.Open(parameters.fileName + ".evt", FileMode.Create, FileAccess.Write));
-            int lastN = 1; // last used index of Event
-            int lastG = 1; // last used grayCode
+            int lastN = 0; // last used index of Event
+            int lastG = 0; // last used grayCode
 
             /* ***** Other preliminaries ***** */
             int nRec = (int)Math.Ceiling((double)parameters.totalFileLength / (double)parameters.recordDuration);
@@ -112,9 +112,9 @@ namespace CreateBDFFile
             int[] statusChannel = new int[nPts];
 
             /* ***** Main loop ***** */
-            for (int rec = 0; rec < nRec; rec++ )
+            for (int rec = 0; rec < nRec; rec++ ) //for each required record
             {
-                for (int p = 0; p < nPts; p++)
+                for (int p = 0; p < nPts; p++) //for each point in a record
                 {
                     foreach (Event evt in parameters.eventList) //loop through each Event definition
                     {
@@ -127,7 +127,7 @@ namespace CreateBDFFile
                             oe.GVValue = new string[n]; // assign group variable values
                             for (int i = 0; i < n; i++)
                             {
-                                oe.GVValue[i] = evt.gvValues[i].ToString("0");
+                                oe.GVValue[i] = evt.oldGVValues[i].ToString("0");
                             }
                             events.writeRecord(oe); // write out new Event record
                         }
@@ -357,7 +357,8 @@ namespace CreateBDFFile
         internal double sP3;
         internal double sP4;
         internal double nextTime; //Next time this Event is to occur
-        internal int[] gvValues; //GV values to be assigned at next occurence
+        internal int[] nextGVValues; //GV values to be assigned at next occurence
+        internal int[] oldGVValues; //GV values for the Event that just occured
         internal List<GV> GVs; //Definitions of GVs attached to this Event
         internal List<SignalPs> times = new List<SignalPs>(); //list of times this Event has occured,
         //including next Event occurence; the list gets shortened eventually as the associated signals
@@ -373,6 +374,8 @@ namespace CreateBDFFile
                 return false;
             // otherwise, Event has occurred
 
+            for (int j = 0; j < nextGVValues.Length; j++)
+                oldGVValues[j] = nextGVValues[j];
             SignalPs s = new SignalPs(); //create next occurence of Event in signal list
             s.parameters[0]=sP1;
             s.parameters[1]=sP2;
@@ -382,7 +385,7 @@ namespace CreateBDFFile
             foreach (GV gv in GVs) //generate next GV values and signal parameters
             {
                 int v = gv.nextValue();
-                gvValues[i++] = v;
+                nextGVValues[i++] = v;
                 if (gv.dType == GV.DependencyType.Coeff) s.parameters[0] *= gv.poly.evaluate((double)v);
                 else if (gv.dType == GV.DependencyType.Damp) s.parameters[1] *= gv.poly.evaluate((double)v);
                 else if (gv.dType == GV.DependencyType.Freq) s.parameters[2] *= gv.poly.evaluate((double)v);

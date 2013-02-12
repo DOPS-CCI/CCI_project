@@ -83,8 +83,15 @@ namespace CreateBDFFile
         internal Event createEventEntry(Parameters p)
         {
             Event ev = new CreateBDFFile.Event();
-            ev.gvValues = GVPanel.Items.Count != 0 ? new int[GVPanel.Items.Count] : null;
-//            ev.Name = name.Text;
+
+            if (GVPanel.Items.Count != 0)
+            {
+                ev.nextGVValues = new int[GVPanel.Items.Count];
+                ev.oldGVValues = new int[GVPanel.Items.Count];
+            }
+            else
+                ev.nextGVValues = ev.oldGVValues = null;
+            
             SignalPs s = new SignalPs();
             ev.times.Add(s);
             if ((bool)PeriodicRB.IsChecked) // Periodic event
@@ -133,7 +140,7 @@ namespace CreateBDFFile
             {
                 GV gv = gve.createGV();
                 int v = gv.nextValue();
-                ev.gvValues[i++] = v;
+                ev.nextGVValues[i++] = v;
                 if (gv.dType == GV.DependencyType.Coeff) s.parameters[0] *= gv.poly.evaluate((double)v);
                 else if (gv.dType == GV.DependencyType.Damp) s.parameters[1] *= gv.poly.evaluate((double)v);
                 else if (gv.dType == GV.DependencyType.Freq) s.parameters[2] *= gv.poly.evaluate((double)v);
