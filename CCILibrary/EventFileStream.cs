@@ -60,13 +60,32 @@ namespace EventFile
                 xr.ReadStartElement("GrayCode", nameSpace);
                 ev.GC = xr.ReadContentAsInt();
                 xr.ReadEndElement(/* GrayCode */);
-                xr.ReadStartElement("Time", nameSpace);
-                string t = xr.ReadContentAsString();
-                if (t.Contains(".")) //new style
-                    ev.Time = System.Convert.ToDouble(t);
-                else //old style
-                    ev.Time = System.Convert.ToDouble(t.Substring(0, 11) + "." + t.Substring(11));
-                xr.ReadEndElement(/* Time */);
+                if (xr.Name == "ClockTime")
+                {
+                    xr.ReadStartElement(/* ClockTime */);
+                    string t = xr.ReadContentAsString();
+                    if (t.Contains("."))
+                        ev.Time = Convert.ToDouble(t);
+                    else
+                    {
+                        int l = t.Length - 7; //count in 100nsec intervals
+                        ev.Time = Convert.ToDouble(t.Substring(0, l) + "." + t.Substring(l));
+                    }
+                    xr.ReadEndElement(/* ClockTime */);
+                    xr.ReadStartElement("EventTime", nameSpace);
+                    xr.ReadContentAsString(); //skip -- for human consumption only!
+                    xr.ReadEndElement(/* EventTime */);
+                }
+                else //Time construct -- deprecated as of 11 Feb 2013
+                {
+                    xr.ReadStartElement("Time", nameSpace);
+                    string t = xr.ReadContentAsString();
+                    if (t.Contains(".")) //new style
+                        ev.Time = System.Convert.ToDouble(t);
+                    else //old style -- very deprecated
+                        ev.Time = System.Convert.ToDouble(t.Substring(0, 11) + "." + t.Substring(11));
+                    xr.ReadEndElement(/* Time */);
+                }
                 bool isEmpty = xr.IsEmptyElement; // Use this to handle <GroupVars /> construct
                 xr.ReadStartElement("GroupVars", nameSpace);
                 if (!isEmpty)
@@ -206,7 +225,9 @@ namespace EventFile
                 xw.WriteAttributeString("Name", ev.Name);
                 xw.WriteElementString("Index", ev.Index.ToString("0"));
                 xw.WriteElementString("GrayCode", ev.GC.ToString("0"));
-                xw.WriteElementString("Time", ev.Time.ToString("00000000000.0000000"));
+                xw.WriteElementString("ClockTime", ev.Time.ToString("00000000000.0000000"));
+                DateTime t = new DateTime((long)(ev.Time * 1E7));
+                xw.WriteElementString("EventTime", t.ToString("d MMM yyyy HH:mm:ss.fffFF"));
                 xw.WriteStartElement("GroupVars");
                 if (ev.GVValue != null)
                     for (int j = 0; j < ev.GVValue.Length; j++)

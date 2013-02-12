@@ -165,7 +165,7 @@ namespace Event
         public string[] GVValue;
 
         public string Name { get { return m_name; } }
-        public double Time { get { return m_time; } }
+        public double Time { get { return m_time; } } //<ClockTime> -- only provides resolution to 10 microseconds
         public int Index { get { return (int)m_index; } }
         public int GC { get { return (int)m_gc; } }
 
@@ -204,7 +204,7 @@ namespace Event
     {
         internal string name;
         public string Name { get { return name; } }
-        public double Time;
+        public double Time; //<ClockTime> -- only provides resolution to 10 microseconds
         public int Index;
         public int GC;
         public string[] GVValue;
