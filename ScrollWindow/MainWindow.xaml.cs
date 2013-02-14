@@ -145,9 +145,11 @@ namespace ScrollWindow
                 gridlines[i] = l;
             }
 
+            //Initialize timer
             timer.AutoReset = true;
             timer.Elapsed+=new ElapsedEventHandler(timer_Elapsed);
 
+            //Initialize channel information popup
             Color c1 = Color.FromArgb(0xFF, 0xF8, 0xF8, 0xF8);
             Color c2 = Color.FromArgb(0xFF, 0xC8, 0xC8, 0xC8);
             popupTB.Background = new LinearGradientBrush(c1, c2, 45D);
@@ -164,6 +166,9 @@ namespace ScrollWindow
             channelPopup.AllowsTransparency = true;
             channelPopup.Child = b;
 
+            //Initialize FOV slider
+            FOV.Maximum = Math.Log10(BDFLength);
+            FOV.Value = 1D;
             //from here on the program is GUI-event driven
         }
 
@@ -757,6 +762,19 @@ namespace ScrollWindow
             }
         }
 
+        private void FOV_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            oldDisplayWidthInSecs = currentDisplayWidthInSecs;
+            currentDisplayWidthInSecs = Math.Min(Math.Pow(10D, e.NewValue), BDFLength);
+            XScaleSecsToInches = Viewer.ViewportWidth / currentDisplayWidthInSecs;
+            Transform t = new ScaleTransform(XScaleSecsToInches, XScaleSecsToInches, Viewer.ContentHorizontalOffset + Viewer.ViewportWidth / 2, 0D);
+            t.Freeze();
+            GraphCanvas.LayoutTransform = EventMarkers.LayoutTransform = t; //new transform: keep scale seconds
+            //NB: must also scale vertically (and correct later) to keep drawing pen circular!
+            //Now change horizontal scroll to make inflation/deflation around center point;
+            Viewer.ScrollToHorizontalOffset(XScaleSecsToInches * (currentDisplayOffsetInSecs + (oldDisplayWidthInSecs - currentDisplayWidthInSecs) / 2D));
+        }
+
     }
 
     internal class ChannelGraph : Canvas
@@ -839,22 +857,26 @@ namespace ScrollWindow
                 for (int j = 0; j < decimateNew; j++)
                 {
                     sample = bdf.getSample(_channel, temp++);
-                    if (sample > max) { max = sample; imax = j; }
+                    if (sample > max) { max = sample; imax = j; } //OK if NaN; neither > or < any number
                     if (sample < min) { min = sample; imin = j; }
                 }
             }
             else if (MainWindow.dType == decimationType.Average)
             {
                 double ave = 0D;
+                int n = 0;
                 for (int j = 0; j < decimateNew; j++)
-                    ave += bdf.getSample(_channel, temp++);
-                max = min = ave / decimateNew;
-                imax = imin = decimateNew / 2;
+                {
+                    sample = bdf.getSample(_channel, temp++);
+                    if (double.IsNaN(sample)) break; //reached EOF
+                    ave += sample;
+                    n++;
+                }
+                max = min = ave / n;
+                imax = imin = n / 2;
             }
             else //MainWindow.dType == decimationType.FirstPoint
-            {
                 max = min = bdf.getSample(_channel, temp);
-            }
             if (max > overallMax) overallMax = max;
             if (min < overallMin) overallMin = min;
             FilePoint fp = new FilePoint();
