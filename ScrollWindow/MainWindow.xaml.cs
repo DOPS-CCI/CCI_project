@@ -169,6 +169,7 @@ namespace ScrollWindow
             //Initialize FOV slider
             FOV.Maximum = Math.Log10(BDFLength);
             FOV.Value = 1D;
+            FOVMax.Text = BDFLength.ToString("0");
             //from here on the program is GUI-event driven
         }
 
@@ -504,7 +505,7 @@ namespace ScrollWindow
             if (lowSecs >= oldDisplayOffsetInSecs && lowSecs < oldDisplayOffsetInSecs + oldDisplayWidthInSecs) overlap = true;
             if (highSecs > oldDisplayOffsetInSecs && highSecs <= oldDisplayOffsetInSecs + oldDisplayWidthInSecs) overlap = true;
             oldDisplayWidthInSecs = currentDisplayWidthInSecs;
-            Info.Text = "Display width = " + currentDisplayWidthInSecs.ToString("0.000");
+            Info.Text = "Display width: " + currentDisplayWidthInSecs.ToString("0.000");
 
             //calculate new decimation, depending on seconds displayed and viewer width
             if (decVal != -1)
@@ -514,7 +515,7 @@ namespace ScrollWindow
                 ChannelGraph.decimateNew = Convert.ToInt32(Math.Ceiling(2.5D * (highBDFP - lowBDFP) / Viewer.ActualWidth));
                 if (ChannelGraph.decimateNew == 2 && dType==decimationType.MinMax) ChannelGraph.decimateNew = 1; //No advantage to decimating by 2
             }
-            Info.Text = Info.Text + "\nDecimation = " + ChannelGraph.decimateNew.ToString("0");
+            CurrentDecimation.Text = ChannelGraph.decimateNew.ToString("0");
             bool completeRedraw = ChannelGraph.decimateNew != ChannelGraph.decimateOld || !overlap; //complete redraw of all channels if ...
             // change in decimation or if completely new screen (no overlap of old and new)
             ChannelGraph.decimateOld = ChannelGraph.decimateNew;

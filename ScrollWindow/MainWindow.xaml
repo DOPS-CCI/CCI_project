@@ -1,7 +1,7 @@
 ﻿<Window x:Class="ScrollWindow.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Height="700" Width="1000" MinWidth="750">
+        Height="700" Width="1000" MinWidth="750" MinHeight="250">
     <Grid Name="MainFrame">
         <Grid.RowDefinitions>
             <RowDefinition Height="*" />
@@ -14,7 +14,7 @@
         <Line Name="IndexLine" Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" X2="0" Y1="0" Y2="0" Panel.ZIndex="1" HorizontalAlignment="Center" VerticalAlignment="Stretch"
               IsHitTestVisible="False" Stroke="Red" StrokeDashArray="3,2" />
         <Canvas Name="GridLabels" Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" VerticalAlignment="Bottom" HorizontalAlignment="Center" Height="33"/>
-        <TextBlock Name="Loc" Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" FontSize="14" Padding="0,0,0,16" TextAlignment="Center" HorizontalAlignment="Center" VerticalAlignment="Bottom">0.000</TextBlock>
+        <TextBlock Name="Loc" Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" FontSize="14" Padding="0,0,0,16" TextAlignment="Center" HorizontalAlignment="Center" VerticalAlignment="Bottom" Foreground="Red">0.000</TextBlock>
         <Canvas Name="ChannelLabels" Grid.Row="0" Grid.Column="0" >
             <Canvas.Resources>
                 <Style TargetType="TextBlock">
@@ -64,16 +64,20 @@
                     </Grid.RowDefinitions>
                 <TextBlock Name="EventPastInfo" Grid.Column="0" Grid.Row="0" Grid.RowSpan="4" Margin="5" FontSize="12" VerticalAlignment="Top" />
                 <TextBlock Name="EventNextInfo" Grid.Column="2" Grid.Row="0" Grid.RowSpan="4" Margin="5" FontSize="12" TextAlignment="Right" HorizontalAlignment="Right" VerticalAlignment="Top" />
-                <TextBlock Name="Info" Grid.Column="1" Grid.Row="1" Margin="2" FontSize="12" TextAlignment="Center" HorizontalAlignment="Center" VerticalAlignment="Stretch" />
-                    <Slider Name="FOV" Grid.Row="0" Grid.Column="1" ValueChanged="FOV_ValueChanged" Minimum="-1" Padding="0" Margin="0,4,0,0" />
-                    <GroupBox Grid.Row="2" Grid.Column="1" Header="Decimation type" Width="240">
+                <TextBlock Name="Info" FontWeight="Bold" Grid.Column="1" Grid.Row="1" Margin="2" FontSize="12" TextAlignment="Center" HorizontalAlignment="Center" VerticalAlignment="Stretch" />
+                <StackPanel Orientation="Horizontal" Grid.Row="0" Grid.Column="1" >
+                        <TextBlock Text="0.1" VerticalAlignment="Center"/>
+                    <Slider Name="FOV" ValueChanged="FOV_ValueChanged" Minimum="-1" Padding="0" Margin="0,4,0,0" Width="240"/>
+                        <TextBlock Name="FOVMax" Text="1000" VerticalAlignment="Center"/>
+                </StackPanel>
+                    <GroupBox Grid.Row="2" Grid.Column="1" Header="Decimation" Width="240">
                         <StackPanel Orientation="Vertical" HorizontalAlignment="Center">
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                                 <StackPanel.Resources>
                                     <Style TargetType="RadioButton">
                                         <Setter Property="Width" Value="Auto"/>
                                         <Setter Property="FontSize" Value="12"/>
-                                        <Setter Property="Margin" Value="4"/>
+                                        <Setter Property="Margin" Value="4,2"/>
                                     </Style>
                                 </StackPanel.Resources>
                                 <RadioButton IsChecked="True" Checked="RadioButton_Checked" Tag="1">Min/Max</RadioButton>
@@ -81,7 +85,15 @@
                                 <RadioButton Checked="RadioButton_Checked" Tag="3">First point</RadioButton>
                             </StackPanel>
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                <TextBlock Padding="3">Decimation:</TextBlock>
+                                <StackPanel.Resources>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Padding" Value="3" />
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                    </Style>
+                                </StackPanel.Resources>
+                                <TextBlock Text="Current:"/>
+                                <TextBlock Name="CurrentDecimation" FontWeight="Normal"/>
+                                <TextBlock Text="Value:" />
                                 <TextBox Name="DecVal" Width="36" TextChanged="DecVal_Changed">Auto</TextBox>
                             </StackPanel>
                         </StackPanel>
