@@ -373,9 +373,9 @@ namespace CreateBDFFile
             if (nextTime > t) // have not yet reached next occurence of this Event, so just
                 return false;
             // otherwise, Event has occurred
-
-            for (int j = 0; j < nextGVValues.Length; j++)
-                oldGVValues[j] = nextGVValues[j];
+            if (nextGVValues != null)
+                for (int j = 0; j < nextGVValues.Length; j++)
+                    oldGVValues[j] = nextGVValues[j];
             SignalPs s = new SignalPs(); //create next occurence of Event in signal list
             s.parameters[0]=sP1;
             s.parameters[1]=sP2;
