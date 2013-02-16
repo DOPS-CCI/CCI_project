@@ -491,6 +491,7 @@ namespace ScrollWindow
             ChannelLabels.Children.Add(eventTB);
         }
 
+        const double scaleDelta = 0.05;
         public void reDrawChannels()
         {
             UIElementCollection chans = GraphCanvas.Children;
@@ -639,8 +640,8 @@ namespace ScrollWindow
                 cg.path.StrokeThickness = currentDisplayWidthInSecs * 0.0006D;
 
                 //determine if "rescale" needs to be done: significant change in scale or offset?
-                bool rescale = Math.Abs((cg.newScale - cg.currentScale) / cg.currentScale) > 0.01 || //if scale changes sufficiently or...
-                    Math.Abs((cg.newOffset - cg.currentOffset) / (cg.overallMax - cg.overallMin)) > 0.01 || //if offset changes sufficiently or...
+                bool rescale = Math.Abs((cg.newScale - cg.currentScale) / cg.currentScale) > scaleDelta || //if scale changes sufficiently or...
+                    Math.Abs((cg.newOffset - cg.currentOffset) / (cg.overallMax - cg.overallMin)) > scaleDelta || //if offset changes sufficiently or...
                     ChannelGraph._canvasHeight != ChannelGraph._oldCanvasHeight; //if there has been a change in CanvasHeight
 
                 //only redraw if Y-scale has changed sufficiently, decimation changed, points have been removed, or there's no overlap
