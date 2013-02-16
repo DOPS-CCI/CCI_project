@@ -258,6 +258,18 @@ namespace CCILibrary
             _locationFactory = new BDFLocFactory(this);
         }
 
+        public BDFEDFFileReader(Stream str, int bufferSize)
+        {
+            if (!str.CanRead) throw new BDFEDFException("BDFEDFFileStream must be able to read from Stream.");
+            if (str is FileStream) baseStream = (FileStream)str;
+            reader = new BinaryReader(new BufferedStream(str, bufferSize), Encoding.ASCII);
+            header = new BDFEDFHeader();
+            header.read(reader); //Read in header
+            record = new BDFEDFRecord(header); //Now can create BDFEDFRecord
+            header._isValid = true;
+            _locationFactory = new BDFLocFactory(this);
+        }
+
         /// <summary>
         /// Reads next available record
         /// </summary>
