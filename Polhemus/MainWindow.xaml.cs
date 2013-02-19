@@ -4,6 +4,7 @@ using System.IO;
 using System.IO.Ports;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -24,7 +25,15 @@ namespace Polhemus
         public MainWindow()
         {
             InitializeComponent();
-            throw new PolhemusException(17);
+            byte[] bytes = new byte[1000];
+            char[] chars = new char[1000];
+            string s = "-525.320 +023.771  000.405 ";
+            s.CopyTo(0, chars, 0, s.Length);
+            for (int i = 0; i < s.Length; i++)
+                bytes[i] = (byte)chars[i];
+            StreamReader sr = new StreamReader(new MemoryStream(bytes), Encoding.ASCII);
+            CartesianCoordinates cc = new CartesianCoordinates();
+            cc.FromASCII(sr);
         }
     }
 
@@ -39,11 +48,21 @@ namespace Polhemus
         public enum Format { ASCII, Binary }
         Format _format = Format.ASCII;
 
-        Format CurrentFormat
+        public Format CurrentFormat
         {
-            public get { return _format; }
-            set { _format = value; }
+            get { return _format; }
+            internal set { _format = value; }
         }
+
+        public enum StylusMode { Marker, PointTrack }
+        StylusMode[] _stylusButton;
+        public StylusMode CurrentStylusMode(int station)
+        {
+            return _stylusButton[station - 1];
+        }
+
+        delegate IDataFrameType Get();
+        List<List<IDataFrameType>> _responseFrameDescription = new List<List<IDataFrameType>>(2);
 
         Stream _baseStream;
         BinaryReader BReader;
@@ -57,14 +76,23 @@ namespace Polhemus
             CommandWriter = new StreamWriter(stream, Encoding.ASCII);
             TReader = new StreamReader(stream, Encoding.ASCII);
             BReader = new BinaryReader(stream, Encoding.ASCII);
+            _stylusButton = new StylusMode[2];
+            for (int i = 0; i < 2; i++)
+                _stylusButton[i] = StylusMode.Marker;
+            _responseFrameDescription.Add(new List<IDataFrameType>()); //for sensor 1
+            _responseFrameDescription.Add(new List<IDataFrameType>()); //for sensor 2
+            _responseFrameDescription[0].Add(new CartesianCoordinates()); //set defaults
+            _responseFrameDescription[1].Add(new CartesianCoordinates());
+            _responseFrameDescription[0].Add(new EulerOrientationAngles());
+            _responseFrameDescription[1].Add(new EulerOrientationAngles());
+            _responseFrameDescription[0].Add(new CRLF());
+            _responseFrameDescription[1].Add(new CRLF());
         }
 
         public void AlignmentReferenceFrame(int station, Triple O, Triple X, Triple Y)
         {
             string c = "A" + station.ToString("0") + "," +
-                O.ToString() + "," +
-                X.ToString() + "," +
-                Y.ToString();
+                O.ToASCII() + X.ToASCII() + Y.ToASCII();
             SendCommand(c, true);
         }
 
@@ -74,36 +102,27 @@ namespace Polhemus
             ResponseHeader header = ReadHeader();
             if (header.Command != 'A')
                 throw new PolhemusException(0xF3);
-            Triple[] t = new Triple[3];
+            Triple[] cc = new Triple[3];
             if (_format == Format.ASCII)
             {
-                string s = TReader.ReadLine();
-                t[0].FromString(s);
-                s = TReader.ReadLine();
-                t[1].FromString(s);
-                s = TReader.ReadLine();
-                t[2].FromString(s);
+                for (int i = 0; i < 3; i++)
+                    cc[i] = Triple.FromASCII(TReader, "Sxxx.xx");
             }
             else
             {
                 if (header.Length != 36)
                     throw new PolhemusException(0xF2);
                 for (int i = 0; i < 3; i++)
-                {
-                    t[i].X = BReader.ReadSingle();
-                    t[i].Y = BReader.ReadSingle();
-                    t[i].Z = BReader.ReadSingle();
-                }
+                    cc[i] = new Triple(BReader.ReadSingle(), BReader.ReadSingle(), BReader.ReadSingle());
             }
-            return t;
+            return cc;
         }
 
         public void Boresight(int station, double AzRef, double ElRef, double RlRef, bool ResetOrigin)
         {
+            Triple ra = new Triple(AzRef, ElRef, RlRef);
             string c = "B" + station.ToString("0") + "," +
-                AzRef.ToString("0.00") + "," +
-                ElRef.ToString("0.00") + "," +
-                RlRef.ToString("0.00") + "," +
+                ra.ToASCII()+
                 (ResetOrigin ? "1" : "0");
 
             SendCommand(c, true);
@@ -115,23 +134,19 @@ namespace Polhemus
             ResponseHeader header = ReadHeader();
             if (header.Command != 'B')
                 throw new PolhemusException(0xF3);
-            Triple t = new Triple();
+            Triple ra;
             if (_format == Format.ASCII)
             {
-                string s = TReader.ReadLine();
-                t.X = Convert.ToDouble(s.Substring(0, 7));
-                t.Y = Convert.ToDouble(s.Substring(8, 7));
-                t.Z = Convert.ToDouble(s.Substring(16, 7));
+                ra = Triple.FromASCII(TReader, "Sxxx.xxB");
+                PolhemusController.parseASCIIStream(TReader, "<>");
             }
             else
             {
                 if (header.Length != 12)
                     throw new PolhemusException(0xF2);
-                t.X = BReader.ReadSingle();
-                t.Y = BReader.ReadSingle();
-                t.Z = BReader.ReadSingle();
+                ra = new Triple(BReader.ReadSingle(), BReader.ReadSingle(), BReader.ReadSingle());
             }
-            return t;
+            return ra;
         }
 
         public void OutputFormat(Format f)
@@ -165,11 +180,11 @@ namespace Polhemus
 
         public void SourceMountingFrame(double A, double E, double R)
         {
-            Triple t = new Triple();
-            t.X = A;
-            t.Y = E;
-            t.Z = R;
-            string c = "G" + t.ToString();
+            Triple mfa = new Triple(A, E, R);
+            mfa.v1 = A;
+            mfa.v2 = E;
+            mfa.v3 = R;
+            string c = "G" + mfa.ToString();
             SendCommand(c, true);
         }
 
@@ -179,32 +194,22 @@ namespace Polhemus
             ResponseHeader header = ReadHeader();
             if (header.Command != 'G')
                 throw new PolhemusException(0xF3);
-            Triple t = new Triple();
+            Triple mfa;
             if (_format == Format.ASCII)
-            {
-                string s = TReader.ReadLine();
-                t.X = Convert.ToDouble(s.Substring(0, 7));
-                t.Y = Convert.ToDouble(s.Substring(8, 7));
-                t.Z = Convert.ToDouble(s.Substring(16, 7));
-            }
+                mfa = Triple.FromASCII(TReader,"Sxxx.xxxB");
             else
             {
                 if (header.Length != 12)
                     throw new PolhemusException(0xF2);
-                t.X = BReader.ReadSingle();
-                t.Y = BReader.ReadSingle();
-                t.Z = BReader.ReadSingle();
+                mfa = new Triple(BReader.ReadSingle(), BReader.ReadSingle(), BReader.ReadSingle());
             }
-            return t;
+            return mfa;
         }
 
         public void HemisphereOfOperation(int station, double p1, double p2, double p3)
         {
-            Triple t = new Triple();
-            t.X = p1;
-            t.Y = p2;
-            t.Z = p3;
-            string c = "H" + station.ToString("0") + t.ToString();
+            Triple cc = new Triple(p1, p2, p3);
+            string c = "H" + station.ToString("0") + cc.ToASCII();
             SendCommand(c, true);
         }
 
@@ -214,28 +219,135 @@ namespace Polhemus
             ResponseHeader header = ReadHeader();
             if (header.Command != 'H')
                 throw new PolhemusException(0xF3);
-            Triple t = new Triple();
+            Triple cc;
             if (_format == Format.ASCII)
-            {
-                string s = TReader.ReadLine();
-                t.X = Convert.ToDouble(s.Substring(0, 7));
-                t.Y = Convert.ToDouble(s.Substring(8, 7));
-                t.Z = Convert.ToDouble(s.Substring(16, 7));
-            }
+                cc = Triple.FromASCII(TReader,"Sxx.xxx");
             else
             {
                 if (header.Length != 12)
                     throw new PolhemusException(0xF2);
-                t.X = BReader.ReadSingle();
-                t.Y = BReader.ReadSingle();
-                t.Z = BReader.ReadSingle();
+                cc = Triple.FromBinary(BReader);
             }
-            return t;
+            return cc;
+        }
+
+        public void StylusButtonFunction(int station, StylusMode sm)
+        {
+            SendCommand("L" + station.ToString("0") + (sm == StylusMode.Marker ? "0" : "1"), true);
+            _stylusButton[station - 1] = sm;
+        }
+
+        public StylusMode Get_StylusButtonFunction(int station)
+        {
+            SendCommand("L" + station.ToString("0"), true);
+            ResponseHeader r = ReadHeader();
+            if (r.Command != 'L')
+                throw new PolhemusException(0xF3);
+            if (r.Station != station)
+                throw new PolhemusException(0xF5);
+            StylusMode sm;
+            if (_format == Format.ASCII)
+                sm = TReader.ReadLine() == "0" ? StylusMode.Marker : StylusMode.PointTrack;
+            else
+            {
+                if (r.Length != 4)
+                    throw new PolhemusException(0xF2);
+                sm = BReader.ReadInt32() == 0 ? StylusMode.Marker : StylusMode.PointTrack;
+            }
+            if (sm != CurrentStylusMode(station))
+                throw new PolhemusException(0xF4);
+            return sm;
+        }
+
+        public void TipOffsets(int station, double Xoff, double Yoff, double Zoff)
+        {
+            Triple co = new Triple(Xoff, Yoff, Zoff);
+            string c = "N" + station.ToString("0") + co.ToASCII();
+            SendCommand(c, true);
+        }
+
+        public Triple Get_TipOffsets(int station)
+        {
+            SendCommand("N" + station.ToString("0"), true);
+            ResponseHeader r = ReadHeader();
+            if (r.Command != 'N')
+                throw new PolhemusException(0xF3);
+            if (r.Station != station)
+                throw new PolhemusException(0xF5);
+            Triple co = new Triple();
+            if (_format == Format.ASCII)
+                co = Triple.FromASCII(TReader,"Sx.xxxB");
+            else
+            {
+                if (r.Length != 12)
+                    throw new PolhemusException(0xF2);
+                co = new Triple(BReader.ReadSingle(), BReader.ReadSingle(), BReader.ReadSingle());
+            }
+            return co;
+        }
+
+        public void OutputDataList(int station, IDataFrameType[] outputTypes)
+        {
+            StringBuilder sb = new StringBuilder("O" + (station == -1 ? "*" : station.ToString("0")));
+            if (station == -1)
+            {
+                _responseFrameDescription[0].Clear();
+                _responseFrameDescription[1].Clear();
+            }
+            else
+                _responseFrameDescription[station - 1].Clear();
+            foreach (IDataFrameType dft in outputTypes)
+            {
+                sb.Append("," + dft.ParameterValue.ToString("0"));
+                if (station == -1)
+                {
+                    _responseFrameDescription[0].Add(dft);
+                    _responseFrameDescription[1].Add(dft);
+                }
+                else
+                    _responseFrameDescription[station - 1].Add(dft);
+            }
+            SendCommand(sb.ToString(), true);
+        }
+
+        public List<IDataFrameType> Get_OutputDataList(int station)
+        {
+            SendCommand("O" + station.ToString("0"), true);
+            ResponseHeader r = ReadHeader();
+            if (r.Command != 'O')
+                throw new PolhemusException(0xF3);
+            if (r.Station != station)
+                throw new PolhemusException(0xF5);
+            foreach (IDataFrameType dft in _responseFrameDescription[station - 1])
+                if (_format == Format.ASCII)
+                {
+                    string aa = (string)parseASCIIStream(TReader, "AA");
+                    if (aa == "\r\n")
+                        throw new PolhemusException(0xF7); //too short a list
+                    if (dft.ParameterValue != Convert.ToInt32("0x0" + aa[0])) //probably hex character, though undocumented
+                        throw new PolhemusException(0xF6); //incorrect value in list
+                }
+                else
+                {
+                    if (r.Length <= 4 * _responseFrameDescription[station - 1].Count)
+                        throw new PolhemusException(0xF8); //too short a list returned
+                    if (dft.ParameterValue != BReader.ReadInt32())
+                        throw new PolhemusException(0xF6); //incorrect value in list
+                }
+            if (_format == Format.ASCII)
+            {
+                if ((string)parseASCIIStream(TReader, "AA") != "\r\n")
+                    throw new PolhemusException(0xF8); //too long a list returned
+            }
+            else
+                if (BReader.ReadInt32() != -1)
+                    throw new PolhemusException(0xF8); //too long a list returned
+            return _responseFrameDescription[station - 1]; //internal list is correct!
         }
 
         public void SetUnits(Units u)
         {
-            SendCommand(new char[] { 'U', u == Units.English ? '0' : '1' }, true);
+            SendCommand("U" + (u == Units.English ? '0' : '1'), true);
             _units = u;
         }
 
@@ -260,6 +372,59 @@ namespace Polhemus
             if (u != _units)
                 throw new PolhemusException(0xF4);
             return u;
+        }
+
+        public void PositionFilterParameters(double F, double FLow, double FHigh, double Factor)
+        {
+            Quadruple fp = new Quadruple(F, FLow, FHigh, Factor);
+            SendCommand("X" + fp.ToASCII(), true);
+        }
+
+        public Quadruple Get_PositionFilterParameters()
+        {
+            SendCommand('X', true);
+            ResponseHeader r = ReadHeader();
+            if (r.Command != 'X')
+                throw new PolhemusException(0xF3);
+            Quadruple fp = new Quadruple();
+            if (_format == Format.ASCII)
+                fp = Quadruple.FromASCII(TReader, "Sx.xxxB");
+            else
+            {
+                if (r.Length != 16)
+                    throw new PolhemusException(0xF2);
+                fp = new Quadruple(BReader.ReadSingle(), BReader.ReadSingle(), BReader.ReadSingle(), BReader.ReadSingle());
+            }
+            return fp;
+        }
+
+        public void AttitudeFilterParameters(double F, double FLow, double FHigh, double Factor)
+        {
+            Quadruple fp = new Quadruple(F, FLow, FHigh, Factor);
+            SendCommand("Y" + fp.ToASCII(), true);
+        }
+
+        public Quadruple Get_AttitudeFilterParameters()
+        {
+            SendCommand('Y', true);
+            ResponseHeader r = ReadHeader();
+            if (r.Command != 'Y')
+                throw new PolhemusException(0xF3);
+            Quadruple fp = new Quadruple();
+            if (_format == Format.ASCII)
+                fp = Quadruple.FromASCII(TReader, "Sx.xxxB");
+            else
+            {
+                if (r.Length != 16)
+                    throw new PolhemusException(0xF2);
+                fp = new Quadruple(BReader.ReadSingle(), BReader.ReadSingle(), BReader.ReadSingle(), BReader.ReadSingle());
+            }
+            return fp;
+        }
+
+        public void UnBoresight(int station)
+        {
+            SendCommand('\u0002' + station.ToString("0"), true);
         }
 
         public void SetEchoMode(EchoMode e)
@@ -291,9 +456,15 @@ namespace Polhemus
             return e;
         }
 
+        public void ResetAlignmentFrame(int station)
+        {
+            SendCommand('\u0012' + station.ToString("0"), true);
+        }
+
         private void SendCommand(string s, bool IsConfigurationCommand)
         {
             CommandWriter.WriteLine(s);
+            CommandWriter.Flush();
             if (_echoMode == EchoMode.On && IsConfigurationCommand)
             {
                 string r = TReader.ReadLine();
@@ -305,6 +476,7 @@ namespace Polhemus
         private void SendCommand(char[] bytes, bool IsConfigurationCommand)
         {
             CommandWriter.WriteLine(bytes);
+            CommandWriter.Flush();
             if (_echoMode == EchoMode.On && IsConfigurationCommand)
             {
                 string r = TReader.ReadLine();
@@ -320,12 +492,91 @@ namespace Polhemus
         private void SendCommand(char b, bool IsConfigurationCommand)
         {
             CommandWriter.WriteLine(b);
+            CommandWriter.Flush();
             if (_echoMode == EchoMode.On && IsConfigurationCommand)
             {
                 string s = TReader.ReadLine();
                 if (s.Length != 1 || s.ToCharArray()[0] != b)
                     throw new PolhemusException(0xF0);
             }
+        }
+
+        public static object parseASCIIStream(StreamReader s, string format)
+        {
+            int d;
+            StringBuilder sb = new StringBuilder("^");
+            sb.Append(parseFormatString(format, out d));
+            sb.Append("$");
+            Regex r = new Regex(sb.ToString());
+            char[] buff = new char[format.Length];
+            int l = 0;
+            while (l < format.Length)
+                l = s.Read(buff, l, format.Length - l);
+            string str = new string(buff);
+            Match m = r.Match(str);
+            if (!m.Success)
+                throw new Exception("Error parsing string \"" + str + "\" with format \"" +
+                    format + "\" using regex \"" + r.ToString() + "\"");
+            if (d == 1)
+                return Convert.ToInt32(m.Groups[1].Value); //as integer
+            else if (d >= 2)
+                return Convert.ToDouble(m.Groups[1].Value); //as double
+            else
+                return m.Groups[1].Value; //as string
+        }
+
+        static string parseFormatString(string format, out int digits)
+        {
+            string f = @"^((?'S1'S)?(?'D1'x+)(\.(?'D2'x+))?(?'EP'ESxxxB)?|(?'A'A(?'D3'x+)?)|(?'CRLF'<>))$";
+            StringBuilder sb = new StringBuilder("("); //set up for match[1]
+            digits = 0;
+            for (int i = 0; i < format.Length; i++)
+            {
+                char ch = format[i];
+                switch (ch)
+                {
+                    case 'A':
+                        sb.Append(@".");
+                        break;
+                    case 'B':
+                        sb.Append(@") "); //assume blank can only end a format and exclude from match[1]
+                        return sb.ToString();
+                    case 'S':
+                        sb.Append(@"[+\- ]");
+                        break;
+                    case 'x':
+                        digits++;
+                        sb.Append(@"\d");
+                        int n = 0;
+                        while (i + (++n) < format.Length && format.Substring(i + n, 1) == "x") ;
+                        sb.Append("{" + n.ToString("0") + "}");
+                        if (digits == 2 && i + n + 4 < format.Length) //parse for possible EP format
+                            if (format.Substring(i + n, 5) == "ESxxx")
+                            {
+                                sb.Append(@"E[+\-]\d\d\d");
+                                i += n + 4;
+                                digits++;
+                                break;
+                            }
+                        i += n - 1;
+                        break;
+                    case '<':
+                        if (format.Substring(i + 1, 1) == ">")
+                        {
+                            sb.Append(@")\r\n"); //assume CRLF can only end a format and exclude from match[1]
+                            return sb.ToString();
+                        }
+                        sb.Append("<"); //actually an error
+                        break;
+                    case '.':
+                        sb.Append(@"\.");
+                        break;
+                    default:
+                        sb.Append(ch);
+                        break;
+                }
+            }
+            return sb.Append(")").ToString();
         }
 
         private ResponseHeader ReadHeader()
@@ -368,31 +619,96 @@ namespace Polhemus
 
     }
 
-    public struct Triple
+    public class Triple
     {
-        public double X;
-        public double Y;
-        public double Z;
+        public double v1 { get; set; }
+        public double v2 { get; set; }
+        public double v3 { get; set; }
 
-        public string ToString()
+
+        public Triple(double x, double y, double z)
         {
-            StringBuilder sb = new StringBuilder(SingleConvert(X));
-            sb.Append(SingleConvert(Y));
-            sb.Append(SingleConvert(Z));
+            v1 = x;
+            v2 = y;
+            v3 = z;
+        }
+
+        public Triple() { }
+
+        public string ToASCII()
+        {
+            StringBuilder sb = new StringBuilder(SingleConvert(v1));
+            sb.Append(SingleConvert(v2));
+            sb.Append(SingleConvert(v3));
             return sb.ToString();
         }
 
-        public void FromString(string s)
+        public static Triple FromASCII(StreamReader sr, string format)
         {
-            X = Convert.ToDouble(s.Substring(0, 7));
-            Y = Convert.ToDouble(s.Substring(7, 7));
-            Z = Convert.ToDouble(s.Substring(14));
+            Triple cc = new Triple();
+            cc.v1 = (double)PolhemusController.parseASCIIStream(sr, format);
+            cc.v2 = (double)PolhemusController.parseASCIIStream(sr, format);
+            cc.v3 = (double)PolhemusController.parseASCIIStream(sr, format);
+            return cc;
+
+        }
+        public static Triple FromBinary(BinaryReader br)
+        {
+            return new Triple(br.ReadDouble(), br.ReadDouble(), br.ReadDouble());
         }
 
         static string SingleConvert(double x)
         {
             if (double.IsNaN(x)) return ",";
-            return x.ToString("0.00") + ",";
+            return x.ToString("0.0000") + ",";
+        }
+    }
+
+    public class Quadruple
+    {
+        public double v1 { get; set; }
+        public double v2 { get; set; }
+        public double v3 { get; set; }
+        public double v4 { get; set; }
+
+
+        public Quadruple(double w, double x, double y, double z)
+        {
+            v1 = w;
+            v2 = x;
+            v3 = y;
+            v4 = z;
+        }
+
+        public Quadruple() { }
+
+        public string ToASCII()
+        {
+            StringBuilder sb = new StringBuilder(SingleConvert(v1));
+            sb.Append(SingleConvert(v2));
+            sb.Append(SingleConvert(v3));
+            sb.Append(SingleConvert(v4));
+            return sb.ToString();
+        }
+
+        public static Quadruple FromASCII(StreamReader sr, string format)
+        {
+            Quadruple cc = new Quadruple();
+            cc.v1 = (double)PolhemusController.parseASCIIStream(sr, format);
+            cc.v2 = (double)PolhemusController.parseASCIIStream(sr, format);
+            cc.v3 = (double)PolhemusController.parseASCIIStream(sr, format);
+            return cc;
+
+        }
+        public static Quadruple FromBinary(BinaryReader br)
+        {
+            return new Quadruple(br.ReadDouble(), br.ReadDouble(), br.ReadDouble(), br.ReadDouble());
+        }
+
+        static string SingleConvert(double x)
+        {
+            if (double.IsNaN(x)) return ",";
+            return x.ToString("0.0000") + ",";
         }
     }
 
@@ -458,16 +774,261 @@ namespace Polhemus
         {
             get
             {
-                string s;
-                if (_errorDictionary.TryGetValue(_errNum, out s))
-                    return s;
-                return "PolhemusController error: 0x" + _errNum.ToString("X");
+                return PolhemusException.ErrorMessage(_errNum);
             }
         }
 
         public PolhemusException(byte errorNum)
         {
             _errNum = errorNum;
+        }
+    }
+
+    //++++++++ DataFrameTypes ++++++++
+
+    public interface IDataFrameType
+    {
+        int ParameterValue { get; }
+        void FromASCII(StreamReader sr);
+        void FromBinary(BinaryReader br);
+    }
+
+    public class Space : IDataFrameType
+    {
+        public bool Valid { get; private set; }
+
+        public int ParameterValue { get { return 0; } }
+
+        public void FromASCII(StreamReader sr)
+        {
+            int c = sr.Read();
+            Valid = c == (int)' ';
+        }
+
+        public void FromBinary(BinaryReader br)
+        {
+            Valid = br.ReadChar() == ' ';
+        }
+    }
+
+    public class CRLF : IDataFrameType
+    {
+        public bool Valid { get; private set; }
+
+        public int ParameterValue { get { return 1; } }
+        static char[] c = new char[2];
+
+        public void FromASCII(StreamReader sr)
+        {
+            int n = 0;
+            while (n < 2)
+                n = sr.Read(c, n, 2 - n);
+            validate();
+        }
+
+        public void FromBinary(BinaryReader br)
+        {
+            c = br.ReadChars(2);
+            validate();
+        }
+
+        void validate()
+        {
+            this.Valid = c[0] == '\u000D' && c[1] == '\u000A';
+        }
+    }
+
+    public class CartesianCoordinates : IDataFrameType
+    {
+        public double X { get; private set; }
+        public double Y { get; private set; }
+        public double Z { get; private set; }
+
+        public int ParameterValue { get { return 2; } }
+
+        public void FromASCII(StreamReader sr)
+        {
+            X = (double)PolhemusController.parseASCIIStream(sr, "Sxxx.xxxB");
+            Y = (double)PolhemusController.parseASCIIStream(sr, "Sxxx.xxxB");
+            Z = (double)PolhemusController.parseASCIIStream(sr, "Sxxx.xxxB");
+        }
+
+        public void FromBinary(BinaryReader br)
+        {
+            X = br.ReadDouble();
+            Y = br.ReadDouble();
+            Z = br.ReadDouble();
+        }
+    }
+
+    public class CartesianCoordinatesEP : IDataFrameType
+    {
+        public double X { get; private set; }
+        public double Y { get; private set; }
+        public double Z { get; private set; }
+
+        public int ParameterValue { get { return 3; } }
+
+        public void FromASCII(StreamReader sr)
+        {
+            X = (double)PolhemusController.parseASCIIStream(sr, "Sx.xxxxxxESxxxB");
+            Y = (double)PolhemusController.parseASCIIStream(sr, "Sx.xxxxxxESxxxB");
+            Z = (double)PolhemusController.parseASCIIStream(sr, "Sx.xxxxxxESxxxB");
+        }
+
+        public void FromBinary(BinaryReader br)
+        {
+            X = br.ReadDouble();
+            Y = br.ReadDouble();
+            Z = br.ReadDouble();
+        }
+    }
+
+    public class EulerOrientationAngles : IDataFrameType
+    {
+        public double Azimuth { get; private set; }
+        public double Elevation { get; private set; }
+        public double Roll { get; private set; }
+
+        public int ParameterValue { get { return 4; } }
+
+        public void FromASCII(StreamReader sr)
+        {
+            Azimuth = (double)PolhemusController.parseASCIIStream(sr, "Sxxx.xxxB");
+            Elevation = (double)PolhemusController.parseASCIIStream(sr, "Sxxx.xxxB");
+            Roll = (double)PolhemusController.parseASCIIStream(sr, "Sxxx.xxxB");
+        }
+
+        public void FromBinary(BinaryReader br)
+        {
+            Azimuth = br.ReadDouble();
+            Elevation = br.ReadDouble();
+            Roll = br.ReadDouble();
+        }
+    }
+
+    public class EulerOrientationAnglesEP : IDataFrameType
+    {
+        public double Azimuth { get; private set; }
+        public double Elevation { get; private set; }
+        public double Roll { get; private set; }
+
+        public int ParameterValue { get { return 5; } }
+
+        public void FromASCII(StreamReader sr)
+        {
+            Azimuth = (double)PolhemusController.parseASCIIStream(sr, "Sx.xxxxxxESxxxB");
+            Elevation = (double)PolhemusController.parseASCIIStream(sr, "Sx.xxxxxxESxxxB");
+            Roll = (double)PolhemusController.parseASCIIStream(sr, "Sx.xxxxxxESxxxB");
+        }
+
+        public void FromBinary(BinaryReader br)
+        {
+            Azimuth = br.ReadDouble();
+            Elevation = br.ReadDouble();
+            Roll = br.ReadDouble();
+        }
+    }
+
+    public class DirectionCosineMatrix : IDataFrameType
+    {
+        public double[,] Matrix = new double[3, 3];
+
+        public int ParameterValue { get { return 6; } }
+
+        public void FromASCII(StreamReader sr)
+        {
+            for (int i = 0; i < 3; i++)
+            {
+                for (int j = 0; j < 3; j++)
+                    Matrix[i, j] = (double)PolhemusController.parseASCIIStream(sr, "Sx.xxxxxB");
+                PolhemusController.parseASCIIStream(sr, "<>");
+            }
+        }
+
+        public void FromBinary(BinaryReader br)
+        {
+            for (int i = 0; i < 3; i++)
+                for (int j = 0; j < 3; j++)
+                    Matrix[i, j] = br.ReadDouble();
+        }
+    }
+
+    public class Quaternion : IDataFrameType
+    {
+        public double q0 { get; private set; }
+        public double q1 { get; private set; }
+        public double q2 { get; private set; }
+        public double q3 { get; private set; }
+
+        public int ParameterValue { get { return 7; } }
+
+        public void FromASCII(StreamReader sr)
+        {
+            q0 = (double)PolhemusController.parseASCIIStream(sr, "Sx.xxxxxB");
+            q1 = (double)PolhemusController.parseASCIIStream(sr, "Sx.xxxxxB");
+            q2 = (double)PolhemusController.parseASCIIStream(sr, "Sx.xxxxxB");
+            q3 = (double)PolhemusController.parseASCIIStream(sr, "Sx.xxxxxB");
+        }
+
+        public void FromBinary(BinaryReader br)
+        {
+            q0 = br.ReadDouble();
+            q1 = br.ReadDouble();
+            q2 = br.ReadDouble();
+            q3 = br.ReadDouble();
+        }
+    }
+
+    public class Timestamp : IDataFrameType
+    {
+        public uint Value { get; private set; }
+
+        public int ParameterValue { get { return 8; } }
+
+        public void FromASCII(StreamReader sr)
+        {
+            throw new NotImplementedException("Timestamp.FromASCII not implemented -- unknown format");
+        }
+
+        public void FromBinary(BinaryReader br)
+        {
+            Value = br.ReadUInt32();
+        }
+    }
+
+    public class FrameCount : IDataFrameType
+    {
+        public uint Value { get; private set; }
+
+        public int ParameterValue { get { return 9; } }
+
+        public void FromASCII(StreamReader sr)
+        {
+            throw new NotImplementedException("FrameCount.FromASCII not implemented -- unknown format");
+        }
+
+        public void FromBinary(BinaryReader br)
+        {
+            Value = br.ReadUInt32();
+        }
+    }
+
+    public class StylusFlag : IDataFrameType
+    {
+        public int Flag { get; set; }
+
+        public int ParameterValue { get { return 10; } }
+
+        public void FromASCII(StreamReader sr)
+        {
+            int c = sr.Read();
+            this.Flag = c == (int)'0' ? 0 : 1;
+        }
+
+        public void FromBinary(BinaryReader br)
+        {
+            this.Flag = br.ReadInt32();
         }
     }
 }
