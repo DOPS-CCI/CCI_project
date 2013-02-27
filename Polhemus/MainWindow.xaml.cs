@@ -27,13 +27,15 @@ namespace Polhemus
             InitializeComponent();
             byte[] bytes = new byte[1000];
             char[] chars = new char[1000];
-            string s = "-525.320 +023.771  000.405 ";
+            string s = "\r\n-55.763 +22.566\r\n22";
             s.CopyTo(0, chars, 0, s.Length);
             for (int i = 0; i < s.Length; i++)
                 bytes[i] = (byte)chars[i];
             StreamReader sr = new StreamReader(new MemoryStream(bytes), Encoding.ASCII);
-            CartesianCoordinates cc = new CartesianCoordinates();
-            cc.FromASCII(sr);
+            string str = (string)PolhemusController.parseASCIIStream(sr, "A2");
+            double d1 = (double)PolhemusController.parseASCIIStream(sr, "Sxx.xxxB");
+            double d2 = (double)PolhemusController.parseASCIIStream(sr, "Sxx.xxx<>");
+            int j = (int)PolhemusController.parseASCIIStream(sr, "xx");
         }
     }
 
@@ -321,7 +323,7 @@ namespace Polhemus
             foreach (IDataFrameType dft in _responseFrameDescription[station - 1])
                 if (_format == Format.ASCII)
                 {
-                    string aa = (string)parseASCIIStream(TReader, "AA");
+                    string aa = (string)parseASCIIStream(TReader, "A2");
                     if (aa == "\r\n")
                         throw new PolhemusException(0xF7); //too short a list
                     if (dft.ParameterValue != Convert.ToInt32("0x0" + aa[0])) //probably hex character, though undocumented
@@ -336,13 +338,13 @@ namespace Polhemus
                 }
             if (_format == Format.ASCII)
             {
-                if ((string)parseASCIIStream(TReader, "AA") != "\r\n")
+                if ((string)parseASCIIStream(TReader, "A2") != "\r\n")
                     throw new PolhemusException(0xF8); //too long a list returned
             }
             else
-                if (BReader.ReadInt32() != -1)
+                if (BReader.ReadInt32() != -1) //list ends with -1
                     throw new PolhemusException(0xF8); //too long a list returned
-            return _responseFrameDescription[station - 1]; //internal list is correct!
+            return _responseFrameDescription[station - 1]; //internal list is correct! Return it.
         }
 
         public void SetUnits(Units u)
@@ -501,13 +503,18 @@ namespace Polhemus
             }
         }
 
+        private object parseASCIIStream(string format)
+        {
+            return parseASCIIStream(TReader, format);
+        }
+
         public static object parseASCIIStream(StreamReader s, string format)
         {
             int d;
             StringBuilder sb = new StringBuilder("^");
             sb.Append(parseFormatString(format, out d));
             sb.Append("$");
-            Regex r = new Regex(sb.ToString());
+            Regex r = new Regex(sb.ToString(), RegexOptions.Singleline); //Singleline allows matching of newlines
             char[] buff = new char[format.Length];
             int l = 0;
             while (l < format.Length)
@@ -519,17 +526,51 @@ namespace Polhemus
                     format + "\" using regex \"" + r.ToString() + "\"");
             if (d == 1)
                 return Convert.ToInt32(m.Groups[1].Value); //as integer
-            else if (d >= 2)
+            else if (d == 2)
                 return Convert.ToDouble(m.Groups[1].Value); //as double
             else
                 return m.Groups[1].Value; //as string
         }
 
+        //This private routine parses a "standard" Polhemus documentation string for describing
+        // the format of a number or string and returns a regex string appropriate for reading
+        // in the next characters from the text stream; asssumes that format optionally ends in
+        // a blank or CR/LF; extends Polhemus format to include Ann form for alphabetic inputs;
+        // also outputs an indicator (digits) for alpha(0), integer(1), and floating(2) formats
+        static Regex parseFormat = new Regex(@"^((?'S'S)?(?'D1'x+)(\.(?'D2'x+))?(?'EP'ESxxx)?|(?'Alpha'A(?'D3'\d+)?))?(?'Delimiter'(B|<>))?$");
         static string parseFormatString(string format, out int digits)
         {
-            string f = @"^((?'S1'S)?(?'D1'x+)(\.(?'D2'x+))?(?'EP'ESxxxB)?|(?'A'A(?'D3'x+)?)|(?'CRLF'<>))$";
             StringBuilder sb = new StringBuilder("("); //set up for match[1]
+            Match m = parseFormat.Match(format);
             digits = 0;
+            if (!m.Success) return format; //in case format already is a regex -- special case: digits = -1;
+            if (m.Groups["D1"].Length > 0) //number
+            {
+                digits = 1;
+                if (m.Groups["S"].Length > 0) //sign present
+                    sb.Append(@"[+\- ]");
+                sb.Append(@"\d{" + m.Groups["D1"].Length.ToString("0") + "}");
+                if (m.Groups["D2"].Length > 0) //float
+                {
+                    digits = 2;
+                    sb.Append(@"\.\d{" + m.Groups["D2"].Length.ToString("0") + "}");
+                    if (m.Groups["EP"].Length > 0) //extended precision
+                        sb.Append(@"E[+\-]\d\d\d");
+                }
+            }
+            else
+                if (m.Groups["Alpha"].Length > 0) //alpha
+                    sb.Append("." + (m.Groups["D3"].Length > 0 ? "{" + m.Groups["D3"].Value + "}" : ""));
+                else //delimiter only -- so match delimiter as string
+                {
+                    return sb.Append(m.Groups["Delimiter"].Value == "B" ? " )" : @"\r\n)").ToString();
+                }
+            sb.Append(")"); //close match[1]
+            if (m.Groups["Delimiter"].Length > 0) //add delimiter (outside match[1])
+                sb.Append(m.Groups["Delimiter"].Value == "B" ? " " : @"\r\n");
+            return sb.ToString();
+
+/*          digits = 0;
             for (int i = 0; i < format.Length; i++)
             {
                 char ch = format[i];
@@ -576,7 +617,7 @@ namespace Polhemus
                         break;
                 }
             }
-            return sb.Append(")").ToString();
+            return sb.Append(")").ToString(); */
         }
 
         private ResponseHeader ReadHeader()
