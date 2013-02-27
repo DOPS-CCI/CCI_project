@@ -12,6 +12,6 @@
             <Bold><Run>Error message: </Run></Bold>
             <Run Name="errorMessage"/>
         </TextBlock>
-        <Button Grid.Row="1" Height="30" Width="120" Click="OK_Click" HorizontalAlignment="Center" Margin="20">OK</Button>
+        <Button Grid.Row="1" Height="30" Width="120" Click="OK_Click" HorizontalAlignment="Center" Margin="20" IsDefault="True">OK</Button>
     </Grid>
 </Window>
