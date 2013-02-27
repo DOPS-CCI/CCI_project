@@ -8,6 +8,13 @@ namespace CCILibrary
     public class BDFEDFFileStream : IDisposable
     {
         internal BDFEDFHeader header;
+        public BDFEDFHeader Header
+        {
+            get
+            {
+                return header;
+            }
+        }
         internal FileStream baseStream;
         public BDFEDFRecord record;
         protected BDFLocFactory _locationFactory;
@@ -457,6 +464,35 @@ namespace CCILibrary
             }
         }
 
+        public int getRawSample(int channel, BDFLoc point)
+        {
+            try
+            {
+                if (point.Rec != record.currentRecordNumber) //need to read in new record
+                {
+                    long pos = (long)header.headerSize + (long)point.Rec * (long)record.recordLength; //these files get BIG!!
+                    reader.BaseStream.Seek(pos, SeekOrigin.Begin);
+                    record.currentRecordNumber = point.Rec - 1; //one less as read() increments it
+                    read();
+                }
+                return record.channelData[channel][point.Pt];
+            }
+            catch (NotSupportedException)
+            {
+                throw new IOException("File stream not able to perform Seek.");
+            }
+            catch (IndexOutOfRangeException e)
+            {
+                if (channel < 0 || channel >= header.numberChannels) throw new BDFEDFException("Invalid channel number (" + channel + ")");
+                if (point.Pt < 0 || point.Pt >= header.numberSamples[channel]) throw new BDFEDFException("Invalid sample number (" + point.Pt + ")");
+                throw new BDFEDFException(e.Message);
+            }
+            catch (Exception e)
+            {
+                throw new BDFEDFException(e.Message);
+            }
+        }
+
         public int getStatusSample(BDFLoc point)
         {
             int channel = header.numberChannels - 1;
@@ -651,7 +687,7 @@ namespace CCILibrary
     /// Class embodying the information included in the header record of a BDF or EDF file
     /// Class created only by the creation of a BDFEDFFileReader or BDFEDFFileWriter
     /// </summary>
-    internal class BDFEDFHeader : IDisposable
+    public class BDFEDFHeader : IDisposable
     {
         internal string localSubjectId;
         internal string localRecordingId;
@@ -880,7 +916,7 @@ namespace CCILibrary
 
         }
 
-        internal double Gain(int channel)
+        public double Gain(int channel)
         {
             if (gain[channel] != 0.0) return gain[channel];
             int num = physicalMaximums[channel] - physicalMinimums[channel];
@@ -889,7 +925,7 @@ namespace CCILibrary
             return gain[channel] = (double)num / (double)den;
         }
 
-        internal double Offset(int channel)
+        public double Offset(int channel)
         {
             if (!Double.IsInfinity(offset[channel])) return offset[channel];
             long num = digitalMaximums[channel] * physicalMinimums[channel] - digitalMinimums[channel] * physicalMaximums[channel];
@@ -941,7 +977,7 @@ namespace CCILibrary
             try
             {
                 record = reader.ReadBytes(recordLength);
-                if (record.Length < recordLength) throw new EndOfStreamException("End of BDF/EDF file reached");
+                if (record.Length < recordLength) throw new EndOfStreamException("Unexpected end of BDF/EDF file reached");
             }
             catch (Exception e)
             {
