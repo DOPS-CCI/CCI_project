@@ -39,8 +39,8 @@
                     <Setter Property="FontSize" Value="14"/>
                 </Style>
             </StackPanel.Resources>
-            <Button Name="Cancel" Click="OK_Click">Cancel</Button>
-            <Button Name="OK" Click="OK_Click">OK</Button>
+            <Button Name="Cancel" Click="OK_Click" IsCancel="True">Cancel</Button>
+            <Button Name="OK" Click="OK_Click" IsDefault="True">OK</Button>
         </StackPanel>
     </Grid>
 </Window>

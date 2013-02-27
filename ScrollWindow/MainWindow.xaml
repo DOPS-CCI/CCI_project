@@ -95,6 +95,7 @@
                                 <TextBlock Name="CurrentDecimation" FontWeight="Normal"/>
                                 <TextBlock Text="Value:" />
                                 <TextBox Name="DecVal" Width="36" TextChanged="DecVal_Changed">Auto</TextBox>
+                                <Button Name="ChangeDecimation" Margin="4,0" Padding="3,0" Click="ChangeDecimation_Click" IsEnabled="False" IsDefault="True">Δ</Button>
                             </StackPanel>
                         </StackPanel>
                     </GroupBox>

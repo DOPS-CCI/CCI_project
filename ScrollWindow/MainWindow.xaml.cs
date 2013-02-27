@@ -42,7 +42,7 @@ namespace ScrollWindow
         Header.Header head;
         internal string directory;
         internal bool includeANAs = true;
-        internal static decimationType dType = decimationType.MinMax;
+        internal static DecimationType dType = DecimationType.MinMax;
         internal TextBlock eventTB;
         Popup channelPopup = new Popup();
         TextBlock popupTB = new TextBlock();
@@ -271,8 +271,9 @@ namespace ScrollWindow
                     ChannelGraph cg = (ChannelGraph)GraphCanvas.Children[graphNumber];
                     popupTB.Text = bdf.ToString(channel) +
                         "Location: " + st + "\nMin,Max(diff): " +
-                        cg.overallMin.ToString("G4") + "," + cg.overallMax.ToString("G4") +
-                        "(" + (cg.overallMax - cg.overallMin).ToString("G3") + ")";
+                        (cg.overallMin * bdf.Header.Gain(channel) + bdf.Header.Offset(channel)).ToString("G4") + "," +
+                        (cg.overallMax * bdf.Header.Gain(channel) + bdf.Header.Offset(channel)).ToString("G4") +
+                        "(" + ((cg.overallMax - cg.overallMin) * bdf.Header.Gain(channel)).ToString("G3") + ")";
                     channelPopup.IsOpen = true;
                 }
                 else //start dragging operation
@@ -494,6 +495,7 @@ namespace ScrollWindow
         const double scaleDelta = 0.05;
         public void reDrawChannels()
         {
+            this.Cursor = Cursors.Wait;
             UIElementCollection chans = GraphCanvas.Children;
 
             double lowSecs = currentDisplayOffsetInSecs;
@@ -514,7 +516,7 @@ namespace ScrollWindow
             else // must automatic decimation
             {
                 ChannelGraph.decimateNew = Convert.ToInt32(Math.Ceiling(2.5D * (highBDFP - lowBDFP) / Viewer.ActualWidth));
-                if (ChannelGraph.decimateNew == 2 && dType==decimationType.MinMax) ChannelGraph.decimateNew = 1; //No advantage to decimating by 2
+                if (ChannelGraph.decimateNew == 2 && dType==DecimationType.MinMax) ChannelGraph.decimateNew = 1; //No advantage to decimating by 2
             }
             CurrentDecimation.Text = ChannelGraph.decimateNew.ToString("0");
             bool completeRedraw = ChannelGraph.decimateNew != ChannelGraph.decimateOld || !overlap; //complete redraw of all channels if ...
@@ -671,13 +673,14 @@ namespace ScrollWindow
                     }
                 }
             }
+            this.Cursor = Cursors.Arrow;
         }
 
         private void RadioButton_Checked(object sender, RoutedEventArgs e)
         {
             RadioButton rb = (RadioButton)sender;
             if (rb.Tag == null) return;
-            decimationType dT = (decimationType)Convert.ToInt32(rb.Tag);
+            DecimationType dT = (DecimationType)Convert.ToInt32(rb.Tag);
             if (dT == dType) return;
             dType = dT;
             if (decVal != 0)
@@ -703,18 +706,22 @@ namespace ScrollWindow
                 }
                 catch
                 {
-                    DecVal.Foreground = Brushes.Red;
+                    DecVal.BorderBrush = Brushes.Red;
+                    ChangeDecimation.IsEnabled = false;
                     return;
                 }
                 if (decVal <= 0)
                 {
-                    DecVal.Foreground = Brushes.Red;
+                    DecVal.BorderBrush = Brushes.Red;
+                    ChangeDecimation.IsEnabled = false;
                     return;
                 }
             }
-            DecVal.Foreground = Brushes.Black;
-            ChannelGraph.decimateOld = -1; //force complete redraw
-            reDrawChannels();
+            DecVal.BorderBrush = Brushes.Black;
+            if (ChannelGraph.decimateOld != decVal)
+                ChangeDecimation.IsEnabled = true;
+            else
+                ChangeDecimation.IsEnabled = false;
         }
 
         private void MenuItemAdd_Click(object sender, RoutedEventArgs e)
@@ -775,6 +782,13 @@ namespace ScrollWindow
             //NB: must also scale vertically (and correct later) to keep drawing pen circular!
             //Now change horizontal scroll to make inflation/deflation around center point;
             Viewer.ScrollToHorizontalOffset(XScaleSecsToInches * (currentDisplayOffsetInSecs + (oldDisplayWidthInSecs - currentDisplayWidthInSecs) / 2D));
+        }
+
+        private void ChangeDecimation_Click(object sender, RoutedEventArgs e)
+        {
+            ChannelGraph.decimateOld = -1; //force complete redraw
+            ChangeDecimation.IsEnabled = false;
+            reDrawChannels();
         }
 
     }
@@ -846,41 +860,50 @@ namespace ScrollWindow
         //be appropriateloy scaled
         internal FilePoint createFilePoint(BDFLoc index)
         {
-            double sample;
-            double max = 0; //assign to fool compiler
-            double min = 0;
+            int sample;
+            int max = 0; //assign to fool compiler
+            int min = 0;
+            double maxVal;
+            double minVal;
             int imax = 0;
             int imin = 0;
             BDFLoc temp = index;
-            if (MainWindow.dType == decimationType.MinMax)
+            if (MainWindow.dType == DecimationType.MinMax)
             {
-                max = double.NegativeInfinity;
-                min = double.PositiveInfinity;
+                max = int.MinValue;
+                min = int.MaxValue;
                 for (int j = 0; j < decimateNew; j++)
                 {
-                    sample = bdf.getSample(_channel, temp++);
+                    if(temp.IsInFile)
+                        sample = bdf.getRawSample(_channel, temp++);
+                    else
+                        break;
                     if (sample > max) { max = sample; imax = j; } //OK if NaN; neither > or < any number
                     if (sample < min) { min = sample; imin = j; }
                 }
+                maxVal = (double)max;
+                minVal = (double)min;
             }
-            else if (MainWindow.dType == decimationType.Average)
+            else if (MainWindow.dType == DecimationType.Average)
             {
-                double ave = 0D;
+                int ave = 0;
                 int n = 0;
                 for (int j = 0; j < decimateNew; j++)
                 {
-                    sample = bdf.getSample(_channel, temp++);
-                    if (double.IsNaN(sample)) break; //reached EOF
+                    if (temp.IsInFile)
+                        sample = bdf.getRawSample(_channel, temp++);
+                    else
+                        break;
                     ave += sample;
                     n++;
                 }
-                max = min = ave / n;
+                maxVal = minVal = (double)ave / n;
                 imax = imin = n / 2;
             }
             else //MainWindow.dType == decimationType.FirstPoint
-                max = min = bdf.getSample(_channel, temp);
-            if (max > overallMax) overallMax = max;
-            if (min < overallMin) overallMin = min;
+                maxVal = minVal = bdf.getRawSample(_channel, temp);
+            if (maxVal > overallMax) overallMax = maxVal;
+            if (minVal < overallMin) overallMin = minVal;
             FilePoint fp = new FilePoint();
             fp.fileLocation = index;
             double secs = index.ToSecs();
@@ -888,23 +911,23 @@ namespace ScrollWindow
             if (imax < imin)
             {
                 fp.first.X = secs + imax * st;
-                fp.first.Y = max;
+                fp.first.Y = maxVal;
                 fp.second.X = secs + imin * st;
-                fp.second.Y = min;
+                fp.second.Y = minVal;
                 fp.SecondValid = true;
             }
             else if (imax > imin)
             {
                 fp.first.X = secs + imin * st;
-                fp.first.Y = min;
+                fp.first.Y = minVal;
                 fp.second.X = secs + imax * st;
-                fp.second.Y = max;
+                fp.second.Y = maxVal;
                 fp.SecondValid = true;
             }
             else //imax == imin
             {
                 fp.first.X = secs + imax * st;
-                fp.first.Y = max;
+                fp.first.Y = maxVal;
                 fp.SecondValid = false;
             }
             return fp;
@@ -933,5 +956,5 @@ namespace ScrollWindow
         public bool SecondValid;
     }
 
-    internal enum decimationType {Fixed, MinMax, Average, FirstPoint}
+    internal enum DecimationType {Fixed, MinMax, Average, FirstPoint}
 }
