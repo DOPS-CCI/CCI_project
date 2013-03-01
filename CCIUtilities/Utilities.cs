@@ -95,10 +95,20 @@ namespace CCIUtilities
             return ass.GetName().Version.ToString();
         }
 
-        public static uint greyCode(uint n)
+        public static uint uint2GC(uint n)
         {
             return n ^ (n >> 1);
         }
 
+        public static uint GC2uint(uint gc)
+        {
+            uint b = gc;
+            b ^= (b >> 16);
+            b ^= (b >> 8);
+            b ^= (b >> 4);
+            b ^= (b >> 2);
+            b ^= (b >> 1);
+            return b;
+        }
     }
 }
