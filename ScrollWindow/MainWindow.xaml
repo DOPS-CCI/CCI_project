@@ -49,7 +49,7 @@
             </Grid>
         </ScrollViewer>
         <StackPanel Orientation="Vertical" Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2">
-        <ScrollViewer VerticalScrollBarVisibility="Visible" Height="130">
+        <ScrollViewer VerticalScrollBarVisibility="Visible" Height="150">
             <Grid HorizontalAlignment="Stretch">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
@@ -67,10 +67,13 @@
                 <TextBlock Name="Info" FontWeight="Bold" Grid.Column="1" Grid.Row="1" Margin="2" FontSize="12" TextAlignment="Center" HorizontalAlignment="Center" VerticalAlignment="Stretch" />
                 <StackPanel Orientation="Horizontal" Grid.Row="0" Grid.Column="1" >
                         <TextBlock Text="0.1" VerticalAlignment="Center"/>
-                    <Slider Name="FOV" ValueChanged="FOV_ValueChanged" Minimum="-1" Padding="0" Margin="0,4,0,0" Width="240"/>
+                    <Slider Name="FOV" ValueChanged="FOV_ValueChanged" Minimum="-1" Padding="0" Margin="0,4,0,0" Width="240" TickPlacement="TopLeft" LargeChange="0.30103" TickFrequency="0.30103" Value="3" />
                         <TextBlock Name="FOVMax" Text="1000" VerticalAlignment="Center"/>
                 </StackPanel>
-                    <GroupBox Grid.Row="2" Grid.Column="1" Header="Decimation" Width="240">
+                    <Expander Grid.Row="3" Grid.Column="1">
+                        <Expander.Header>
+                            <TextBlock FontWeight="Bold">Decimation</TextBlock>
+                        </Expander.Header>
                         <StackPanel Orientation="Vertical" HorizontalAlignment="Center">
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                                 <StackPanel.Resources>
@@ -98,7 +101,41 @@
                                 <Button Name="ChangeDecimation" Margin="4,0" Padding="3,0" Click="ChangeDecimation_Click" IsEnabled="False" IsDefault="True">Δ</Button>
                             </StackPanel>
                         </StackPanel>
-                    </GroupBox>
+                    </Expander>
+                    <StackPanel Grid.Column="1" Grid.Row="2" Orientation="Vertical">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Top">
+                        <StackPanel.Resources>
+                            <Style TargetType="RadioButton">
+                                <Setter Property="Margin" Value="4,0"/>
+                                <Setter Property="VerticalAlignment" Value="Center"/>
+                            </Style>
+                            <Style TargetType="Button">
+                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                <Setter Property="Width" Value="60"/>
+                            </Style>
+                        </StackPanel.Resources>
+                        <Button Content="Prev" HorizontalAlignment="Stretch" Margin="0,0,10,0" Click="SearchEvent_Click"/>
+                        <RadioButton Tag="0" Checked="SiteSelection_Checked" />
+                        <RadioButton Tag="0.25" Checked="SiteSelection_Checked" />
+                        <RadioButton Tag="0.5" Checked="SiteSelection_Checked" IsChecked="True"/>
+                        <RadioButton Tag="0.75" Checked="SiteSelection_Checked" />
+                        <RadioButton Tag="1" Checked="SiteSelection_Checked" />
+                        <Button Content="Next" HorizontalAlignment="Right" Margin="10,0,0,0" Click="SearchEvent_Click" />
+                    </StackPanel>
+                        <Expander HorizontalAlignment="Left">
+                            <Expander.Header>
+                                <TextBlock FontWeight="Bold"><Span><Run Text="Event selection: "/><Run Name="SearchEventName"/></Span></TextBlock>
+                            </Expander.Header>
+                            <Expander.Resources>
+                                <Style TargetType="RadioButton">
+                                    <Setter Property="VerticalAlignment" Value="Center"/>
+                                    <Setter Property="HorizontalAlignment" Value="Left"/>
+                                    <Setter Property="Margin" Value="4"/>
+                                </Style>
+                            </Expander.Resources>
+                            <StackPanel Name="EventSelector" Orientation="Vertical" HorizontalAlignment="Center"/>
+                        </Expander>
+                    </StackPanel>
                 </Grid>
             </ScrollViewer>
         </StackPanel>

@@ -22,6 +22,7 @@ using EventFile;
 using EventDictionary;
 using Event;
 using ElectrodeFileStream;
+using CCIUtilities;
 
 namespace ScrollWindow
 {
@@ -170,7 +171,29 @@ namespace ScrollWindow
             FOV.Maximum = Math.Log10(BDFLength);
             FOV.Value = 1D;
             FOVMax.Text = BDFLength.ToString("0");
+
+            //Initialize Event selector
+            bool first = true;
+            foreach (EventDictionaryEntry e in head.Events.Values)
+            {
+                RadioButton rb = new RadioButton();
+                rb.Content = e.Name;
+                rb.Checked += new RoutedEventHandler(ChangeEvent_Checked);
+                if (first)
+                {
+                    rb.IsChecked = true;
+                    first = false;
+                }
+                EventSelector.Children.Add(rb);
+            }
             //from here on the program is GUI-event driven
+        }
+
+        string currentSearchEvent;
+        void ChangeEvent_Checked(object sender, RoutedEventArgs e)
+        {
+            currentSearchEvent = (string)((RadioButton)sender).Content;
+            SearchEventName.Text = currentSearchEvent;
         }
 
         // ScrollViewer change routines are here: lead to redraws of window
@@ -399,30 +422,87 @@ namespace ScrollWindow
                 {
                     //draw line in Event graph to mark
                     InputEvent ev;
-                    double s = p.ToSecs();
-                    Line l = new Line();
-                    l.X1 = l.X2 = s;
-                    l.Y1 = 0D;
-                    l.Y2 = EventChannelHeight / XScaleSecsToInches;
-                    //make stroke thickness = sample time, unless too small
-                    l.StrokeThickness = Math.Max((double)bdf.SampTime, currentDisplayWidthInSecs * 0.0008D);
+                    double s = p.ToSecs(); //center marker at s
+                    Rectangle r = new Rectangle();
+                    double EMAH = r.Height = EventMarkers.ActualHeight;
+                    r.Width = Math.Max(bdf.SampTime, currentDisplayWidthInSecs * 0.0008);
+                    Canvas.SetLeft(r, s - r.Width / 2D);
+                    Canvas.SetTop(r, 0D);
+                    r.StrokeThickness = currentDisplayWidthInSecs * 0.0008;
                     //add tooltip containing corresponding Event file entry
-                    if (events.TryGetValue((int)sample, out ev))
-                        l.ToolTip = ev.ToString().Trim();
+                    bool EFEntry;
+                    if (EFEntry = events.TryGetValue((int)sample, out ev))
+                        r.ToolTip = ev.ToString().Trim();
                     else
-                        l.ToolTip = "No entry in Event file!";
-                    //encode intrinsic/extrinsic in red/blue colors; incorrect Event name encoded in black
+                        r.ToolTip = "No entry in Event file!";
+                    //encode intrinsic/extrinsic in green/blue colors; incorrect Event name encoded in red
+                    TextBlock tb = null; //explicit assignment to fool compiler
                     EventDictionaryEntry EDE;
-                    if (ev != null && ED.TryGetValue(ev.Name, out EDE))
+                    bool multiEvent;
+                    uint n = Utilities.GC2uint(sample) - Utilities.GC2uint(lastSample);
+                    if (multiEvent = (n > 1))
                     {
-                        if (EDE.intrinsic)
-                            l.Stroke = Brushes.Red;
-                        else
-                            l.Stroke = Brushes.Blue;
+                        double fSize = 0.9 * EMAH;
+                        if (fSize > 0.0035) //minimal font size
+                        {
+                            tb = new TextBlock();
+                            tb.Text = n.ToString("0");
+                            tb.FontSize = fSize;
+                            Canvas.SetLeft(tb, s);
+                            Canvas.SetTop(tb, -0.1 * EMAH);
+                            tb.ToolTip = r.ToolTip;
+                            EventMarkers.Children.Add(tb);
+                        }
+                        r.Stroke = Brushes.Black; //black by default
                     }
-                    else
-                        l.Stroke = Brushes.Black;
-                    EventMarkers.Children.Add(l);
+                    if (EFEntry && ED.TryGetValue(ev.Name, out EDE))
+                    {
+                        if(!multiEvent) //if multi-Event, don't mark by type
+                            if (EDE.intrinsic)
+                            {
+                                Ellipse e = new Ellipse();
+                                e.Height = e.Width = 0.6 * EMAH;
+                                Canvas.SetTop(e, 0.2 * EMAH);
+                                Canvas.SetLeft(e, s - 0.3 * EMAH);
+                                e.Stroke = r.Stroke = Brushes.Green;
+                                e.StrokeThickness = r.StrokeThickness;
+                                e.ToolTip = r.ToolTip;
+                                EventMarkers.Children.Add(e);
+                            }
+                            else //extrinsic Event
+                            {
+                                Line l1 = new Line();
+                                Line l2 = new Line();
+                                l1.Stroke = l2.Stroke = r.Stroke = Brushes.Blue;
+                                l1.StrokeThickness = l2.StrokeThickness = r.StrokeThickness;
+                                l1.X1 = l2.X2 = s;
+                                l1.Y1 = 0.2 * EMAH;
+                                l2.Y2 = 0.8 * EMAH;
+                                l1.Y2 = l2.Y1 = 0.5 * EMAH;
+                                l1.X2 = l2.X1 = s + 0.5 * (EDE.location ? EMAH : -EMAH);
+                                l1.ToolTip = l2.ToolTip = r.ToolTip;
+                                EventMarkers.Children.Add(l1);
+                                EventMarkers.Children.Add(l2);
+                            }
+                    }
+                    else //error -- no corresponding record in Event file or no EDE for this Event
+                    {
+                        r.Stroke = Brushes.Red;
+                        if (tb != null) //in case it's multiple
+                            tb.Foreground = Brushes.Red;
+                        Line l1 = new Line();
+                        Line l2 = new Line();
+                        l1.Stroke = l2.Stroke = r.Stroke = Brushes.Red;
+                        l1.StrokeThickness = l2.StrokeThickness = r.StrokeThickness;
+                        l1.X1 = l2.X1 = s - 0.3 * EMAH;
+                        l1.Y1 = l2.Y2 = 0.2 * EMAH;
+                        l1.X2 = l2.X2 = s + 0.3 * EMAH;
+                        l1.Y2 = l2.Y1 = 0.8 * EMAH;
+                        l1.ToolTip = l2.ToolTip = r.ToolTip;
+                        EventMarkers.Children.Add(l1);
+                        EventMarkers.Children.Add(l2);
+                    }
+                    EventMarkers.Children.Add(r);
                     lastSample = sample;
                 }
             }
@@ -789,6 +869,57 @@ namespace ScrollWindow
             ChannelGraph.decimateOld = -1; //force complete redraw
             ChangeDecimation.IsEnabled = false;
             reDrawChannels();
+        }
+
+        double SearchSiteOffset;
+        private void SiteSelection_Checked(object sender, RoutedEventArgs e)
+        {
+            SearchSiteOffset = Convert.ToDouble(((RadioButton)sender).Tag);
+        }
+
+        private void SearchEvent_Click(object sender, RoutedEventArgs e)
+        {
+            Button b = (Button)sender;
+            if ((string)b.Content == "Next")
+            {
+                BDFLoc p = bdf.LocationFactory.New().FromSecs(currentDisplayOffsetInSecs + SearchSiteOffset * currentDisplayWidthInSecs);
+                int last = (int)((uint)bdf.getStatusSample(++p) & head.Mask);
+                for (; p.IsInFile; p++)
+                {
+                    int next = (int)((uint)bdf.getStatusSample(p) & head.Mask);
+                    if (next != last)
+                    {
+                        InputEvent ie;
+                        if (events.TryGetValue(next, out ie))
+                            if (ie.Name == currentSearchEvent) //we have a winner!
+                            {
+                                Viewer.ScrollToHorizontalOffset((p.ToSecs() - SearchSiteOffset * currentDisplayWidthInSecs) * XScaleSecsToInches);
+                                break;
+                            }
+                        last = next;
+                    }
+                }
+            }
+            else //Prev
+            {
+                BDFLoc p = bdf.LocationFactory.New().FromSecs(currentDisplayOffsetInSecs + SearchSiteOffset * currentDisplayWidthInSecs);
+                int last = (int)((uint)bdf.getStatusSample(--p) & head.Mask);
+                for (; p.IsInFile; p--)
+                {
+                    int next = (int)((uint)bdf.getStatusSample(p) & head.Mask);
+                    if (next != last)
+                    {
+                        InputEvent ie;
+                        if (events.TryGetValue(last, out ie))
+                            if (ie.Name == currentSearchEvent) //we have a winner!
+                            {
+                                Viewer.ScrollToHorizontalOffset(((++p).ToSecs() - SearchSiteOffset * currentDisplayWidthInSecs) * XScaleSecsToInches);
+                                break;
+                            }
+                        last = next;
+                    }
+                }
+            }
         }
 
     }
