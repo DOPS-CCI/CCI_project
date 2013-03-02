@@ -1240,7 +1240,7 @@ namespace CCILibrary
         {
             double f = Math.Floor(seconds / myFactory._sec);
             _rec = (int)f;
-            _pt = Convert.ToInt32(Math.Floor((seconds - f * myFactory._sec) * (double)myFactory._recSize / myFactory._sec));
+            Pt = Convert.ToInt32((seconds - f * myFactory._sec) / myFactory._st); //round and use Pt in case problem at record "edge"
             return this;
         }
 

@@ -158,7 +158,7 @@ namespace CCILibrary
         {
             double f = Math.Floor(seconds / _sec);
             _rec = (int)f;
-            _pt = Convert.ToInt32(Math.Floor((seconds - f * _sec) * (double)_recSize / _sec));
+            Pt = Convert.ToInt32((seconds - f * _sec) / _st);
             return this;
         }
 
