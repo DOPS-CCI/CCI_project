@@ -110,5 +110,40 @@ namespace CCIUtilities
             b ^= (b >> 1);
             return b;
         }
+
+        /// <summary>
+        /// Makes comparisons between two status codes, modulus 2^(number of Status bits)
+        /// Note that valid status values are between 1 and 2^(number of Status bits)-2
+        /// For example, here are the returned results for status = 3:
+        ///         <-------- i1 --------->
+        ///        | 1 | 2 | 3 | 4 | 5 | 6 |
+        ///    ----|---|---|---|---|---|---|
+        ///  ^   1 | 0 | 1 | 1 | 1 |-1 |-1 |
+        ///  | ----|---|---|---|---|---|---|
+        ///  |   2 |-1 | 0 | 1 | 1 | 1 |-1 |
+        ///  | ----|---|---|---|---|---|---|
+        ///  |   3 |-1 |-1 | 0 | 1 | 1 | 1 |
+        /// i2 ----|---|---|---|---|---|---|
+        ///  |   4 |-1 |-1 |-1 | 0 | 1 | 1 |
+        ///  | ----|---|---|---|---|---|---|
+        ///  |   5 | 1 |-1 |-1 |-1 | 0 | 1 |
+        ///  | ----|---|---|---|---|---|---|
+        ///  v   6 | 1 | 1 |-1 |-1 |-1 | 0 |
+        ///    ----|---|---|---|---|---|---|
+        /// </summary>
+        /// <param name="i1">first Status value</param>
+        /// <param name="i2">second Status value</param>
+        /// <param name="status">number of Status bits</param>
+        /// <returns>0 if i1 = i2; -1 if i1 < i2; +1 if i1 > i2</returns>
+        public static int modComp(uint i1, uint i2, int status)
+        {
+            if (i1 == i2) return 0;
+            int comp = 1 << (status - 1);
+            if (i1 < i2)
+                if (i2 - i1 < comp) return -1;
+                else return 1;
+            if (i1 - i2 < comp) return 1;
+            return -1;
+        }
     }
 }
