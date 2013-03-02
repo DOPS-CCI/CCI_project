@@ -883,45 +883,54 @@ namespace ScrollWindow
             if ((string)b.Content == "Next")
             {
                 BDFLoc p = bdf.LocationFactory.New().FromSecs(currentDisplayOffsetInSecs + SearchSiteOffset * currentDisplayWidthInSecs);
-                int last = (int)((uint)bdf.getStatusSample(++p) & head.Mask);
+                GrayCode lastGC = new GrayCode(head.Status);
+                lastGC.Value = (uint)bdf.getStatusSample(p++) & head.Mask;
+                GrayCode nextGC = new GrayCode(head.Status);
                 for (; p.IsInFile; p++)
                 {
-                    int next = (int)((uint)bdf.getStatusSample(p) & head.Mask);
-                    if (next != last)
+                    nextGC.Value = (uint)bdf.getStatusSample(p) & head.Mask;
+                    if (nextGC.Value != lastGC.Value) //then one (or more) Events occur at this point
                     {
                         InputEvent ie;
-                        if (events.TryGetValue(next, out ie))
-                            if (ie.Name == currentSearchEvent) //we have a winner!
-                            {
-                                Viewer.ScrollToHorizontalOffset((p.ToSecs() - SearchSiteOffset * currentDisplayWidthInSecs) * XScaleSecsToInches);
-                                break;
-                            }
-                        last = next;
+                        do
+                        { //see if any of them match our target
+                            if (events.TryGetValue((int)(++lastGC).Value, out ie)) //then there is an existing record in Event file
+                                if (ie.Name == currentSearchEvent) //we have a winner!
+                                {
+                                    Viewer.ScrollToHorizontalOffset((p.ToSecs() - SearchSiteOffset * currentDisplayWidthInSecs) * XScaleSecsToInches);
+                                    return;
+                                }
+                        } while (lastGC.CompareTo(nextGC) < 0);
                     }
                 }
             }
             else //Prev
             {
                 BDFLoc p = bdf.LocationFactory.New().FromSecs(currentDisplayOffsetInSecs + SearchSiteOffset * currentDisplayWidthInSecs);
-                int last = (int)((uint)bdf.getStatusSample(--p) & head.Mask);
+                GrayCode lastGC = new GrayCode(head.Status);
+                lastGC.Value = (uint)bdf.getStatusSample(--p) & head.Mask;
+                GrayCode nextGC = new GrayCode(head.Status);
                 for (; p.IsInFile; p--)
                 {
-                    int next = (int)((uint)bdf.getStatusSample(p) & head.Mask);
-                    if (next != last)
+                    nextGC.Value = (uint)bdf.getStatusSample(p) & head.Mask;
+                    if (nextGC.Value != lastGC.Value) //then at least one Event occured here
                     {
                         InputEvent ie;
-                        if (events.TryGetValue(last, out ie))
-                            if (ie.Name == currentSearchEvent) //we have a winner!
-                            {
-                                Viewer.ScrollToHorizontalOffset(((++p).ToSecs() - SearchSiteOffset * currentDisplayWidthInSecs) * XScaleSecsToInches);
-                                break;
-                            }
-                        last = next;
+                        do
+                        { //see if any of them match the target
+                            if (events.TryGetValue((int)lastGC.Value, out ie))
+                                if (ie.Name == currentSearchEvent) //we have a winner!
+                                {
+                                    Viewer.ScrollToHorizontalOffset(((++p).ToSecs() - SearchSiteOffset * currentDisplayWidthInSecs) * XScaleSecsToInches);
+                                    return;
+                                }
+                            lastGC--;
+                        } while (lastGC.CompareTo(nextGC) > 0);
+//                        lastGC = nextGC;
                     }
                 }
             }
         }
-
     }
 
     internal class ChannelGraph : Canvas
