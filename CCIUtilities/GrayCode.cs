@@ -1,10 +1,15 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 
 namespace CCIUtilities
 {
+    /// <summary>
+    /// This class encapsulates Gray codes and their use in the Status channel of a BDF file per
+    /// the CCI protocol; in particular, they encode the values from 1 to 2^n - 2 where n is the 
+    /// number of Status bits used for the Event markers tied to the Gray codes; the value of zero
+    /// is permitted, but not included in the auto-increment (or decrement) series as it has a 
+    /// special meaning at the start of the BDF file, before the first Event, and is never used to
+    /// encode an Event
+    /// </summary>
     public class GrayCode:IComparable<GrayCode>
     {
         uint _GC;
@@ -13,10 +18,9 @@ namespace CCIUtilities
             get { return _GC; }
             set
             {
-                uint n = Utilities.GC2uint(value);
-                if (n < 0 || n > indexMax) //allow zero, but will not occur with auto increment/decrement
-                    throw new Exception("Attempt to set GrayCode to invalid value");
                 _GC = value;
+                if (this.GC2uint() > indexMax) //allow zero, but will not occur with auto increment/decrement
+                    throw new Exception("Attempt to set GrayCode to invalid value outside of range");
             }
         }
 
@@ -41,7 +45,7 @@ namespace CCIUtilities
         public GrayCode(GrayCode gc)
         {
             _status = gc._status;
-            indexMax = (1U << _status) - 2;
+            indexMax = gc.indexMax;
             _GC = gc._GC;
         }
 
@@ -61,12 +65,16 @@ namespace CCIUtilities
         }
 
         /// <summary>
-        /// Unencode
+        /// Decode GC: uses more efficient algorithm than the one in Utilities,
+        /// that takes into account the number of Status bits in use
         /// </summary>
-        /// <returns>Unencoded Gray code</returns>
+        /// <returns>Dencoded Gray code</returns>
         public uint GC2uint()
         {
-            return Utilities.GC2uint(_GC);
+            uint n = _GC;
+            for (int shift = 1; shift < _status; shift <<= 1)
+                n ^= (n >> shift);
+            return n;
         }
 
         /// <summary>
@@ -76,7 +84,7 @@ namespace CCIUtilities
         /// <returns>Correctly incremented Gray code</returns>
         public static GrayCode operator ++(GrayCode gc)
         {
-            uint n = Utilities.GC2uint(gc._GC) + 1;
+            uint n = gc.GC2uint() + 1;
             gc._GC = n > gc.indexMax ? 1 : Utilities.uint2GC(n);
             return gc;
         }
@@ -89,9 +97,26 @@ namespace CCIUtilities
         /// <returns>Correctly decremented Gray code</returns>
         public static GrayCode operator --(GrayCode gc)
         {
-            uint n = Utilities.GC2uint(gc._GC) - 1;
+            uint n = gc.GC2uint() - 1;
             gc._GC = Utilities.uint2GC(n == 0 ? gc.indexMax : n);
             return gc;
+        }
+
+        /// <summary>
+        /// Subtraction of GrayCodes: returns "distance" between codes, taking into account
+        /// the modulus
+        /// </summary>
+        /// <param name="gc1">First GrayCode</param>
+        /// <param name="gc2">Second GrayCode</param>
+        /// <returns>gc1 - gc2</returns>
+        /// <exception cref="ArgumentException">Throws if number of Status bits not equal</exception>
+        public static int operator -(GrayCode gc1, GrayCode gc2)
+        {
+            if (gc1._status != gc2._status)
+                throw new ArgumentException("Incompatable subtraction: number of Status bits not equal");
+            int d = (int)gc1.GC2uint() - (int)gc2.GC2uint();
+            if (Math.Abs(d) < (gc1.indexMax >> 1)) return d;
+            return d - Math.Sign(d) * (int)gc1.indexMax;
         }
 
         /// <summary>
@@ -99,12 +124,12 @@ namespace CCIUtilities
         /// </summary>
         /// <param name="gc">GrayCode to compare to; must have same number of Status bits</param>
         /// <returns>-1 for less than; 1 for greater than; 0 for equal</returns>
-        /// <exception cref="ArgumentException">Throws if number of status bits not equal</exception>
+        /// <exception cref="ArgumentException">Throws if number of Status bits not equal</exception>
         public int CompareTo(GrayCode gc)
         {
             if (gc._status != this._status)
-                throw new ArgumentException("Number of status bits not equal");
-            return Utilities.modComp(Utilities.GC2uint(this._GC), Utilities.GC2uint(gc._GC), _status);
+                throw new ArgumentException("Incompatable comparison: number of sStatus bits not equal");
+            return Utilities.modComp(this.GC2uint(), gc.GC2uint(), _status);
         }
     }
 }

@@ -102,6 +102,9 @@ namespace CCIUtilities
 
         public static uint GC2uint(uint gc)
         {
+            //this works for up to 32 bit Gray code; see
+            //algorithm in GrayCode class for more efficient
+            //technique if number of bits is known
             uint b = gc;
             b ^= (b >> 16);
             b ^= (b >> 8);
