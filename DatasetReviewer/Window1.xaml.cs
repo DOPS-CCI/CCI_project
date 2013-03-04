@@ -12,7 +12,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using CCIUtilities;
 
-namespace ScrollWindow
+namespace DatasetReviewer
 {
     /// <summary>
     /// Interaction logic for Window1.xaml

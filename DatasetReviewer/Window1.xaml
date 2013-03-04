@@ -1,7 +1,7 @@
-﻿<Window x:Class="ScrollWindow.Window1"
+﻿<Window x:Class="DatasetReviewer.Window1"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Height="336" MinHeight="336" MaxWidth="660" ResizeMode="CanResize" MinWidth="660">
+        Height="336" MinHeight="336" MaxWidth="660" ResizeMode="CanResize" MinWidth="660" WindowStartupLocation="CenterScreen" Topmost="True">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="*"/>

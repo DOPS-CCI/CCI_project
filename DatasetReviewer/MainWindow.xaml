@@ -1,4 +1,4 @@
-﻿<Window x:Class="ScrollWindow.MainWindow"
+﻿<Window x:Class="DatasetReviewer.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Height="700" Width="1000" MinWidth="750" MinHeight="250">
@@ -130,10 +130,10 @@
                                 <Style TargetType="RadioButton">
                                     <Setter Property="VerticalAlignment" Value="Center"/>
                                     <Setter Property="HorizontalAlignment" Value="Left"/>
-                                    <Setter Property="Margin" Value="4"/>
+                                    <Setter Property="Margin" Value="12,1"/>
                                 </Style>
                             </Expander.Resources>
-                            <StackPanel Name="EventSelector" Orientation="Vertical" HorizontalAlignment="Center"/>
+                            <StackPanel Name="EventSelector" Orientation="Vertical" HorizontalAlignment="Left"/>
                         </Expander>
                     </StackPanel>
                 </Grid>

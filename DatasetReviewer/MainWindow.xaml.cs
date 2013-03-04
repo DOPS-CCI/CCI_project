@@ -24,7 +24,7 @@ using Event;
 using ElectrodeFileStream;
 using CCIUtilities;
 
-namespace ScrollWindow
+namespace DatasetReviewer
 {
     /// <summary>
     /// Interaction logic for MainWindow.xaml
@@ -55,9 +55,9 @@ namespace ScrollWindow
 
         public MainWindow()
         {
-            bool r;
             do
             {
+                bool r;
                 do
                 {
                     OpenFileDialog dlg = new OpenFileDialog();
@@ -111,7 +111,7 @@ namespace ScrollWindow
             EventFileReader efr = new EventFileReader(
                 new FileStream(System.IO.Path.Combine(directory, head.EventFile),
                     FileMode.Open, FileAccess.Read)); // open Event file
-            
+
             foreach (Event.InputEvent ie in efr)// read in all Events into dictionary
             {
                 if (!events.ContainsKey(ie.GC)) //quietly skip duplicates
@@ -148,7 +148,7 @@ namespace ScrollWindow
 
             //Initialize timer
             timer.AutoReset = true;
-            timer.Elapsed+=new ElapsedEventHandler(timer_Elapsed);
+            timer.Elapsed += new ElapsedEventHandler(timer_Elapsed);
 
             //Initialize channel information popup
             Color c1 = Color.FromArgb(0xFF, 0xF8, 0xF8, 0xF8);
