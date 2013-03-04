@@ -222,7 +222,7 @@ namespace CCILibrary
             if (!header.isValid) return "BDFEDFFileSream header not valid.";
             if (chan < 0 || chan >= NumberOfChannels) return "Invalid channel number: " + chan.ToString("0");
             string nl = Environment.NewLine;
-            StringBuilder str = new StringBuilder("Label: " + header.channelLabels[chan] + nl);
+            StringBuilder str = new StringBuilder("Label: " + header.channelLabels[chan] + "(" + (chan + 1).ToString("0") + ")" + nl);
             str.Append("Prefilter: " + header.channelPrefilters[chan] + nl);
             str.Append("Transducer: " + header.transducerTypes[chan] + nl);
             str.Append("Physical dimension: " + header.physicalDimensions[chan] + nl);
