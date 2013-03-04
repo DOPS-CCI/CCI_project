@@ -131,5 +131,10 @@ namespace CCIUtilities
                 throw new ArgumentException("Incompatable comparison: number of sStatus bits not equal");
             return Utilities.modComp(this.GC2uint(), gc.GC2uint(), _status);
         }
+
+        public override string ToString()
+        {
+            return Value.ToString("0") + "(" + this.GC2uint().ToString("0") + ")";
+        }
     }
 }
