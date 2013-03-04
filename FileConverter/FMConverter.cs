@@ -119,7 +119,6 @@ namespace FileConverter
             EventFactory.Instance(eventHeader.Events); // set up the factory
             EventFileReader EventFR = new EventFileReader(
                 new FileStream(Path.Combine(directory, eventHeader.EventFile), FileMode.Open, FileAccess.Read));
-            mask = (1 << eventHeader.Status) - 1;
 
             statusPt stp = new statusPt(BDF);
             if (!EDE.intrinsic)
