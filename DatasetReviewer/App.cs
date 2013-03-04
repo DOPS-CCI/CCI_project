@@ -17,7 +17,9 @@ namespace DatasetReviewer
             catch (Exception e)
             {
                 ErrorWindow ew = new ErrorWindow();
-                ew.Message = e.Message;
+                ew.Message = "In " + e.TargetSite + ": " + e.Message +
+                    ";\r\n" + e.StackTrace;
+                ew.ShowDialog();
             }
         }
     }

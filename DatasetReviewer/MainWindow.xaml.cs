@@ -410,15 +410,17 @@ namespace DatasetReviewer
             EventMarkers.Children.Clear();
             BDFLoc start = bdf.LocationFactory.New().FromSecs(currentDisplayOffsetInSecs);
             BDFLoc end = bdf.LocationFactory.New().FromSecs(currentDisplayOffsetInSecs + currentDisplayWidthInSecs);
-            uint lastSample = 0;
+            GrayCode sample = new GrayCode(head.Status);
+            GrayCode lastSample = new GrayCode(sample);
+            lastSample.Value = 0;
             if ((--start).IsInFile)
-                lastSample = (uint)bdf.getStatusSample(start++) & head.Mask; //get sample before start of segment
+                lastSample.Value = (uint)bdf.getStatusSample(start++) & head.Mask; //get sample before start of segment
             else
                 start++;
             for (BDFLoc p = start; p.lessThan(end); p++)
             {
-                uint sample = (uint)bdf.getStatusSample(p) & head.Mask;
-                if (sample != lastSample)
+                sample.Value = (uint)bdf.getStatusSample(p) & head.Mask;
+                if (sample.Value != lastSample.Value)
                 {
                     //draw line in Event graph to mark
                     InputEvent ev;
@@ -431,7 +433,7 @@ namespace DatasetReviewer
                     r.StrokeThickness = currentDisplayWidthInSecs * 0.0008;
                     //add tooltip containing corresponding Event file entry
                     bool EFEntry;
-                    if (EFEntry = events.TryGetValue((int)sample, out ev))
+                    if (EFEntry = events.TryGetValue((int)sample.Value, out ev))
                         r.ToolTip = ev.ToString().Trim();
                     else
                         r.ToolTip = "No entry in Event file!";
@@ -439,8 +441,8 @@ namespace DatasetReviewer
                     TextBlock tb = null; //explicit assignment to fool compiler
                     EventDictionaryEntry EDE;
                     bool multiEvent;
-                    uint n = Utilities.GC2uint(sample) - Utilities.GC2uint(lastSample);
-                    if (multiEvent = (n > 1))
+                    int n = sample - lastSample;
+                    if (multiEvent = (n != 1))
                     {
                         double fSize = 0.9 * EMAH;
                         if (fSize > 0.0035) //minimal font size
@@ -455,9 +457,9 @@ namespace DatasetReviewer
                         }
                         r.Stroke = Brushes.Black; //black by default
                     }
-                    if (EFEntry && ED.TryGetValue(ev.Name, out EDE))
+                    if (n > 0 && EFEntry && ED.TryGetValue(ev.Name, out EDE))
                     {
-                        if(!multiEvent) //if multi-Event, don't mark by type
+                        if (!multiEvent) //if multi-Event, don't mark by type
                             if (EDE.intrinsic)
                             {
                                 Ellipse e = new Ellipse();
@@ -503,7 +505,7 @@ namespace DatasetReviewer
                         EventMarkers.Children.Add(l2);
                     }
                     EventMarkers.Children.Add(r);
-                    lastSample = sample;
+                    lastSample.Value = sample.Value;
                 }
             }
         }
@@ -829,6 +831,7 @@ namespace DatasetReviewer
                 reDrawChannels();
             }
         }
+
         private void MenuItemPrint_Click(object sender, RoutedEventArgs e)
         {
             PrintDocumentImageableArea area = null;
