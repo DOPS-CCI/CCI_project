@@ -47,6 +47,8 @@ namespace DatasetReviewer
         internal TextBlock eventTB;
         Popup channelPopup = new Popup();
         TextBlock popupTB = new TextBlock();
+        Popup eventPopup = new Popup();
+        TextBlock eventPopupTB = new TextBlock();
 
         internal List<int> channelList; //list of currently displayed channels
         internal EventDictionary.EventDictionary ED;
@@ -167,6 +169,21 @@ namespace DatasetReviewer
             channelPopup.AllowsTransparency = true;
             channelPopup.Child = b;
 
+            //Initialize Event information popup
+            eventPopupTB.Background = new LinearGradientBrush(c1, c2, 45D);
+            eventPopupTB.Foreground = Brushes.Black;
+            eventPopupTB.Padding = new Thickness(4D);
+            b = new Border();
+            b.BorderThickness = new Thickness(1);
+            b.CornerRadius = new CornerRadius(4);
+            b.BorderBrush = Brushes.Tomato;
+            b.Margin = new Thickness(0, 0, 24, 24); //allows drop shadow to show up
+            b.Effect = new DropShadowEffect();
+            b.Child = eventPopupTB;
+            eventPopup.Placement = PlacementMode.MousePoint;
+            eventPopup.AllowsTransparency = true;
+            eventPopup.Child = b;
+
             //Initialize FOV slider
             FOV.Maximum = Math.Log10(BDFLength);
             FOV.Value = 1D;
@@ -199,7 +216,7 @@ namespace DatasetReviewer
         // ScrollViewer change routines are here: lead to redraws of window
         private void ScrollViewer_SizeChanged(object sender, SizeChangedEventArgs e)
         {
-            if (e.HeightChanged||e.WidthChanged)
+            if (e.HeightChanged || e.WidthChanged)
             {
                 IndexLine.Y2 = e.NewSize.Height - ScrollBarSize;
                 double w = e.NewSize.Width;
@@ -223,36 +240,6 @@ namespace DatasetReviewer
                 //change Event/location information in bottom panel
                 double midPoint = currentDisplayOffsetInSecs + currentDisplayWidthInSecs / 2D;
                 Loc.Text = midPoint.ToString("0.000");
-
-                //look up full information on Event preceeding and following index time
-                BDFLoc mid = bdf.LocationFactory.New().FromSecs(midPoint);
-                int sample = (int)head.Mask & bdf.getStatusSample(mid);
-                InputEvent ie;
-                bool r = events.TryGetValue(sample, out ie);
-                if (r)
-                    EventPastInfo.Text = ie.ToString().Trim();
-                else
-                    EventPastInfo.Text = "No Event";
-                int past = sample;
-                for (BDFLoc p = mid; ; p++)
-                {
-                    sample = bdf.getStatusSample(p);
-                    if (sample == int.MinValue) //reached EOF
-                    {
-                        EventNextInfo.Text = "No Event";
-                        break;
-                    }
-                    sample &= (int)head.Mask;
-                    if (sample != past)
-                    {
-                        r = events.TryGetValue(sample, out ie);
-                        if (r)
-                        {
-                            EventNextInfo.Text = ie.ToString().Trim();
-                            break;
-                        }
-                    }
-                }
                 reDrawEvents();
             }
             if (e.ViewportHeightChange != 0D)
@@ -275,7 +262,7 @@ namespace DatasetReviewer
         private void Viewer_MouseDown(object sender, MouseButtonEventArgs e)
         {
             Point pt = e.GetPosition(Viewer);
-            if (Viewer.ActualHeight - pt.Y < ScrollBarSize) return; //ignore scrollbar hits
+            if (Viewer.ActualHeight - pt.Y < ScrollBarSize + EventChannelHeight) return; //ignore scrollbar and event hits
             if (e.LeftButton == MouseButtonState.Pressed)
             {
                 if ((Keyboard.Modifiers & ModifierKeys.Control) > 0)
@@ -329,7 +316,7 @@ namespace DatasetReviewer
                     AddAfter.Items.Clear();
                     for (int i = 0; i < bdf.NumberOfChannels; i++)
                     {
-                        if(channelList.Contains(i)) continue;
+                        if (channelList.Contains(i)) continue;
                         MenuItem mi1 = new MenuItem();
                         MenuItem mi2 = new MenuItem();
                         mi1.Header = mi2.Header = bdf.channelLabel(i);
@@ -422,27 +409,54 @@ namespace DatasetReviewer
                 sample.Value = (uint)bdf.getStatusSample(p) & head.Mask;
                 if (sample.Value != lastSample.Value)
                 {
-                    //draw line in Event graph to mark
-                    InputEvent ev;
                     double s = p.ToSecs(); //center marker at s
+                    double EMAH = EventMarkers.ActualHeight; //use to scale marker/button
+                    int n = sample - lastSample; //number of "simultaneous" Events
+                    bool multiEvent = n > 1; //indicator for multiple "simultaneous" Events
+                    InputEvent evFound = null; //found at least one valid Event
+                    bool AllEFEntriesValid = true;
+
+                    Button evbutt = (Button)EventMarkers.FindResource("EventButton"); //create and place button over Event marker
+                    evbutt.Height = EMAH;
+                    evbutt.Width = Math.Max(EMAH, bdf.SampTime);
+                    Canvas.SetTop(evbutt, 0D);
+                    Canvas.SetLeft(evbutt, Math.Max(s - evbutt.Width / 2D, 0D));
+
+                    StringBuilder sb = new StringBuilder();
+                    int i = 0;
+                    for (GrayCode gc = new GrayCode(++lastSample); gc.CompareTo(sample) <= 0; gc++)
+                    {
+                        InputEvent ev;
+                        if (multiEvent)
+                            sb.Append("Event number " + (++i).ToString("0") + ":" + Environment.NewLine);
+                        if (events.TryGetValue((int)gc.Value, out ev))
+                        {
+                            evFound = ev; //remember last valid entry
+                            sb.Append(ev.ToString() + Environment.NewLine);
+                        }
+                        else
+                        {
+                            AllEFEntriesValid = false; //there's at least one invalid Event file entry
+                            sb.Append("No Event file entry for Event" + Environment.NewLine + "     with GC = "
+                                + gc.ToString() + Environment.NewLine);
+                        }
+                    }
+                    evbutt.Tag = sb.ToString().Trim();
+                    EventMarkers.Children.Add(evbutt);
+
+
+                    //draw line/rectangle in Event graph to mark
                     Rectangle r = new Rectangle();
-                    double EMAH = r.Height = EventMarkers.ActualHeight;
+                    r.Height = EMAH;
                     r.Width = Math.Max(bdf.SampTime, currentDisplayWidthInSecs * 0.0008);
                     Canvas.SetLeft(r, s - r.Width / 2D);
                     Canvas.SetTop(r, 0D);
                     r.StrokeThickness = currentDisplayWidthInSecs * 0.0008;
-                    //add tooltip containing corresponding Event file entry
-                    bool EFEntry;
-                    if (EFEntry = events.TryGetValue((int)sample.Value, out ev))
-                        r.ToolTip = ev.ToString().Trim();
-                    else
-                        r.ToolTip = "No entry in Event file!";
+
                     //encode intrinsic/extrinsic in green/blue colors; incorrect Event name encoded in red
                     TextBlock tb = null; //explicit assignment to fool compiler
                     EventDictionaryEntry EDE;
-                    bool multiEvent;
-                    int n = sample - lastSample;
-                    if (multiEvent = (n != 1))
+                    if (multiEvent)
                     {
                         double fSize = 0.9 * EMAH;
                         if (fSize > 0.0035) //minimal font size
@@ -452,15 +466,14 @@ namespace DatasetReviewer
                             tb.FontSize = fSize;
                             Canvas.SetLeft(tb, s);
                             Canvas.SetTop(tb, -0.1 * EMAH);
-                            tb.ToolTip = r.ToolTip;
                             EventMarkers.Children.Add(tb);
                         }
                         r.Stroke = Brushes.Black; //black by default
                     }
-                    if (n > 0 && EFEntry && ED.TryGetValue(ev.Name, out EDE))
+                    if (AllEFEntriesValid && ED.TryGetValue(evFound.Name, out EDE))
                     {
                         if (!multiEvent) //if multi-Event, don't mark by type
-                            if (EDE.intrinsic)
+                            if (EDE.intrinsic) //single Event intrinsic
                             {
                                 Ellipse e = new Ellipse();
                                 e.Height = e.Width = 0.6 * EMAH;
@@ -468,10 +481,9 @@ namespace DatasetReviewer
                                 Canvas.SetLeft(e, s - 0.3 * EMAH);
                                 e.Stroke = r.Stroke = Brushes.Green;
                                 e.StrokeThickness = r.StrokeThickness;
-                                e.ToolTip = r.ToolTip;
                                 EventMarkers.Children.Add(e);
                             }
-                            else //extrinsic Event
+                            else //single Event extrinsic
                             {
                                 Line l1 = new Line();
                                 Line l2 = new Line();
@@ -482,7 +494,6 @@ namespace DatasetReviewer
                                 l2.Y2 = 0.8 * EMAH;
                                 l1.Y2 = l2.Y1 = 0.5 * EMAH;
                                 l1.X2 = l2.X1 = s + 0.5 * (EDE.location ? EMAH : -EMAH);
-                                l1.ToolTip = l2.ToolTip = r.ToolTip;
                                 EventMarkers.Children.Add(l1);
                                 EventMarkers.Children.Add(l2);
                             }
@@ -490,7 +501,7 @@ namespace DatasetReviewer
                     else //error -- no corresponding record in Event file or no EDE for this Event
                     {
                         r.Stroke = Brushes.Red;
-                        if (tb != null) //in case it's multiple
+                        if (multiEvent) //change text to red, too
                             tb.Foreground = Brushes.Red;
                         Line l1 = new Line();
                         Line l2 = new Line();
@@ -500,7 +511,6 @@ namespace DatasetReviewer
                         l1.Y1 = l2.Y2 = 0.2 * EMAH;
                         l1.X2 = l2.X2 = s + 0.3 * EMAH;
                         l1.Y2 = l2.Y1 = 0.8 * EMAH;
-                        l1.ToolTip = l2.ToolTip = r.ToolTip;
                         EventMarkers.Children.Add(l1);
                         EventMarkers.Children.Add(l2);
                     }
@@ -598,9 +608,9 @@ namespace DatasetReviewer
             else // must automatic decimation
             {
                 ChannelGraph.decimateNew = Convert.ToInt32(Math.Ceiling(2.5D * (highBDFP - lowBDFP) / Viewer.ActualWidth));
-                if (ChannelGraph.decimateNew == 2 && dType==DecimationType.MinMax) ChannelGraph.decimateNew = 1; //No advantage to decimating by 2
+                if (ChannelGraph.decimateNew == 2 && dType == DecimationType.MinMax) ChannelGraph.decimateNew = 1; //No advantage to decimating by 2
             }
-            CurrentDecimation.Text = ChannelGraph.decimateNew.ToString("0");
+            DecimationValue.Text = CurrentDecimation.Text = ChannelGraph.decimateNew.ToString("0");
             bool completeRedraw = ChannelGraph.decimateNew != ChannelGraph.decimateOld || !overlap; //complete redraw of all channels if ...
             // change in decimation or if completely new screen (no overlap of old and new)
             ChannelGraph.decimateOld = ChannelGraph.decimateNew;
@@ -655,10 +665,10 @@ namespace DatasetReviewer
                     }
                 }
             }
-            
+
             //now, update the fields as required:
             if (completeRedraw)
-                //1. Redraw everything
+            //1. Redraw everything
             {
                 for (BDFLoc i = lowBDFP; i.lessThan(highBDFP); i.Increment(ChannelGraph.decimateNew))
                 {
@@ -675,7 +685,7 @@ namespace DatasetReviewer
             else
             {
                 if (removeHigh > 0)
-                    //2. Add points below current point list
+                //2. Add points below current point list
                 {
                     for (BDFLoc i = ((ChannelGraph)chans[0]).FilePointList[0].fileLocation - ChannelGraph.decimateNew;
                         lowBDFP.lessThan(i); i.Decrement(ChannelGraph.decimateNew))
@@ -694,7 +704,7 @@ namespace DatasetReviewer
                     }
                 }
                 if (removeLow > 0)
-                    //3. Add points above current point list
+                //3. Add points above current point list
                 {
                     for (BDFLoc i = ((ChannelGraph)chans[0]).FilePointList.Last().fileLocation + ChannelGraph.decimateNew;
                         i.lessThan(highBDFP); i.Increment(ChannelGraph.decimateNew))
@@ -768,6 +778,7 @@ namespace DatasetReviewer
             if (decVal != 0)
             {
                 ChannelGraph.decimateOld = -1; //force complete redraw
+                DecimationInfo.Text = (string)rb.Content;
                 reDrawChannels();
             }
         }
@@ -780,11 +791,12 @@ namespace DatasetReviewer
             {
                 decVal = -1; //indicate Auto
             }
-            else
+            else //not AUTO, parse field
             {
+                int d; //use intermediate result, in case not valid
                 try
                 {
-                    decVal = Convert.ToInt32(DecVal.Text);
+                    d = Convert.ToInt32(DecVal.Text);
                 }
                 catch
                 {
@@ -792,12 +804,13 @@ namespace DatasetReviewer
                     ChangeDecimation.IsEnabled = false;
                     return;
                 }
-                if (decVal <= 0)
+                if (d <= 0)
                 {
                     DecVal.BorderBrush = Brushes.Red;
                     ChangeDecimation.IsEnabled = false;
                     return;
                 }
+                decVal = d;
             }
             DecVal.BorderBrush = Brushes.Black;
             if (ChannelGraph.decimateOld != decVal)
@@ -929,10 +942,23 @@ namespace DatasetReviewer
                                 }
                             lastGC--;
                         } while (lastGC.CompareTo(nextGC) > 0);
-//                        lastGC = nextGC;
                     }
                 }
             }
+        }
+
+        private void EventButton_Down(object sender, RoutedEventArgs e)
+        {
+            Button b = (Button)sender;
+            eventPopupTB.Text = (string)b.Tag;
+            eventPopup.IsOpen = true;
+            b.CaptureMouse();
+        }
+
+        private void EventButton_Up(object sender, MouseButtonEventArgs e)
+        {
+            eventPopup.IsOpen = false;
+            ((Button)sender).ReleaseMouseCapture();
         }
     }
 

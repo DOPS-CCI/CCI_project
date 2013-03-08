@@ -10,10 +10,13 @@ namespace DatasetReviewer
         static void Main()
         {
             App app = new App();
+#if !DEBUG
+            Console.WriteLine("NOT in DEBUG mode");
             try
             {
                 app.Run(new MainWindow());
             }
+
             catch (Exception e)
             {
                 ErrorWindow ew = new ErrorWindow();
@@ -21,6 +24,10 @@ namespace DatasetReviewer
                     ";\r\n" + e.StackTrace;
                 ew.ShowDialog();
             }
+#else
+            Console.WriteLine("In DEBUG mode");
+            app.Run(new MainWindow());
+#endif
         }
     }
 }
