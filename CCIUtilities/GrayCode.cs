@@ -4,9 +4,9 @@ namespace CCIUtilities
 {
     /// <summary>
     /// This class encapsulates Gray codes and their use in the Status channel of a BDF file per
-    /// the CCI protocol; in particular, they encode the values from 1 to 2^n - 2 where n is the 
-    /// number of Status bits used for the Event markers tied to the Gray codes; the value of zero
-    /// is permitted, but not included in the auto-increment (or decrement) series as it has a 
+    /// the CCI protocol (cyclical GrayCode); in particular, they encode the values from 1 to 2^n - 2
+    /// where n is the number of Status bits used for the Event markers tied to the Gray codes;
+    /// the value of zero is permitted, but not included in the cyclical series as it has a 
     /// special meaning at the start of the BDF file, before the first Event, and is never used to
     /// encode an Event
     /// </summary>
@@ -19,13 +19,13 @@ namespace CCIUtilities
             set
             {
                 _GC = value;
-                if (this.GC2uint() > indexMax) //allow zero, but will not occur with auto increment/decrement
-                    throw new Exception("Attempt to set GrayCode to invalid value outside of range");
+                if (this.Decode() > _indexMax) //allow zero, but will not occur with auto increment/decrement
+                    throw new Exception("Attempt to set GrayCode to value outside of valid range");
             }
         }
 
         int _status;
-        uint indexMax;
+        uint _indexMax;
 
         /// <summary>
         /// Trivial constructor; set to the lowest/first Gray code
@@ -34,7 +34,7 @@ namespace CCIUtilities
         public GrayCode(int status)
         {
             _status = status;
-            indexMax = (1U << _status) - 2;
+            _indexMax = (1U << _status) - 2;
             _GC = 1;
         }
 
@@ -45,7 +45,7 @@ namespace CCIUtilities
         public GrayCode(GrayCode gc)
         {
             _status = gc._status;
-            indexMax = gc.indexMax;
+            _indexMax = gc._indexMax;
             _GC = gc._GC;
         }
 
@@ -58,18 +58,26 @@ namespace CCIUtilities
         public GrayCode(uint n, int status)
         {
             _status = status;
-            indexMax = (1U << _status) - 2;
-            if (n < 1 || n > indexMax)
+            _indexMax = (1U << _status) - 2;
+        }
+
+        /// <summary>
+        /// Encode value into a Gray code
+        /// </summary>
+        /// <param name="n">Number to be encoded</param>
+        public void Encode(uint n)
+        {
+            if (n > _indexMax) //permit setting to zero, but not in cyclical series
                 throw new Exception("Attempt to set GrayCode to invalid value");
-            _GC = Utilities.uint2GC(n);
+            _GC = n ^ (n >> 1);
         }
 
         /// <summary>
         /// Decode GC: uses more efficient algorithm than the one in Utilities,
-        /// that takes into account the number of Status bits in use
+        /// taking into account the number of Status bits in use
         /// </summary>
-        /// <returns>Dencoded Gray code</returns>
-        public uint GC2uint()
+        /// <returns>Dncoded Gray code</returns>
+        public uint Decode()
         {
             uint n = _GC;
             for (int shift = 1; shift < _status; shift <<= 1)
@@ -84,8 +92,8 @@ namespace CCIUtilities
         /// <returns>Correctly incremented Gray code</returns>
         public static GrayCode operator ++(GrayCode gc)
         {
-            uint n = gc.GC2uint() + 1;
-            gc._GC = n > gc.indexMax ? 1 : Utilities.uint2GC(n);
+            uint n = gc.Decode() + 1;
+            gc._GC = n > gc._indexMax ? 1 : Utilities.uint2GC(n);
             return gc;
         }
 
@@ -97,8 +105,8 @@ namespace CCIUtilities
         /// <returns>Correctly decremented Gray code</returns>
         public static GrayCode operator --(GrayCode gc)
         {
-            uint n = gc.GC2uint() - 1;
-            gc._GC = Utilities.uint2GC(n == 0 ? gc.indexMax : n);
+            uint n = gc.Decode() - 1;
+            gc.Encode(n == 0 ? gc._indexMax : n);
             return gc;
         }
 
@@ -114,9 +122,9 @@ namespace CCIUtilities
         {
             if (gc1._status != gc2._status)
                 throw new ArgumentException("Incompatable subtraction: number of Status bits not equal");
-            int d = (int)gc1.GC2uint() - (int)gc2.GC2uint();
-            if (Math.Abs(d) < (gc1.indexMax >> 1)) return d;
-            return d - Math.Sign(d) * (int)gc1.indexMax;
+            int d = (int)gc1.Decode() - (int)gc2.Decode();
+            if (Math.Abs(d) < (gc1._indexMax >> 1)) return d;
+            return d - Math.Sign(d) * (int)gc1._indexMax;
         }
 
         /// <summary>
@@ -128,13 +136,13 @@ namespace CCIUtilities
         public int CompareTo(GrayCode gc)
         {
             if (gc._status != this._status)
-                throw new ArgumentException("Incompatable comparison: number of sStatus bits not equal");
-            return Utilities.modComp(this.GC2uint(), gc.GC2uint(), _status);
+                throw new ArgumentException("Incompatable comparison: number of Status bits not equal");
+            return Utilities.modComp(this.Decode(), gc.Decode(), _status);
         }
 
         public override string ToString()
         {
-            return Value.ToString("0") + "(" + this.GC2uint().ToString("0") + ")";
+            return Value.ToString("0") + "(" + this.Decode().ToString("0") + ")";
         }
     }
 }
