@@ -412,36 +412,42 @@ namespace DatasetReviewer
                     double s = p.ToSecs(); //center marker at s
                     double EMAH = EventMarkers.ActualHeight; //use to scale marker/button
                     int n = sample - lastSample; //number of "simultaneous" Events
+                    bool AllEFEntriesValid = n > 0;
                     bool multiEvent = n > 1; //indicator for multiple "simultaneous" Events
                     InputEvent evFound = null; //found at least one valid Event
-                    bool AllEFEntriesValid = true;
 
                     Button evbutt = (Button)EventMarkers.FindResource("EventButton"); //create and place button over Event marker
                     evbutt.Height = EMAH;
                     evbutt.Width = Math.Max(EMAH, bdf.SampTime);
                     Canvas.SetTop(evbutt, 0D);
                     Canvas.SetLeft(evbutt, Math.Max(s - evbutt.Width / 2D, 0D));
-
-                    StringBuilder sb = new StringBuilder();
-                    int i = 0;
-                    for (GrayCode gc = new GrayCode(++lastSample); gc.CompareTo(sample) <= 0; gc++)
+                    if (!AllEFEntriesValid) //Error: Status sequence moves in reverse
                     {
-                        InputEvent ev;
-                        if (multiEvent)
-                            sb.Append("Event number " + (++i).ToString("0") + ":" + Environment.NewLine);
-                        if (events.TryGetValue((int)gc.Value, out ev))
-                        {
-                            evFound = ev; //remember last valid entry
-                            sb.Append(ev.ToString() + Environment.NewLine);
-                        }
-                        else
-                        {
-                            AllEFEntriesValid = false; //there's at least one invalid Event file entry
-                            sb.Append("No Event file entry for Event" + Environment.NewLine + "     with GC = "
-                                + gc.ToString() + Environment.NewLine);
-                        }
+                        evbutt.Tag = "Error in Status sequence";
                     }
-                    evbutt.Tag = sb.ToString().Trim();
+                    else
+                    {
+                        StringBuilder sb = new StringBuilder();
+                        int i = 0;
+                        for (GrayCode gc = new GrayCode(++lastSample); gc.CompareTo(sample) <= 0; gc++)
+                        {
+                            InputEvent ev;
+                            if (multiEvent)
+                                sb.Append("Event number " + (++i).ToString("0") + ":" + Environment.NewLine);
+                            if (events.TryGetValue((int)gc.Value, out ev))
+                            {
+                                evFound = ev; //remember last valid entry
+                                sb.Append(ev.ToString() + Environment.NewLine);
+                            }
+                            else
+                            {
+                                AllEFEntriesValid = false; //there's at least one invalid Event file entry
+                                sb.Append("No Event file entry for Event" + Environment.NewLine + "     with GC = "
+                                    + gc.ToString() + Environment.NewLine);
+                            }
+                        }
+                        evbutt.Tag = sb.ToString().Trim();
+                    }
                     EventMarkers.Children.Add(evbutt);
 
 
