@@ -297,38 +297,6 @@ namespace DatasetReviewer
                 }
                 Viewer.CaptureMouse();
             }
-            else if (e.RightButton == MouseButtonState.Pressed)
-            {
-                graphNumber = (int)(pt.Y / ChannelGraph.CanvasHeight);
-                if (graphNumber < channelList.Count)
-                {
-                    if (channelList.Count <= 1)
-                        ((MenuItem)(Viewer.ContextMenu.Items[3])).IsEnabled = false;
-                    else
-                        ((MenuItem)(Viewer.ContextMenu.Items[3])).IsEnabled = true;
-                    //set up context menu about to be disdplayed
-                    string channelName = bdf.channelLabel(channelList[graphNumber]);
-                    ((MenuItem)(Viewer.ContextMenu.Items[0])).Header = "Add new channel before " + channelName;
-                    ((MenuItem)(Viewer.ContextMenu.Items[1])).Header = "Add new channel after " + channelName;
-                    ((MenuItem)(Viewer.ContextMenu.Items[3])).Header = "Remove channel " + channelName;
-                    Viewer.ContextMenu.Visibility = Visibility.Visible;
-                    AddBefore.Items.Clear();
-                    AddAfter.Items.Clear();
-                    for (int i = 0; i < bdf.NumberOfChannels; i++)
-                    {
-                        if (channelList.Contains(i)) continue;
-                        MenuItem mi1 = new MenuItem();
-                        MenuItem mi2 = new MenuItem();
-                        mi1.Header = mi2.Header = bdf.channelLabel(i);
-                        mi1.Click += new RoutedEventHandler(MenuItemAdd_Click);
-                        mi2.Click += new RoutedEventHandler(MenuItemAdd_Click);
-                        AddBefore.Items.Add(mi1);
-                        AddAfter.Items.Add(mi2);
-                    }
-                }
-                else
-                    Viewer.ContextMenu.Visibility = Visibility.Hidden;
-            }
         }
 
         private void Viewer_MouseUp(object sender, MouseButtonEventArgs e)
@@ -349,9 +317,6 @@ namespace DatasetReviewer
                     if (Math.Abs(loc.X - currentDragLocation.X) > 0D)
                         Viewer.ScrollToHorizontalOffset(startDragScrollLocation - loc.X + startDragMouseLocation.X);
                 }
-            }
-            else if (e.ChangedButton == MouseButton.Right)
-            {
             }
         }
 
@@ -740,9 +705,11 @@ namespace DatasetReviewer
                 cg.path.StrokeThickness = currentDisplayWidthInSecs * 0.0006D;
 
                 //determine if "rescale" needs to be done: significant change in scale or offset?
-                bool rescale = Math.Abs((cg.newScale - cg.currentScale) / cg.currentScale) > scaleDelta || //if scale changes sufficiently or...
-                    Math.Abs((cg.newOffset - cg.currentOffset) / (cg.overallMax - cg.overallMin)) > scaleDelta || //if offset changes sufficiently or...
-                    ChannelGraph._canvasHeight != ChannelGraph._oldCanvasHeight; //if there has been a change in CanvasHeight
+                bool rescale = Math.Abs((cg.newScale - cg.currentScale) / cg.currentScale) > scaleDelta &&
+                    Math.Abs((cg.overallMax - cg.overallMin) * (cg.newScale - cg.currentScale)) > 1D || //if scale changes sufficiently or...
+                    Math.Abs((cg.newOffset - cg.currentOffset) / (cg.overallMax - cg.overallMin)) > scaleDelta &&
+                    Math.Abs((cg.newOffset - cg.currentOffset) * cg.newScale) > 1D || //if offset changes sufficiently or...
+                    Math.Abs(ChannelGraph.CanvasHeight - cg.Height * XScaleSecsToInches) > 0.05; //if there has been a change in CanvasHeight
 
                 //only redraw if Y-scale has changed sufficiently, decimation changed, points have been removed, or there's no overlap
                 if (rescale || cg.needsRedraw)
@@ -752,11 +719,11 @@ namespace DatasetReviewer
                     cg.currentOffset = cg.newOffset;
                     cg.rescalePoints(); //create new pointList
                     //and install it in window
+                    ChannelGraph.OldCanvasHeight = ChannelGraph.CanvasHeight; //reset
                     StreamGeometryContext ctx = cg.geometry.Open();
                     ctx.BeginFigure(cg.pointList[0], false, false);
                     ctx.PolyLineTo(cg.pointList, true, true);
                     ctx.Close();
-                    cg.Height = ChannelGraph.CanvasHeight / XScaleSecsToInches; //set Height so they stack in StackPanel correctly
                     //draw new baseline location for this graph, if visible
                     double t = 0.5 - cg.currentOffset * cg.currentScale;
                     if (t < 0D || t > 1D)
@@ -770,6 +737,7 @@ namespace DatasetReviewer
                         cg.baseline.StrokeThickness = 1D;
                     }
                 }
+                cg.Height = ChannelGraph.CanvasHeight / XScaleSecsToInches; //set Height so they stack in StackPanel correctly
             }
             this.Cursor = Cursors.Arrow;
         }
@@ -953,18 +921,69 @@ namespace DatasetReviewer
             }
         }
 
-        private void EventButton_Down(object sender, RoutedEventArgs e)
+        private void EventButton_Down(object sender, MouseButtonEventArgs e)
         {
-            Button b = (Button)sender;
-            eventPopupTB.Text = (string)b.Tag;
-            eventPopup.IsOpen = true;
-            b.CaptureMouse();
+            if (e.RightButton == MouseButtonState.Pressed)
+            {
+                Button b = (Button)sender;
+                eventPopupTB.Text = (string)b.Tag;
+                eventPopup.IsOpen = true;
+                b.CaptureMouse();
+                e.Handled = true;
+            }
         }
 
         private void EventButton_Up(object sender, MouseButtonEventArgs e)
         {
             eventPopup.IsOpen = false;
-            ((Button)sender).ReleaseMouseCapture();
+            ((UIElement)sender).ReleaseMouseCapture();
+            e.Handled = true;
+        }
+
+        private void ViewerContextMenu_Opened(object sender, RoutedEventArgs e)
+        {
+            Point pt = Mouse.GetPosition(Viewer);
+            graphNumber = (int)(pt.Y / ChannelGraph.CanvasHeight);
+            Console.WriteLine("In ViewerContextMenu_Opened with " + graphNumber.ToString("0"));
+            if (graphNumber < channelList.Count)
+            {
+                if (channelList.Count <= 1)
+                    ((MenuItem)(Viewer.ContextMenu.Items[3])).IsEnabled = false;
+                else
+                    ((MenuItem)(Viewer.ContextMenu.Items[3])).IsEnabled = true;
+                //set up context menu about to be displayed
+                string channelName = bdf.channelLabel(channelList[graphNumber]);
+                ((MenuItem)(Viewer.ContextMenu.Items[0])).Header = "Add new channel before " + channelName;
+                ((MenuItem)(Viewer.ContextMenu.Items[1])).Header = "Add new channel after " + channelName;
+                ((MenuItem)(Viewer.ContextMenu.Items[3])).Header = "Remove channel " + channelName;
+                Viewer.ContextMenu.Visibility = Visibility.Visible;
+                AddBefore.Items.Clear();
+                AddAfter.Items.Clear();
+                if (channelList.Count < bdf.NumberOfChannels)
+                {
+                    ((MenuItem)Viewer.ContextMenu.Items[0]).IsEnabled = true;
+                    ((MenuItem)Viewer.ContextMenu.Items[1]).IsEnabled = true;
+                    for (int i = 0; i < bdf.NumberOfChannels; i++)
+                    {
+                        if (channelList.Contains(i)) continue;
+                        MenuItem mi1 = new MenuItem();
+                        MenuItem mi2 = new MenuItem();
+                        mi1.Header = mi2.Header = bdf.channelLabel(i);
+                        mi1.Click += new RoutedEventHandler(MenuItemAdd_Click);
+                        mi2.Click += new RoutedEventHandler(MenuItemAdd_Click);
+                        AddBefore.Items.Add(mi1);
+                        AddAfter.Items.Add(mi2);
+                    }
+                }
+                else
+                {
+                    ((MenuItem)Viewer.ContextMenu.Items[0]).IsEnabled = false;
+                    ((MenuItem)Viewer.ContextMenu.Items[1]).IsEnabled = false;
+                }
+            }
+            else
+                Viewer.ContextMenu.Visibility = Visibility.Collapsed;
+
         }
     }
 
@@ -988,8 +1007,8 @@ namespace DatasetReviewer
         internal static BDFEDFFileReader bdf;
         internal static int decimateOld = 0;
         internal static int decimateNew;
-        internal static double _canvasHeight = 0;
-        internal static double _oldCanvasHeight;
+        private static double _canvasHeight = 0;
+        private static double _oldCanvasHeight;
         internal static double CanvasHeight
         {
             get
@@ -1000,6 +1019,15 @@ namespace DatasetReviewer
             {
                 _oldCanvasHeight = _canvasHeight;
                 _canvasHeight = value;
+            }
+        }
+        internal static double OldCanvasHeight
+        {
+            get { return _oldCanvasHeight; }
+            set {
+                if (value != _canvasHeight)
+                    throw new Exception("Only set OldCanvasHeight to CanvasHeight!");
+                _oldCanvasHeight = _canvasHeight;
             }
         }
 

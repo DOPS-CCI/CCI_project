@@ -27,16 +27,16 @@
         </Canvas>
         <ScrollViewer Name="Viewer" Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" HorizontalScrollBarVisibility="Visible" ScrollChanged="Viewer_ScrollChanged" MouseUp="Viewer_MouseUp"
                       MouseMove="Viewer_MouseMove" PreviewMouseDown="Viewer_MouseDown" SizeChanged="ScrollViewer_SizeChanged" VerticalScrollBarVisibility="Disabled">
-                    <ScrollViewer.ContextMenu>
-                        <ContextMenu>
-                        <MenuItem Name="AddBefore" Header="Add channel before "/>
+            <ScrollViewer.ContextMenu>
+                <ContextMenu Opened="ViewerContextMenu_Opened">
+                    <MenuItem Name="AddBefore" Header="Add channel before "/>
                     <MenuItem Name="AddAfter" Header="Add channel after "/>
-                        <Separator/>
+                    <Separator/>
                     <MenuItem Header="Remove channel " Click="MenuItemRemove_Click" />
                     <Separator/>
                     <MenuItem Header="Print window" Click="MenuItemPrint_Click" />
                 </ContextMenu>
-                    </ScrollViewer.ContextMenu>
+            </ScrollViewer.ContextMenu>
             <Grid >
                 <Grid.RowDefinitions>
                     <RowDefinition Height="*"/>
@@ -47,7 +47,7 @@
                 </StackPanel>
                 <Canvas Grid.Row="1" Name="EventMarkers">
                     <Canvas.Resources>
-                        <Button x:Key="EventButton" x:Shared="False" Width="15" Height="15" Background="#00000000" MouseDown="EventButton_Down" Panel.ZIndex="1000000" MouseUp="EventButton_Up" />
+                        <Button x:Key="EventButton" x:Shared="False" Background="#00000000" PreviewMouseDown="EventButton_Down" Panel.ZIndex="1000000" PreviewMouseUp="EventButton_Up" />
                         <Style TargetType="Button">
                             <!--Set to true to not get any properties from the themes.-->
                             <Setter Property="OverridesDefaultStyle" Value="False"/>
