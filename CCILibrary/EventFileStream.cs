@@ -73,7 +73,7 @@ namespace EventFile
                     }
                     xr.ReadEndElement(/* ClockTime */);
                     xr.ReadStartElement("EventTime", nameSpace);
-                    xr.ReadContentAsString(); //skip -- for human consumption only!
+                    ev.EventTime = xr.ReadContentAsString(); //For human consumption only!
                     xr.ReadEndElement(/* EventTime */);
                 }
                 else //Time construct -- deprecated as of 11 Feb 2013
@@ -82,7 +82,7 @@ namespace EventFile
                     string t = xr.ReadContentAsString();
                     if (t.Contains(".")) //new style
                         ev.Time = System.Convert.ToDouble(t);
-                    else //old style -- very deprecated
+                    else //old style -- very deprecated!
                         ev.Time = System.Convert.ToDouble(t.Substring(0, 11) + "." + t.Substring(11));
                     xr.ReadEndElement(/* Time */);
                 }

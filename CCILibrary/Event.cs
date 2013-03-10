@@ -55,7 +55,7 @@ namespace Event
                 throw new Exception("No entry in EventDictionary for \"" + name + "\"");
             OutputEvent e = new OutputEvent(ede);
             e.m_index = nextIndex();
-            e.m_gc = greyCode(e.m_index);
+            e.m_gc = grayCode(e.m_index);
             markBDFstatus(e.m_gc);
             e.m_name = name;
             return e;
@@ -115,7 +115,7 @@ namespace Event
         {
             //***** Write i to DIO to mark the Status channel *****
         }
-        internal static uint greyCode(uint n)
+        internal static uint grayCode(uint n)
         {
             return n ^ (n >> 1);
         }
@@ -189,7 +189,7 @@ namespace Event
             m_name = entry.Name;
             m_time = (double)(time.Ticks) / 1E7;
             m_index = (uint)index;
-            m_gc = EventFactory.greyCode(m_index);
+            m_gc = EventFactory.grayCode(m_index);
             GVValue = null;
         }
         public override string GetGVName(int j)
@@ -205,6 +205,7 @@ namespace Event
         internal string name;
         public string Name { get { return name; } }
         public double Time; //<ClockTime> -- only provides resolution to 10 microseconds
+        public string EventTime; //optional; string translation of Time
         public int Index;
         public int GC;
         public string[] GVValue;
@@ -225,9 +226,16 @@ namespace Event
             string nl = Environment.NewLine;
             StringBuilder str = new StringBuilder("Event name: " + name + nl);
             str.Append("Index: " + Index.ToString("0") + nl);
-            str.Append("GreyCode: " + GC.ToString("0") + nl);
-            DateTime t = new DateTime((long)(Time * 1E7));
-            str.Append("Time: " + t.ToString("yyyy-MM-dd@HH:mm:ss.ffff") + nl);
+            str.Append("GrayCode: " + GC.ToString("0") + nl);
+            if (EventTime != null && EventTime != "")
+            {
+                str.Append("ClockTime: " + Time.ToString("00000000000.0000000" + nl));
+                str.Append("EventTime: " + EventTime + nl);
+            }
+            else
+            {
+                str.Append("Time: " + Time.ToString("00000000000.0000000") + nl);
+            }
             int j=0;
             if (ede.GroupVars != null)
                 foreach (GVEntry gve in ede.GroupVars)
