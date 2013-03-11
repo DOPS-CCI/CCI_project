@@ -87,6 +87,9 @@
                 <Expander.Header>
                     <TextBlock FontWeight="Bold"><Span><Run Text="Event selection: "/><Run Name="SearchEventName"/></Span></TextBlock>
                 </Expander.Header>
+                <Expander.ToolTip>
+                    Use to select type of Event to move to
+                </Expander.ToolTip>
                 <Expander.Resources>
                     <Style TargetType="RadioButton">
                         <Setter Property="VerticalAlignment" Value="Center"/>
@@ -107,13 +110,21 @@
                         <Setter Property="Width" Value="60"/>
                     </Style>
                 </StackPanel.Resources>
-                <Button Content="Prev" HorizontalAlignment="Stretch" Margin="0,0,10,0" Click="SearchEvent_Click"/>
+                <Button Content="Prev" HorizontalAlignment="Stretch" Margin="0,0,10,0" Click="SearchEvent_Click">
+                    <Button.ToolTip>
+                        Move to previous Event
+                    </Button.ToolTip>
+                </Button>
                 <RadioButton Tag="0" Checked="SiteSelection_Checked" />
                 <RadioButton Tag="0.25" Checked="SiteSelection_Checked" />
                 <RadioButton Tag="0.5" Checked="SiteSelection_Checked" IsChecked="True"/>
                 <RadioButton Tag="0.75" Checked="SiteSelection_Checked" />
                 <RadioButton Tag="1" Checked="SiteSelection_Checked" />
-                <Button Content="Next" HorizontalAlignment="Right" Margin="10,0,0,0" Click="SearchEvent_Click" />
+                <Button Content="Next" HorizontalAlignment="Right" Margin="10,0,0,0" Click="SearchEvent_Click">
+                    <Button.ToolTip>
+                        Move to next Event
+                    </Button.ToolTip>
+                </Button>
             </StackPanel>
             <Expander Grid.Row="1" Grid.RowSpan="2" Grid.Column="1" Grid.ColumnSpan="2" HorizontalAlignment="Right" Margin="8">
                 <Expander.Header>
@@ -121,6 +132,9 @@
                         <Span><Run Text="Decimation: "/><Run Name="DecimationInfo">Min/max</Run><Run Text=" "/><Run Name="DecimationValue"/></Span>
                     </TextBlock>
                 </Expander.Header>
+                <Expander.ToolTip>
+                    Use to display decimation parameters
+                </Expander.ToolTip>
                 <StackPanel Orientation="Vertical" HorizontalAlignment="Center">
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                         <StackPanel.Resources>

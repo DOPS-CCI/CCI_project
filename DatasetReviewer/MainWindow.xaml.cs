@@ -385,10 +385,10 @@ namespace DatasetReviewer
                     evbutt.Height = EMAH;
                     evbutt.Width = Math.Max(EMAH, bdf.SampTime);
                     Canvas.SetTop(evbutt, 0D);
-                    Canvas.SetLeft(evbutt, Math.Max(s - evbutt.Width / 2D, 0D));
+                    Canvas.SetLeft(evbutt, s - evbutt.Width / 2D);
                     if (!AllEFEntriesValid) //Error: Status sequence moves in reverse
                     {
-                        evbutt.Tag = "Error in Status sequence";
+                        evbutt.Tag = "Error in Status sequence; Gray code " + sample.ToString();
                     }
                     else
                     {
