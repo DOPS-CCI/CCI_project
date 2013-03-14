@@ -109,6 +109,8 @@ namespace DatasetReviewer
             }
 
             Title = System.IO.Path.GetFileName(directory); //set window title
+            BDFFileInfo.Content = bdf.ToString();
+            HDRFileInfo.Content = head.ToString();
             Event.EventFactory.Instance(head.Events); // set up the factory
             EventFileReader efr = new EventFileReader(
                 new FileStream(System.IO.Path.Combine(directory, head.EventFile),
@@ -193,27 +195,19 @@ namespace DatasetReviewer
             bool first = true;
             foreach (EventDictionaryEntry e in head.Events.Values)
             {
-                RadioButton rb = new RadioButton();
-                rb.Content = e.Name;
-                rb.Checked += new RoutedEventHandler(ChangeEvent_Checked);
+                MenuItem mi = (MenuItem)EventSelector.FindResource("EventMenuItem");
+                mi.Header = e.Name;
                 if (first)
                 {
-                    rb.IsChecked = true;
+                    mi.IsChecked = true;
                     first = false;
                 }
-                EventSelector.Children.Add(rb);
+                EventSelector.Items.Add(mi);
             }
             //from here on the program is GUI-event driven
         }
 
-        string currentSearchEvent;
-        void ChangeEvent_Checked(object sender, RoutedEventArgs e)
-        {
-            currentSearchEvent = (string)((RadioButton)sender).Content;
-            SearchEventName.Text = currentSearchEvent;
-        }
-
-        // ScrollViewer change routines are here: lead to redraws of window
+//----> ScrollViewer change routines are here: lead to redraws of window
         private void ScrollViewer_SizeChanged(object sender, SizeChangedEventArgs e)
         {
             if (e.HeightChanged || e.WidthChanged)
@@ -252,7 +246,7 @@ namespace DatasetReviewer
             reDrawGrid();
         }
 
-        // Here are the routines for handling the dragging of the display window
+//----> Here are the routines for handling the dragging of the display window
         static System.Timers.Timer timer = new Timer(50D); //establish a 50msec interval timer
         bool InDrag = false;
         Point startDragMouseLocation;
@@ -267,24 +261,33 @@ namespace DatasetReviewer
             {
                 if ((Keyboard.Modifiers & ModifierKeys.Control) > 0)
                 {
-                    //display popup channel info window
-                    graphNumber = (int)(pt.Y / ChannelGraph.CanvasHeight);
-                    if (graphNumber >= channelList.Count) return;
-                    int channel = channelList[graphNumber];
-                    //get electrode location string for this channel number
-                    ElectrodeRecord er;
-                    string st;
-                    if (electrodes.TryGetValue(bdf.channelLabel(channel), out er))
-                        st = er.ToString();
+                    if ((Keyboard.Modifiers & ModifierKeys.Shift) > 0) //display file information panel
+                    {
+                        DatasetInfoPanel.Visibility = Visibility.Visible;
+                        DatasetInfoPanel.Focus();
+                        return;
+                    }
                     else
-                        st = "None recorded";
-                    ChannelGraph cg = (ChannelGraph)GraphCanvas.Children[graphNumber];
-                    popupTB.Text = bdf.ToString(channel) +
-                        "Location: " + st + "\nMin,Max(diff): " +
-                        (cg.overallMin * bdf.Header.Gain(channel) + bdf.Header.Offset(channel)).ToString("G4") + "," +
-                        (cg.overallMax * bdf.Header.Gain(channel) + bdf.Header.Offset(channel)).ToString("G4") +
-                        "(" + ((cg.overallMax - cg.overallMin) * bdf.Header.Gain(channel)).ToString("G3") + ")";
-                    channelPopup.IsOpen = true;
+                    {
+                        //display popup channel info window
+                        graphNumber = (int)(pt.Y / ChannelGraph.CanvasHeight);
+                        if (graphNumber >= channelList.Count) return;
+                        int channel = channelList[graphNumber];
+                        //get electrode location string for this channel number
+                        ElectrodeRecord er;
+                        string st;
+                        if (electrodes.TryGetValue(bdf.channelLabel(channel), out er))
+                            st = er.ToString();
+                        else
+                            st = "None recorded";
+                        ChannelGraph cg = (ChannelGraph)GraphCanvas.Children[graphNumber];
+                        popupTB.Text = bdf.ToString(channel) +
+                            "Location: " + st + "\nMin,Max(diff): " +
+                            (cg.overallMin * bdf.Header.Gain(channel) + bdf.Header.Offset(channel)).ToString("G4") + "," +
+                            (cg.overallMax * bdf.Header.Gain(channel) + bdf.Header.Offset(channel)).ToString("G4") +
+                            "(" + ((cg.overallMax - cg.overallMin) * bdf.Header.Gain(channel)).ToString("G3") + ")";
+                        channelPopup.IsOpen = true;
+                    }
                 }
                 else //start dragging operation
                 {
@@ -340,23 +343,7 @@ namespace DatasetReviewer
             timerCount += 0.050;
         }
 
-        // Time-scale change button clicks handled here
-        private void Button_Click(object sender, RoutedEventArgs e)
-        {
-            Button b = (Button)sender;
-            double d = Convert.ToDouble(b.Content);
-            oldDisplayWidthInSecs = currentDisplayWidthInSecs;
-            currentDisplayWidthInSecs = Math.Min(currentDisplayWidthInSecs / d, BDFLength);
-            XScaleSecsToInches = Viewer.ViewportWidth / currentDisplayWidthInSecs;
-            Transform t = new ScaleTransform(XScaleSecsToInches, XScaleSecsToInches, Viewer.ContentHorizontalOffset + Viewer.ViewportWidth / 2, 0D);
-            t.Freeze();
-            GraphCanvas.LayoutTransform = EventMarkers.LayoutTransform = t; //new transform: keep scale seconds
-            //NB: must also scale vertically (and correct later) to keep drawing pen circular!
-            //Now change horizontal scroll to make inflation/deflation around center point;
-            Viewer.ScrollToHorizontalOffset(XScaleSecsToInches * (currentDisplayOffsetInSecs + (oldDisplayWidthInSecs - currentDisplayWidthInSecs) / 2D));
-        }
-
-        // Re-draw routines here
+//----> Re-draw routines here
         private void reDrawEvents()
         {
             EventMarkers.Children.Clear();
@@ -571,7 +558,7 @@ namespace DatasetReviewer
             if (lowSecs >= oldDisplayOffsetInSecs && lowSecs < oldDisplayOffsetInSecs + oldDisplayWidthInSecs) overlap = true;
             if (highSecs > oldDisplayOffsetInSecs && highSecs <= oldDisplayOffsetInSecs + oldDisplayWidthInSecs) overlap = true;
             oldDisplayWidthInSecs = currentDisplayWidthInSecs;
-            Info.Text = "Display width: " + currentDisplayWidthInSecs.ToString("0.000");
+            DW.Text = currentDisplayWidthInSecs.ToString("0.000");
 
             //calculate new decimation, depending on seconds displayed and viewer width
             if (decVal != -1)
@@ -581,7 +568,7 @@ namespace DatasetReviewer
                 ChannelGraph.decimateNew = Convert.ToInt32(Math.Ceiling(2.5D * (highBDFP - lowBDFP) / Viewer.ActualWidth));
                 if (ChannelGraph.decimateNew == 2 && dType == DecimationType.MinMax) ChannelGraph.decimateNew = 1; //No advantage to decimating by 2
             }
-            DecimationValue.Text = CurrentDecimation.Text = ChannelGraph.decimateNew.ToString("0");
+            CurrentDecimation.Text = ChannelGraph.decimateNew.ToString("0");
             bool completeRedraw = ChannelGraph.decimateNew != ChannelGraph.decimateOld || !overlap; //complete redraw of all channels if ...
             // change in decimation or if completely new screen (no overlap of old and new)
             ChannelGraph.decimateOld = ChannelGraph.decimateNew;
@@ -742,17 +729,19 @@ namespace DatasetReviewer
             this.Cursor = Cursors.Arrow;
         }
 
-        private void RadioButton_Checked(object sender, RoutedEventArgs e)
+//----> Decimation modification routines
+
+        private void DecimationType_Checked(object sender, RoutedEventArgs e)
         {
-            RadioButton rb = (RadioButton)sender;
-            if (rb.Tag == null) return;
-            DecimationType dT = (DecimationType)Convert.ToInt32(rb.Tag);
+            MenuItem mi = (MenuItem)sender;
+            if (mi.Tag == null) return; //before fully initialized
+            DecimationType dT = (DecimationType)Convert.ToInt32(mi.Tag);
             if (dT == dType) return;
             dType = dT;
             if (decVal != 0)
             {
                 ChannelGraph.decimateOld = -1; //force complete redraw
-                DecimationInfo.Text = (string)rb.Content;
+                DecimationInfo.Text = (string)mi.Header;
                 reDrawChannels();
             }
         }
@@ -793,72 +782,33 @@ namespace DatasetReviewer
                 ChangeDecimation.IsEnabled = false;
         }
 
-        private void MenuItemAdd_Click(object sender, RoutedEventArgs e)
-        {
-            int offset = ((Control)sender).Parent == AddBefore ? 0 : 1;
-            int chan = bdf.ChannelNumberFromLabel((string)((MenuItem)sender).Header);
-            channelList.Insert(graphNumber + offset, chan);
-            GraphCanvas.Children.Insert(graphNumber + offset, new ChannelGraph(this, chan));
-            ChannelGraph.CanvasHeight = (Viewer.ViewportHeight - ScrollBarSize - EventChannelHeight) / channelList.Count;
-            ChannelGraph.decimateOld = -1;
-            reDrawChannelLabels();
-            reDrawChannels();
-        }
-
-        private void MenuItemRemove_Click(object sender, RoutedEventArgs e)
-        {
-            if (graphNumber < channelList.Count && channelList.Count > 1)
-            {
-                channelList.RemoveAt(graphNumber);
-                ChannelGraph cg = (ChannelGraph)GraphCanvas.Children[graphNumber];
-                cg.baseline.Visibility = Visibility.Hidden;
-                GraphCanvas.Children.Remove(cg);
-                ChannelGraph.CanvasHeight = (Viewer.ViewportHeight - ScrollBarSize - EventChannelHeight) / channelList.Count;
-                reDrawChannelLabels();
-                reDrawChannels();
-            }
-        }
-
-        private void MenuItemPrint_Click(object sender, RoutedEventArgs e)
-        {
-            PrintDocumentImageableArea area = null;
-            XpsDocumentWriter xpsdw = PrintQueue.CreateXpsDocumentWriter(ref area); //select a print queue
-            if (xpsdw != null)
-            {
-                PrintTicket pt = new PrintTicket();
-                pt.PageOrientation = MainFrame.ActualHeight < MainFrame.ActualWidth ?
-                    PageOrientation.Landscape : PageOrientation.Portrait; //choose orientation to maximize size
-
-                double scale = Math.Max(area.ExtentHeight, area.ExtentWidth) / Math.Max(MainFrame.ActualHeight, MainFrame.ActualWidth); //scale to fit orientation
-                scale = Math.Min(Math.Min(area.ExtentHeight, area.ExtentWidth) / Math.Min(MainFrame.ActualHeight, MainFrame.ActualWidth), scale);
-                MainFrame.RenderTransform = new MatrixTransform(scale, 0D, 0D, scale, area.OriginWidth, area.OriginHeight);
-                MainFrame.UpdateLayout();
-
-                xpsdw.Write(MainFrame, pt);
-
-                MainFrame.RenderTransform = Transform.Identity; //return to normal size
-                MainFrame.UpdateLayout();
-            }
-        }
-
-        private void FOV_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-        {
-            oldDisplayWidthInSecs = currentDisplayWidthInSecs;
-            currentDisplayWidthInSecs = Math.Min(Math.Pow(10D, e.NewValue), BDFLength);
-            XScaleSecsToInches = Viewer.ViewportWidth / currentDisplayWidthInSecs;
-            Transform t = new ScaleTransform(XScaleSecsToInches, XScaleSecsToInches, Viewer.ContentHorizontalOffset + Viewer.ViewportWidth / 2, 0D);
-            t.Freeze();
-            GraphCanvas.LayoutTransform = EventMarkers.LayoutTransform = t; //new transform: keep scale seconds
-            //NB: must also scale vertically (and correct later) to keep drawing pen circular!
-            //Now change horizontal scroll to make inflation/deflation around center point;
-            Viewer.ScrollToHorizontalOffset(XScaleSecsToInches * (currentDisplayOffsetInSecs + (oldDisplayWidthInSecs - currentDisplayWidthInSecs) / 2D));
-        }
-
         private void ChangeDecimation_Click(object sender, RoutedEventArgs e)
         {
             ChannelGraph.decimateOld = -1; //force complete redraw
             ChangeDecimation.IsEnabled = false;
             reDrawChannels();
+        }
+
+        private void DecimationMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            foreach (MenuItem mi in DecimationSelector.Items)
+                mi.IsChecked = false;
+            ((MenuItem)sender).IsChecked = true;
+        }
+
+//----> Event search functions
+        string currentSearchEvent;
+        void ChangeEvent_Checked(object sender, RoutedEventArgs e)
+        {
+            currentSearchEvent = (string)((MenuItem)sender).Header;
+            SearchEventName.Text = currentSearchEvent;
+        }
+
+        private void EventMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            foreach (MenuItem mi in EventSelector.Items)
+                mi.IsChecked = false;
+            ((MenuItem)sender).IsChecked = true;
         }
 
         double SearchSiteOffset;
@@ -921,6 +871,7 @@ namespace DatasetReviewer
             }
         }
 
+//----> Handle Event pop-up display
         private void EventButton_Down(object sender, MouseButtonEventArgs e)
         {
             if (e.RightButton == MouseButtonState.Pressed)
@@ -940,6 +891,7 @@ namespace DatasetReviewer
             e.Handled = true;
         }
 
+//----> Handle Viewer context menu clicks
         private void ViewerContextMenu_Opened(object sender, RoutedEventArgs e)
         {
             Point pt = Mouse.GetPosition(Viewer);
@@ -983,7 +935,101 @@ namespace DatasetReviewer
             }
             else
                 Viewer.ContextMenu.Visibility = Visibility.Collapsed;
+        }
 
+        private void MenuItemAdd_Click(object sender, RoutedEventArgs e)
+        {
+            int offset = ((Control)sender).Parent == AddBefore ? 0 : 1;
+            int chan = bdf.ChannelNumberFromLabel((string)((MenuItem)sender).Header);
+            channelList.Insert(graphNumber + offset, chan);
+            GraphCanvas.Children.Insert(graphNumber + offset, new ChannelGraph(this, chan));
+            ChannelGraph.CanvasHeight = (Viewer.ViewportHeight - ScrollBarSize - EventChannelHeight) / channelList.Count;
+            ChannelGraph.decimateOld = -1;
+            reDrawChannelLabels();
+            reDrawChannels();
+        }
+
+        private void MenuItemRemove_Click(object sender, RoutedEventArgs e)
+        {
+            if (graphNumber < channelList.Count && channelList.Count > 1)
+            {
+                channelList.RemoveAt(graphNumber);
+                ChannelGraph cg = (ChannelGraph)GraphCanvas.Children[graphNumber];
+                cg.baseline.Visibility = Visibility.Hidden;
+                GraphCanvas.Children.Remove(cg);
+                ChannelGraph.CanvasHeight = (Viewer.ViewportHeight - ScrollBarSize - EventChannelHeight) / channelList.Count;
+                reDrawChannelLabels();
+                reDrawChannels();
+            }
+        }
+
+        private void MenuItemPrint_Click(object sender, RoutedEventArgs e)
+        {
+            PrintDocumentImageableArea area = null;
+            XpsDocumentWriter xpsdw = PrintQueue.CreateXpsDocumentWriter(ref area); //select a print queue
+            if (xpsdw != null)
+            {
+                PrintTicket pt = new PrintTicket();
+                pt.PageOrientation = MainFrame.ActualHeight < MainFrame.ActualWidth ?
+                    PageOrientation.Landscape : PageOrientation.Portrait; //choose orientation to maximize size
+
+                double scale = Math.Max(area.ExtentHeight, area.ExtentWidth) / Math.Max(MainFrame.ActualHeight, MainFrame.ActualWidth); //scale to fit orientation
+                scale = Math.Min(Math.Min(area.ExtentHeight, area.ExtentWidth) / Math.Min(MainFrame.ActualHeight, MainFrame.ActualWidth), scale);
+                MainFrame.RenderTransform = new MatrixTransform(scale, 0D, 0D, scale, area.OriginWidth, area.OriginHeight);
+                MainFrame.UpdateLayout();
+
+                xpsdw.Write(MainFrame, pt);
+
+                MainFrame.RenderTransform = Transform.Identity; //return to normal size
+                MainFrame.UpdateLayout();
+            }
+        }
+
+//----> Field-of-view management routines
+        private void DWContextMenu_Opened(object sender, RoutedEventArgs e)
+        {
+            DWValue.Text = DW.Text;
+        }
+
+        private void DWContextMenu_Closed(object sender, RoutedEventArgs e)
+        {
+            double dw;
+            try
+            {
+                dw = Convert.ToDouble(DWValue.Text);
+            }
+            catch
+            {
+                return; //no chnage if invalid entry
+            }
+            if (dw == currentDisplayWidthInSecs || dw <= 0D) return; //don't change FOV
+            //here we change FOV slider setting, which in turn updates display
+            if (dw < 0.1) FOV.Value = -1D; //set FOV to minimum 0.1
+            else
+                FOV.Value = Math.Min(Math.Log10(dw), FOV.Maximum);
+        }
+
+        private void FOV_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            ChangeDisplayWidth(Math.Min(Math.Pow(10D, e.NewValue), BDFLength));
+        }
+
+        private void ChangeDisplayWidth(double newDisplayWidth)
+        {
+            oldDisplayWidthInSecs = currentDisplayWidthInSecs;
+            currentDisplayWidthInSecs = newDisplayWidth;
+            XScaleSecsToInches = Viewer.ViewportWidth / currentDisplayWidthInSecs;
+            Transform t = new ScaleTransform(XScaleSecsToInches, XScaleSecsToInches, Viewer.ContentHorizontalOffset + Viewer.ViewportWidth / 2, 0D);
+            t.Freeze();
+            GraphCanvas.LayoutTransform = EventMarkers.LayoutTransform = t; //new transform: keep scale seconds
+            //NB: must also scale vertically (and correct later) to keep drawing pen circular!
+            //Now change horizontal scroll to make inflation/deflation around center point;
+            Viewer.ScrollToHorizontalOffset(XScaleSecsToInches * (currentDisplayOffsetInSecs + (oldDisplayWidthInSecs - currentDisplayWidthInSecs) / 2D));
+        }
+
+        private void DatasetInfoButton_Click(object sender, RoutedEventArgs e)
+        {
+            DatasetInfoPanel.Visibility = Visibility.Collapsed;
         }
     }
 
@@ -1060,7 +1106,7 @@ namespace DatasetReviewer
         //at the given location (index) in the BDF/EDF file; it finds the minimum and maximum values in
         //the next decimateNew points and saves those values in the FilePoint; it also updates the
         //current maximum and minimum points in the currently displayed segment, so that the plot can
-        //be appropriateloy scaled
+        //be appropriately scaled
         internal FilePoint createFilePoint(BDFLoc index)
         {
             int sample;
@@ -1101,7 +1147,7 @@ namespace DatasetReviewer
                     n++;
                 }
                 maxVal = minVal = (double)ave / n;
-                imax = imin = n / 2;
+                imax = imin = n >> 1;
             }
             else //MainWindow.dType == decimationType.FirstPoint
                 maxVal = minVal = bdf.getRawSample(_channel, temp);

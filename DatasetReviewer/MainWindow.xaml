@@ -11,6 +11,27 @@
             <ColumnDefinition Width="100"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
+        <Grid Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="0" Panel.ZIndex="3" Name="DatasetInfoPanel" Background="White" Visibility="Collapsed" Opacity="0.9">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <GroupBox Grid.Column="0" Grid.Row="0" Name="HDRFileInfo" Margin="4">
+                <GroupBox.Header>
+                    <Run FontWeight="Bold">Dataset HDR file</Run>
+                </GroupBox.Header>
+            </GroupBox>
+            <GroupBox Grid.Column="1" Grid.Row="0" Name="BDFFileInfo" Margin="4">
+                <GroupBox.Header>
+                    <Run FontWeight="Bold">BDF header</Run>
+                </GroupBox.Header>
+            </GroupBox>
+            <Button Grid.Column="1" Grid.Row="1" IsDefault="True" Height="28" Width="80" HorizontalAlignment="Right" Margin="8" Click="DatasetInfoButton_Click">OK</Button>
+        </Grid>
         <Line Name="IndexLine" Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" X2="0" Y1="0" Y2="0" Panel.ZIndex="1" HorizontalAlignment="Center" VerticalAlignment="Stretch"
               IsHitTestVisible="False" Stroke="Red" StrokeDashArray="3,2" />
         <Canvas Name="GridLabels" Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" VerticalAlignment="Bottom" HorizontalAlignment="Center" Height="33"/>
@@ -47,7 +68,7 @@
                 </StackPanel>
                 <Canvas Grid.Row="1" Name="EventMarkers">
                     <Canvas.Resources>
-                        <Button x:Key="EventButton" x:Shared="False" Background="#00000000" PreviewMouseDown="EventButton_Down" Panel.ZIndex="1000000" PreviewMouseUp="EventButton_Up" />
+                        <Button x:Key="EventButton" x:Shared="False" Background="#00000000" PreviewMouseDown="EventButton_Down" Panel.ZIndex="2" PreviewMouseUp="EventButton_Up" />
                         <Style TargetType="Button">
                             <!--Set to true to not get any properties from the themes.-->
                             <Setter Property="OverridesDefaultStyle" Value="False"/>
@@ -82,24 +103,33 @@
             <TextBlock Grid.Column="0" Text="0.1" VerticalAlignment="Center" Margin="20,0,4,0"/>
             <Slider Grid.Column="1" Name="FOV" ValueChanged="FOV_ValueChanged" Minimum="-1" Padding="0" Margin="0,4,0,0" TickPlacement="TopLeft" LargeChange="0.30103" TickFrequency="0.30103" Value="3" HorizontalAlignment="Stretch" />
             <TextBlock Grid.Column="2" Name="FOVMax" Text="1000" VerticalAlignment="Center" Margin="4,0,20,0" />
-            <TextBlock Name="Info" Grid.Row="1" Grid.Column="1" FontWeight="Bold" FontSize="12" TextAlignment="Center" HorizontalAlignment="Center" VerticalAlignment="Stretch" />
-            <Expander Grid.Row="1" Grid.RowSpan="2" Grid.Column="0" Grid.ColumnSpan="2" HorizontalAlignment="Left" Margin="8">
-                <Expander.Header>
-                    <TextBlock FontWeight="Bold"><Span><Run Text="Event selection: "/><Run Name="SearchEventName"/></Span></TextBlock>
-                </Expander.Header>
-                <Expander.ToolTip>
-                    Use to select type of Event to move to
-                </Expander.ToolTip>
-                <Expander.Resources>
-                    <Style TargetType="RadioButton">
-                        <Setter Property="VerticalAlignment" Value="Center"/>
-                        <Setter Property="HorizontalAlignment" Value="Left"/>
-                        <Setter Property="Margin" Value="12,1"/>
-                    </Style>
-                </Expander.Resources>
-                <StackPanel Name="EventSelector" Orientation="Vertical" HorizontalAlignment="Left"/>
-            </Expander>
-            <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Margin="0,0,0,8" HorizontalAlignment="Center" VerticalAlignment="Top" >
+            <TextBlock Grid.Row="1" Grid.Column="1" FontWeight="Bold" FontSize="12" TextAlignment="Center" HorizontalAlignment="Center" VerticalAlignment="Stretch"><Span><Run Text="Display width: "/>
+                <Run Name="DW" Text="10.000">
+                    <Run.ContextMenu>
+                        <ContextMenu Width="Auto" Opened="DWContextMenu_Opened" Closed="DWContextMenu_Closed">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="New display width: "  VerticalAlignment="Center"/>
+                                <TextBox Name="DWValue" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </ContextMenu>
+                    </Run.ContextMenu>
+                </Run>
+            </Span></TextBlock>
+            <TextBlock Grid.Row="1" Grid.RowSpan="2" Grid.Column="0" Grid.ColumnSpan="2" FontWeight="Bold" VerticalAlignment="Center" Margin="8">
+                <TextBlock.ContextMenu>
+                    <ContextMenu Name="EventSelector">
+                        <ContextMenu.Resources>
+                            <MenuItem x:Key="EventMenuItem" x:Shared="False" Click="EventMenuItem_Click" Checked="ChangeEvent_Checked" />
+                        </ContextMenu.Resources>
+                    </ContextMenu>
+                </TextBlock.ContextMenu>
+                <Span>
+                    <Run Text="Event selection: "/>
+                    <Run Name="SearchEventName">
+                    </Run>
+                </Span>
+            </TextBlock>
+            <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Margin="0,0,0,4" HorizontalAlignment="Center" VerticalAlignment="Top" >
                 <StackPanel.Resources>
                     <Style TargetType="RadioButton">
                         <Setter Property="Margin" Value="8,0"/>
@@ -126,43 +156,35 @@
                     </Button.ToolTip>
                 </Button>
             </StackPanel>
-            <Expander Grid.Row="1" Grid.RowSpan="2" Grid.Column="1" Grid.ColumnSpan="2" HorizontalAlignment="Right" Margin="8">
-                <Expander.Header>
-                    <TextBlock FontWeight="Bold">
-                        <Span><Run Text="Decimation: "/><Run Name="DecimationInfo">Min/max</Run><Run Text=" "/><Run Name="DecimationValue"/></Span>
-                    </TextBlock>
-                </Expander.Header>
-                <Expander.ToolTip>
-                    Use to display decimation parameters
-                </Expander.ToolTip>
-                <StackPanel Orientation="Vertical" HorizontalAlignment="Center">
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                        <StackPanel.Resources>
-                            <Style TargetType="RadioButton">
-                                <Setter Property="Width" Value="Auto"/>
-                                <Setter Property="FontSize" Value="12"/>
-                                <Setter Property="Margin" Value="4,2"/>
-                            </Style>
-                        </StackPanel.Resources>
-                        <RadioButton IsChecked="True" Checked="RadioButton_Checked" Tag="1">Min/max</RadioButton>
-                        <RadioButton Checked="RadioButton_Checked" Tag="2">Average</RadioButton>
-                        <RadioButton Checked="RadioButton_Checked" Tag="3">First point</RadioButton>
-                    </StackPanel>
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                        <StackPanel.Resources>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="Padding" Value="3" />
-                                <Setter Property="FontWeight" Value="Bold"/>
-                            </Style>
-                        </StackPanel.Resources>
-                        <TextBlock Text="Current:"/>
-                        <TextBlock Name="CurrentDecimation" FontWeight="Normal"/>
-                        <TextBlock Text="Value:" />
-                        <TextBox Name="DecVal" Width="36" TextChanged="DecVal_Changed">Auto</TextBox>
-                        <Button Name="ChangeDecimation" Margin="4,0" Padding="3,0" Click="ChangeDecimation_Click" IsEnabled="False" IsDefault="True">Δ</Button>
-                    </StackPanel>
+            <Grid Grid.Row="1" Grid.RowSpan="2" Grid.Column="1" Grid.ColumnSpan="2" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="8">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <TextBlock Grid.Row="0" FontWeight="Bold">
+                    <TextBlock.ContextMenu>
+                        <ContextMenu Name="DecimationSelector">
+                            <MenuItem IsChecked="True" Checked="DecimationType_Checked" Click="DecimationMenuItem_Click" Tag="1" Header="Min/max" />
+                            <MenuItem Checked="DecimationType_Checked" Click="DecimationMenuItem_Click" Tag="2" Header="Average" />
+                            <MenuItem Checked="DecimationType_Checked" Click="DecimationMenuItem_Click" Tag="3" Header="First point" />
+                        </ContextMenu>
+                    </TextBlock.ContextMenu>
+                    <Span><Run Text="Decimation: "/><Run Name="DecimationInfo">Min/max</Run><Run Text=" "/></Span>
+                </TextBlock>
+                <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center">
+                    <StackPanel.Resources>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="VerticalAlignment" Value="Center"/>
+                            <Setter Property="FontWeight" Value="Bold"/>
+                        </Style>
+                    </StackPanel.Resources>
+                    <TextBlock Text="Current: "/>
+                    <TextBlock Name="CurrentDecimation" FontWeight="Normal" Padding="0,0,4,0"/>
+                    <TextBlock Text="Value:" />
+                    <TextBox Name="DecVal" Width="36" TextChanged="DecVal_Changed">Auto</TextBox>
+                    <Button Name="ChangeDecimation" Padding="3,0" Click="ChangeDecimation_Click" IsEnabled="False" IsDefault="True" Height="20">Δ</Button>
                 </StackPanel>
-            </Expander>
+            </Grid>
         </Grid>
     </Grid>
 </Window>
