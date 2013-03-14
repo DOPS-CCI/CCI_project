@@ -199,7 +199,7 @@ namespace CCILibrary
         /// <returns>String representation of BDF/EDF header</returns>
         public new string ToString() //Overrides Object.ToString()
         {
-            if (!header.isValid) return "BDFEDFFileSream header not valid.";
+            if (!header.isValid) return "BDFEDFFileStream header not valid.";
             string nl = Environment.NewLine;
             StringBuilder str = new StringBuilder("File type: " + (header.isBDFFile ? "BDF" : "EDF") + nl);
             str.Append("Local Subject Id: " + header.localSubjectId + nl);
@@ -253,23 +253,16 @@ namespace CCILibrary
         protected BinaryReader reader;
         double? _zeroTime = null;
 
+        /// <summary>
+        /// Constructor for BDFEDFFileReader: reads in file Header, initializes record and BDFLocFactory
+        /// </summary>
+        /// <param name="str">Stream on which the BDFEDFFileReader is based; assumed to be a FileStream, though
+        /// with care other subclasses of Stream may work</param>
         public BDFEDFFileReader(Stream str)
         {
             if (!str.CanRead) throw new BDFEDFException("BDFEDFFileStream must be able to read from Stream.");
             if (str is FileStream) baseStream = (FileStream)str;
             reader = new BinaryReader(str, Encoding.ASCII);
-            header = new BDFEDFHeader();
-            header.read(reader); //Read in header
-            record = new BDFEDFRecord(header); //Now can create BDFEDFRecord
-            header._isValid = true;
-            _locationFactory = new BDFLocFactory(this);
-        }
-
-        public BDFEDFFileReader(Stream str, int bufferSize)
-        {
-            if (!str.CanRead) throw new BDFEDFException("BDFEDFFileStream must be able to read from Stream.");
-            if (str is FileStream) baseStream = (FileStream)str;
-            reader = new BinaryReader(new BufferedStream(str, bufferSize), Encoding.ASCII);
             header = new BDFEDFHeader();
             header.read(reader); //Read in header
             record = new BDFEDFRecord(header); //Now can create BDFEDFRecord
@@ -298,8 +291,7 @@ namespace CCILibrary
         /// Reads a given record number from BDF or EDF file
         /// </summary>
         /// <param name="recNum">Record number requested (first record is zero)</param>
-        /// <returns>Requested <see cref="BDFEDFRecord">BDFEDFRecord</see></returns>
-        /// <exception cref="BDFEDFException">BDF/EDF record requested beyond end of file</exception>
+        /// <returns>Requested <see cref="BDFEDFRecord">BDFEDFRecord or null if beyond EOF</see></returns>
         /// <exception cref="IOException">Stream unable to perform seek</exception>
         public BDFEDFRecord read(int recNum)
         {
@@ -313,9 +305,9 @@ namespace CCILibrary
         }
 
         /// <summary>
-        /// Gets current data for channel; includes correction for gain and offset
+        /// Gets data from current reocrd in physical units: thus includes correction for gain and offset
         /// </summary>
-        /// <param name="channel">Channel number; zero-based</param>
+        /// <param name="channel">Requested channel number; zero-based</param>
         /// <returns>Array of samples from channel</returns>
         /// <exception cref="BDFEDFException">No record read or invalid input</exception>
         public double[] getChannel(int channel)
@@ -335,7 +327,7 @@ namespace CCILibrary
         }
 
         /// <summary>
-        /// Gets data from status channel; only valid in BDF files
+        /// Gets data from status channel; only valid in BDF files; not masked-off to exclude top 8 bits
         /// </summary>
         /// <returns>Array of integers from status channel</returns>
         /// <exception cref="BDFEDFException">No records yet read</exception>
@@ -348,7 +340,7 @@ namespace CCILibrary
         }
 
         /// <summary>
-        /// Gets value from single sample; includes gain and offset correction
+        /// Gets value of single sample in physical units: includes gain and offset correction
         /// </summary>
         /// <param name="channel">Channel number; zero-based</param>
         /// <param name="sample">Sample number; zero-based</param>
@@ -1099,6 +1091,13 @@ namespace CCILibrary
         }
     }
 
+    /// <summary>
+    /// Encapsulates exact location of a point in a BDF or EDF file; use BDFLocFactory to create New "instance" (not a class
+    /// but a struct) of BDFLoc; this approach provides a central "memory" of certain fixed parameters such as record length
+    /// for the BDFLoc to perform calculations without the overhead of every instance having to "remember" these "static" values;
+    /// intended as "light-weight" replacement for BDFPoint class; like BDFPoint, provides arithmetic operations and comparisons;
+    /// provides conversions to and from seconds in the file as well
+    /// </summary>
     public struct BDFLoc
     {
         int _pt;
@@ -1118,6 +1117,10 @@ namespace CCILibrary
             set { _rec = value; }
         }
 
+        /// <summary>
+        /// The key is the set property of Pt that assures that the record number and point within the record
+        /// remain valid values
+        /// </summary>
         public int Pt
         {
             get { return _pt; }
@@ -1143,6 +1146,9 @@ namespace CCILibrary
             get { return myFactory._st; }
         }
 
+        /// <summary>
+        /// Does this BDFLoc refer to a point in the file?
+        /// </summary>
         public bool IsInFile
         {
             get
