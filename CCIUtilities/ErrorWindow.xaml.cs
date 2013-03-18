@@ -24,6 +24,7 @@ namespace CCIUtilities
             set
             {
                 errorMessage.Text = value;
+                Log.writeToLog(value); //attempt to write log message
             }
         }
 

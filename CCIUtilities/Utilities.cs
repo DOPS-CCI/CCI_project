@@ -91,8 +91,7 @@ namespace CCIUtilities
 
         public static string getVersionNumber()
         {
-            Assembly ass = Assembly.GetCallingAssembly();
-            return ass.GetName().Version.ToString();
+            return Assembly.GetExecutingAssembly().GetName().Version.ToString();
         }
 
         public static uint uint2GC(uint n)
