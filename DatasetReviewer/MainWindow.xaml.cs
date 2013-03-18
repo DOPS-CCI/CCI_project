@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Timers;
 using System.Printing;
+using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -55,6 +56,9 @@ namespace DatasetReviewer
         internal Dictionary<int, Event.InputEvent> events = new Dictionary<int, Event.InputEvent>();
         internal Dictionary<string, ElectrodeRecord> electrodes;
 
+        internal Window2 notes;
+        internal string noteFilePath;
+
         public MainWindow()
         {
             do
@@ -100,6 +104,9 @@ namespace DatasetReviewer
             } while (channelList.Count == 0);
 
             InitializeComponent();
+
+            Log.writeToLog("Starting DatasetReviewer " + Assembly.GetExecutingAssembly().GetName().Version.ToString() +
+                " on dataset " + directory);
 
             //initialize the individual channel graphs
             foreach (int i in channelList)
@@ -204,6 +211,8 @@ namespace DatasetReviewer
                 }
                 EventSelector.Items.Add(mi);
             }
+
+            noteFilePath = System.IO.Path.Combine(directory,System.IO.Path.ChangeExtension(head.BDFFile,".notes.txt"));
             //from here on the program is GUI-event driven
         }
 
@@ -892,10 +901,11 @@ namespace DatasetReviewer
         }
 
 //----> Handle Viewer context menu clicks
+        Point rightMouseClickLoc;
         private void ViewerContextMenu_Opened(object sender, RoutedEventArgs e)
         {
-            Point pt = Mouse.GetPosition(Viewer);
-            graphNumber = (int)(pt.Y / ChannelGraph.CanvasHeight);
+            rightMouseClickLoc = Mouse.GetPosition(Viewer);
+            graphNumber = (int)(rightMouseClickLoc.Y / ChannelGraph.CanvasHeight);
             Console.WriteLine("In ViewerContextMenu_Opened with " + graphNumber.ToString("0"));
             if (graphNumber < channelList.Count)
             {
@@ -961,6 +971,20 @@ namespace DatasetReviewer
                 reDrawChannelLabels();
                 reDrawChannels();
             }
+        }
+
+        private void MenuItemMakeNote_Click(object sender, RoutedEventArgs e)
+        {
+            if (graphNumber < channelList.Count)
+                Clipboard.SetText(bdf.channelLabel(channelList[graphNumber])); //copy channel name to clipboard
+            else
+                Clipboard.SetText("");
+            if (notes == null) //has it been closed?
+            {
+                notes = new Window2(this); //reopen
+                notes.Show();
+            }
+            notes.MakeNewEntry(currentDisplayOffsetInSecs + rightMouseClickLoc.X / XScaleSecsToInches);
         }
 
         private void MenuItemPrint_Click(object sender, RoutedEventArgs e)
@@ -1030,6 +1054,13 @@ namespace DatasetReviewer
         private void DatasetInfoButton_Click(object sender, RoutedEventArgs e)
         {
             DatasetInfoPanel.Visibility = Visibility.Collapsed;
+        }
+
+        private void MainWindow_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            if (notes != null)
+                notes.Close();
+            Log.writeToLog("DatasetReviewer ending");
         }
     }
 
