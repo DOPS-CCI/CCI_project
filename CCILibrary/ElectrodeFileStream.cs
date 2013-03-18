@@ -79,6 +79,7 @@ namespace ElectrodeFileStream
                 xw.WriteStartElement("Electrodes");
                 if (t == typeof(PhiThetaRecord)) xw.WriteAttributeString("Type", "PhiTheta");
                 else if (t == typeof(XYRecord)) xw.WriteAttributeString("Type", "XY");
+                else if (t == typeof(XYZRecord)) xw.WriteAttributeString("Type", "XYZ");
                 else throw new Exception("Invalid electrode record type.");
             }
             catch (XmlException x)
@@ -108,6 +109,8 @@ namespace ElectrodeFileStream
         public abstract void write(ElectrodeOutputFileStream ofs, string nameSpace);
 
         public abstract Point project2D();
+
+        public abstract double DistanceTo(ElectrodeRecord er);
 
         public abstract override string ToString();
     }
@@ -152,6 +155,17 @@ namespace ElectrodeFileStream
             p.X = Phi * Math.Cos(rad);
             p.Y = Phi * Math.Sin(rad);
             return p;
+        }
+
+        public override double DistanceTo(ElectrodeRecord er)
+        {
+            if (!(er is PhiThetaRecord))
+            {
+                throw new Exception("In PhiThetaRecord.DistanceTo: incompatable ElectrodeRecord types");
+            }
+            Point p1 = this.project2D();
+            Point p2 = er.project2D();
+            return Math.Sqrt(Math.Pow(p1.X - p2.X, 2) + Math.Pow(p1.Y - p2.Y, 2)) * Math.PI / 18D; //assume 10cm radius sphere
         }
 
         public string ToString(string format)
@@ -203,6 +217,14 @@ namespace ElectrodeFileStream
             return new Point(X, Y);
         }
 
+        public override double DistanceTo(ElectrodeRecord er)
+        {
+            if(!(er is XYRecord))
+                throw new Exception("In XYRecord.DistanceTo: incompatable ElectrodeRecord types");
+            XYRecord xy = (XYRecord)er;
+            return Math.Sqrt(Math.Pow(this.X - xy.X, 2) + Math.Pow(this.Y - xy.Y, 2));
+        }
+
         public override string ToString()
         {
             return "XY: " + X.ToString("0.00") + ", " + Y.ToString("0.00");
@@ -252,6 +274,14 @@ namespace ElectrodeFileStream
             double r = Math.Atan2(x2y2, Z) * 180D / Math.PI; // = phi of PhiTheta system
             if (r < 0) r = 90 - r;
             return new Point(X * r / x2y2, Y * r / x2y2);
+        }
+
+        public override double DistanceTo(ElectrodeRecord er)
+        {
+            if (!(er is XYZRecord))
+                throw new Exception("In XYZRecord.DistanceTo: incompatable ElectrodeRecord types");
+            XYZRecord xyz = (XYZRecord)er;
+            return Math.Sqrt(Math.Pow(this.X - xyz.X, 2) + Math.Pow(this.Y - xyz.Y, 2) + Math.Pow(this.Z - xyz.Z, 2));
         }
 
         public override string ToString()
