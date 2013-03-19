@@ -52,7 +52,6 @@
                 <ContextMenu Opened="ViewerContextMenu_Opened">
                     <MenuItem Name="AddBefore" Header="Add channel before "/>
                     <MenuItem Name="AddAfter" Header="Add channel after "/>
-                    <Separator/>
                     <MenuItem Header="Remove channel " Click="MenuItemRemove_Click" />
                     <Separator/>
                     <MenuItem Header="Create entry note" Click="MenuItemMakeNote_Click"/>

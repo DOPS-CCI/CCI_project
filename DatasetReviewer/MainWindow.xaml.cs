@@ -909,15 +909,15 @@ namespace DatasetReviewer
             Console.WriteLine("In ViewerContextMenu_Opened with " + graphNumber.ToString("0"));
             if (graphNumber < channelList.Count)
             {
-                if (channelList.Count <= 1)
-                    ((MenuItem)(Viewer.ContextMenu.Items[3])).IsEnabled = false;
-                else
-                    ((MenuItem)(Viewer.ContextMenu.Items[3])).IsEnabled = true;
                 //set up context menu about to be displayed
                 string channelName = bdf.channelLabel(channelList[graphNumber]);
                 ((MenuItem)(Viewer.ContextMenu.Items[0])).Header = "Add new channel before " + channelName;
                 ((MenuItem)(Viewer.ContextMenu.Items[1])).Header = "Add new channel after " + channelName;
-                ((MenuItem)(Viewer.ContextMenu.Items[3])).Header = "Remove channel " + channelName;
+                ((MenuItem)(Viewer.ContextMenu.Items[2])).Header = "Remove channel " + channelName;
+                if (channelList.Count <= 1)
+                    ((MenuItem)(Viewer.ContextMenu.Items[2])).IsEnabled = false;
+                else
+                    ((MenuItem)(Viewer.ContextMenu.Items[2])).IsEnabled = true;
                 Viewer.ContextMenu.Visibility = Visibility.Visible;
                 AddBefore.Items.Clear();
                 AddAfter.Items.Clear();
@@ -994,6 +994,7 @@ namespace DatasetReviewer
             if (xpsdw != null)
             {
                 PrintTicket pt = new PrintTicket();
+                ScrollViewer MainFrame = Viewer; //temporary
                 pt.PageOrientation = MainFrame.ActualHeight < MainFrame.ActualWidth ?
                     PageOrientation.Landscape : PageOrientation.Portrait; //choose orientation to maximize size
 
