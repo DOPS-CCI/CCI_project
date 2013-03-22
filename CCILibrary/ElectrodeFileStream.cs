@@ -114,7 +114,7 @@ namespace ElectrodeFileStream
 
         public abstract override string ToString();
 
-        const double diameter = 10D;
+        const double radius = 10D;
         protected static double angleDiff(double phi1, double theta1, double phi2, double theta2)
         {
             double DTheta = theta1 - theta2;
@@ -125,8 +125,8 @@ namespace ElectrodeFileStream
             double cPhi2 = Math.Cos(phi2);
             double t1 = sPhi1 * Math.Sin(DTheta);
             double t2 = sPhi2 * cPhi1 - cPhi2 * sPhi1 * cDTheta;
-            double d = Math.Atan2(Math.Sqrt(t1 * t1 - t2 * t2), cPhi1 * cPhi2 + sPhi1 * sPhi2 * cDTheta);
-            return diameter * d;
+            double d = Math.Atan2(Math.Sqrt(t1 * t1 + t2 * t2), cPhi1 * cPhi2 + sPhi1 * sPhi2 * cDTheta);
+            return radius * d;
         }
     }
 
