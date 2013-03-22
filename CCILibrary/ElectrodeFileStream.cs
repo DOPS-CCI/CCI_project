@@ -108,11 +108,26 @@ namespace ElectrodeFileStream
 
         public abstract void write(ElectrodeOutputFileStream ofs, string nameSpace);
 
-        public abstract Point project2D();
+        public abstract Point projectXY(); //lays out electrodes using X-Y coordinates, but using phi-theta projection
 
         public abstract double DistanceTo(ElectrodeRecord er);
 
         public abstract override string ToString();
+
+        const double diameter = 10D;
+        protected static double angleDiff(double phi1, double theta1, double phi2, double theta2)
+        {
+            double DTheta = theta1 - theta2;
+            double cDTheta = Math.Cos(DTheta);
+            double sPhi1 = Math.Sin(phi1);
+            double cPhi1 = Math.Cos(phi1);
+            double sPhi2 = Math.Sin(phi2);
+            double cPhi2 = Math.Cos(phi2);
+            double t1 = sPhi1 * Math.Sin(DTheta);
+            double t2 = sPhi2 * cPhi1 - cPhi2 * sPhi1 * cDTheta;
+            double d = Math.Atan2(Math.Sqrt(t1 * t1 - t2 * t2), cPhi1 * cPhi2 + sPhi1 * sPhi2 * cDTheta);
+            return diameter * d;
+        }
     }
 
     public class PhiThetaRecord : ElectrodeRecord
@@ -148,12 +163,12 @@ namespace ElectrodeFileStream
             xw.WriteEndElement();
         }
 
-        public override Point project2D()
+        public override Point projectXY()
         {
             Point p = new Point();
             double rad = Math.PI * Theta / 180D;
-            p.X = Phi * Math.Cos(rad);
-            p.Y = Phi * Math.Sin(rad);
+            p.X = Phi * Math.Sin(rad);
+            p.Y = Phi * Math.Cos(rad);
             return p;
         }
 
@@ -163,9 +178,7 @@ namespace ElectrodeFileStream
             {
                 throw new Exception("In PhiThetaRecord.DistanceTo: incompatable ElectrodeRecord types");
             }
-            Point p1 = this.project2D();
-            Point p2 = er.project2D();
-            return Math.Sqrt(Math.Pow(p1.X - p2.X, 2) + Math.Pow(p1.Y - p2.Y, 2)) * Math.PI / 18D; //assume 10cm radius sphere
+            return angleDiff(this.Phi, this.Theta, ((PhiThetaRecord)er).Phi, ((PhiThetaRecord)er).Theta);
         }
 
         public string ToString(string format)
@@ -212,9 +225,9 @@ namespace ElectrodeFileStream
             xw.WriteEndElement();
         }
 
-        public override Point project2D()
+        public override Point projectXY()
         {
-            return new Point(X, Y);
+            return new Point(X, Y); // identity
         }
 
         public override double DistanceTo(ElectrodeRecord er)
@@ -222,7 +235,11 @@ namespace ElectrodeFileStream
             if(!(er is XYRecord))
                 throw new Exception("In XYRecord.DistanceTo: incompatable ElectrodeRecord types");
             XYRecord xy = (XYRecord)er;
-            return Math.Sqrt(Math.Pow(this.X - xy.X, 2) + Math.Pow(this.Y - xy.Y, 2));
+            double phi1 = Math.Sqrt(X * X + Y * Y);
+            double phi2 = Math.Sqrt(xy.X * xy.X + xy.Y * xy.Y);
+            double theta1 = Math.Atan2(X, Y);
+            double theta2 = Math.Atan2(xy.X, xy.Y);
+            return angleDiff(phi1, theta1, phi1, theta2);
         }
 
         public override string ToString()
@@ -268,11 +285,11 @@ namespace ElectrodeFileStream
             xw.WriteEndElement();
         }
 
-        public override Point project2D()
+        public override Point projectXY()
         {
             double x2y2 = Math.Sqrt(X * X + Y * Y);
-            double r = Math.Atan2(x2y2, Z) * 180D / Math.PI; // = phi of PhiTheta system
-            if (r < 0) r = 90 - r;
+            double r = Math.Atan2(x2y2, Z); // = phi of PhiTheta system
+            if (r < 0) r = Math.PI / 2D - r;
             return new Point(X * r / x2y2, Y * r / x2y2);
         }
 
@@ -281,7 +298,11 @@ namespace ElectrodeFileStream
             if (!(er is XYZRecord))
                 throw new Exception("In XYZRecord.DistanceTo: incompatable ElectrodeRecord types");
             XYZRecord xyz = (XYZRecord)er;
-            return Math.Sqrt(Math.Pow(this.X - xyz.X, 2) + Math.Pow(this.Y - xyz.Y, 2) + Math.Pow(this.Z - xyz.Z, 2));
+            double phi1 = Math.Atan2(Math.Sqrt(X * X + Y * Y), Z);
+            double phi2 = Math.Atan2(Math.Sqrt(xyz.X * xyz.X + xyz.Y * xyz.Y), xyz.Z);
+            double theta1 = Math.Atan2(X, Y);
+            double theta2 = Math.Atan2(xyz.X, xyz.Y);
+            return angleDiff(phi1, theta1, phi1, theta2);
         }
 
         public override string ToString()
