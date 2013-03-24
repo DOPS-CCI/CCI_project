@@ -60,6 +60,7 @@ namespace ElectrodeFileStream
             xr.Close();
         }
     }
+
     public class ElectrodeOutputFileStream
     {
         internal XmlWriter xw;
@@ -96,25 +97,35 @@ namespace ElectrodeFileStream
         }
     }
 
+    /// <summary>
+    /// Abstract ElectrodeRecord class; properties of this class and its subclasses are immutable;
+    /// conversions/projections are permitted, but only through intermediary structures: Point, Point3D and PhiTheta
+    /// </summary>
     abstract public class ElectrodeRecord
     {
-        public string Name { get; internal set; }
+        public string Name { get; protected set; }
 
-        internal ElectrodeRecord() { }
+        protected ElectrodeRecord() { }
 
-        internal ElectrodeRecord(string name) { Name = name; }
+        protected ElectrodeRecord(string name) { Name = name; } //create an electrode with name
 
-        public abstract void read(XmlReader xr, string nameSpace);
+        public abstract void read(XmlReader xr, string nameSpace); //read in next electrode record form XML file
 
-        public abstract void write(ElectrodeOutputFileStream ofs, string nameSpace);
+        public abstract void write(ElectrodeOutputFileStream ofs, string nameSpace); //write single electrode record to XML file
 
-        public abstract Point projectXY(); //lays out electrodes using X-Y coordinates, but using phi-theta projection
+        public abstract Point projectXY(); //project electrode coordinates to X-Y space (isomorphic to Phi-Theta space)
 
-        public abstract double DistanceTo(ElectrodeRecord er);
+        public abstract PhiTheta projectPhiTheta(); //project electrode coordinates onto Phi-Theta space
+
+        public abstract Point3D convertXYZ(); //convert electrode coordinates to XYZ space: X-Y and Phi-Theta convert onto
+            //a sphere of standard radius
+
+        public abstract double DistanceTo(ElectrodeRecord er); //distance on surface of standard sphere between electrodes;
+            //Note: this is not the actual distance between electrodes in XYZ space, but the arc length on the sphere
 
         public abstract override string ToString();
 
-        const double radius = 10D;
+        protected const double radius = 10D;
         protected static double angleDiff(double phi1, double theta1, double phi2, double theta2)
         {
             double DTheta = theta1 - theta2;
@@ -132,8 +143,8 @@ namespace ElectrodeFileStream
 
     public class PhiThetaRecord : ElectrodeRecord
     {
-        public double Phi { get; private set; }
-        public double Theta { get; private set; }
+        public double Phi { get; private set; } //should be in radians: 0 <= Phi <= PI ; angle from vertex
+        public double Theta { get; private set; } //in radians -PI < Theta <= PI ; angle to right from nasion
 
         public PhiThetaRecord() { }
 
@@ -143,33 +154,59 @@ namespace ElectrodeFileStream
             Phi = phi;
             Theta = theta;
         }
+
+        public PhiThetaRecord(string name, PhiTheta pt)
+            : base(name)
+        {
+            Phi = pt.Phi;
+            Theta = pt.Theta;
+        }
+
+        /// <summary>
+        /// Read a Phi-Theta electrode record; values are in degrees
+        /// </summary>
+        /// <param name="xr">Open Electrode File Stream</param>
+        /// <param name="nameSpace">namesSpace or null</param>
         public override void read(XmlReader xr, string nameSpace)
         {
             this.Name = xr["Name", nameSpace];
             xr.ReadStartElement(/* Electrode */);
-            this.Phi = xr.ReadElementContentAsDouble("Phi", nameSpace);
-            this.Theta = xr.ReadElementContentAsDouble("Theta", nameSpace);
+            this.Phi = xr.ReadElementContentAsDouble("Phi", nameSpace) * ToRad;
+            this.Theta = xr.ReadElementContentAsDouble("Theta", nameSpace) * ToRad;
             xr.ReadEndElement(/* Electrode */);
         }
 
+        /// <summary>
+        /// Write a Phi-Theta electode record; although stored internally in radians,
+        /// record values are written in degrees for easier human readability
+        /// </summary>
+        /// <param name="ofs">Electrode output file stream</param>
+        /// <param name="nameSpace"></param>
         public override void write(ElectrodeOutputFileStream ofs, string nameSpace)
         {
             if (ofs.t != typeof(PhiThetaRecord)) throw new Exception("Attempt to mix types in ElectrodeOutputFileStream.");
             XmlWriter xw = ofs.xw;
             xw.WriteStartElement("Electrode", nameSpace);
             xw.WriteAttributeString("Name", nameSpace, this.Name);
-            xw.WriteElementString("Phi", nameSpace, this.Phi.ToString("G"));
-            xw.WriteElementString("Theta", nameSpace, this.Theta.ToString("G"));
+            xw.WriteElementString("Phi", nameSpace, (Phi * ToDeg).ToString("G"));
+            xw.WriteElementString("Theta", nameSpace, (Theta * ToDeg).ToString("G"));
             xw.WriteEndElement();
         }
 
         public override Point projectXY()
         {
-            Point p = new Point();
-            double rad = Math.PI * Theta / 180D;
-            p.X = Phi * Math.Sin(rad);
-            p.Y = Phi * Math.Cos(rad);
-            return p;
+            return new Point(Phi * Math.Sin(Theta), Phi * Math.Cos(Theta));
+        }
+
+        public override PhiTheta projectPhiTheta()
+        {
+            return new PhiTheta(Phi, Theta);
+        }
+
+        public override Point3D convertXYZ()
+        {
+            double r1 = radius * Math.Sin(Phi);
+            return new Point3D(r1 * Math.Sin(Theta), r1 * Math.Cos(Theta), radius * Math.Cos(Phi));
         }
 
         public override double DistanceTo(ElectrodeRecord er)
@@ -183,19 +220,28 @@ namespace ElectrodeFileStream
 
         public string ToString(string format)
         {
-            return Math.Round(Phi).ToString(format) + "," + Math.Round(Theta).ToString(format);
+            return Math.Round(Phi * ToDeg).ToString(format) + "," + Math.Round(Theta * ToDeg).ToString(format);
         }
 
         public override string ToString()
         {
-            return "PhiTheta: " + Phi.ToString("0.0") + ", " + Theta.ToString("0.0");
+            return "PhiTheta: " + (Phi * ToDeg).ToString("0.0") + ", " + (Theta * ToDeg).ToString("0.0");
         }
+
+        const double ToRad = Math.PI / 180D;
+        const double ToDeg = 180D / Math.PI;
     }
 
+    /// <summary>
+    /// Electrode record where the locations are encoded in Phi-Theta space, but accessed using
+    /// X-Y coordinates; this space consists of a disc of radius pi centered at the origin;
+    /// may also be used for simple rectilinear array display, provided no conversions to Phi-Theta or
+    /// XYZ are performed!
+    /// </summary>
     public class XYRecord : ElectrodeRecord
     {
-        double X;
-        double Y;
+        public double X { get; private set; }
+        public double Y { get; private set; }
 
         public XYRecord() { }
 
@@ -205,6 +251,14 @@ namespace ElectrodeFileStream
             X = x;
             Y = y;
         }
+
+        public XYRecord(string name, Point xy)
+            : base(name)
+        {
+            X = xy.X;
+            Y = xy.Y;
+        }
+
         public override void read(XmlReader xr, string nameSpace)
         {
             this.Name = xr["Name", nameSpace];
@@ -230,6 +284,18 @@ namespace ElectrodeFileStream
             return new Point(X, Y); // identity
         }
 
+        public override PhiTheta projectPhiTheta()
+        {
+            return new PhiTheta(Math.Sqrt(X * X + Y * Y), Math.Atan2(X, Y));
+        }
+
+        public override Point3D convertXYZ()
+        {
+            double p = Math.Sqrt(X * X + Y * Y);
+            double r1 = radius * Math.Sin(p);
+            return new Point3D(r1 * X / p, r1 * Y / p, radius * Math.Cos(p));
+        }
+
         public override double DistanceTo(ElectrodeRecord er)
         {
             if(!(er is XYRecord))
@@ -248,11 +314,15 @@ namespace ElectrodeFileStream
         }
     }
 
+    /// <summary>
+    /// Complete electrode position description in 3-space; may be converted to Phi-Theta space by projection
+    /// onto a sphere
+    /// </summary>
     public class XYZRecord : ElectrodeRecord
     {
-        double X;
-        double Y;
-        double Z;
+        public double X { get; private set; }
+        public double Y { get; private set; }
+        public double Z { get; private set; }
 
         public XYZRecord() { }
 
@@ -263,6 +333,15 @@ namespace ElectrodeFileStream
             Y = y;
             Z = z;
         }
+
+        public XYZRecord(string name, Point3D xyz)
+            : base(name)
+        {
+            X = xyz.X;
+            Y = xyz.Y;
+            Z = xyz.Z;
+        }
+
         public override void read(XmlReader xr, string nameSpace)
         {
             this.Name = xr["Name", nameSpace];
@@ -289,25 +368,67 @@ namespace ElectrodeFileStream
         {
             double x2y2 = Math.Sqrt(X * X + Y * Y);
             double r = Math.Atan2(x2y2, Z); // = phi of PhiTheta system
-            if (r < 0) r = Math.PI / 2D - r;
             return new Point(X * r / x2y2, Y * r / x2y2);
         }
 
+        public override PhiTheta projectPhiTheta()
+        {
+            return new PhiTheta(Math.Atan2(Math.Sqrt(X * X + Y * Y), Z), Math.Atan2(X, Y));
+        }
+
+        public override Point3D convertXYZ()
+        {
+            return new Point3D(X, Y, Z);
+        }
+
+        /// <summary>
+        /// Calculates arc distance after projection onto standard sphere
+        /// </summary>
+        /// <param name="er"></param>
+        /// <returns>Distance</returns>
         public override double DistanceTo(ElectrodeRecord er)
         {
             if (!(er is XYZRecord))
                 throw new Exception("In XYZRecord.DistanceTo: incompatable ElectrodeRecord types");
             XYZRecord xyz = (XYZRecord)er;
-            double phi1 = Math.Atan2(Math.Sqrt(X * X + Y * Y), Z);
-            double phi2 = Math.Atan2(Math.Sqrt(xyz.X * xyz.X + xyz.Y * xyz.Y), xyz.Z);
-            double theta1 = Math.Atan2(X, Y);
-            double theta2 = Math.Atan2(xyz.X, xyz.Y);
-            return angleDiff(phi1, theta1, phi1, theta2);
+            double r1 = Math.Sqrt(X * X + Y * Y + Z * Z);
+            double r2 = Math.Sqrt(xyz.X * xyz.X + xyz.Y * xyz.Y + xyz.Z * xyz.Z);
+            double chord = Math.Sqrt(Math.Pow(X / r1 - xyz.X / r2, 2) +
+                Math.Pow(Y / r1 - xyz.Y / r2, 2) + Math.Pow(Z / r1 - xyz.Z / r2, 2));
+            return 2D * radius * Math.Asin(chord / 2D);
         }
 
         public override string ToString()
         {
             return "XYZ: " + X.ToString("0.00") + ", " + Y.ToString("0.00") + ", " + Z.ToString("0.00");
+        }
+    }
+
+    public struct Point3D
+    {
+        public double X { get; set; }
+        public double Y { get; set; }
+        public double Z { get; set; }
+
+        public Point3D(double x, double y, double z)
+            : this()
+        {
+            X = x;
+            Y = y;
+            Z = z;
+        }
+    }
+
+    public struct PhiTheta
+    {
+        public double Phi { get; set; }
+        public double Theta { get; set; }
+
+        public PhiTheta(double phi, double theta)
+            : this()
+        {
+            Phi = phi;
+            Theta = theta;
         }
     }
 }
