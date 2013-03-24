@@ -63,6 +63,8 @@ namespace Polhemus
             return _stylusButton[station - 1];
         }
 
+        public enum Parity { None, Odd, Even }
+
         delegate IDataFrameType Get();
         List<List<IDataFrameType>> _responseFrameDescription = new List<List<IDataFrameType>>(2);
 
@@ -76,8 +78,8 @@ namespace Polhemus
         {
             _baseStream = stream;
             CommandWriter = new StreamWriter(stream, Encoding.ASCII);
-            TReader = new StreamReader(stream, Encoding.ASCII);
-            BReader = new BinaryReader(stream, Encoding.ASCII);
+            TReader = new StreamReader(stream, Encoding.ASCII); //Text reader
+            BReader = new BinaryReader(stream, Encoding.ASCII); //Binary reader
             _stylusButton = new StylusMode[2];
             for (int i = 0; i < 2; i++)
                 _stylusButton[i] = StylusMode.Marker;
@@ -91,9 +93,10 @@ namespace Polhemus
             _responseFrameDescription[1].Add(new CRLF());
         }
 
-        public void AlignmentReferenceFrame(int station, Triple O, Triple X, Triple Y)
+//----->Polhemus commands start here<-----
+        public void AlignmentReferenceFrame(int? station, Triple O, Triple X, Triple Y)
         {
-            string c = "A" + station.ToString("0") + "," +
+            string c = "A" + station == null ? "*" : ((int)station).ToString("0") + "," +
                 O.ToASCII() + X.ToASCII() + Y.ToASCII();
             SendCommand(c, true);
         }
@@ -120,11 +123,11 @@ namespace Polhemus
             return cc;
         }
 
-        public void Boresight(int station, double AzRef, double ElRef, double RlRef, bool ResetOrigin)
+        public void Boresight(int? station, double AzRef, double ElRef, double RlRef, bool ResetOrigin)
         {
             Triple ra = new Triple(AzRef, ElRef, RlRef);
-            string c = "B" + station.ToString("0") + "," +
-                ra.ToASCII()+
+            string c = "B" + station == null ? "*" : ((int)station).ToString("0") + "," +
+                ra.ToASCII() +
                 (ResetOrigin ? "1" : "0");
 
             SendCommand(c, true);
@@ -208,10 +211,10 @@ namespace Polhemus
             return mfa;
         }
 
-        public void HemisphereOfOperation(int station, double p1, double p2, double p3)
+        public void HemisphereOfOperation(int? station, double p1, double p2, double p3)
         {
             Triple cc = new Triple(p1, p2, p3);
-            string c = "H" + station.ToString("0") + cc.ToASCII();
+            string c = "H" + station == null ? "*" : ((int)station).ToString("0") + cc.ToASCII();
             SendCommand(c, true);
         }
 
@@ -233,10 +236,17 @@ namespace Polhemus
             return cc;
         }
 
-        public void StylusButtonFunction(int station, StylusMode sm)
+        public void StylusButtonFunction(int? station, StylusMode sm)
         {
-            SendCommand("L" + station.ToString("0") + (sm == StylusMode.Marker ? "0" : "1"), true);
-            _stylusButton[station - 1] = sm;
+            SendCommand("L" + station == null ? "*" : ((int)station).ToString("0") +
+                (sm == StylusMode.Marker ? "0" : "1"), true);
+            if (station == null)
+            {
+                _stylusButton[0] = sm;
+                _stylusButton[1] = sm;
+            }
+            else
+                _stylusButton[(int)station - 1] = sm;
         }
 
         public StylusMode Get_StylusButtonFunction(int station)
@@ -261,10 +271,10 @@ namespace Polhemus
             return sm;
         }
 
-        public void TipOffsets(int station, double Xoff, double Yoff, double Zoff)
+        public void TipOffsets(int? station, double Xoff, double Yoff, double Zoff)
         {
             Triple co = new Triple(Xoff, Yoff, Zoff);
-            string c = "N" + station.ToString("0") + co.ToASCII();
+            string c = "N" + station == null ? "*" : ((int)station).ToString("0") + co.ToASCII();
             SendCommand(c, true);
         }
 
@@ -288,26 +298,26 @@ namespace Polhemus
             return co;
         }
 
-        public void OutputDataList(int station, IDataFrameType[] outputTypes)
+        public void OutputDataList(int? station, IDataFrameType[] outputTypes)
         {
-            StringBuilder sb = new StringBuilder("O" + (station == -1 ? "*" : station.ToString("0")));
-            if (station == -1)
+            StringBuilder sb = new StringBuilder("O" + (station == null ? "*" : ((int)station).ToString("0")));
+            if (station == null)
             {
                 _responseFrameDescription[0].Clear();
                 _responseFrameDescription[1].Clear();
             }
             else
-                _responseFrameDescription[station - 1].Clear();
+                _responseFrameDescription[(int)station - 1].Clear();
             foreach (IDataFrameType dft in outputTypes)
             {
                 sb.Append("," + dft.ParameterValue.ToString("0"));
-                if (station == -1)
+                if (station == null)
                 {
                     _responseFrameDescription[0].Add(dft);
                     _responseFrameDescription[1].Add(dft);
                 }
                 else
-                    _responseFrameDescription[station - 1].Add(dft);
+                    _responseFrameDescription[(int)station - 1].Add(dft);
             }
             SendCommand(sb.ToString(), true);
         }
@@ -424,9 +434,9 @@ namespace Polhemus
             return fp;
         }
 
-        public void UnBoresight(int station)
+        public void UnBoresight(int? station)
         {
-            SendCommand('\u0002' + station.ToString("0"), true);
+            SendCommand('\u0002' + station == null ? "*" : ((int)station).ToString("0"), true);
         }
 
         public void SetEchoMode(EchoMode e)
@@ -458,10 +468,94 @@ namespace Polhemus
             return e;
         }
 
-        public void ResetAlignmentFrame(int station)
+        public void ResetAlignmentFrame(int? station)
         {
-            SendCommand('\u0012' + station.ToString("0"), true);
+            SendCommand('\u0012' + station == null ? "*" : ((int)station).ToString("0"), true);
         }
+
+        public void SaveOperationalConfiguration(int slotNumber)
+        {
+            SendCommand('\u000B' + slotNumber.ToString("0"), false);
+        }
+
+        public void RS232PortConfiguration(int? baudRate, Parity? p)
+        {
+            string br = baudRate == null ? "" : ((int)(baudRate / 100)).ToString("00");
+            string par = p == null ? "" : ((int)p).ToString("0");
+            SendCommand('\u000F' + br + "," + p, true);
+        }
+
+        int[] BREncoding = { 2400, 4800, 9600, 19200, 38400, 57600, 115200 };
+        public void Get_RS232PortConfiguration(out int baudRate, out Parity parity)
+        {
+            SendCommand('\u000F', true);
+            ResponseHeader r = ReadHeader();
+            if (r.Command != '\u000F')
+                throw new PolhemusException(0xF3);
+            if (_format == Format.ASCII)
+            {
+                baudRate = Convert.ToInt32((string)parseASCIIStream("A6B")) * 100;
+                parity = (Parity)Convert.ToInt32((string)parseASCIIStream("A<>"));
+            }
+            else
+            {
+                baudRate = BREncoding[BReader.ReadInt32() - 1];
+                parity = (Parity)BReader.ReadInt32();
+            }
+        }
+
+        public void ActiveStationState(int? station, bool onState)
+        {
+            SendCommand('\u0015' + (station == null ? "*" : ((int)station).ToString("0")) +
+                "," + (onState ? "1" : "0"), true);
+        }
+
+        public void ActiveStationState(byte state)
+        {
+            SendCommand('\u0015' + "0," + state.ToString("00"), true);
+        }
+
+        public void Get_ActiveStationState(int station, out byte return1, out byte return2)
+        {
+            SendCommand('\u0015'+ station.ToString("0"), true);
+            ResponseHeader r = ReadHeader();
+            if (r.Command != '\u0015')
+                throw new PolhemusException(0xF3);
+            if (_format == Format.ASCII)
+            {
+                return1 = (byte)parseASCIIStream(station == 0 ? "X" : "XXXX");
+                return2 = (byte)parseASCIIStream(station == 0 ? "X<>" : "XXXX<>");
+            }
+            else
+            {
+                uint v = BReader.ReadUInt32();
+                return1 = (byte)(v & 0xFF);
+                return2 = (byte)(v >> 16);
+            }
+        }
+
+        public void OperationalConfigurationID(string ID)
+        {
+            SendCommand('\u0018' + (ID.Length > 15 ? ID.Substring(0, 15) : ID.PadRight(15)) + '\u0000', true);
+        }
+
+        public void Get_OperationalConfigurationID()
+        {
+            SendCommand('\u0018', true);
+            ResponseHeader r = ReadHeader();
+            if (r.Command != '\u0018')
+                throw new PolhemusException(0xF3);
+            if (_format == Format.ASCII)
+            {
+
+            }
+            else
+            {
+
+            }
+        }
+
+        //----->Private routines start here<-----
 
         private void SendCommand(string s, bool IsConfigurationCommand)
         {
