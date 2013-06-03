@@ -1063,6 +1063,17 @@ namespace DatasetReviewer
                 notes.Close();
             Log.writeToLog("DatasetReviewer ending");
         }
+
+        private void Window_KeyDown(object sender, KeyEventArgs e)
+        {
+            switch (e.Key)
+            {
+                default:
+                    Console.WriteLine(e.Key);
+                    break;
+            }
+            e.Handled = false;
+        }
     }
 
     internal class ChannelGraph : Canvas
