@@ -1,0 +1,606 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Drawing;
+using System.IO;
+using System.Linq;
+using System.Reflection;
+using System.Text.RegularExpressions;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Data;
+using System.Windows.Documents;
+using System.Windows.Forms;
+using System.Windows.Media;
+using BDFEDFFileStream;
+using CCIUtilities;
+using EventDictionary;
+using GroupVarDictionary;
+using HeaderFileStream;
+using Microsoft.Win32;
+
+namespace EDFPlusConverter
+{
+    /// <summary>
+    /// Interaction logic for MainWindow.xaml
+    /// </summary>
+    public partial class Window2 : Window, INotifyPropertyChanged
+    {
+        BDFEDFFileReader edfPlus;
+        BDFEDFHeader head;
+        string EDFPlusFileName;
+        double oldSR;
+        int oldNP;
+        double newSR;
+        int newNP;
+        EDFPlusConverter.FMConverter fmc = null;
+        EDFPlusConverter.BDFConverter bdfc = null;
+
+        ObservableCollection<GVMapElement> _GVList = new ObservableCollection<GVMapElement>();
+        List<EventMark> EventMarks = new List<EventMark>();
+
+        private double _extSearch;
+        int _decimation = 1;
+        List<int> channels;
+
+        BackgroundWorker bw;
+
+        BDFEDFRecord[] records;
+
+        public Window2()
+        {
+            Log.writeToLog("Starting EDFPlusConverter " + Utilities.getVersionNumber());
+
+            Microsoft.Win32.OpenFileDialog dlg = new Microsoft.Win32.OpenFileDialog();
+            dlg.Title = "Open EDF+ file for conversion...";
+            dlg.DefaultExt = ".edf"; // Default file extension
+            dlg.Filter = "EDF+ Files (.edf)|*.edf"; // Filter files by extension
+            Nullable<bool> result = dlg.ShowDialog();
+            if (result == null || result == false) { this.Close(); Environment.Exit(0); }
+
+            EDFPlusFileName = dlg.FileName;
+
+            edfPlus = new BDFEDFFileReader(
+                new FileStream(EDFPlusFileName, FileMode.Open, FileAccess.Read));
+            oldSR = (int)(edfPlus.NSamp / edfPlus.RecordDurationDouble);
+
+            InitializeComponent();
+
+            SR.Text = CurrentSR.Text = oldSR.ToString("0");
+            CurrentRLSecs.Text = edfPlus.RecordDurationDouble.ToString("G");
+            CurrentRLPts.Text = RecLengthPts.Text = edfPlus.NSamp.ToString("0");
+            this.MinHeight = SystemInformation.WorkingArea.Height - 240;
+            this.Title = "Convert " + System.IO.Path.GetFileNameWithoutExtension(dlg.FileName);
+            this.TitleLine.Text = EDFPlusFileName;
+
+            records = new BDFEDFRecord[edfPlus.NumberOfRecords];
+            for (int rec = 0; rec < edfPlus.NumberOfRecords; rec++)
+            {
+                records[rec] = edfPlus.read();
+                List<TimeStampedAnnotation> TAL = edfPlus.getAnnotation();
+                foreach(TimeStampedAnnotation tsa in TAL){
+                    if (tsa.Annotation != "")
+                    {
+                        GVMapElement gv;
+                        try
+                        {
+                            gv = _GVList.Where(n => n.Name == tsa.Annotation).First(); //there will be at most one
+                        }
+                        catch (InvalidOperationException)
+                        {
+                            gv = new GVMapElement(tsa.Annotation, _GVList.Count + 1);
+                            _GVList.Add(gv);
+                        }
+                        gv.EventCount++;
+                        EventMarks.Add(new EventMark(tsa.Time, gv));
+                    }
+                }
+            }
+            GVMap.ItemsSource = _GVList;
+            GVMap.IsSynchronizedWithCurrentItem = true;
+            Events.ItemsSource = EventMarks;
+            Events.IsSynchronizedWithCurrentItem = true;
+        }
+
+        public event PropertyChangedEventHandler PropertyChanged;
+
+        private void NotifyPropertyChanged(String info)
+        {
+            if (PropertyChanged != null)
+            {
+                PropertyChanged(this, new PropertyChangedEventArgs(info));
+            }
+        }
+
+        private void Cancel_Click(object sender, RoutedEventArgs e)
+        {
+            this.Close();
+            Environment.Exit(0);
+        }
+
+        private void ConvertFM_Click(object sender, RoutedEventArgs e)
+        {
+            if (fmc == null) /* Just in time singleton */
+                fmc = new EDFPlusConverter.FMConverter();
+
+            createConverterBase(fmc);
+
+            fmc.anc = (bool)ancillarydata.IsChecked;
+            fmc.length = newNS;
+
+            // Execute conversion in background
+
+            bw = new BackgroundWorker();
+            bw.DoWork += new DoWorkEventHandler(fmc.Execute);
+            bw.ProgressChanged += new ProgressChangedEventHandler(bw_ProgressChanged);
+            bw.RunWorkerCompleted += bw_RunWorkerCompleted;
+            bw.WorkerReportsProgress = true;
+            bw.RunWorkerAsync();
+        }
+
+        private void correctReferenceLists(Converter conv)
+        {
+            List<List<int>> list = conv.referenceGroups;
+            for (int c = 1; c < list.Count; c++) //don't need to check first list
+            {
+                List<int> chanList1 = list[c];
+                for (int chan = 0; chan < chanList1.Count; chan++)
+                {
+                    int chan1 = chanList1[chan]; //channel number to look for
+                    for (int d = 0; d < c; d++) //look into previous lists only
+                    {
+                        List<int> chanList2 = list[d];
+                        for (int comp = chanList2.Count - 1; comp >= 0; comp--) //always work backwards to avoid changing indices
+                            if (chan1 == chanList2[comp]) //remove element from chanList2
+                                chanList2.Remove(chanList2[comp]); //assumes that no dupes within lists (enforced by parser)
+                    }
+                }
+            }
+            for (int i = list.Count - 1; i >= 0; i--)
+            {
+                if (list[i].Count == 0)
+                {
+                    list.Remove(list[i]);
+                    conv.referenceChannels.Remove(conv.referenceChannels[i]);
+                }
+            }
+        }
+
+        void bw_ProgressChanged(object sender, ProgressChangedEventArgs e)
+        {
+            StatusLine.Text = "Status: " + (string)e.UserState;
+        }
+
+        void bw_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
+        {
+            ConvertFM.Visibility = Visibility.Visible;
+            if (e.Error != null)
+            {
+                StatusLine.Foreground = new SolidColorBrush(Colors.Red);
+                StatusLine.Text = "Error: " + e.Error.Message;
+                CCIUtilities.Log.writeToLog("Error in conversion: " + e.Error.Message);
+            }
+            else
+            {
+                int[] res = (int[])e.Result;
+                StatusLine.Text = "Status: Completed conversion with " + res[0].ToString() + " records in " + res[1].ToString() + " recordsets generated.";
+                CCIUtilities.Log.writeToLog("Completed conversion, generating " + res[1].ToString() + " recordsets");
+            }
+            Cancel.Content = "Done";
+            checkError();
+        }
+
+        private void Decimation_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            try
+            {
+                _decimation = System.Convert.ToInt32(Decimation.Text);
+                if (_decimation <= 0) throw new Exception();
+                Decimation.BorderBrush = System.Windows.Media.Brushes.MediumBlue;
+            }
+            catch (Exception)
+            {
+                _decimation = 0;
+                Decimation.BorderBrush = System.Windows.Media.Brushes.Red;
+            }
+            checkError();
+        }
+
+        double newNS; //number of seconds in record
+        private void RecLength_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            try
+            {
+                newNS = System.Convert.ToDouble(RecLength.Text);
+                if (newNS <= 0) throw new Exception();
+                RecLength.BorderBrush = System.Windows.Media.Brushes.MediumBlue;
+            }
+            catch (Exception)
+            {
+                newNS = 0D;
+                RecLength.BorderBrush = System.Windows.Media.Brushes.Red;
+            }
+            checkError();
+        }
+
+        private void removeTrends_Checked(object sender, RoutedEventArgs e)
+        {
+            if (removeOffsets != null)
+            {
+                removeOffsets.IsChecked = true;
+                removeOffsets.IsEnabled = !(bool)removeTrends.IsChecked;
+            }
+        }
+
+        List<int> _refChan;
+        private void RefChan_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (RefChanName == null) return;
+            string str = ((System.Windows.Controls.TextBox)sender).Text;
+            _refChan = parseList(str);
+            if (_refChan == null || _refChan.Count == 0)
+            {
+                RefChan.BorderBrush = System.Windows.Media.Brushes.Red;
+                RefChanName.Text = "Error";
+            }
+            else
+            {
+                RefChan.BorderBrush = System.Windows.Media.Brushes.MediumBlue;
+                if (_refChan.Count > 1)
+                    RefChanName.Text = _refChan.Count.ToString("0") + " channels";
+                else
+                    RefChanName.Text = edfPlus.channelLabel(_refChan[0]);
+            }
+            checkError();
+        }
+
+        List<List<int>> _refChanExp;
+        private void RefChanExpression_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (sender == null) return;
+            TextChange tc = e.Changes.Last();
+            string str = RefChanExpression.Text;
+            if (tc.AddedLength == 1)
+            {
+                int i = tc.Offset;
+                char c = str[i++];
+                if (c == '{' || c == '(')
+                {
+                    str = str.Substring(0, i) + (c == '{' ? "}" : ")") + str.Substring(i, str.Length - i);
+                    RefChanExpression.Text = str; //NOTE: this causes reentrant call to this routine, so the next two statements work!
+                    RefChanExpression.Select(i, 0);
+                    return;
+                }
+            }
+            _refChanExp = parseReferenceString(str);
+            if (_refChanExp == null || _refChanExp.Count == 0)
+            {
+                RefChanExpression.BorderBrush = System.Windows.Media.Brushes.Red;
+                RefChanExpDesc.Text = "Error";
+            }
+            else
+            {
+                RefChanExpression.BorderBrush = System.Windows.Media.Brushes.MediumBlue;
+                int lc = _refChanExp.Count / 2;
+                RefChanExpDesc.Text = lc.ToString("0") + " reference set" + (lc <= 1 ? "" : "s");
+            }
+            checkError();
+        }
+
+        private void SelChan_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (SelChanName == null) return;
+            string str = ((System.Windows.Controls.TextBox)sender).Text;
+            channels = parseList(str);
+            if (channels == null || channels.Count == 0)
+            {
+                SelChan.BorderBrush = System.Windows.Media.Brushes.Red;
+                SelChanName.Text = "Error";
+            }
+            else
+            {
+                SelChan.BorderBrush = System.Windows.Media.Brushes.MediumBlue;
+                if (channels.Count > 1)
+                    SelChanName.Text = channels.Count.ToString("0") + " channels";
+                else
+                    SelChanName.Text = edfPlus.channelLabel(channels[0]);
+            }
+            checkError();
+        }
+
+        private List<int> parseList(string str)
+        {
+            try
+            {
+                return CCIUtilities.Utilities.parseChannelList(str, 1, edfPlus.NumberOfChannels - 1, true);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private List<List<int>> parseReferenceString(string str)
+        {
+            if (str == null || str == "") return null;
+            List<List<int>> output = new List<List<int>>();
+            List<int> list;
+            Regex r1 = new Regex(@"^(?:\((?<list>[^)]+?)\)|(?<list>[^,]+?))~{(?<refSet>[^}]*?)}$");
+            string split = @"(?<=}),(?=(?:\d|\())";
+            string[] groups=Regex.Split(str,split);
+            foreach (string mstr in groups)
+            {
+                Match m = r1.Match(mstr);
+                if (!m.Success) return null;
+                try
+                {
+                    list = CCIUtilities.Utilities.parseChannelList(m.Groups["list"].Value, 1, edfPlus.NumberOfChannels - 1, true);
+                    if (list == null) return null; //no empty channel lists permitted
+                    output.Add(list);
+                    if (m.Groups["refSet"].Value == "")
+                        output.Add(null); //permit empty reference set
+                    else
+                    {
+                        list = CCIUtilities.Utilities.parseChannelList(m.Groups["refSet"].Value, 1, edfPlus.NumberOfChannels - 1, true);
+                        if (list == null) return null;
+                        output.Add(list);
+                    }
+                }
+                catch
+                {
+                    return null;
+                }
+            }
+            return output;
+        }
+
+        private void Radin_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            System.Windows.Controls.TextBox tb = (System.Windows.Controls.TextBox)sender;
+            if (tb == null) return;
+            string s = tb.Text;
+            try
+            {
+                Convert.ToDouble(s);
+            }
+            catch
+            {
+                tb.Text = "Error";
+            }
+        }
+
+        private void Window_ContentRendered(object sender, EventArgs e)
+        {
+            string s = SelChan.Text = "1-" + (edfPlus.NumberOfChannels - 1).ToString("0");
+            RefChan.Text = s;
+            RefChanExpression.Text = "(" + s + ")~{" + s + "}";
+        }
+
+        private void ConvertBDF_Click(object sender, RoutedEventArgs e)
+        {
+            if (bdfc == null)
+                bdfc = new EDFPlusConverter.BDFConverter();
+
+            createConverterBase(bdfc);
+
+            // Execute conversion in background
+
+            bw = new BackgroundWorker();
+            bw.DoWork += new DoWorkEventHandler(bdfc.Execute);
+            bw.ProgressChanged += new ProgressChangedEventHandler(bw_ProgressChanged);
+            bw.RunWorkerCompleted += bw_RunWorkerCompleted;
+            bw.WorkerReportsProgress = true;
+            bw.RunWorkerAsync();
+        }
+
+        private void Window_Closed(object sender, EventArgs e)
+        {
+            CCIUtilities.Log.writeToLog("FileConverter ending");
+            edfPlus.Close();
+        }
+
+        private void checkError()
+        {
+            if (!this.IsLoaded) return;
+
+
+            ConvertFM.IsEnabled = true;
+
+            if (_decimation != 0 && newNS != 0D) //then valid decimation number and record length
+            {
+                oldNP = (int)(newNS * oldSR);
+                if (Math.Abs((double)oldNP - oldSR * newNS) < 0.1 && oldNP % _decimation == 0) //then
+                {
+                    newNP = oldNP / _decimation;
+                    RecLengthPts.Text = newNP.ToString("0");
+                    SR.Text = (oldSR / (double)_decimation).ToString("0.00");
+                }
+                else
+                {
+                    ConvertFM.IsEnabled = false;
+                    SR.Text = "Error";
+                    RecLengthPts.Text = "Error";
+                }
+            }
+            else //invalid decimation number
+            {
+                ConvertFM.IsEnabled = false;
+                SR.Text = "Error";
+                RecLengthPts.Text = "Error";
+            }
+
+            if (_GVName == "")
+            {
+                GVName.Text = "Error";
+                ConvertFM.IsEnabled = false;
+            }
+
+            if (channels == null || channels.Count == 0)
+                ConvertFM.IsEnabled = false;
+
+            if ((bool)radioButton2.IsChecked && (_refChan == null || _refChan.Count == 0))
+                ConvertFM.IsEnabled = false;
+            else if ((bool)radioButton4.IsChecked && (_refChanExp == null || _refChanExp.Count == 0))
+                ConvertFM.IsEnabled = false;
+
+        }
+
+        private void radioButton_Changed(object sender, RoutedEventArgs e)
+        {
+                checkError();
+        }
+
+        private void createConverterBase(Converter conv)
+        {
+            ConvertFM.Visibility = Visibility.Hidden;
+            conv.channels = this.channels;
+            conv.risingEdge = conv.EDE.rise; // fixed entry until we allow discordant edges
+            conv.directory = this.EDFPlusFileName;
+            conv.decimation = _decimation;
+            conv.removeOffsets = removeOffsets.IsEnabled && (bool)removeOffsets.IsChecked;
+            conv.removeTrends = removeTrends.IsEnabled && (bool)removeTrends.IsChecked;
+            if ((bool)radioButton2.IsChecked) //list of reference channels
+            {
+                conv.referenceGroups = new List<List<int>>(1);
+                conv.referenceGroups.Add(conv.channels); // All channels are referenced to
+                conv.referenceChannels = new List<List<int>>(1); // this list of channels
+                conv.referenceChannels.Add(_refChan);
+            }
+            else if ((bool)radioButton4.IsChecked) //Reference expression
+            {
+                conv.referenceGroups = new List<List<int>>();
+                conv.referenceChannels = new List<List<int>>();
+                for (int i = 0; i < _refChanExp.Count; i += 2)
+                {
+                    conv.referenceGroups.Add(_refChanExp[i]);
+                    conv.referenceChannels.Add(_refChanExp[i + 1]);
+                }
+                correctReferenceLists(conv);
+            }
+            else // no overall reference
+            {
+                conv.referenceGroups = null;
+                conv.referenceChannels = null;
+            }
+            conv.BDF = edfPlus;
+        }
+
+        private void GVMapButton_Click(object sender, RoutedEventArgs e)
+        {
+            GVMapElement gv1 = (GVMapElement)GVMap.SelectedItem;
+            string ButtonName = ((System.Windows.Controls.Button)sender).Name;
+            if (ButtonName == "GVDel")
+            {
+                _GVList.Remove(gv1);
+                if (_GVList.Count < 2) GVDel.IsEnabled = false;
+                foreach (GVMapElement gv in _GVList.Where(n => n.Value > gv1.Value)) gv.Value--;
+                GVMap.SelectedIndex = 0;
+            }
+            else
+            {
+                int i = gv1.Value;
+                int inc = ButtonName == "GVUp" ? -1 : 1;
+                GVMapElement gv2 = _GVList.Where(n => n.Value == i + inc).First();
+                gv2.Value -= inc;
+                gv1.Value += inc;
+                _GVList.Remove(gv1);
+                _GVList.Insert(gv1.Value - 1, gv1);
+                GVMap.SelectedItem = gv1;
+            }
+        }
+
+        private void GVMap_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            GVMapElement gv1 = (GVMapElement)GVMap.SelectedItem;
+            if (gv1 == null) return;
+            GVUp.IsEnabled = GVDown.IsEnabled = true;
+            if (gv1.Value == 1) { GVUp.IsEnabled = false; }
+            if (gv1.Value == _GVList.Count) { GVDown.IsEnabled = false; }
+        }
+
+        string _GVName;
+        private void GVName_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (GVName.Text.Length > 0 && GVName.Text.Length <= 24)
+            {
+                _GVName = GVName.Text;
+                GVName.BorderBrush = System.Windows.Media.Brushes.MediumBlue;
+            }
+            else
+            {
+                _GVName = ""; //signal error to checkError
+                GVName.BorderBrush = System.Windows.Media.Brushes.Red;
+            }
+            checkError();
+        }
+    }
+
+    public class GVMapElement: IComparer<GVMapElement>, INotifyPropertyChanged
+    {
+        string _name;
+        public string Name { get { return _name; } }
+        int _value;
+        public int Value { get { return _value; }
+            set
+            {
+                if (value == _value) return;
+                _value = value;
+                NotifyPropertyChanged("Value");
+            }
+        }
+        public int EventCount { get; internal set; }
+        public GVMapElement() { }
+        public GVMapElement(string name, int value)
+        {
+            _name = name;
+            Value = value;
+            EventCount = 0;
+        }
+
+        public int Compare(GVMapElement x, GVMapElement y)
+        {
+            return x.Value - y.Value;
+        }
+
+        public override string ToString()
+        {
+            return _name + " = " + Value.ToString("0");
+        }
+
+        public event PropertyChangedEventHandler PropertyChanged;
+
+        private void NotifyPropertyChanged(String info)
+        {
+            if (PropertyChanged != null)
+            {
+                PropertyChanged(this, new PropertyChangedEventArgs(info));
+            }
+        }
+    }
+
+    public class EventMark
+    {
+        double Time { get; set; }
+        GVMapElement GV { get; set; }
+
+        public EventMark(double time, GVMapElement gv)
+        {
+            this.Time = time;
+            this.GV = gv;
+        }
+
+        public override string ToString()
+        {
+            return Time.ToString("0.000") + " -> " + GV.Name;
+        }
+    }
+
+    internal class GVMapList : ObservableCollection<GVMapElement>
+    {
+        internal GVMapList Sort()
+        {
+            return (GVMapList)this.Where(n => true);
+        }
+    }
+}
