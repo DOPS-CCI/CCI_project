@@ -112,7 +112,6 @@
       <DependentUpon>App.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="BDFConverter.cs" />
     <Compile Include="Converter.cs" />
     <Compile Include="FMConverter.cs" />
     <Compile Include="LogFile.cs" />

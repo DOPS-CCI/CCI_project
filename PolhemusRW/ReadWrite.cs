@@ -47,8 +47,8 @@ namespace Examples
                     wholeUsbDevice.ClaimInterface(0);
                 }
 
+                //Uses EndPoint 2 for both read and write
                 UsbEndpointReader reader = MyUsbDevice.OpenEndpointReader(ReadEndpointID.Ep02);
-
                 UsbEndpointWriter writer = MyUsbDevice.OpenEndpointWriter(WriteEndpointID.Ep02);
 
                 while (true)
@@ -110,6 +110,7 @@ namespace Examples
             {
                 Console.WriteLine();
                 Console.WriteLine((ec != ErrorCode.None ? ec + ":" : String.Empty) + ex.Message);
+                Console.Read();
             }
             finally
             {
