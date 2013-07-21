@@ -1,9 +1,12 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Text.RegularExpressions;
 using Event;
+using CCILibrary;
 
-namespace CCILibrary
+namespace BDFEDFFileStream
 {
     public class BDFEDFFileStream : IDisposable
     {
@@ -39,8 +42,28 @@ namespace CCILibrary
         /// <summary>
         /// Record duration in seconds; read-only
         /// </summary>
-        public int RecordDuration { get { return header.recordDuration; } }
+        public int RecordDuration
+        {
+            get
+            {
+                if (header.recordDuration <= 0) //then this file has a non-integer record duration
+                    throw new BDFEDFException("Record duration is not a positive definite integer value");
+                return header.recordDuration;
+            }
+        }
 
+        /// <summary>
+        /// Record duration in seconds returned as double; read-only
+        /// </summary>
+        public double RecordDurationDouble
+        {
+            get
+            {
+                if (header.recordDuration < 0)
+                    return header.recordDurationDouble;
+                return (double)header.recordDuration;
+            }
+        }
         /// <summary>
         /// Local Subject Id field in BDF/EDF file
         /// </summary>
@@ -132,13 +155,13 @@ namespace CCILibrary
         {
             if (!header.isValid) header.physicalDimensions[index] = value;
         }
-        public int pMin(int index) { return header.physicalMinimums[index]; }
-        public void pMin(int index, int value)
+        public double pMin(int index) { return header.physicalMinimums[index]; }
+        public void pMin(int index, double value)
         {
             if (!header.isValid) header.physicalMinimums[index] = value;
         }
-        public int pMax(int index) { return header.physicalMaximums[index]; }
-        public void pMax(int index, int value)
+        public double pMax(int index) { return header.physicalMaximums[index]; }
+        public void pMax(int index, double value)
         {
             if (!header.isValid) header.physicalMaximums[index] = value;
         }
@@ -171,14 +194,14 @@ namespace CCILibrary
         public double SampleTime(int channel)
         {
             if(header._isValid)
-                return (double)RecordDuration / (double)header.numberSamples[channel];
+                return RecordDurationDouble / (double)header.numberSamples[channel];
             return 0D;
         }
 
         /// <summary>
         ///  Courtesy function: returns sampling time for channel 0, which is usually same for all channels
         /// </summary>
-        public double SampTime { get { return (double)RecordDuration / (double)NSamp; } }
+        public double SampTime { get { return RecordDurationDouble / (double)NSamp; } }
 
         /// <summary>
         /// Courtesy function: returns number of samples in channel 0, which is usually same for all channels
@@ -201,14 +224,15 @@ namespace CCILibrary
         {
             if (!header.isValid) return "BDFEDFFileStream header not valid.";
             string nl = Environment.NewLine;
-            StringBuilder str = new StringBuilder("File type: " + (header.isBDFFile ? "BDF" : "EDF") + nl);
+            StringBuilder str = new StringBuilder("File type: " +
+                (header.isBDFFile ? "BDF" : "EDF" + (header.isEDFPlusFile ? "+" : "")) + nl);
             str.Append("Local Subject Id: " + header.localSubjectId + nl);
             str.Append("Local Recording Id: " + header.localRecordingId + nl);
             str.Append("Time of Recording: " + header.timeOfRecording.ToString("o") + nl);
             str.Append("Header Size: " + header.headerSize.ToString("0") + nl);
             str.Append("Number of records: " + header.numberOfRecords.ToString("0") + nl);
             str.Append("Number of channels: " + header.numberChannels.ToString("0") + nl);
-            str.Append("Record duration: " + header.recordDuration.ToString("0") + nl);
+            str.Append("Record duration: " + header.recordDuration.ToString("G") + nl);
             return str.ToString();
         }
 
@@ -223,16 +247,21 @@ namespace CCILibrary
             if (chan < 0 || chan >= NumberOfChannels) return "Invalid channel number: " + chan.ToString("0");
             string nl = Environment.NewLine;
             StringBuilder str = new StringBuilder("Label: " + header.channelLabels[chan] + "(" + (chan + 1).ToString("0") + ")" + nl);
-            str.Append("Prefilter: " + header.channelPrefilters[chan] + nl);
-            str.Append("Transducer: " + header.transducerTypes[chan] + nl);
-            str.Append("Physical dimension: " + header.physicalDimensions[chan] + nl);
-            str.Append("Physical minimum: " + header.physicalMinimums[chan].ToString("0") + nl);
-            str.Append("Physical maximum: " + header.physicalMaximums[chan].ToString("0") + nl);
-            str.Append("Digital minimum: " + header.digitalMinimums[chan].ToString("0") + nl);
-            str.Append("Digital maximum: " + header.digitalMaximums[chan].ToString("0") + nl);
-            str.Append("Number of samples: " + header.numberSamples[chan].ToString("0") + nl);
-            str.Append("Calculated gain: " + header.Gain(chan).ToString("G") + header.physicalDimensions[chan] + "/bit" + nl);
-            str.Append("Calculated offset: " + header.Offset(chan).ToString("G") + header.physicalDimensions[chan] + nl);
+            if (header.isEDFPlusFile && chan != header._AnnotationChannel)
+            {
+                str.Append("Prefilter: " + header.channelPrefilters[chan] + nl);
+                str.Append("Transducer: " + header.transducerTypes[chan] + nl);
+                str.Append("Physical dimension: " + header.physicalDimensions[chan] + nl);
+                str.Append("Physical minimum: " + header.physicalMinimums[chan].ToString("0") + nl);
+                str.Append("Physical maximum: " + header.physicalMaximums[chan].ToString("0") + nl);
+                str.Append("Digital minimum: " + header.digitalMinimums[chan].ToString("0") + nl);
+                str.Append("Digital maximum: " + header.digitalMaximums[chan].ToString("0") + nl);
+                str.Append("Number of samples: " + header.numberSamples[chan].ToString("0") + nl);
+                str.Append("Calculated gain: " + header.Gain(chan).ToString("G") + header.physicalDimensions[chan] + "/bit" + nl);
+                str.Append("Calculated offset: " + header.Offset(chan).ToString("G") + header.physicalDimensions[chan] + nl);
+            }
+            else
+                str.Append("Number of bytes: " + (header.numberSamples[chan] * 2).ToString("0") + nl);
             return str.ToString();
         }
 
@@ -264,7 +293,9 @@ namespace CCILibrary
             if (str is FileStream) baseStream = (FileStream)str;
             reader = new BinaryReader(str, Encoding.ASCII);
             header = new BDFEDFHeader();
+
             header.read(reader); //Read in header
+
             record = new BDFEDFRecord(header); //Now can create BDFEDFRecord
             header._isValid = true;
             _locationFactory = new BDFLocFactory(this);
@@ -335,13 +366,36 @@ namespace CCILibrary
         public int[] getStatus()
         {
             if (reader != null && record.currentRecordNumber < 0) throw new BDFEDFException("No records have yet been read.");
-            if (!header.isBDFFile) throw new BDFEDFException("Not a BDF file.");
+            if (!header.hasStatus) throw new BDFEDFException("No Status channel in file");
             return record.channelData[header.numberChannels - 1];
         }
 
         /// <summary>
-        /// Gets value of single sample in physical units: includes gain and offset correction
+        /// Gets data from annotation channel for last record read; only valid in EDF+ files with designated "EDF Annotation" channel
         /// </summary>
+        /// <returns>Array of integers from status channel</returns>
+        /// <exception cref="BDFEDFException">No records yet read</exception>
+        /// <exception cref="BDFEDFException">Not a BDF file</exception>
+        public List<TimeStampedAnnotation> getAnnotation()
+        {
+            if (reader != null && record.currentRecordNumber < 0) throw new BDFEDFException("No records have yet been read.");
+            if (!header.hasAnnotations) throw new BDFEDFException("No \"EDF Annotations\" channel in file");
+            string s = Encoding.UTF8.GetString(BDFEDFRecord.record, header.AnnotationOffset,
+                NumberOfSamples(header._AnnotationChannel) * 2); //"2" is because this is only used in EDF+ files
+
+            List<TimeStampedAnnotation> TAL = new List<TimeStampedAnnotation>(1);
+            foreach (Match m in Regex.Matches(s, @"(?'Time'[+-]\d+(?:\.\d*)?)(?:\x15(?'Duration'\d+(?:\.\d*)?))?\x14(?'Tag'((?:.*?)\x14)+?)\x00"))
+            {
+                double t = double.Parse(m.Groups["Time"].Value);
+                double d = 0D;
+                if (m.Groups["Duration"].Value != "") d = double.Parse(m.Groups["Duration"].Value);
+                string v = m.Groups["Tag"].Value.Replace("\x14", "|");
+                TimeStampedAnnotation tsa = new TimeStampedAnnotation(t, d, v.Substring(0, v.Length - 1));
+                TAL.Add(tsa);
+            }
+            return TAL;
+        }
+
         /// <param name="channel">Channel number; zero-based</param>
         /// <param name="sample">Sample number; zero-based</param>
         /// <returns>Value of requested sample</returns>
@@ -398,6 +452,7 @@ namespace CCILibrary
 
         public int getStatusSample(BDFPoint point)
         {
+            if (!header.hasStatus) throw new BDFEDFException("No Status channel in this file");
             int channel = header.numberChannels - 1;
             try
             {
@@ -487,6 +542,7 @@ namespace CCILibrary
 
         public int getStatusSample(BDFLoc point)
         {
+            if (!header.hasStatus) throw new BDFEDFException("No Status channel in this file");
             int channel = header.numberChannels - 1;
             try
             {
@@ -561,7 +617,7 @@ namespace CCILibrary
     }
 
     /// <summary>
-    /// Class for writing a BDF or EDF file
+    /// Class for writing a BDF or EDF file; EDF+ files not implemented
     /// </summary>
     public class BDFEDFFileWriter : BDFEDFFileStream, IDisposable
     {
@@ -692,17 +748,37 @@ namespace CCILibrary
         internal int numberOfRecords;
         internal int numberChannels;
         internal int recordDuration;
-        internal int[] physicalMinimums;
-        internal int[] physicalMaximums;
+        internal double recordDurationDouble; //used only if Record Duration isn't an integer; only for reading; not recommended by standard
+        internal double[] physicalMinimums;
+        internal double[] physicalMaximums;
         internal int[] digitalMinimums;
         internal int[] digitalMaximums;
         internal int[] numberSamples;
         internal double[] gain;
         internal double[] offset;
         internal bool _BDFFile;
+        internal bool _EDFPlusFile = false;
+        internal bool _isContinuous = true;
+        internal bool _hasStatus = true;
+        internal bool _hasAnnotations = false;
+        internal int _AnnotationChannel; //only valid if _hasAnnotations is true
+        internal int AnnotationOffset;
+        public bool isBDFFile { get { return _BDFFile; } }
+        public bool isEDFFile { get { return !_BDFFile; } }
+        public bool isEDFPlusFile { get { return _EDFPlusFile; } }
+        public bool isContinuous { get { return _isContinuous; } } //always true for BDF and EDF; may be false for EDF+
+        public bool hasAnnotations { get { return _hasAnnotations; } }
+        public int? AnnotationChannel
+        {
+            get
+            {
+                if (_hasAnnotations) return _AnnotationChannel;
+                return null;
+            }
+        }
+        public bool hasStatus { get { return channelLabels[numberChannels - 1] == "Status"; } }
         internal bool _isValid = false;
         public bool isValid { get { return _isValid; } }
-        public bool isBDFFile { get { return _BDFFile; } }
 
         internal BDFEDFHeader() { } //Usual read constructor
 
@@ -720,8 +796,8 @@ namespace CCILibrary
             transducerTypes = new string[nChan];
             physicalDimensions = new string[nChan];
             channelPrefilters = new string[nChan];
-            physicalMinimums = new int[nChan];
-            physicalMaximums = new int[nChan];
+            physicalMinimums = new double[nChan];
+            physicalMaximums = new double[nChan];
             digitalMinimums = new int[nChan];
             digitalMaximums = new int[nChan];
             numberSamples = new int[nChan];
@@ -823,15 +899,37 @@ namespace CCILibrary
                 {
                     if (s3 != "24BIT") throw new BDFEDFException("Invalid BDF format");
                 }
-                else
+                else //EDF or EDF+
                 {
-                    if (s3 != "BIOSEMI" && s3 != "EDF+C")
+                    //EDF files must have "BIOSEMI", "EDF+C" or "EDF+D" in this field
+                    if (s3.Substring(0,4) == "EDF+")
+                    {
+                        _EDFPlusFile = true;
+                        if(s3.Substring(4) =="D")
+                            _isContinuous = false;
+                        else if(s3.Substring(4)!="C")
+                            throw new BDFEDFException("Invalid EDF+ format");
+                    }
+                    else if (s3 != "BIOSEMI")
                         throw new BDFEDFException("Invalid EDF format");
                 }
                 nChar = reader.Read(cBuf, 0, 8);
                 numberOfRecords = int.Parse(new string(cBuf, 0, 8));
                 nChar = reader.Read(cBuf, 0, 8);
-                recordDuration = int.Parse(new string(cBuf, 0, 8));
+                try
+                {
+                    recordDuration = int.Parse(new string(cBuf, 0, 8));
+                }
+                catch (Exception e)
+                {
+                    if (e.GetType() == typeof(FormatException))
+                    {
+                        recordDuration = -1;
+                        recordDurationDouble = double.Parse(new string(cBuf, 0, 8));
+                    }
+                    else
+                        throw e;
+                }
                 nChar = reader.Read(cBuf, 0, 4);
                 numberChannels = int.Parse(new string(cBuf, 0, 4));
                 if ((numberChannels + 1) * 256 != headerSize)
@@ -841,8 +939,18 @@ namespace CCILibrary
                 for (int i = 0; i < numberChannels; i++)
                 {
                     nChar = reader.Read(cBuf, 0, 16);
-                    channelLabels[i] = new string(cBuf, 0, 16).TrimEnd();
+                    s2 = new string(cBuf, 0, 16).TrimEnd();
+                    if (_EDFPlusFile && s2 == "EDF Annotations")
+                    {
+                        if(_hasAnnotations)
+                            throw new BDFEDFException("More than one \"EDF Annotations\" channel in EDF+ file");
+                        _hasAnnotations = true;
+                        _AnnotationChannel = i;
+                    }
+                    channelLabels[i] = s2;
                 }
+                if (!_isContinuous && !_hasAnnotations)
+                    throw new BDFEDFException("No annotation channel for discontinuous EDF+ file");
                 transducerTypes = new string[numberChannels];
                 for (int i = 0; i < numberChannels; i++)
                 {
@@ -855,17 +963,17 @@ namespace CCILibrary
                     nChar = reader.Read(cBuf, 0, 8);
                     physicalDimensions[i] = new string(cBuf, 0, 8).TrimEnd();
                 }
-                physicalMinimums = new int[numberChannels];
+                physicalMinimums = new double[numberChannels];
                 for (int i = 0; i < numberChannels; i++)
                 {
                     nChar = reader.Read(cBuf, 0, 8);
-                    physicalMinimums[i] = int.Parse(new string(cBuf, 0, 8));
+                    physicalMinimums[i] = double.Parse(new string(cBuf, 0, 8));
                 }
-                physicalMaximums = new int[numberChannels];
+                physicalMaximums = new double[numberChannels];
                 for (int i = 0; i < numberChannels; i++)
                 {
                     nChar = reader.Read(cBuf, 0, 8);
-                    physicalMaximums[i] = int.Parse(new string(cBuf, 0, 8));
+                    physicalMaximums[i] = double.Parse(new string(cBuf, 0, 8));
                 }
                 digitalMinimums = new int[numberChannels];
                 for (int i = 0; i < numberChannels; i++)
@@ -891,6 +999,11 @@ namespace CCILibrary
                     nChar = reader.Read(cBuf, 0, 8);
                     numberSamples[i] = int.Parse(new string(cBuf, 0, 8));
                 }
+                if (hasAnnotations)
+                {
+                    AnnotationOffset = 0;
+                    for (int i = 0; i < _AnnotationChannel; i++) AnnotationOffset += numberSamples[i] * 2; //has to be EDF+
+                }
                 reader.BaseStream.Position = headerSize; //skip rest of record; position for first record
             }
             catch (Exception e)
@@ -911,19 +1024,19 @@ namespace CCILibrary
         public double Gain(int channel)
         {
             if (gain[channel] != 0.0) return gain[channel];
-            int num = physicalMaximums[channel] - physicalMinimums[channel];
+            double num = physicalMaximums[channel] - physicalMinimums[channel];
             int den = digitalMaximums[channel] - digitalMinimums[channel];
             if (den == 0 || num == 0) return gain[channel] = 1.0;
-            return gain[channel] = (double)num / (double)den;
+            return gain[channel] = num / (double)den;
         }
 
         public double Offset(int channel)
         {
             if (!Double.IsInfinity(offset[channel])) return offset[channel];
-            long num = digitalMaximums[channel] * physicalMinimums[channel] - digitalMinimums[channel] * physicalMaximums[channel];
+            double num = (double)digitalMaximums[channel] * physicalMinimums[channel] - (double)digitalMinimums[channel] * physicalMaximums[channel];
             long den = digitalMaximums[channel] - digitalMinimums[channel];
             if (den == 0L) return offset[channel] = 0.0;
-            return offset[channel] = (double)num / (double)den;
+            return offset[channel] = num / (double)den;
         }
     }
 
@@ -946,7 +1059,17 @@ namespace CCILibrary
         internal int recordLength = 0;
         BDFEDFHeader header;
         internal int[][] channelData;
-        private byte[] record;
+        static internal byte[] record;
+
+        public int getRawPoint(int channel, int point)
+        {
+            return channelData[channel][point];
+        }
+
+        public double getConvertedPoint(int channel, int point)
+        {
+            return header.Gain(channel) * (double)channelData[channel][point] - header.Offset(channel);
+        }
 
         internal BDFEDFRecord(BDFEDFHeader hdr)
         {
@@ -960,8 +1083,20 @@ namespace CCILibrary
                 i++;
             }
             recordLength *= hdr.isBDFFile ? 3 : 2; // calculate length in bytes
-            record = new byte[recordLength];
+            if (record == null) record = new byte[recordLength];
             header = hdr;
+        }
+
+        public BDFEDFRecord Copy()
+        {
+            BDFEDFRecord r = new BDFEDFRecord(this.header);
+            r.recordLength = this.recordLength;
+            r.header = this.header;
+            r.currentRecordNumber = this.currentRecordNumber;
+            for (int i = 0; i < header.numberChannels; i++)
+                for (int j = 0; j < header.numberSamples[i]; j++)
+                    r.channelData[i][j] = this.channelData[i][j];
+            return r;
         }
 
         internal void read(BinaryReader reader)
@@ -1073,15 +1208,15 @@ namespace CCILibrary
     public class BDFLocFactory
     {
         internal int _recSize; //number of points in record of underlying BDF/EDF file
-        internal int _sec; //record length in seconds of underlying BDF/EDF file
+        internal double _sec; //record length in seconds of underlying BDF/EDF file
         internal double _st; //calculated sample time of underlying BDF/EDF file
         internal BDFEDFFileStream _bdf;
 
         public BDFLocFactory(BDFEDFFileStream bdf)
         {
             _recSize = bdf.NSamp;
-            _sec = bdf.RecordDuration;
-            _st = (double)_sec / (double)_recSize;
+            _sec = bdf.RecordDurationDouble;
+            _st = _sec / (double)_recSize;
             _bdf = bdf;
         }
 
@@ -1228,6 +1363,13 @@ namespace CCILibrary
             return false;
         }
 
+        public bool greaterThanOrEqualTo(BDFLoc pt)
+        {
+            if (this._rec > pt._rec) return true;
+            if (this._rec == pt._rec && this._pt >= pt._pt) return true;
+            return false;
+        }
+
         /// <summary>
         /// Convert a BDFLoc to seconds of length
         /// </summary>
@@ -1250,6 +1392,17 @@ namespace CCILibrary
             return this;
         }
 
+        /// <summary>
+        /// Changes a BDFLoc to point just beyond end of file
+        /// </summary>
+        /// <returns>reference to self, so it can be chained with other operations</returns>
+        public BDFLoc EOF()
+        {
+            _rec = myFactory._bdf.NumberOfRecords;
+            _pt = 0;
+            return this;
+        }
+
         public long distanceInPts(BDFLoc p)
         {
             if (myFactory != p.myFactory) throw new Exception("BDFLoc.distanceInPts: locations not from same factory");
@@ -1261,6 +1414,20 @@ namespace CCILibrary
         public override string ToString()
         {
             return "Record " + _rec.ToString("0") + ", point " + _pt.ToString("0");
+        }
+    }
+
+    public class TimeStampedAnnotation
+    {
+        public double Time { get; internal set; }
+        public double Duration { get; internal set; }
+        public string Annotation { get; internal set; }
+
+        internal TimeStampedAnnotation(double time, double duration, string s)
+        {
+            Time = time;
+            Duration = duration;
+            Annotation = s;
         }
     }
 }

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO.MemoryMappedFiles;
 using System.Linq;
 using System.Text;
+using BDFEDFFileStream;
 
 namespace CCILibrary
 {
@@ -14,7 +15,7 @@ namespace CCILibrary
         BDFEDFHeader _BDFEDFHeader;
         bool isBDF;
 
-        public BDFEDFAccessor(BDFEDFFileStream bdf)
+        public BDFEDFAccessor(BDFEDFFileStream.BDFEDFFileStream bdf)
         {
             isBDF = bdf.header.isBDFFile;
             recordLength = bdf.NumberOfSamples(0) * (isBDF ? 3 : 2);

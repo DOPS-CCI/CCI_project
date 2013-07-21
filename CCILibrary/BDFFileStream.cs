@@ -107,12 +107,12 @@ namespace BDFFileStream {
         /// <param name="value">Value of physical dimension</param>
         public void dimension(int index, string value) {
             if (!_isValid) header.physicalDimensions[index] = value;}
-        public int pMin(int index) { return header.physicalMinimums[index]; }
-        public void pMin(int index, int value) {
+        public double pMin(int index) { return header.physicalMinimums[index]; }
+        public void pMin(int index, double value) {
             if (!_isValid) header.physicalMinimums[index] = value;
         }
-        public int pMax(int index) { return header.physicalMaximums[index]; }
-        public void pMax(int index, int value) {
+        public double pMax(int index) { return header.physicalMaximums[index]; }
+        public void pMax(int index, double value) {
             if (!_isValid) header.physicalMaximums[index] = value;
         }
         public int dMin(int index) { return header.digitalMinimums[index]; }
@@ -448,8 +448,8 @@ namespace BDFFileStream {
         internal int numberOfRecords;
         internal int numberChannels;
         internal int recordDuration;
-        internal int[] physicalMinimums;
-        internal int[] physicalMaximums;
+        internal double[] physicalMinimums;
+        internal double[] physicalMaximums;
         internal int[] digitalMinimums;
         internal int[] digitalMaximums;
         internal int[] numberSamples;
@@ -471,8 +471,8 @@ namespace BDFFileStream {
             transducerTypes = new string[nChan];
             physicalDimensions = new string[nChan];
             channelPrefilters = new string[nChan];
-            physicalMinimums = new int[nChan];
-            physicalMaximums = new int[nChan];
+            physicalMinimums = new double[nChan];
+            physicalMaximums = new double[nChan];
             digitalMinimums = new int[nChan];
             digitalMaximums = new int[nChan];
             numberSamples = new int[nChan];
@@ -555,8 +555,8 @@ namespace BDFFileStream {
             transducerTypes = new string[numberChannels];
             physicalDimensions = new string[numberChannels];
             channelPrefilters = new string[numberChannels];
-            physicalMinimums = new int[numberChannels];
-            physicalMaximums = new int[numberChannels];
+            physicalMinimums = new double[numberChannels];
+            physicalMaximums = new double[numberChannels];
             digitalMinimums = new int[numberChannels];
             digitalMaximums = new int[numberChannels];
             numberSamples = new int[numberChannels];
@@ -609,16 +609,16 @@ namespace BDFFileStream {
         internal double Gain(int channel)
         {
             if (gain[channel] != 0.0) return gain[channel];
-            int num = physicalMaximums[channel] - physicalMinimums[channel];
+            double num = physicalMaximums[channel] - physicalMinimums[channel];
             int den = digitalMaximums[channel] - digitalMinimums[channel];
             if(den == 0 || num == 0) return gain[channel] = 1.0;
-            return gain[channel] = (double)num / (double)den;
+            return gain[channel] = num / (double)den;
         }
 
         internal double Offset(int channel)
         {
             if (!Double.IsInfinity(offset[channel])) return offset[channel];
-            long num = digitalMaximums[channel] * physicalMinimums[channel] - digitalMinimums[channel] * physicalMaximums[channel];
+            double num = (double)digitalMaximums[channel] * physicalMinimums[channel] - (double)digitalMinimums[channel] * physicalMaximums[channel];
             long den = digitalMaximums[channel] - digitalMinimums[channel];
             if (den == 0L) return offset[channel] = 0.0;
             return offset[channel] = (double)num / (double)den;
