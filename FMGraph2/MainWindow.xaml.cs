@@ -27,6 +27,8 @@ namespace FMGraph2
             InitializeComponent();
             setup = new Setup(this);
             TC.Items.Add(setup);
+            this.MaxHeight = SystemParameters.WorkArea.Height;
+            this.MaxWidth = SystemParameters.WorkArea.Width;
             this.Show();
         }
 
