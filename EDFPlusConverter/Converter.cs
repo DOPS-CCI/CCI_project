@@ -2,9 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using BDFEDFFileStream;
-using Event;
-using EventDictionary;
-using GroupVarDictionary;
 using CCIUtilities;
 
 namespace EDFPlusConverter
@@ -15,28 +12,44 @@ namespace EDFPlusConverter
         public string FileName;
         public int decimation;
         public double offset;
-        public bool anc = false;
         public List<int> channels;
         public List<List<int>> referenceGroups = null;
         public List<List<int>> referenceChannels = null;
         public BDFEDFFileReader edfPlus;
+        public double newRecordLengthSec;
+        public int oldRecordLengthPts;
 
         protected int newRecordLengthPts;
         protected BackgroundWorker bw;
         protected float[,] bigBuff;
-        protected int[] status;
         protected LogFile log;
 
         public BDFEDFRecord[] records;
         public List<EventMark> Events;
         public ICollection<GVMapElement> GVMapElements;
 
-        //FM only
-        public string GVName;
-        public bool removeOffsets;
-        public bool removeTrends;
-        public double newRecordLengthSec;
-        public int oldRecordLengthPts;
+        /// <summary>
+        /// Fills local buffer float[channel, point] called bigBuff with data from BDFEDFRecord[] called records;
+        /// decimates by factor decimation; re-references data as specified in reference information;
+        /// this is a specific local routine only; not for "public" consumption!
+        /// </summary>
+        /// <param name="start">BDFLoc to start filling from</param>
+        /// <param name="end">BDFLoc to stop filling</param>
+        /// <returns>true if bigBuff completely filled before end reached; false if not</returns>
+        /// <remarks>also updates parameter start to indicate next point that will be read into bigBuff on next call</remarks>
+        protected bool fillBuffer(ref BDFLoc start, BDFLoc end)
+        {
+            if (!start.IsInFile) return false; //start of record outside of file coverage; so skip it
+            BDFLoc endPt = start + newRecordLengthPts * decimation; //calculate ending point
+            if (endPt.greaterThanOrEqualTo(end) || !endPt.IsInFile) return false; //end of record outside of file coverage
+
+            /***** Read correct portion of EDF+ file, decimate, and reference *****/
+            for (int pt = 0; pt < newRecordLengthPts; pt++, start += decimation)
+                for (int c = 0; c < edfPlus.NumberOfChannels - 1; c++)
+                    bigBuff[c, pt] = (float)records[start.Rec].getConvertedPoint(c, start.Pt);
+            calculateReferencedData();
+            return true;
+        }
 
         protected void calculateReferencedData()
         {

@@ -6,6 +6,7 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
@@ -34,15 +35,19 @@ namespace EDFPlusConverter
         int oldNP;
         int newNP;
         EDFPlusConverter.FMConverter fmc = null;
-//        EDFPlusConverter.EDFConverter bdfc = null;
+        EDFPlusConverter.EDFConverter edfc = null;
 
         ObservableCollection<GVMapElement> GVMapElements = new ObservableCollection<GVMapElement>();
         List<EventMark> EventMarks = new List<EventMark>();
 
         int _decimation = 1;
+        int? annotationChannel = null;
         List<int> channels;
 
-        BackgroundWorker bw;
+        BackgroundWorker bwfirst;
+        BackgroundWorker bwlast;
+        BackgroundWorker bwfmc = null;
+        BackgroundWorker bwedfc = null;
 
         BDFEDFRecord[] records;
 
@@ -54,31 +59,31 @@ namespace EDFPlusConverter
             dlg.Title = "Open EDF+ file for conversion...";
             dlg.DefaultExt = ".edf"; // Default file extension
             dlg.Filter = "EDF+ Files (.edf)|*.edf"; // Filter files by extension
-            Nullable<bool> result = dlg.ShowDialog();
-            if (result == null || result == false) { this.Close(); Environment.Exit(0); }
+            while (annotationChannel == null)
+            {
+                Nullable<bool> result = dlg.ShowDialog();
+                if (result == null || result == false) { this.Close(); Environment.Exit(0); }
 
-            EDFPlusDirectory = Path.GetDirectoryName(dlg.FileName);
-            EDFPlusFileName = Path.GetFileNameWithoutExtension(dlg.FileName);
+                EDFPlusDirectory = Path.GetDirectoryName(dlg.FileName);
+                EDFPlusFileName = Path.GetFileNameWithoutExtension(dlg.FileName);
 
-            edfPlus = new BDFEDFFileReader(
-                new FileStream(dlg.FileName, FileMode.Open, FileAccess.Read));
-            oldSR = (int)(edfPlus.NSamp / edfPlus.RecordDurationDouble);
-
-            InitializeComponent();
-
-            SR.Text = CurrentSR.Text = oldSR.ToString("0");
-            CurrentRLSecs.Text = edfPlus.RecordDurationDouble.ToString("G");
-            CurrentRLPts.Text = RecLengthPts.Text = edfPlus.NSamp.ToString("0");
-            this.MinHeight = SystemInformation.WorkingArea.Height - 240;
-            this.Title = "Convert " + System.IO.Path.GetFileNameWithoutExtension(dlg.FileName);
-            this.TitleLine.Text = EDFPlusFileName;
+                edfPlus = new BDFEDFFileReader(
+                    new FileStream(dlg.FileName, FileMode.Open, FileAccess.Read));
+                if ((annotationChannel = edfPlus.Header.AnnotationChannel) == null)
+                {
+                    System.Windows.MessageBox.Show("EDF+ file " + dlg.FileName + " does not have an Annotation channel.",
+                        "No annotation channel", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+            oldSR = (double)edfPlus.NSamp / edfPlus.RecordDurationDouble;
 
             records = new BDFEDFRecord[edfPlus.NumberOfRecords];
             for (int rec = 0; rec < edfPlus.NumberOfRecords; rec++)
             {
                 records[rec] = edfPlus.read().Copy();
                 List<TimeStampedAnnotation> TAL = edfPlus.getAnnotation();
-                foreach(TimeStampedAnnotation tsa in TAL){
+                foreach (TimeStampedAnnotation tsa in TAL)
+                {
                     if (tsa.Annotation != "")
                     {
                         GVMapElement gv;
@@ -86,7 +91,7 @@ namespace EDFPlusConverter
                         {
                             gv = GVMapElements.Where(n => n.Name == tsa.Annotation).First(); //there will be at most one
                         }
-                        catch (InvalidOperationException)
+                        catch (InvalidOperationException) //means that there is no entry for this event type
                         {
                             gv = new GVMapElement(tsa.Annotation, GVMapElements.Count + 1);
                             GVMapElements.Add(gv);
@@ -96,6 +101,21 @@ namespace EDFPlusConverter
                     }
                 }
             }
+            if (GVMapElements.Count == 0)
+            {
+                System.Windows.MessageBox.Show("EDF+ file " + dlg.FileName + " does not any valid event markers.",
+                    "No valid event markers", MessageBoxButton.OK, MessageBoxImage.Error);
+                Environment.Exit(1);
+            }
+
+            InitializeComponent();
+
+            SR.Text = CurrentSR.Text = oldSR.ToString("0");
+            CurrentRLSecs.Text = edfPlus.RecordDurationDouble.ToString("G");
+            CurrentRLPts.Text = RecLengthPts.Text = edfPlus.NSamp.ToString("0");
+            this.MaxHeight = SystemInformation.WorkingArea.Height - 240;
+            this.Title = "Convert " + EDFPlusFileName;
+            this.TitleLine.Text = dlg.FileName;
             GVMap.ItemsSource = GVMapElements;
             GVMap.IsSynchronizedWithCurrentItem = true;
             Events.ItemsSource = EventMarks;
@@ -127,21 +147,47 @@ namespace EDFPlusConverter
 
                 createConverterBase(fmc);
 
-                fmc.anc = false;
-                fmc.length = newNS;
+                fmc.removeOffsets = (bool)removeOffsets.IsChecked; //remove offsets
+                fmc.removeTrends = (bool)removeTrends.IsChecked; //remove linear trends
+                fmc.GVName = this._GVName;
 
-                // Execute conversion in background
-
-                bw = new BackgroundWorker();
-                bw.DoWork += new DoWorkEventHandler(fmc.Execute);
-                bw.ProgressChanged += new ProgressChangedEventHandler(bw_ProgressChanged);
-                bw.RunWorkerCompleted += bw_RunWorkerCompleted;
-                bw.WorkerReportsProgress = true;
-                bw.RunWorkerAsync();
+                bwfmc = new BackgroundWorker();
+                bwfmc.DoWork += new DoWorkEventHandler(fmc.Execute);
+                bwfmc.ProgressChanged += new ProgressChangedEventHandler(bw_ProgressChanged);
+                bwfmc.RunWorkerCompleted += bw_RunWorkerCompleted;
+                bwfmc.WorkerReportsProgress = true;
             }
             if ((bool)EDFconvert.IsChecked)
             {
+                if (edfc == null) /* Just in time singleton */
+                    edfc = new EDFPlusConverter.EDFConverter();
 
+                createConverterBase(edfc);
+
+                edfc.deleteAsZero = (bool)DeleteAsZero.IsChecked;
+                bwedfc = new BackgroundWorker();
+                bwedfc.DoWork += new DoWorkEventHandler(edfc.Execute);
+                bwedfc.ProgressChanged += new ProgressChangedEventHandler(bw_ProgressChanged);
+                bwedfc.RunWorkerCompleted += bw_RunWorkerCompleted;
+                bwedfc.WorkerReportsProgress = true;
+            }
+            //Now set up menu of conversions to be done
+            bwfirst = null;
+            if (_convertType == 1) //FM only
+            {
+                bwlast = bwfmc;
+                bwlast.RunWorkerAsync();
+            }
+            else if (_convertType == 2) //EDF only
+            {
+                bwlast = bwedfc;
+                bwlast.RunWorkerAsync();
+            }
+            else //both FM and EDF
+            {
+                bwfirst = bwfmc;
+                bwlast = bwedfc;
+                bwfirst.RunWorkerAsync();
             }
         }
 
@@ -175,26 +221,34 @@ namespace EDFPlusConverter
 
         void bw_ProgressChanged(object sender, ProgressChangedEventArgs e)
         {
-            StatusLine.Text = "Status: " + (string)e.UserState;
+            StatusLine.Text = (sender == bwfmc ? "FMConverter" : "EDFConverter") + " conversion status: " + (string)e.UserState;
         }
 
         void bw_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
         {
-            ConvertFM.Visibility = Visibility.Visible;
+            string source = sender == bwfmc ? "FMConverter" : "EDFConverter";
             if (e.Error != null)
             {
                 StatusLine.Foreground = new SolidColorBrush(Colors.Red);
-                StatusLine.Text = "Error: " + e.Error.Message;
-                CCIUtilities.Log.writeToLog("Error in conversion: " + e.Error.Message);
+                StatusLine.Text = source + " error: " + e.Error.Message;
+                CCIUtilities.Log.writeToLog("Error in " + source + " conversion: " + e.Error.Message);
             }
             else
             {
                 int[] res = (int[])e.Result;
-                StatusLine.Text = "Status: Completed conversion with " + res[0].ToString() + " records in " + res[1].ToString() + " recordsets generated.";
-                CCIUtilities.Log.writeToLog("Completed conversion, generating " + res[1].ToString() + " recordsets");
+                StatusLine.Text = source + " status: Completed conversion with " + res[0].ToString() + " records in " + res[1].ToString() + " recordsets generated.";
+                CCIUtilities.Log.writeToLog(source + " completed conversion, generating " + res[1].ToString() + " recordsets");
             }
-            Cancel.Content = "Done";
-            checkError();
+            if (sender == bwfirst) //need to do EDF conversion too
+            {
+                bwlast.RunWorkerAsync(); //start second conversion (always EDF)
+            }
+            else
+            {
+                Cancel.Content = "Done";
+                ConvertFM.Visibility = Visibility.Visible;
+                checkError();
+            }
         }
 
         private void Decimation_TextChanged(object sender, TextChangedEventArgs e)
@@ -363,9 +417,16 @@ namespace EDFPlusConverter
 
         private void Window_ContentRendered(object sender, EventArgs e)
         {
-            string s = SelChan.Text = "1-" + (edfPlus.NumberOfChannels - 1).ToString("0");
-            RefChan.Text = s;
-            RefChanExpression.Text = "(" + s + ")~{" + s + "}";
+            StringBuilder sb = new StringBuilder("1-" + ((int)annotationChannel).ToString("0"));
+            if (annotationChannel != (edfPlus.NumberOfChannels - 1))
+            {
+                sb.Append(","+((int)annotationChannel + 2).ToString("0"));
+                if (((int)annotationChannel + 2) != edfPlus.NumberOfChannels)
+                    sb.Append("-" + edfPlus.NumberOfChannels.ToString("0"));
+            }
+            string s = sb.ToString();
+            SelChan.Text = RefChan.Text = s;
+            RefChanExpression.Text = "(" + sb + ")~{" + s + "}";
         }
 
         private void Window_Closed(object sender, EventArgs e)
@@ -382,8 +443,14 @@ namespace EDFPlusConverter
 
             if (_decimation != 0 && newNS != 0D) //then valid decimation number and record length
             {
-                oldNP = (int)(newNS * oldSR);
-                if (Math.Abs((double)oldNP - oldSR * newNS) < 0.1 && oldNP % _decimation == 0) //then
+                oldNP = Convert.ToInt32(newNS * oldSR); //rounds
+                if (Math.Abs((double)oldNP - oldSR * newNS) < 0.1 && oldNP % _decimation == 0) 
+                    //oldNP is the number of points in the old file that would be in the new 
+                    //record length in seconds (newNS); newNS must be chosen to be sufficiently close
+                    //to an integer multiple of the old sampling time (less than 0.1 *  sampletime)
+                    //and the number of points this results in (oldNP) must have as an integer factor the
+                    //selected decimation; this avoids the problem of a "jittery" record time in the
+                    //output file
                 {
                     newNP = oldNP / _decimation;
                     RecLengthPts.Text = newNP.ToString("0");
@@ -435,8 +502,6 @@ namespace EDFPlusConverter
             conv.decimation = _decimation; //decimation
             conv.newRecordLengthSec = this.newNS;
             conv.oldRecordLengthPts = this.oldNP;
-            conv.removeOffsets = (bool)removeOffsets.IsChecked; //remove offsets
-            conv.removeTrends = (bool)removeTrends.IsChecked; //remove linear trends
             if ((bool)radioButton2.IsChecked) //list of reference channels
             {
                 conv.referenceGroups = new List<List<int>>(1);
@@ -463,7 +528,6 @@ namespace EDFPlusConverter
             conv.edfPlus = edfPlus; //reference to input file information
             conv.records = this.records;
             conv.offset = (double)_eventOffset;
-            conv.GVName = this._GVName;
             conv.Events = this.EventMarks;
             conv.GVMapElements = this.GVMapElements;
         }
@@ -478,6 +542,8 @@ namespace EDFPlusConverter
                 if (GVMapElements.Count < 2) GVDel.IsEnabled = false;
                 foreach (GVMapElement gv in GVMapElements.Where(n => n.Value > gv1.Value)) gv.Value--;
                 GVMap.SelectedIndex = 0;
+                DeleteAsZero.Visibility = Visibility.Visible; //may need
+                DeleteAsZero.IsEnabled = (bool)EDFconvert.IsChecked;
             }
             else
             {
@@ -523,7 +589,13 @@ namespace EDFPlusConverter
             _convertType = 0;
             if ((bool)FMconvert.IsChecked) _convertType++;
             Offsets.Visibility = GVNamePanel.Visibility = (bool)FMconvert.IsChecked ? Visibility.Visible : Visibility.Hidden;
-            if ((bool)EDFconvert.IsChecked) _convertType += 2;
+            if ((bool)EDFconvert.IsChecked)
+            {
+                _convertType += 2;
+                DeleteAsZero.IsEnabled = true;
+            }
+            else
+                DeleteAsZero.IsEnabled = false;
             if (_convertType == 1) convertButtonLabel.Text = "Convert to FM";
             else if (_convertType == 2) convertButtonLabel.Text = "Convert to EDF";
             else if (_convertType == 3) convertButtonLabel.Text = "Convert to FM and EDF";
@@ -561,12 +633,14 @@ namespace EDFPlusConverter
             }
         }
         public int EventCount { get; internal set; }
+        public int RecordCount { get; set; }
         public GVMapElement() { }
         public GVMapElement(string name, int value)
         {
             _name = name;
             Value = value;
             EventCount = 0;
+            RecordCount = 0;
         }
 
         public int Compare(GVMapElement x, GVMapElement y)

@@ -15,9 +15,13 @@ namespace EDFPlusConverter
 {
     class FMConverter : Converter
     {
-        public FILMANOutputStream FMStream;
-        public double length; //record length in seconds
+        public string GVName;
+        public bool removeOffsets;
+        public bool removeTrends;
 
+//        public double length; //record length in seconds
+
+        FILMANOutputStream FMStream;
         private int currentGVValue;
 
         public void Execute(object sender, DoWorkEventArgs e)
@@ -25,7 +29,7 @@ namespace EDFPlusConverter
             bw = (BackgroundWorker)sender;
 
             bw.ReportProgress(0, "Starting FMConverter");
-            CCIUtilities.Log.writeToLog("Starting FMConverter on records in " + directory);
+            CCIUtilities.Log.writeToLog("Starting FMConverter on records in " + Path.Combine(directory, FileName));
 
             /***** Open FILMAN file *****/
             SaveFileDialog dlg = new SaveFileDialog();
@@ -71,7 +75,7 @@ namespace EDFPlusConverter
             FMStream.Description(2, edfPlus.LocalSubjectId);
 
             StringBuilder sb = new StringBuilder(" Offset=" + offset.ToString("0.00"));
-            sb.Append(" Length=" + length.ToString("0.00"));
+            sb.Append(" Length=" + newRecordLengthSec.ToString("0.000"));
             if (referenceGroups == null || referenceGroups.Count == 0) sb.Append(" No reference");
             else if (referenceGroups.Count == 1)
             {
@@ -89,7 +93,6 @@ namespace EDFPlusConverter
             FMStream.Description(3, sb.ToString());
 
             sb = new StringBuilder("#Group var=" + GVName);
-            if (anc) sb.Append(" Ancillary=" + FMStream.NA.ToString("0"));
             sb.Append(" #Channels=" + FMStream.NC.ToString("0"));
             sb.Append(" #Samples=" + FMStream.ND.ToString("0"));
             sb.Append(" Samp rate=" + FMStream.IS.ToString("0"));
@@ -106,46 +109,40 @@ namespace EDFPlusConverter
             /***** MAIN LOOP *****/
             for (int ev = 0; ev < Events.Count; ev++) //Loop through Events list
             {
-                stp.FromSecs(Events[ev].Time + offset);
-                currentGVValue = Events[ev].GV.Value; //map to integer
-                if (ev < (Events.Count - 1))
-                    end.FromSecs(Events[ev + 1].Time + offset);
-                else
-                    end.EOF();
-                bw.ReportProgress(0, "Processing event at " + Events[ev].Time.ToString("0.000")); //Report progress
+                EventMark currentEvent = Events[ev];
+                //check to make sure we haven't deleted this event type from GV map
+                GVMapElement gv = currentEvent.GV;
+                if (GVMapElements.Contains(gv))
+                {
+                    stp.FromSecs(currentEvent.Time + offset);
+                    currentGVValue = gv.Value; //map to integer
+                    if (ev < (Events.Count - 1))
+                        end.FromSecs(Events[ev + 1].Time + offset);
+                    else
+                        end.EOF();
+                    bw.ReportProgress(0, "Processing event at " + currentEvent.Time.ToString("0.000")); //Report progress
 
-                while (createFILMANRecord(ref stp, end)) { /*Create FILMAN recordset around this found point*/ }
+                    int n = 0;
+                    while (createFILMANRecord(ref stp, end)) n++; /*Create FILMAN recordset around this found point*/
+                    gv.RecordCount += n;
+                    log.registerEvent(currentEvent, offset, n);
+                }
             }
-            e.Result = new int[] { FMStream.NR, FMStream.NR / FMStream.NC };
+            int recs = FMStream.NR / FMStream.NC;
+            e.Result = new int[] { FMStream.NR, recs };
             FMStream.Close();
+            CCIUtilities.Log.writeToLog("Ending FMConverter, producing " + recs.ToString("0") + " records in file " + dlg.FileName);
+            log.registerSummary(GVMapElements, recs);
             log.Close();
         }
 
         // Create one new FILMAN record starting at stp and ending before end; return true is successful
         private bool createFILMANRecord(ref BDFLoc stp, BDFLoc end)
         {
-            if (!stp.IsInFile) return false; //start of record outside of file coverage; so skip it
-            BDFLoc endPt = stp + FMStream.ND * decimation; //calculate ending point
-            if (endPt.greaterThanOrEqualTo(end) || !endPt.IsInFile) return false; //end of record outside of file coverage
+            if (!fillBuffer(ref stp, end)) return false;
 
-            /***** Read correct portion of EDF+ file and decimate *****/
-            int pt = 0;
-            for (; stp.lessThan(endPt); stp += decimation, pt++)
-                for (int c = 0; c < edfPlus.NumberOfChannels - 1; c++)
-                    bigBuff[c, pt] = (float)records[stp.Rec].getConvertedPoint(c, stp.Pt);
-
-            //NOTE: after this point bigBuff containes all channels in BDF file,
-            // includes all BDF records that contribute to this output record,
-            // but has been decimated to include only those points that will actually be written out!!!
-            // This is necessary because referencing channels may not be actually included in the recordSet.
-
-            /***** Get group variable for this record *****/
+            /***** Set group variable for this record *****/
             FMStream.record.GV[2] = currentGVValue;
-
-            /***** Update bigBuff to referenced data *****/
-            calculateReferencedData();
-
-            /***** Write out channel after loading appropriate data *****/
             for (int iChan = 0; iChan < FMStream.NC; iChan++)
             {
                 int channel = channels[iChan]; // translate channel numbers

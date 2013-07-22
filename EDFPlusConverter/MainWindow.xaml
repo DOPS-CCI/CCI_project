@@ -41,7 +41,7 @@
                 <TextBlock Grid.Row="0" Grid.Column="0" TextAlignment="Center" VerticalAlignment="Center" FontSize="14" FontWeight="Bold">Marked events</TextBlock>
                 <TextBlock Grid.Row="0" Grid.Column="1" TextAlignment="Center" VerticalAlignment="Center" FontSize="14" FontWeight="Bold">GV mapping</TextBlock>
                 <ListBox Grid.Row="1" Grid.RowSpan="3" Grid.Column="0" VerticalAlignment="Stretch" Margin="4" Name="Events" FontSize="14"
-                    SelectionMode="Single" DataContext="{Binding}" MaxHeight="200" HorizontalContentAlignment="Center" MinWidth="120"/>
+                    SelectionMode="Single" DataContext="{Binding}" MaxHeight="200" HorizontalContentAlignment="Center" MinWidth="150"/>
                 <ListView Grid.Row="1" Grid.Column="1" Grid.RowSpan="3" VerticalAlignment="Stretch" Margin="4" Name="GVMap" MaxHeight="200"
                     FontSize="14" VerticalContentAlignment="Top" SelectionChanged="GVMap_SelectionChanged" SelectionMode="Single" SelectedValuePath="Value">
                     <ListView.View>
@@ -59,21 +59,24 @@
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
                         <StackPanel Orientation="Horizontal">
                             <TextBlock VerticalAlignment="Center" Margin="4">Event offset adjustment</TextBlock>
-                            <TextBox Height="24" MinWidth="80" Name="EventOffset" TextAlignment="Right" TextChanged="EventOffset_TextChanged">
+                            <TextBox Height="24" MinWidth="60" Name="EventOffset" TextAlignment="Right" TextChanged="EventOffset_TextChanged">
                                 <TextBox.Text>0</TextBox.Text>
                                 <TextBox.ToolTip>Enter name of GV that identifies events</TextBox.ToolTip>
                             </TextBox>
                         </StackPanel>
                         <StackPanel Name="GVNamePanel" Orientation="Horizontal" Grid.Column="1">
-                        <TextBlock VerticalAlignment="Center" Margin="4">New GV name</TextBlock>
-                        <TextBox Height="24" MinWidth="80" Name="GVName" TextChanged="GVName_TextChanged">
-                            <TextBox.Text>Event type</TextBox.Text>
-                            <TextBox.ToolTip>Enter name of GV that identifies events</TextBox.ToolTip>
-                        </TextBox>
-                    </StackPanel>
+                            <TextBlock VerticalAlignment="Center" Margin="4">New GV name</TextBlock>
+                            <TextBox Height="24" MinWidth="60" Name="GVName" TextChanged="GVName_TextChanged">
+                                <TextBox.Text>Event type</TextBox.Text>
+                                <TextBox.ToolTip>Enter name of GV that identifies events</TextBox.ToolTip>
+                            </TextBox>
+                        </StackPanel>
+                        <CheckBox Name="DeleteAsZero" Grid.Column="2" VerticalContentAlignment="Center" VerticalAlignment="Center"
+                                  Margin="4" IsChecked="True" Visibility="Collapsed">Show deleted events as zero in EDF</CheckBox>
                     </Grid>
             </Grid>
         </GroupBox>

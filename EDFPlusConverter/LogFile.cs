@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Xml;
 using Event;
@@ -10,12 +11,6 @@ namespace EDFPlusConverter
     class LogFile
     {
         XmlWriter logStream;
-        double nominalOffsetMax = 0D;
-        double nominalOffsetSum = 0D;
-        double nominalOffsetActualProd = 0;
-        double actualSum = 0D;
-        double actualSumSq = 0D;
-        int nEvents = 0;
 
         public LogFile(string fileName)
         {
@@ -33,39 +28,42 @@ namespace EDFPlusConverter
         public void registerHeader(Converter c)
         {
             string conversionType;
-            double recordLength;
             if (c.GetType() == typeof(FMConverter))
             {
                 conversionType = "FM";
-                recordLength = ((FMConverter)c).length;
             }
             else //BDFConverter
             {
                 conversionType = "EDF";
-//                recordLength = (double)((EDFConverter)c).length;
             }
             logStream.WriteStartElement("Conversion");
             logStream.WriteAttributeString("Type", conversionType);
             logStream.WriteElementString("Computer", Environment.MachineName);
             logStream.WriteElementString("User", Environment.UserName);
             logStream.WriteElementString("Source", Path.Combine(c.directory, c.FileName));
-            if (conversionType == "BDF")
+            if (conversionType == "FM")
             {
                 logStream.WriteStartElement("GroupVars");
-                logStream.WriteElementString("GroupVar", c.GVName);
+                logStream.WriteElementString("GroupVar", ((FMConverter)c).GVName);
                 logStream.WriteEndElement(/* GroupVars */);
             }
             logStream.WriteElementString("Channels", CCIUtilities.Utilities.intListToString(c.channels, true));
             logStream.WriteStartElement("Record");
-            logStream.WriteElementString("Start", c.offset.ToString("0.00") + "secs");
-            logStream.WriteElementString("Length", c.newRecordLengthSec.ToString("0.00") + "secs");
+            logStream.WriteElementString("Length", c.newRecordLengthSec.ToString("0.0000") + "secs");
             logStream.WriteElementString("Decimation", c.decimation.ToString("0"));
-            logStream.WriteElementString("EventOffsetTime", c.offset.ToString("0.0000") + "secs");
+            logStream.WriteElementString("EventOffset", c.offset.ToString("0.0000") + "secs");
+            if (conversionType == "EDF")
+            {
+                logStream.WriteElementString("DeletedEventsAsZero", ((EDFConverter)c).deleteAsZero ? "True" : "False");
+            }
             logStream.WriteStartElement("Processing");
             string p;
             p = "None";
-            if (c.removeTrends) p = "Offset and linear trend removal";
-            else if (c.removeOffsets) p = "Offset removal";
+            if (conversionType == "FM")
+            {
+                if (((FMConverter)c).removeTrends) p = "Offset and linear trend removal";
+                else if (((FMConverter)c).removeOffsets) p = "Offset removal";
+            }
             logStream.WriteString(p);
             logStream.WriteEndElement(/* Processing */);
             logStream.WriteEndElement(/* Record */);
@@ -87,14 +85,30 @@ namespace EDFPlusConverter
             logStream.WriteEndElement(/* Conversion */);
         }
 
-        public void registerEvent(BDFLoc nominal, EventMark em, double correctedTime)
+        public void registerEvent(EventMark em, double offset, int count)
         {
             logStream.WriteStartElement("Event");
             logStream.WriteAttributeString("Name",em.GV.Name);
             logStream.WriteElementString("NominalTime", em.Time.ToString("0.0000"));
-            logStream.WriteElementString("CorrectedTime", correctedTime.ToString("0.0000"));
+            logStream.WriteElementString("CorrectedTime", (em.Time + offset).ToString("0.0000"));
             logStream.WriteElementString("Value", em.GV.Value.ToString("0"));
+            logStream.WriteElementString("RecordCount", count.ToString("0"));
             logStream.WriteEndElement(/*Event*/);
+        }
+
+        public void registerSummary(ICollection<GVMapElement> gvList, int totalRecs)
+        {
+            logStream.WriteStartElement("Summary");
+            foreach (GVMapElement gv in gvList)
+            {
+                logStream.WriteStartElement("Event");
+                logStream.WriteAttributeString("Name", gv.Name);
+                logStream.WriteElementString("Value", gv.Value.ToString("0"));
+                logStream.WriteElementString("RecordTotal", gv.RecordCount.ToString("0"));
+                logStream.WriteEndElement(/*Event*/);
+            }
+            logStream.WriteElementString("TotalRecords", totalRecs.ToString("0"));
+            logStream.WriteEndElement(/*Summary*/);
         }
 
         public void registerEpochSet(double epoch, InputEvent ie)
@@ -149,6 +163,7 @@ Bit 23 (MSB) High if ActiveTwo MK2
             logStream.WriteElementString("Epoch", (bool)Epoch ? "New" : "Old");
             logStream.WriteEndElement(/*StatusChange*/);;
         }
+
         public void registerError(string message, InputEvent ie)
         {
             logStream.WriteStartElement("Error");
