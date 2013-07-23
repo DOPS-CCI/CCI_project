@@ -447,7 +447,7 @@ namespace EDFPlusConverter
                 if (Math.Abs((double)oldNP - oldSR * newNS) < 0.1 && oldNP % _decimation == 0) 
                     //oldNP is the number of points in the old file that would be in the new 
                     //record length in seconds (newNS); newNS must be chosen to be sufficiently close
-                    //to an integer multiple of the old sampling time (less than 0.1 *  sampletime)
+                    //to an integer multiple of the old sampling time (less than 0.1 * sampletime)
                     //and the number of points this results in (oldNP) must have as an integer factor the
                     //selected decimation; this avoids the problem of a "jittery" record time in the
                     //output file
@@ -574,11 +574,13 @@ namespace EDFPlusConverter
             {
                 _GVName = GVName.Text;
                 GVName.BorderBrush = System.Windows.Media.Brushes.MediumBlue;
+                GVName.Foreground = System.Windows.Media.Brushes.Black;
             }
             else
             {
                 _GVName = ""; //signal error to checkError
-                GVName.BorderBrush = System.Windows.Media.Brushes.Red;
+                 GVName.Foreground = GVName.BorderBrush = System.Windows.Media.Brushes.Red;
+               
             }
             checkError();
         }
@@ -588,14 +590,9 @@ namespace EDFPlusConverter
         {
             _convertType = 0;
             if ((bool)FMconvert.IsChecked) _convertType++;
-            Offsets.Visibility = GVNamePanel.Visibility = (bool)FMconvert.IsChecked ? Visibility.Visible : Visibility.Hidden;
-            if ((bool)EDFconvert.IsChecked)
-            {
-                _convertType += 2;
-                DeleteAsZero.IsEnabled = true;
-            }
-            else
-                DeleteAsZero.IsEnabled = false;
+            Offsets.IsEnabled = GVNamePanel.IsEnabled = (bool)FMconvert.IsChecked;
+            if ((bool)EDFconvert.IsChecked) _convertType += 2;
+            DeleteAsZero.IsEnabled = (bool)EDFconvert.IsChecked;
             if (_convertType == 1) convertButtonLabel.Text = "Convert to FM";
             else if (_convertType == 2) convertButtonLabel.Text = "Convert to EDF";
             else if (_convertType == 3) convertButtonLabel.Text = "Convert to FM and EDF";
