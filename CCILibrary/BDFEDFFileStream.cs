@@ -20,6 +20,7 @@ namespace BDFEDFFileStream
         }
         internal FileStream baseStream;
         public BDFEDFRecord record;
+        internal byte[] _recordBuffer; //where the actual reads or writes take place; used by BDFEDFRecord
         protected BDFLocFactory _locationFactory;
         public BDFLocFactory LocationFactory
         {
@@ -299,7 +300,7 @@ namespace BDFEDFFileStream
 
             header.read(reader); //Read in header
 
-            record = new BDFEDFRecord(header); //Now can create BDFEDFRecord
+            record = new BDFEDFRecord(this); //Now can create BDFEDFRecord
             header._isValid = true;
             _locationFactory = new BDFLocFactory(this);
         }
@@ -383,7 +384,7 @@ namespace BDFEDFFileStream
         {
             if (reader != null && record.currentRecordNumber < 0) throw new BDFEDFException("No records have yet been read.");
             if (!header.hasAnnotations) throw new BDFEDFException("No \"EDF Annotations\" channel in file");
-            string s = Encoding.UTF8.GetString(BDFEDFRecord.recordBuffer, header.AnnotationOffset,
+            string s = Encoding.UTF8.GetString(_recordBuffer, header.AnnotationOffset,
                 NumberOfSamples(header._AnnotationChannel) * 2); //"2" is because this is only used in EDF+ files
 
             List<TimeStampedAnnotation> TAL = new List<TimeStampedAnnotation>(1);
@@ -633,7 +634,7 @@ namespace BDFEDFFileStream
             if (str is FileStream) baseStream = (FileStream)str;
             header = new BDFEDFHeader(nChan, recordDuration, samplingRate);
             header._BDFFile = isBDF;
-            record = new BDFEDFRecord(header);
+            record = new BDFEDFRecord(this);
             writer = new BinaryWriter(str);
         }
 
@@ -643,7 +644,7 @@ namespace BDFEDFFileStream
             if (str is FileStream) baseStream = (FileStream)str;
             header = new BDFEDFHeader(nChan, recordDuration, samplingRate);
             header._BDFFile = isBDF;
-            record = new BDFEDFRecord(header);
+            record = new BDFEDFRecord(this);
             writer = new BinaryWriter(str);
         }
 
@@ -653,7 +654,7 @@ namespace BDFEDFFileStream
             if (str is FileStream) baseStream = (FileStream)str;
             header = new BDFEDFHeader(nChan, recordDuration, numberOfSamples);
             header._BDFFile = isBDF;
-            record = new BDFEDFRecord(header);
+            record = new BDFEDFRecord(this);
             writer = new BinaryWriter(str);
         }
 
@@ -781,7 +782,7 @@ namespace BDFEDFFileStream
         internal int numberChannels;
         internal int recordDuration;
         internal double? recordDurationDouble = null; //used only if Record Duration isn't an integer;
-                                                        //only for reading; not recommended by standard
+                        //only for reading; not recommended by standard, but a practical necessity
         internal double[] physicalMinimums;
         internal double[] physicalMaximums;
         internal int[] digitalMinimums;
@@ -866,6 +867,12 @@ namespace BDFEDFFileStream
                 this.numberSamples[i] = NS;
         }
 
+        /// <summary>
+        /// Preferred constructor
+        /// </summary>
+        /// <param name="nChan">Number of channels in stream</param>
+        /// <param name="duration">Length of each record in seconds</param>
+        /// <param name="samplesPerRecord">Number of samples in each record</param>
         internal BDFEDFHeader(int nChan, double duration, int samplesPerRecord)
         { //Usual write constructor
             channelLabels = new string[nChan];
@@ -1120,7 +1127,9 @@ namespace BDFEDFFileStream
     /// <summary>
     /// Class embodying one BDF/EDF file data record
     /// </summary>
-    /// <remarks>No public constructor; created by BDFEDFFileReader and accessed through <code>BDFEDFFileReader.read()</code> methods.</remarks>
+    /// <remarks>Public shallow copy constructor only; created by BDFEDFFileReader/BDFEDFFileWriter
+    /// and accessed through <code>BDFEDFFileReader.read()</code> and <code>BDFEDFFileWriter.write()</code>
+    /// methods.</remarks>
     public class BDFEDFRecord : IDisposable
     {
 
@@ -1134,9 +1143,9 @@ namespace BDFEDFFileStream
         /// </summary>
         public int RecordNumber { get { return currentRecordNumber; } }
         internal int recordLength = 0;
+        BDFEDFFileStream fileStream;
         BDFEDFHeader header;
         internal int[][] channelData;
-        static internal byte[] recordBuffer;
 
         public int getRawPoint(int channel, int point)
         {
@@ -1148,40 +1157,56 @@ namespace BDFEDFFileStream
             return header.Gain(channel) * (double)channelData[channel][point] - header.Offset(channel);
         }
 
-        internal BDFEDFRecord(BDFEDFHeader hdr)
-        {
-            int nC = hdr.numberChannels;
-            channelData = new int[nC][];
-            int i = 0;
-            foreach (int n in hdr.numberSamples)
-            {
-                channelData[i] = new int[n];
-                recordLength += n;
-                i++;
-            }
-            recordLength *= hdr.isBDFFile ? 3 : 2; // calculate length in bytes
-            if (recordBuffer == null || recordBuffer.Length != recordLength) recordBuffer = new byte[recordLength];
-            header = hdr;
-        }
-
+        /// <summary>
+        /// "Deep" copy of BDFEDFRecord, including last-read data points, valid recordNumber
+        /// </summary>
+        /// <returns>the new BDFEDFRecord</returns>
         public BDFEDFRecord Copy()
         {
-            BDFEDFRecord r = new BDFEDFRecord(this.header);
-            r.recordLength = this.recordLength;
-            r.header = this.header;
-            r.currentRecordNumber = this.currentRecordNumber;
-            for (int i = 0; i < header.numberChannels; i++)
+            BDFEDFRecord r = new BDFEDFRecord();
+            r.recordLength = this.recordLength; //number of bytes in raw record
+            r.header = this.header; // to get gains and offsets for calibrated values
+            r.fileStream = null; //No access to stream itself
+            r.currentRecordNumber = this.currentRecordNumber; //valid record number of last-read record
+            int nC = header.numberChannels;
+            r.channelData = new int[nC][];
+            int i = 0;
+            foreach (int n in header.numberSamples)
+            {
+                r.channelData[i++] = new int[n];
+                r.recordLength += n;
+            }
+            //copy actual values across
+            for (i = 0; i < header.numberChannels; i++)
                 for (int j = 0; j < header.numberSamples[i]; j++)
                     r.channelData[i][j] = this.channelData[i][j];
             return r;
         }
 
+        internal BDFEDFRecord(BDFEDFFileStream fs)
+        {
+            fileStream = fs;
+            int nC = fs.header.numberChannels;
+            channelData = new int[nC][];
+            int i = 0;
+            foreach (int n in fs.header.numberSamples)
+            {
+                channelData[i++] = new int[n];
+                recordLength += n;
+            }
+            recordLength *= fs.header.isBDFFile ? 3 : 2; // calculate length in bytes
+            fs._recordBuffer = new byte[recordLength];
+            header = fs.header;
+        }
+
+        private BDFEDFRecord(){}
+
         internal void read(BinaryReader reader)
         {
             try
             {
-                recordBuffer = reader.ReadBytes(recordLength);
-                if (recordBuffer.Length < recordLength) throw new EndOfStreamException("Unexpected end of BDF/EDF file reached");
+                fileStream._recordBuffer = reader.ReadBytes(recordLength);
+                if (fileStream._recordBuffer.Length < recordLength) throw new EndOfStreamException("Unexpected end of BDF/EDF file reached");
             }
             catch (Exception e)
             {
@@ -1195,12 +1220,12 @@ namespace BDFEDFFileStream
                 {
                     if (header.isBDFFile)
                     {
-                        channelData[channel][sample] = convert34(recordBuffer[i], recordBuffer[i + 1], recordBuffer[i + 2]);
+                        channelData[channel][sample] = convert34(fileStream._recordBuffer[i], fileStream._recordBuffer[i + 1], fileStream._recordBuffer[i + 2]);
                         i += 3;
                     }
                     else
                     {
-                        channelData[channel][sample] = convert24(recordBuffer[i], recordBuffer[i + 1]);
+                        channelData[channel][sample] = convert24(fileStream._recordBuffer[i], fileStream._recordBuffer[i + 1]);
                         i += 2;
                     }
                 }
@@ -1215,20 +1240,20 @@ namespace BDFEDFFileStream
                     if (header.isBDFFile)
                     {
                         i24 b = convert43(channelData[channel][sample]);
-                        recordBuffer[i++] = b.b1;
-                        recordBuffer[i++] = b.b2;
-                        recordBuffer[i++] = b.b3;
+                        fileStream._recordBuffer[i++] = b.b1;
+                        fileStream._recordBuffer[i++] = b.b2;
+                        fileStream._recordBuffer[i++] = b.b3;
                     }
                     else
                     {
                         i16 b = convert42(channelData[channel][sample]);
-                        recordBuffer[i++] = b.b1;
-                        recordBuffer[i++] = b.b2;
+                        fileStream._recordBuffer[i++] = b.b1;
+                        fileStream._recordBuffer[i++] = b.b2;
                     }
                 }
             try
             {
-                writer.Write(recordBuffer);
+                writer.Write(fileStream._recordBuffer);
             }
             catch (Exception e)
             {
