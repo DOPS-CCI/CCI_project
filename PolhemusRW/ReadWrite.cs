@@ -4,7 +4,7 @@ using System.Text.RegularExpressions;
 using LibUsbDotNet;
 using LibUsbDotNet.Main;
 
-namespace Examples
+namespace Polhemus
 {
     internal class ReadWrite
     {
@@ -12,7 +12,7 @@ namespace Examples
 
         #region SET YOUR USB Vendor and Product ID!
 
-        public static UsbDeviceFinder MyUsbFinder = new UsbDeviceFinder(0x0F44, 0xEF12);
+        public static UsbDeviceFinder MyUsbFinder = new UsbDeviceFinder(0x0F44, 0xEF12); //Polhemus Patriot
 
         #endregion
 
@@ -47,7 +47,7 @@ namespace Examples
                     wholeUsbDevice.ClaimInterface(0);
                 }
 
-                //Uses EndPoint 2 for both read and write
+                //Polhemus uses EndPoint 2 for both read and write
                 UsbEndpointReader reader = MyUsbDevice.OpenEndpointReader(ReadEndpointID.Ep02);
                 UsbEndpointWriter writer = MyUsbDevice.OpenEndpointWriter(WriteEndpointID.Ep02);
 

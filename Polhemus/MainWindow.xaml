@@ -1,8 +1,8 @@
-﻿<Window x:Class="Polhemus.MainWindow"
+﻿<Window x:Class="Main.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="MainWindow" Height="350" Width="525">
     <Grid>
-        
+        <TextBlock Name="output" />
     </Grid>
 </Window>
