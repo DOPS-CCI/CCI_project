@@ -648,6 +648,7 @@ namespace BDFEDFFileStream
             writer = new BinaryWriter(str);
         }
 
+        //Preferred constructor; no ambiguity or round-off error possible
         public BDFEDFFileWriter(Stream str, int nChan, double recordDuration, int numberOfSamples, bool isBDF)
         {
             if (!str.CanWrite) throw new BDFEDFException("BDFEDFFileStream must be able to write to Stream.");

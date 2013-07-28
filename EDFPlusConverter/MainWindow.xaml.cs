@@ -140,7 +140,7 @@ namespace EDFPlusConverter
 
         private void ConvertFM_Click(object sender, RoutedEventArgs e)
         {
-            if ((bool)FMconvert.IsChecked)
+            if (FMconvert.IsEnabled && (bool)FMconvert.IsChecked)
             {
                 if (fmc == null) /* Just in time singleton */
                     fmc = new EDFPlusConverter.FMConverter();
@@ -450,11 +450,13 @@ namespace EDFPlusConverter
                     //to an integer multiple of the old sampling time (less than 0.1 * sampletime)
                     //and the number of points this results in (oldNP) must have as an integer factor the
                     //selected decimation; this avoids the problem of a "jittery" record time in the
-                    //output file
+                    //output file; also FILMAN should have and integer sampling rate (newSR)
                 {
                     newNP = oldNP / _decimation;
                     RecLengthPts.Text = newNP.ToString("0");
-                    SR.Text = (oldSR / (double)_decimation).ToString("0.00");
+                    double newSR = (oldSR / (double)_decimation);
+                    SR.Text = newSR.ToString("0.00");
+                    FMconvert.IsEnabled = (Math.Abs(newSR - Math.Floor(newSR)) < 0.005);
                 }
                 else
                 {
@@ -481,11 +483,22 @@ namespace EDFPlusConverter
             else if ((bool)radioButton4.IsChecked && (_refChanExp == null || _refChanExp.Count == 0))
                 ConvertFM.IsEnabled = false;
 
-            if (_convertType == 0)
-                ConvertFM.IsEnabled = false;
-
             if (_eventOffset == null)
                 ConvertFM.IsEnabled = false;
+
+            if (_convertType == 0)
+                ConvertFM.IsEnabled = false;
+            else if (_convertType == 1)
+                if (FMconvert.IsEnabled)
+                    convertButtonLabel.Text = "Convert to FM";
+                else
+                    ConvertFM.IsEnabled = false;
+            else if (_convertType == 2) convertButtonLabel.Text = "Convert to EDF";
+            else if (_convertType == 3)
+                if(FMconvert.IsEnabled)
+                    convertButtonLabel.Text = "Convert to FM and EDF";
+                else
+                    convertButtonLabel.Text = "Convert to EDF";
         }
 
         private void radioButton_Changed(object sender, RoutedEventArgs e)
@@ -593,9 +606,6 @@ namespace EDFPlusConverter
             Offsets.IsEnabled = GVNamePanel.IsEnabled = (bool)FMconvert.IsChecked;
             if ((bool)EDFconvert.IsChecked) _convertType += 2;
             DeleteAsZero.IsEnabled = (bool)EDFconvert.IsChecked;
-            if (_convertType == 1) convertButtonLabel.Text = "Convert to FM";
-            else if (_convertType == 2) convertButtonLabel.Text = "Convert to EDF";
-            else if (_convertType == 3) convertButtonLabel.Text = "Convert to FM and EDF";
             checkError();
         }
 
