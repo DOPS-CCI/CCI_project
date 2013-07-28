@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using BDFFileStream;
+using BDFEDFFileStream;
 using Event;
 using EventDictionary;
 using GroupVarDictionary;
@@ -27,7 +27,7 @@ namespace FileConverter
         public List<int> channels;
         public List<List<int>> referenceGroups = null;
         public List<List<int>> referenceChannels = null;
-        public BDFFileReader BDF;
+        public BDFEDFFileReader BDF;
         public bool equalStatusOnly;
         public int maxSearch;
         public bool continuousSearch;
@@ -38,15 +38,15 @@ namespace FileConverter
         protected float[,] bigBuff;
         protected int[] status;
         protected LogFile log;
-        protected statusPt nominalT; //nominal Event time based on Event.Time
-        protected statusPt actualT; //actual Event time in Status channel
+        protected BDFLoc nominalT; //nominal Event time based on Event.Time
+        protected BDFLoc actualT; //actual Event time in Status channel
         //Note: these should be the same if the two clocks run the same rate (DAQ and computer)
         protected int samplingRate;
 
         bool setEpoch = false;
         double epoch;
 
-        protected bool findEvent(ref statusPt stp, InputEvent ie)
+        protected bool findEvent(ref BDFLoc stp, InputEvent ie)
         {
             if (!setEpoch) //First Event of this type: calculate start time (epoch) of the first point in the BDF file
             {
@@ -110,14 +110,14 @@ namespace FileConverter
         /// <param name="mask">Mask for status word</param>
         /// <param name="stp">Point to begin search</param>
         /// <returns> true if Event found, false otherwise</returns>
-        bool findEvent(int gc, ref statusPt stp)
+        bool findEvent(int gc, ref BDFLoc stp)
         {
             uint b = Utilities.GC2uint((uint)gc);
             int rec = stp.Rec;
             bool first = equalStatusOnly;
             do
             {
-                BDFRecord BDFrec = BDF.read(rec++);
+                BDFEDFRecord BDFrec = BDF.read(rec++);
                 if (BDFrec == null) return false;
                 status = BDF.getStatus();
                 log.registerHiOrderStatus(status[0]); // check for any change
@@ -141,7 +141,7 @@ namespace FileConverter
         /// <param name="sp">Point to begin search</param>
         /// <param name="limit">Limit of number of points to search for signal</param>
         /// <returns>true if Event found, false otherwise</returns>
-        protected bool findExtrinsicEvent(ref statusPt sp, int limit)
+        protected bool findExtrinsicEvent(ref BDFLoc sp, int limit)
         {
             int rec = sp.Rec;
             int l = 0;
@@ -196,7 +196,7 @@ namespace FileConverter
         }
 
     }
-
+/*
     /// <summary>
     /// Encapsulates unique identifier for each point in BDF records
     ///     and arithmetic thereon
@@ -300,5 +300,5 @@ namespace FileConverter
             return "Record " + Rec.ToString("0") + ", point " + Pt.ToString("0");
         }
 
-    }
+    } */
 }

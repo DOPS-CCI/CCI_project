@@ -1,7 +1,7 @@
 using System;
 using System.ComponentModel;
 using System.IO;
-using BDFFileStream;
+using BDFEDFFileStream;
 using ElectrodeFileStream;
 using Event;
 using EventFile;
@@ -15,7 +15,7 @@ namespace FileConverter
         public int StatusMarkerType;
         public int length;
         GVEntry GV0;
-        public BDFFileWriter BDFWriter;
+        public BDFEDFFileWriter BDFWriter;
 
         int[] newStatus;
         int lastStatus = 0;
@@ -55,10 +55,11 @@ namespace FileConverter
             status = new int[BDF.NSamp];
             GV0 = GV[0];
 
-            BDFWriter = new BDFFileWriter(File.Open(dlg.FileName, FileMode.Create, FileAccess.ReadWrite),
+            BDFWriter = new BDFEDFFileWriter(File.Open(dlg.FileName, FileMode.Create, FileAccess.ReadWrite),
                 channels.Count + 1, /* Extra channel will have group variable value in it */
                 length, /* Record length in seconds, must be integer */
-                newSamplingRate);
+                newSamplingRate,
+                true);
 
             log = new LogFile(dlg.FileName + ".log.xml");
             bigBuff = new float[BDF.NumberOfChannels - 1, newRecordLength];   //have to dimension to old channels rather than new
@@ -96,14 +97,14 @@ namespace FileConverter
             EventFileReader EventFR = new EventFileReader(
                 new FileStream(Path.Combine(directory, eventHeader.EventFile), FileMode.Open, FileAccess.Read));
 
-            statusPt stp = new statusPt(BDF);
-            statusPt lastEvent = new statusPt(BDF);
+            BDFLoc stp = BDF.LocationFactory.New();
+            BDFLoc lastEvent = BDF.LocationFactory.New();
             if (!EDE.intrinsic) //set threshold
                 if (risingEdge) threshold = EDE.channelMin + (EDE.channelMax - EDE.channelMin) * threshold;
                 else threshold = EDE.channelMax - (EDE.channelMax - EDE.channelMin) * threshold;
 
-            nominalT = new statusPt(BDF); //nominal Event time based on Event.Time
-            actualT = new statusPt(BDF); //actual Event time in Status channel
+            nominalT = BDF.LocationFactory.New(); //nominal Event time based on Event.Time
+            actualT = BDF.LocationFactory.New(); //actual Event time in Status channel
             //Note: these should be the same if the two clocks run the same rate (DAQ and computer)
             /***** MAIN LOOP *****/
             foreach (InputEvent ie in EventFR) //Loop through Event file
@@ -116,7 +117,7 @@ namespace FileConverter
                         if (allSamps) //this is a continuous copy, not Event generated episodic conversion
                         {
                             runBDFtoEvent(lastEvent, ref stp, ie);
-                            lastEvent = new statusPt(stp);
+                            lastEvent = BDF.LocationFactory.New();
                         }
                         else createBDFRecord(stp, ie); //Create BDF recordset around this point; i.e. Event generated episodic conversion
                 }
@@ -133,7 +134,7 @@ namespace FileConverter
             log.Close();
         }
 
-        private void runBDFtoEvent(statusPt lastEventLocation, ref statusPt nextEventLocation, InputEvent evt)
+        private void runBDFtoEvent(BDFLoc lastEventLocation, ref BDFLoc nextEventLocation, InputEvent evt)
         {
             nextEventLocation += decimation - 1; //correct location so we know where to stop; warning: it's tricky!
             nextEventLocation.Pt /= decimation; //location should be next after actual Event to keep decimation on track
@@ -194,11 +195,11 @@ namespace FileConverter
 
         }
 
-        private void createBDFRecord(statusPt eventLocation, InputEvent evt)
+        private void createBDFRecord(BDFLoc eventLocation, InputEvent evt)
         {
-            statusPt startingPt = eventLocation + oldOffsetInPts; //calculate starting point
+            BDFLoc startingPt = eventLocation + oldOffsetInPts; //calculate starting point
             if (startingPt.Rec < 0) return; //start of record outside of file coverage; so skip it
-            statusPt endPt = startingPt + newRecordLength * decimation; //calculate ending point
+            BDFLoc endPt = startingPt + newRecordLength * decimation; //calculate ending point
             if (endPt.Rec >= BDF.NumberOfRecords) return; //end of record outside of file coverage
 
             /***** Read correct portion of BDF file and decimate *****/

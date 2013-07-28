@@ -12,7 +12,7 @@ using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Forms;
 using System.Windows.Media;
-using BDFFileStream;
+using BDFEDFFileStream;
 using CCIUtilities;
 using EventDictionary;
 using GroupVarDictionary;
@@ -28,12 +28,18 @@ namespace FileConverter
     {
         Header.Header head;
         EventDictionary.EventDictionary ED;
-        BDFFileReader bdf;
+        BDFEDFFileReader bdf;
         List<EventDictionaryEntry> _EDEList;
         public List<EventDictionaryEntry> EDEList { get { return _EDEList; } }
         List<GVEntry> _GVList;
         string directory;
-        int samplingRate;
+
+        double oldSR;
+        int oldNP;
+        double oldNS;
+        double newSR;
+        int newNP;
+
         FileConverter.FMConverter fmc = null;
         FileConverter.BDFConverter bdfc = null;
 
@@ -81,10 +87,12 @@ namespace FileConverter
             head = (new HeaderFileReader(dlg.OpenFile())).read();
             ED = head.Events;
 
-            bdf = new BDFFileReader(
+            bdf = new BDFEDFFileReader(
                 new FileStream(System.IO.Path.Combine(directory, head.BDFFile),
                     FileMode.Open, FileAccess.Read));
-            samplingRate = bdf.NSamp / bdf.RecordDuration;
+            oldSR = bdf.NSamp / bdf.RecordDurationDouble;
+            oldNP = bdf.NSamp;
+            oldNS = bdf.RecordDurationDouble;
 
             InitializeComponent();
 
@@ -174,7 +182,7 @@ namespace FileConverter
             createConverterBase(fmc);
 
             fmc.anc = (bool)ancillarydata.IsChecked;
-            fmc.length = _recLength;
+            fmc.length = _newNS;
             fmc.offset = _recOffset;
 
             // Execute conversion in background
@@ -248,7 +256,7 @@ namespace FileConverter
             {
                 _decimation = System.Convert.ToInt32(Decimation.Text);
                 if (_decimation <= 0) throw new Exception();
-                SR.Text = ((float)samplingRate / (float)_decimation).ToString("0.0");
+                SR.Text = (oldSR / (double)_decimation).ToString("0.00");
                 Decimation.BorderBrush = System.Windows.Media.Brushes.MediumBlue;
             }
             catch (Exception)
@@ -275,18 +283,18 @@ namespace FileConverter
             checkError();
         }
 
-        double _recLength;
+        double _newNS;
         private void RecLength_TextChanged(object sender, TextChangedEventArgs e)
         {
             try
             {
-                _recLength = System.Convert.ToDouble(RecLength.Text);
-                if (_recLength <= 0) throw new Exception();
+                _newNS = System.Convert.ToDouble(RecLength.Text);
+                if (_newNS <= 0) throw new Exception();
                 RecLength.BorderBrush = System.Windows.Media.Brushes.MediumBlue;
             }
             catch (Exception)
             {
-                _recLength = 0D;
+                _newNS = 0D;
                 RecLength.BorderBrush = System.Windows.Media.Brushes.Red;
             }
             checkError();
@@ -545,7 +553,7 @@ namespace FileConverter
 
             bdfc.allSamps = (bool)AllSamples.IsChecked;
             bdfc.StatusMarkerType = (bool)SMType1.IsChecked ? 1 : 2;
-            bdfc.length = bdfc.allSamps ? bdf.RecordDuration : (int)_recLength;
+            bdfc.length = bdfc.allSamps ? bdf.RecordDuration : (int)_newNS;
             bdfc.offset = bdfc.allSamps ? 0F : _recOffset;
 
             // Execute conversion in background
@@ -590,30 +598,38 @@ namespace FileConverter
             ConvertBDF.IsEnabled = true;
             ConvertFM.IsEnabled = true;
 
-            if (_decimation != 0)
+            if (_decimation != 0 && _newNS != 0D)
             {
-                if (samplingRate % _decimation == 0)
+                oldNP = Convert.ToInt32(_newNS * oldSR);
+                if (Math.Abs((double)oldNP - oldSR * _newNS) < 0.1D && oldNP % _decimation == 0)
                 {
-                    SR.Text = (samplingRate / _decimation).ToString("0");
+                    newNP = oldNP / _decimation;
+                    RecLengthPts.Text = newNP.ToString("0");
+                    newSR = (oldSR / (double)_decimation);
+                    SR.Text = newSR.ToString("0.00");
+                    if (Math.Abs(newSR - Math.Floor(newSR)) > 0.005) //SR must be integer in FM
+                        ConvertFM.IsEnabled = false;
                 }
                 else
                 {
+                    ConvertFM.IsEnabled = false;
                     ConvertBDF.IsEnabled = false;
-                    SR.Text = ((double)samplingRate / (double)_decimation).ToString("0.0");
+                    SR.Text = "Error";
+                    RecLengthPts.Text = "Error";
                 }
 
                 if (_recOffset != double.MinValue) // valid record offset
-                    RecOffsetPts.Text = System.Convert.ToInt32(_recOffset * (double)samplingRate / (double)_decimation).ToString("0");
+                    RecOffsetPts.Text = System.Convert.ToInt32(_recOffset * (double)oldSR / (double)_decimation).ToString("0");
+                else
+                {
+                    RecOffsetPts.Text = "Error";
+                    ConvertBDF.IsEnabled = ConvertFM.IsEnabled = false;
+                }
+
+                if (_newNS != 0D)
+                    RecLengthPts.Text = System.Convert.ToInt32(Math.Ceiling(_newNS * (double)oldSR / (double)_decimation)).ToString("0");
                 else
                     ConvertBDF.IsEnabled = ConvertFM.IsEnabled = false;
-
-                if (_recLength != 0D)
-                    RecLengthPts.Text = System.Convert.ToInt32(Math.Ceiling(_recLength * (double)samplingRate / (double)_decimation)).ToString("0");
-                else
-                    ConvertBDF.IsEnabled = ConvertFM.IsEnabled = false;
-
-                if (_recLength != Math.Floor(_recLength))
-                    ConvertBDF.IsEnabled = false; // integer only record lengths for BDF
             }
             else
             {
@@ -625,16 +641,16 @@ namespace FileConverter
 
             if ((bool)Radin.IsChecked)
             {
-                if (_decimation != 0 && _radinLow >= 0 && _radinLow < _recLength)
-                    RadinLowPts.Text = System.Convert.ToInt32(_radinLow * samplingRate / (float)_decimation).ToString("0");
+                if (_decimation != 0 && _radinLow >= 0 && _radinLow < _newNS)
+                    RadinLowPts.Text = System.Convert.ToInt32(_radinLow * oldSR / (float)_decimation).ToString("0");
                 else
                 {
                     ConvertBDF.IsEnabled = ConvertFM.IsEnabled = false;
                     RadinLowPts.Text = "Error";
                 }
 
-                if (_decimation != 0 && _radinHigh > 0 && _radinHigh <= _recLength)
-                    RadinHighPts.Text = System.Convert.ToInt32(_radinHigh * samplingRate / (float)_decimation).ToString("0");
+                if (_decimation != 0 && _radinHigh > 0 && _radinHigh <= _newNS)
+                    RadinHighPts.Text = System.Convert.ToInt32(_radinHigh * oldSR / (float)_decimation).ToString("0");
                 else
                 {
                     ConvertBDF.IsEnabled = ConvertFM.IsEnabled = false;
@@ -654,7 +670,7 @@ namespace FileConverter
                 ConvertBDF.IsEnabled = ConvertFM.IsEnabled = false;
 
             // only show Status Marker Type for legal BDF conversions where Event is included inside record
-            if (ConvertBDF.IsEnabled && !(bool)AllSamples.IsChecked && _recOffset < 0D && _recLength + _recOffset > 0D)
+            if (ConvertBDF.IsEnabled && !(bool)AllSamples.IsChecked && _recOffset < 0D && _newNS + _recOffset > 0D)
                 SMType.IsEnabled = true;
             else SMType.IsEnabled = false;
         }
@@ -710,7 +726,7 @@ namespace FileConverter
             conv.equalStatusOnly = (bool)ExactStatus.IsChecked;
             conv.continuousSearch = (bool)ContinuousSearch.IsChecked;
             if (ExtSearch.Text != "")
-                conv.maxSearch = (int)(_extSearch * samplingRate + 0.5);
+                conv.maxSearch = (int)(_extSearch * oldSR + 0.5);
             else conv.maxSearch = Int32.MaxValue;
             conv.risingEdge = conv.EDE.rise; // fixed entry until we allow discordant edges
             conv.threshold = _extThreshold;

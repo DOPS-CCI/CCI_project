@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Text;
+using BDFEDFFileStream;
 using ElectrodeFileStream;
 using Event;
 using EventFile;
@@ -120,13 +121,13 @@ namespace FileConverter
             EventFileReader EventFR = new EventFileReader(
                 new FileStream(Path.Combine(directory, eventHeader.EventFile), FileMode.Open, FileAccess.Read));
 
-            statusPt stp = new statusPt(BDF);
+            BDFLoc stp = BDF.LocationFactory.New();
             if (!EDE.intrinsic)
                 if (risingEdge) threshold = EDE.channelMin + (EDE.channelMax - EDE.channelMin) * threshold;
                 else threshold = EDE.channelMax - (EDE.channelMax - EDE.channelMin) * threshold;
 
-            nominalT = new statusPt(BDF); //nominal Event time based on Event.Time
-            actualT = new statusPt(BDF); //actual Event time in Status channel
+            nominalT = BDF.LocationFactory.New(); //nominal Event time based on Event.Time
+            actualT = BDF.LocationFactory.New(); //actual Event time in Status channel
             //Note: these should be the same if the two clocks run the same rate (BioSemi DAQ and computer)
             /***** MAIN LOOP *****/
             foreach (InputEvent ie in EventFR) //Loop through Event file
@@ -145,11 +146,11 @@ namespace FileConverter
             log.Close();
         }
 
-        private void createFILMANRecord(FileConverter.statusPt stp, InputEvent evt)
+        private void createFILMANRecord(BDFLoc stp, InputEvent evt)
         {
-            FileConverter.statusPt startingPt = stp + offsetInPts; //calculate starting point
+            BDFLoc startingPt = stp + offsetInPts; //calculate starting point
             if (startingPt.Rec < 0) return; //start of record outside of file coverage; so skip it
-            FileConverter.statusPt endPt = startingPt + Convert.ToInt32(length * samplingRate); //calculate ending point
+            BDFLoc endPt = startingPt + Convert.ToInt32(length * samplingRate); //calculate ending point
             if (endPt.Rec >= BDF.NumberOfRecords) return; //end of record outside of file coverage
 
             /***** Read correct portion of BDF file and decimate *****/

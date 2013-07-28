@@ -1,5 +1,6 @@
 using System;
 using System.Xml;
+using BDFEDFFileStream;
 using Event;
 using GroupVarDictionary;
 
@@ -105,7 +106,7 @@ namespace FileConverter
             logStream.WriteEndElement(/* Conversion */);
         }
 
-        public void registerExtrinsicEvent(statusPt nominal, statusPt actual, statusPt ext, InputEvent ie)
+        public void registerExtrinsicEvent(BDFLoc nominal, BDFLoc actual, BDFLoc ext, InputEvent ie)
         {
             logStream.WriteStartElement("Event");
             logStream.WriteAttributeString("Index", ie.Index.ToString("0"));
@@ -118,7 +119,7 @@ namespace FileConverter
             gatherStats(t0, nominalOffset);
         }
 
-        public void registerIntrinsicEvent(statusPt nominal, statusPt actual, InputEvent ie)
+        public void registerIntrinsicEvent(BDFLoc nominal, BDFLoc actual, InputEvent ie)
         {
             logStream.WriteStartElement("Event");
             logStream.WriteAttributeString("Index", ie.Index.ToString("0"));
