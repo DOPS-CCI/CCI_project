@@ -3,6 +3,15 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="MainWindow" Height="350" Width="525">
     <Grid>
-        <TextBlock Name="output" />
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <TextBlock Name="output1" Grid.Row="0"/>
+        <TextBlock Name="output2" Grid.Row="1" />
+        <Button Name="Start" Grid.Row="2" Click="Start_Click">START</Button>
+        <Button Name="Stop" Grid.Row="3">STOP</Button>
     </Grid>
 </Window>

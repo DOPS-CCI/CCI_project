@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Ports;
 using System.Linq;
+using System.Speech.Synthesis;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows;
@@ -23,25 +24,33 @@ namespace Main
     /// </summary>
     public partial class MainWindow : Window
     {
+        PolhemusController p;
         public MainWindow()
         {
             InitializeComponent();
+            SpeechSynthesizer s = new SpeechSynthesizer();
+            PromptBuilder pb = new PromptBuilder();
+            pb.AppendTextWithHint("Cx", SayAs.SpellOut);
+            pb.AppendTextWithHint("2", SayAs.NumberCardinal);
+            s.Speak(pb);
             PolhemusStream ps = new PolhemusStream();
-            PolhemusController p = new PolhemusController(ps);
+            p = new PolhemusController(ps);
             p.InitializeSystem();
+            p.SetEchoMode(PolhemusController.EchoMode.On);
             p.HemisphereOfOperation(null, -1, 0, 0);
-            //Triple h0 = p.Get_HemisphereOfOperation(1);
             p.OutputFormat(PolhemusController.Format.Binary);
-            //p.Get_OutputFormat();
-            Quadruple x = p.Get_PositionFilterParameters();
-            p.PositionFilterParameters(0.1, 0.1, 0.5, 0.9);
-            p.Get_PositionFilterParameters();
-            p.PositionFilterParameters(x.v1, x.v2, x.v3, x.v4);
-            p.Get_OutputFormat();
             p.SetUnits(PolhemusController.Units.Metric);
-            p.Get_SetUnits();
-            MemoryStream[] ms = p.SingleDataRecordOutput();
-            BinaryReader br = new BinaryReader(ms[0], Encoding.ASCII);
+            IDataFrameType[] df = {new CartesianCoordinates(), new CRLF()};
+            p.OutputDataList(null, df);
+            p.Get_OutputDataList(1);
+        }
+
+        private void Start_Click(object sender, RoutedEventArgs e)
+        {
+            List<IDataFrameType>[] ms;
+            ms = p.SingleDataRecordOutput();
+            output1.Text = ms[0][0].ToString();
+            output2.Text = ms[1][0].ToString();
         }
     }
 }

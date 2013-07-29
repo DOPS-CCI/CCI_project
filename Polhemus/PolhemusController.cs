@@ -104,7 +104,7 @@ namespace Polhemus
 
         public Triple[] Get_AlignmentReferenceFrame()
         {
-            SendCommand('A', true);
+            SendCommand('A', false);
             currentHeader = ReadHeader();
             if (currentHeader.Command != 'A')
                 throw new PolhemusException(0xF3);
@@ -136,7 +136,7 @@ namespace Polhemus
 
         public Triple Get_Boresight(int station)
         {
-            SendCommand("B" + station.ToString("0"), true);
+            SendCommand("B" + station.ToString("0"), false);
             currentHeader = ReadHeader();
             if (currentHeader.Command != 'B')
                 throw new PolhemusException(0xF3);
@@ -163,7 +163,7 @@ namespace Polhemus
 
         public Format Get_OutputFormat()
         {
-            SendCommand('F', true);
+            SendCommand('F', false);
             currentHeader = ReadHeader();
             if (currentHeader.Command != 'F')
                 throw new PolhemusException(0xF3);
@@ -196,7 +196,7 @@ namespace Polhemus
 
         public Triple Get_SourceMountingFrame()
         {
-            SendCommand('G', true);
+            SendCommand('G', false);
             currentHeader = ReadHeader();
             if (currentHeader.Command != 'G')
                 throw new PolhemusException(0xF3);
@@ -221,7 +221,7 @@ namespace Polhemus
 
         public Triple Get_HemisphereOfOperation(int station)
         {
-            SendCommand("H" + station.ToString("0"), true);
+            SendCommand("H" + station.ToString("0"), false);
             currentHeader = ReadHeader();
             if (currentHeader.Command != 'H')
                 throw new PolhemusException(0xF3);
@@ -253,7 +253,7 @@ namespace Polhemus
 
         public StylusMode Get_StylusButtonFunction(int station)
         {
-            SendCommand("L" + station.ToString("0"), true);
+            SendCommand("L" + station.ToString("0"), false);
             currentHeader = ReadHeader();
             if (currentHeader.Command != 'L')
                 throw new PolhemusException(0xF3);
@@ -282,7 +282,7 @@ namespace Polhemus
 
         public Triple Get_TipOffsets(int station)
         {
-            SendCommand("N" + station.ToString("0"), true);
+            SendCommand("N" + station.ToString("0"), false);
             currentHeader = ReadHeader();
             if (currentHeader.Command != 'N')
                 throw new PolhemusException(0xF3);
@@ -325,36 +325,43 @@ namespace Polhemus
 
         public List<IDataFrameType> Get_OutputDataList(int station)
         {
-            SendCommand("O" + station.ToString("0"), true);
+            SendCommand("O" + station.ToString("0"), false);
             currentHeader = ReadHeader();
             if (currentHeader.Command != 'O')
                 throw new PolhemusException(0xF3);
             if (currentHeader.Station != station)
                 throw new PolhemusException(0xF5);
-            foreach (IDataFrameType dft in _responseFrameDescription[station - 1])
-                if (_format == Format.ASCII)
-                {
-                    string aa = (string)parseASCIIStream(TReader, "A2");
-                    if (aa == "\r\n")
-                        throw new PolhemusException(0xF7); //too short a list
-                    if (dft.ParameterValue != Convert.ToInt32("0x0" + aa[0])) //probably hex character, though undocumented
-                        throw new PolhemusException(0xF6); //incorrect value in list
-                }
-                else
-                {
-                    if (currentHeader.Length <= 4 * _responseFrameDescription[station - 1].Count)
-                        throw new PolhemusException(0xF8); //too short a list returned
-                    if (dft.ParameterValue != BReader.ReadInt32())
-                        throw new PolhemusException(0xF6); //incorrect value in list
-                }
+            List<IDataFrameType> dfList=_responseFrameDescription[station - 1];
             if (_format == Format.ASCII)
             {
-                if ((string)parseASCIIStream(TReader, "A2") != "\r\n")
-                    throw new PolhemusException(0xF8); //too long a list returned
+                foreach (IDataFrameType dft in dfList)
+                {
+                    int aa = (int)parseASCIIStream(TReader, "xxB");
+                    if (dft.ParameterValue != aa)
+                        throw new PolhemusException(0xF6); //incorrect value in list
+                }
+                parseASCIIStream("<>"); //don't forget ending CR/LF!
             }
             else
-                if (BReader.ReadInt32() != -1) //list ends with -1
-                    throw new PolhemusException(0xF8); //too long a list returned
+            {
+                int c = currentHeader.Length / 4;
+                for (int i = 0; i < c; i++) //should be twenty of them
+                {
+                    int p = BReader.ReadInt32();
+                    if (i < dfList.Count) //check actual list member
+                        if (dfList[i].ParameterValue != p)
+                            throw new PolhemusException(0xF6); //incorrect value in list
+                        else ;
+                    else
+                        if (i == dfList.Count) //check end-of-list value
+                            if (p != -1)
+                                throw new PolhemusException(0xF6); //incorrect value in list
+                            else ;
+                        else //check empty site value
+                            if (p != 0)
+                                throw new PolhemusException(0xF6); //incorrect value in list
+                }
+            }
             return _responseFrameDescription[station - 1]; //internal list is correct! Return it.
         }
 
@@ -366,7 +373,7 @@ namespace Polhemus
 
         public Units Get_SetUnits()
         {
-            SendCommand('U', true);
+            SendCommand('U', false);
             currentHeader = ReadHeader();
             if (currentHeader.Command != 'U')
                 throw new PolhemusException(0xF3);
@@ -395,7 +402,7 @@ namespace Polhemus
 
         public Quadruple Get_PositionFilterParameters()
         {
-            SendCommand('X', true);
+            SendCommand('X', false);
             currentHeader = ReadHeader();
             if (currentHeader.Command != 'X')
                 throw new PolhemusException(0xF3);
@@ -422,7 +429,7 @@ namespace Polhemus
 
         public Quadruple Get_AttitudeFilterParameters()
         {
-            SendCommand('Y', true);
+            SendCommand('Y', false);
             currentHeader = ReadHeader();
             if (currentHeader.Command != 'Y')
                 throw new PolhemusException(0xF3);
@@ -448,13 +455,17 @@ namespace Polhemus
 
         public void SetEchoMode(EchoMode e)
         {
-            SendCommand(new char[] { '\u0005', e == EchoMode.Off ? '0' : '1' }, true);
+            SendCommand(new char[] { '\u0005', e == EchoMode.Off ? '0' : '1' }, false); //never Echoes itself!
             _echoMode = e;
+            string s = TReader.ReadLine(); //has special return, independent of Echo state!
+            if (e == EchoMode.On && s == "Echo On") return;
+            if (e == EchoMode.Off && s == "Echo Off") return;
+            throw new PolhemusException(0xFD); //inconguent echo response
         }
 
         public EchoMode Get_SetEchoMode()
         {
-            SendCommand('\u0005', true);
+            SendCommand('\u0005', false);
             currentHeader = ReadHeader();
             if (currentHeader.Command != 'e')
                 throw new PolhemusException(0xF3);
@@ -490,7 +501,7 @@ namespace Polhemus
         int[] BREncoding = { 2400, 4800, 9600, 19200, 38400, 57600, 115200 };
         public void Get_RS232PortConfiguration(out int baudRate, out Parity parity)
         {
-            SendCommand('\u000F', true);
+            SendCommand('\u000F', false);
             currentHeader = ReadHeader();
             if (currentHeader.Command != 'o')
                 throw new PolhemusException(0xF3);
@@ -519,7 +530,7 @@ namespace Polhemus
 
         public void Get_ActiveStationState(int station, out byte return1, out byte return2)
         {
-            SendCommand('\u0015' + station.ToString("0"), true);
+            SendCommand('\u0015' + station.ToString("0"), false);
             currentHeader = ReadHeader();
             if (currentHeader.Command != 'u')
                 throw new PolhemusException(0xF3);
@@ -543,7 +554,7 @@ namespace Polhemus
 
         public string[] Get_OperationalConfigurationID()
         {
-            SendCommand('\u0018', true);
+            SendCommand('\u0018', false);
             currentHeader = ReadHeader();
             if (currentHeader.Command != 'x')
                 throw new PolhemusException(0xF3);
@@ -575,7 +586,7 @@ namespace Polhemus
 
         public USBBuffering Get_USBBufferingMode()
         {
-            SendCommand("@B", true);
+            SendCommand("@B", false);
             currentHeader = ReadHeader();
             if (currentHeader.Command != '@')
                 throw new PolhemusException(0xF3);
@@ -593,16 +604,29 @@ namespace Polhemus
         }
 
         byte[] Pbyte = { 0x50 };
-        public MemoryStream[] SingleDataRecordOutput()
+        public List<IDataFrameType>[] SingleDataRecordOutput()
         {
             CommandWriter.Write(Pbyte,0,1); //no CR/LF
 
-            MemoryStream[] ms = new MemoryStream[MaxStations];
+            MemoryStream ms;
             for (int i = 0; i < MaxStations; i++)
             {
-                ms[i] = acquireDataFrame(i); //return resulting byte array as memory stream
+                List<IDataFrameType> dftList = _responseFrameDescription[i];
+                ms = acquireDataFrame(i);
+                if (_format == Format.ASCII)
+                {
+                    StreamReader sr = new StreamReader(ms, Encoding.ASCII);
+                    foreach (IDataFrameType dft in dftList)
+                        dft.FromASCII(sr);
+                }
+                else
+                {
+                    BinaryReader br = new BinaryReader(ms, Encoding.ASCII);
+                    foreach (IDataFrameType dft in dftList)
+                        dft.FromBinary(br);
+                }
             }
-            return ms;
+            return _responseFrameDescription;
         }
 
         public void ResetCounters(Counter c)
@@ -730,7 +754,7 @@ namespace Polhemus
         //----->Private routines start here<-----
 
         const byte CR = 0x0D;
-        private void SendCommand(string s, bool IsConfigurationCommand)
+        private void SendCommand(string s, bool CanEcho)
         {
             int n = s.Length;
             char[] ch = s.ToCharArray();
@@ -739,15 +763,23 @@ namespace Polhemus
             b[n] = CR;
             CommandWriter.Write(b, 0, b.Length);
             CommandWriter.Flush();
-            if (_echoMode == EchoMode.On && IsConfigurationCommand)
+            if (_echoMode == EchoMode.On && CanEcho)
             {
-                string r = TReader.ReadLine();
+                string r;
+                if (_format == Format.Binary)
+                {
+                    currentHeader = ReadHeader();
+                    char[] rc = BReader.ReadChars(currentHeader.Length);
+                    r = new string(rc, 0, currentHeader.Length - 1);
+                }
+                else
+                    r = TReader.ReadLine();
                 if (r.Length != s.Length || r != s)
                     throw new PolhemusException(0xF0);
             }
         }
 
-        private void SendCommand(char[] bytes, bool IsConfigurationCommand)
+        private void SendCommand(char[] bytes, bool CanEcho)
         {
             int n = bytes.Length;
             byte[] bt = new byte[n + 1];
@@ -755,28 +787,44 @@ namespace Polhemus
             bt[n] = CR;
             CommandWriter.Write(bt, 0, bt.Length);
             CommandWriter.Flush();
-            if (_echoMode == EchoMode.On && IsConfigurationCommand)
+            if (_echoMode == EchoMode.On && CanEcho)
             {
-                string r = TReader.ReadLine();
-                if (r.Length == bytes.Length)
+                string r;
+                if (_format == Format.Binary)
                 {
-                    string r1 = new string(bytes);
-                    if (r == r1) return;
+                    currentHeader = ReadHeader();
+                    char[] rc = BReader.ReadChars(currentHeader.Length);
+                    r = new string(rc, 0, currentHeader.Length - 1);
                 }
-                throw new PolhemusException(0xF0);
+                else
+                    r = TReader.ReadLine();
+                string s = new string(bytes);
+                if (r.Length != s.Length || r != s)
+                    throw new PolhemusException(0xF0);
             }
         }
 
-        private void SendCommand(char b, bool IsConfigurationCommand)
+        private void SendCommand(char b, bool CanEcho)
         {
             byte[] bt = { Convert.ToByte(b), CR };
             CommandWriter.Write(bt, 0, 2);
             CommandWriter.Flush();
-            if (_echoMode == EchoMode.On && IsConfigurationCommand)
+            if (_echoMode == EchoMode.On && CanEcho)
             {
-                string s = TReader.ReadLine();
-                if (s.Length != 1 || s.ToCharArray()[0] != b)
-                    throw new PolhemusException(0xF0);
+                if (_format == Format.Binary)
+                {
+                    currentHeader = ReadHeader();
+                    char[] rc = BReader.ReadChars(currentHeader.Length);
+                    string r = new string(rc, 0, currentHeader.Length - 1);
+                    if (currentHeader.Length != 2 || b != (char)r[0])
+                        throw new PolhemusException(0xF0);
+                }
+                else
+                {
+                    string s = TReader.ReadLine();
+                    if (s.Length != 1 || (char)s[0] != b)
+                        throw new PolhemusException(0xF0);
+                }
             }
         }
 
@@ -833,7 +881,7 @@ namespace Polhemus
                     digits = 2;
                     sb.Append(@"\.\d{" + m.Groups["D2"].Length.ToString("0") + "}");
                     if (m.Groups["EP"].Length > 0) //extended precision
-                        sb.Append(@"E[+\-]\d\d\d");
+                        sb.Append(@"E[+\-]\d\d"); //although shown as 3 digit exponent, it's actually 2
                 }
             }
             else
@@ -969,6 +1017,11 @@ namespace Polhemus
             if (double.IsNaN(x)) return ",";
             return "," + x.ToString("0.0000");
         }
+
+        public override string ToString()
+        {
+            return v1.ToString("0.000") + "," + v2.ToString("0.000") + "," + v3.ToString("0.000");
+        }
     }
 
     public class Quadruple
@@ -1073,19 +1126,11 @@ namespace Polhemus
             _errorDictionary.Add(0x49, "BIT Errors");
         }
 
-        public static string ErrorMessage(byte errorNum)
-        {
-            string s;
-            if (_errorDictionary.TryGetValue(errorNum, out s))
-                return s;
-            return "PolhemusController error: 0x" + errorNum.ToString("X");
-        }
-
         public override string Message
         {
             get
             {
-                return PolhemusException.ErrorMessage(_errNum);
+                return _errMess;
             }
         }
 
@@ -1107,8 +1152,8 @@ namespace Polhemus
             }
             else
             {
-                if (_errNum < 0x80) _errMess = ErrorMessage(_errNum);
-                else _errMess = "";
+                if (!_errorDictionary.TryGetValue(_errNum, out _errMess))
+                    _errMess = "";
             }
         }
     }
@@ -1199,9 +1244,14 @@ namespace Polhemus
 
         public void FromBinary(BinaryReader br)
         {
-            X = br.ReadDouble();
-            Y = br.ReadDouble();
-            Z = br.ReadDouble();
+            X = br.ReadSingle();
+            Y = br.ReadSingle();
+            Z = br.ReadSingle();
+        }
+
+        public override string ToString()
+        {
+            return "X=" + X.ToString("0.000") + ", Y=" + Y.ToString("0.000") + ", Z=" + Z.ToString("0.000");
         }
     }
 
@@ -1226,9 +1276,9 @@ namespace Polhemus
 
         public void FromBinary(BinaryReader br)
         {
-            X = br.ReadDouble();
-            Y = br.ReadDouble();
-            Z = br.ReadDouble();
+            X = br.ReadSingle();
+            Y = br.ReadSingle();
+            Z = br.ReadSingle();
         }
     }
 
@@ -1253,9 +1303,9 @@ namespace Polhemus
 
         public void FromBinary(BinaryReader br)
         {
-            Azimuth = br.ReadDouble();
-            Elevation = br.ReadDouble();
-            Roll = br.ReadDouble();
+            Azimuth = br.ReadSingle();
+            Elevation = br.ReadSingle();
+            Roll = br.ReadSingle();
         }
     }
 
@@ -1280,9 +1330,9 @@ namespace Polhemus
 
         public void FromBinary(BinaryReader br)
         {
-            Azimuth = br.ReadDouble();
-            Elevation = br.ReadDouble();
-            Roll = br.ReadDouble();
+            Azimuth = br.ReadSingle();
+            Elevation = br.ReadSingle();
+            Roll = br.ReadSingle();
         }
     }
 
@@ -1292,18 +1342,25 @@ namespace Polhemus
 
         public int ParameterValue { get { return 6; } }
 
-        public int ASCIILength { get { return 81; } }
+        public int ASCIILength { get { return 93; } }
 
         public int BinaryLength { get { return 36; } }
 
         public void FromASCII(StreamReader sr)
         {
-            for (int i = 0; i < 3; i++)
-            {
-                for (int j = 0; j < 3; j++)
-                    Matrix[i, j] = (double)PolhemusController.parseASCIIStream(sr, "Sx.xxxxxB");
-                PolhemusController.parseASCIIStream(sr, "<>");
-            }
+            int i = 0;
+            for (int j = 0; j < 3; j++)
+                Matrix[i, j] = (double)PolhemusController.parseASCIIStream(sr, "Sx.xxxxxB");
+            PolhemusController.parseASCIIStream(sr, "<>");
+            i = 1;
+            PolhemusController.parseASCIIStream(sr, "A4"); //skip 4 blanks at beginning of line
+            for (int j = 0; j < 3; j++)
+                Matrix[i, j] = (double)PolhemusController.parseASCIIStream(sr, "Sx.xxxxxB");
+            PolhemusController.parseASCIIStream(sr, "<>");
+            i = 2;
+            PolhemusController.parseASCIIStream(sr, "A4"); //skip 4 blanks at beginning of line
+            for (int j = 0; j < 3; j++)
+                Matrix[i, j] = (double)PolhemusController.parseASCIIStream(sr, "Sx.xxxxxB");
         }
 
         public void FromBinary(BinaryReader br)
@@ -1323,7 +1380,6 @@ namespace Polhemus
 
         public int ParameterValue { get { return 7; } }
 
-
         public int ASCIILength { get { return 36; } }
 
         public int BinaryLength { get { return 16; } }
@@ -1337,10 +1393,10 @@ namespace Polhemus
 
         public void FromBinary(BinaryReader br)
         {
-            q0 = br.ReadDouble();
-            q1 = br.ReadDouble();
-            q2 = br.ReadDouble();
-            q3 = br.ReadDouble();
+            q0 = br.ReadSingle();
+            q1 = br.ReadSingle();
+            q2 = br.ReadSingle();
+            q3 = br.ReadSingle();
         }
     }
 
@@ -1392,25 +1448,18 @@ namespace Polhemus
 
         public int ParameterValue { get { return 10; } }
 
-        public int ASCIILength { get { return 1; } }
+        public int ASCIILength { get { return 3; } }
 
         public int BinaryLength { get { return 4; } }
 
         public void FromASCII(StreamReader sr)
         {
-            int c = sr.Read();
-            this.Flag = c == (int)'0' ? 0 : 1;
+            Flag = (int)PolhemusController.parseASCIIStream(sr, "xxB");
         }
 
         public void FromBinary(BinaryReader br)
         {
             this.Flag = br.ReadInt32();
         }
-    }
-
-    public class ResponseFrame
-    {
-        List<IDataFrameType> _response;
-
     }
 }
