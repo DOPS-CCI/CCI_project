@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Ports;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Text.RegularExpressions;
@@ -303,7 +304,7 @@ namespace Polhemus
             return co;
         }
 
-        public void OutputDataList(int? station, IDataFrameType[] outputTypes)
+        public void OutputDataList(int? station, Type[] outputTypes)
         {
             StringBuilder sb = new StringBuilder("O" + (station == null ? "*" : ((int)station).ToString("0")));
             if (station == null)
@@ -311,12 +312,20 @@ namespace Polhemus
                     _responseFrameDescription[i].Clear();
             else
                 _responseFrameDescription[(int)station - 1].Clear();
-            foreach (IDataFrameType dft in outputTypes)
+            foreach (Type outputType in outputTypes)
             {
+                IDataFrameType dft = (IDataFrameType)Activator.CreateInstance(outputType);
                 sb.Append("," + dft.ParameterValue.ToString("0"));
                 if (station == null)
-                    for (int i = 0; i < MaxStations; i++)
+                {
+                    _responseFrameDescription[0].Add(dft);
+
+                    for (int i = 1; i < MaxStations; i++)
+                    {
+                        dft = (IDataFrameType)Activator.CreateInstance(outputType);
                         _responseFrameDescription[i].Add(dft);
+                    }
+                }
                 else
                     _responseFrameDescription[(int)station - 1].Add(dft);
             }
@@ -507,7 +516,7 @@ namespace Polhemus
                 throw new PolhemusException(0xF3);
             if (_format == Format.ASCII)
             {
-                baudRate = Convert.ToInt32((string)parseASCIIStream("A6B")) * 100;
+                baudRate = Convert.ToInt32((string)parseASCIIStream("AAAAAAB")) * 100;
                 parity = (Parity)Convert.ToInt32((string)parseASCIIStream("A<>"));
             }
             else
@@ -562,7 +571,7 @@ namespace Polhemus
             {
                 string[] ret = new string[4];
                 for (int i = 0; i < 4; i++)
-                    ret[i] = ((string)parseASCIIStream("A16B")).Trim();
+                    ret[i] = ((string)parseASCIIStream("AAAAAAAAAAAAAAAAB")).Trim();
                 parseASCIIStream("<>");
                 return ret;
             }
@@ -653,12 +662,12 @@ namespace Polhemus
             uint[] ret = new uint[9];
             if (_format == Format.ASCII)
             {
-                if ((string)parseASCIIStream("A2") != "0x")
+                if ((string)parseASCIIStream("AA") != "0x")
                     throw new PolhemusException(0xFA);
                 ret[0] = Convert.ToUInt32((string)parseASCIIStream("xxxxxxxx<>"), 16);
                 for (int i = 1; i < 9; i++)
                 {
-                    if ((string)parseASCIIStream("A2") != "0x")
+                    if ((string)parseASCIIStream("AA") != "0x")
                         throw new PolhemusException(0xFA);
                     ret[i] = (uint)parseASCIIStream("xxxxxxxxB");
                 }
@@ -681,8 +690,13 @@ namespace Polhemus
             {
                 if (station == null)
                 {
-                    parseASCIIStream("<>"); //skip initial DR/LF
-                    return (string)parseASCIIStream("A111<>");
+                    TReader.ReadLine(); //skip first CR/LF
+                    StringBuilder sb = new StringBuilder(TReader.ReadLine() + Environment.NewLine);
+                    TReader.ReadLine();
+                    sb.Append(TReader.ReadLine() + Environment.NewLine);
+                    sb.Append(TReader.ReadLine() + Environment.NewLine);
+                    sb.Append(TReader.ReadLine());
+                    return sb.ToString();
                 }
                 else
                     return TReader.ReadLine() + Environment.NewLine + TReader.ReadLine();
@@ -833,7 +847,7 @@ namespace Polhemus
             return parseASCIIStream(TReader, format);
         }
 
-        public static object parseASCIIStream(StreamReader s, string format)
+        internal static object parseASCIIStream(StreamReader s, string format)
         {
             int d;
             StringBuilder sb = new StringBuilder("^");
@@ -860,9 +874,9 @@ namespace Polhemus
         //This private routine parses a "standard" Polhemus documentation string for describing
         // the format of a number or string and returns a regex string appropriate for reading
         // in the next characters from the text stream; asssumes that format optionally ends in
-        // a blank or CR/LF; extends Polhemus format to include Ann form for alphabetic inputs;
-        // also outputs an indicator (digits) for alpha(0), integer(1), and floating(2) formats
-        static Regex parseFormat = new Regex(@"^((?'S'S)?(?'D1'x+)(\.(?'D2'x+))?(?'EP'ESxxx)?|(?'Alpha'A(?'D3'\d+)?))?(?'Delimiter'(B|<>))?$");
+        // a blank or CR/LF; also outputs an indicator (digits) for alpha(0), integer(1),
+        // and floating(2) formats
+        static Regex parseFormat = new Regex(@"^((?'S'S)?(?'D1'x+)(\.(?'D2'x+))?(?'EP'ESxx)?|(?'Alpha'A+))?(?'Delimiter'(B|<>))?$");
         static string parseFormatString(string format, out int digits)
         {
             StringBuilder sb = new StringBuilder(); //set up for match[1]
@@ -881,12 +895,12 @@ namespace Polhemus
                     digits = 2;
                     sb.Append(@"\.\d{" + m.Groups["D2"].Length.ToString("0") + "}");
                     if (m.Groups["EP"].Length > 0) //extended precision
-                        sb.Append(@"E[+\-]\d\d"); //although shown as 3 digit exponent, it's actually 2
+                        sb.Append(@"E[+\-]\d\d"); //it's actually 2 digit exponent!
                 }
             }
             else
                 if (m.Groups["Alpha"].Length > 0) //alpha
-                    sb.Append("(." + (m.Groups["D3"].Length > 0 ? "{" + m.Groups["D3"].Value + "}" : ""));
+                    sb.Append("(." + (m.Groups["Alpha"].Length > 1 ? "{" + m.Groups["Alpha"].Length + "}" : ""));
                 else //delimiter only -- so match delimiter as string
                 {
                     return sb.Append(m.Groups["Delimiter"].Value == "B" ? "( )" : @"(\r\n)").ToString();
@@ -939,7 +953,7 @@ namespace Polhemus
                 int len = isShortHeader ? 4 : 5;
                 char[] r = new char[len];
                 int j = 0;
-                while (j != len) //block until we get 5 characters
+                while (j != len) //block until we get len characters
                     j += TReader.ReadBlock(r, j, len - j);
                 string s = new string(r, 0, 2);
                 header.Station = Convert.ToInt32(s);
@@ -1263,15 +1277,15 @@ namespace Polhemus
 
         public int ParameterValue { get { return 3; } }
 
-        public int ASCIILength { get { return 45; } }
+        public int ASCIILength { get { return 42; } }
 
         public int BinaryLength { get { return 12; } }
 
         public void FromASCII(StreamReader sr)
         {
-            X = (double)PolhemusController.parseASCIIStream(sr, "Sx.xxxxxxESxxxB");
-            Y = (double)PolhemusController.parseASCIIStream(sr, "Sx.xxxxxxESxxxB");
-            Z = (double)PolhemusController.parseASCIIStream(sr, "Sx.xxxxxxESxxxB");
+            X = (double)PolhemusController.parseASCIIStream(sr, "Sx.xxxxxxESxxB");
+            Y = (double)PolhemusController.parseASCIIStream(sr, "Sx.xxxxxxESxxB");
+            Z = (double)PolhemusController.parseASCIIStream(sr, "Sx.xxxxxxESxxB");
         }
 
         public void FromBinary(BinaryReader br)
@@ -1279,6 +1293,11 @@ namespace Polhemus
             X = br.ReadSingle();
             Y = br.ReadSingle();
             Z = br.ReadSingle();
+        }
+
+        public override string ToString()
+        {
+            return "X=" + X.ToString("0.000000E-00") + ", Y=" + Y.ToString("0.000000E-00") + ", Z=" + Z.ToString("0.000000E-00");
         }
     }
 
@@ -1307,6 +1326,11 @@ namespace Polhemus
             Elevation = br.ReadSingle();
             Roll = br.ReadSingle();
         }
+
+        public override string ToString()
+        {
+            return "Az=" + Azimuth.ToString("0.000") + ", El=" + Elevation.ToString("0.000") + ", Ro=" + Roll.ToString("0.000");
+        }
     }
 
     public class EulerOrientationAnglesEP : IDataFrameType
@@ -1317,15 +1341,15 @@ namespace Polhemus
 
         public int ParameterValue { get { return 5; } }
 
-        public int ASCIILength { get { return 45; } }
+        public int ASCIILength { get { return 42; } }
 
         public int BinaryLength { get { return 12; } }
 
         public void FromASCII(StreamReader sr)
         {
-            Azimuth = (double)PolhemusController.parseASCIIStream(sr, "Sx.xxxxxxESxxxB");
-            Elevation = (double)PolhemusController.parseASCIIStream(sr, "Sx.xxxxxxESxxxB");
-            Roll = (double)PolhemusController.parseASCIIStream(sr, "Sx.xxxxxxESxxxB");
+            Azimuth = (double)PolhemusController.parseASCIIStream(sr, "Sx.xxxxxxESxxB");
+            Elevation = (double)PolhemusController.parseASCIIStream(sr, "Sx.xxxxxxESxxB");
+            Roll = (double)PolhemusController.parseASCIIStream(sr, "Sx.xxxxxxESxxB");
         }
 
         public void FromBinary(BinaryReader br)
@@ -1333,6 +1357,11 @@ namespace Polhemus
             Azimuth = br.ReadSingle();
             Elevation = br.ReadSingle();
             Roll = br.ReadSingle();
+        }
+
+        public override string ToString()
+        {
+            return "Az=" + Azimuth.ToString("0.000000E-00") + ", El=" + Elevation.ToString("0.000000E-00") + ", Ro=" + Roll.ToString("0.000000E-00");
         }
     }
 
@@ -1353,12 +1382,12 @@ namespace Polhemus
                 Matrix[i, j] = (double)PolhemusController.parseASCIIStream(sr, "Sx.xxxxxB");
             PolhemusController.parseASCIIStream(sr, "<>");
             i = 1;
-            PolhemusController.parseASCIIStream(sr, "A4"); //skip 4 blanks at beginning of line
+            PolhemusController.parseASCIIStream(sr, "AAAA"); //skip 4 blanks at beginning of line
             for (int j = 0; j < 3; j++)
                 Matrix[i, j] = (double)PolhemusController.parseASCIIStream(sr, "Sx.xxxxxB");
             PolhemusController.parseASCIIStream(sr, "<>");
             i = 2;
-            PolhemusController.parseASCIIStream(sr, "A4"); //skip 4 blanks at beginning of line
+            PolhemusController.parseASCIIStream(sr, "AAAA"); //skip 4 blanks at beginning of line
             for (int j = 0; j < 3; j++)
                 Matrix[i, j] = (double)PolhemusController.parseASCIIStream(sr, "Sx.xxxxxB");
         }
@@ -1367,7 +1396,20 @@ namespace Polhemus
         {
             for (int i = 0; i < 3; i++)
                 for (int j = 0; j < 3; j++)
-                    Matrix[i, j] = br.ReadDouble();
+                    Matrix[i, j] = br.ReadSingle();
+        }
+
+        public override string ToString()
+        {
+            StringBuilder sb = new StringBuilder("[ ");
+            for (int i = 0; i < 3; i++)
+            {
+                for (int j = 0; j < 3; j++)
+                    sb.Append(Matrix[i, j].ToString("0.0000") + " ");
+                sb.Append("/ ");
+            }
+            sb.Replace("/ ", "]", sb.Length - 2, 2);
+            return sb.ToString();
         }
     }
 
@@ -1398,6 +1440,13 @@ namespace Polhemus
             q2 = br.ReadSingle();
             q3 = br.ReadSingle();
         }
+        public override string ToString()
+        {
+            return q0.ToString("0.000") + ", " +
+                q1.ToString("0.000") + ", " +
+                q2.ToString("0.000") + ", " +
+                q3.ToString("0.000");
+        }
     }
 
     public class Timestamp : IDataFrameType
@@ -1418,6 +1467,11 @@ namespace Polhemus
         public void FromBinary(BinaryReader br)
         {
             Value = br.ReadUInt32();
+        }
+
+        public override string ToString()
+        {
+            return (Value / 1000).ToString("0.000");
         }
     }
 
@@ -1440,6 +1494,11 @@ namespace Polhemus
         {
             Value = br.ReadUInt32();
         }
+
+        public override string ToString()
+        {
+            return Value.ToString("0");
+        }
     }
 
     public class StylusFlag : IDataFrameType
@@ -1460,6 +1519,11 @@ namespace Polhemus
         public void FromBinary(BinaryReader br)
         {
             this.Flag = br.ReadInt32();
+        }
+
+        public override string ToString()
+        {
+            return Flag == 0 ? "Off" : "On";
         }
     }
 }

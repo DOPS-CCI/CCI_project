@@ -12,6 +12,6 @@
         <TextBlock Name="output1" Grid.Row="0"/>
         <TextBlock Name="output2" Grid.Row="1" />
         <Button Name="Start" Grid.Row="2" Click="Start_Click">START</Button>
-        <Button Name="Stop" Grid.Row="3">STOP</Button>
+        <Button Name="Stop" Grid.Row="3" Click="Stop_Click">STOP</Button>
     </Grid>
 </Window>

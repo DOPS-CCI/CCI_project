@@ -110,7 +110,7 @@ namespace Polhemus
 
         public override void Flush()
         {
-
+            
         }
 
         public override long Seek(long offset, SeekOrigin origin)
@@ -121,6 +121,16 @@ namespace Polhemus
         public override void SetLength(long value)
         {
             throw new NotImplementedException();
+        }
+
+        public override IAsyncResult BeginRead(byte[] buffer, int offset, int count, AsyncCallback callback, object state)
+        {
+            return base.BeginRead(buffer, offset, count, callback, state);
+        }
+
+        public override int EndRead(IAsyncResult asyncResult)
+        {
+            return base.EndRead(asyncResult);
         }
     }
 }
