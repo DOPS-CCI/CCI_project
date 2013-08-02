@@ -8,10 +8,15 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
-        <TextBlock Name="output1" Grid.Row="0"/>
-        <TextBlock Name="output2" Grid.Row="1" />
-        <Button Name="Start" Grid.Row="2" Click="Start_Click">START</Button>
-        <Button Name="Stop" Grid.Row="3" Click="Stop_Click">STOP</Button>
+        <StackPanel Orientation="Horizontal" Grid.Row="0" Margin="4">
+            <TextBlock Text="Current location: "/>
+            <TextBlock Name="output3"/>
+        </StackPanel>
+        <TextBlock Name="output1" Grid.Row="1" Margin="4"/>
+        <TextBlock Name="output2" Grid.Row="2" Margin="4" />
+        <Button Name="Start" Grid.Row="3" Width="120" Margin="4" Click="Start_Click">START</Button>
+        <Button Name="Stop" Grid.Row="4" Width="120" Margin="4" Click="Stop_Click">STOP</Button>
     </Grid>
 </Window>
