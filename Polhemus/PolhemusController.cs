@@ -915,7 +915,7 @@ namespace Polhemus
 
         private MemoryStream acquireDataFrame(int station)
         {
-            currentHeader = ReadHeader(true); //may be short header if P-response in ASCII mode
+            currentHeader = ReadHeader(true); //will be short header if P-response in ASCII mode
             if (currentHeader.Station != station + 1)
                 throw new PolhemusException(0xFB);
             int len = CalculateFrameLength(station);
@@ -996,7 +996,24 @@ namespace Polhemus
         public double v2 { get; set; }
         public double v3 { get; set; }
 
-
+        public double this[int i]
+        {
+            get
+            {
+                if (i == 0) return v1;
+                if (i == 1) return v2;
+                if (i == 2) return v3;
+                throw new IndexOutOfRangeException("Triple get index out of range: " +i.ToString("0"));
+            }
+            set
+            {
+                if (i == 0) v1 = value;
+                else if (i == 1) v2 = value;
+                else if (i == 2) v3 = value;
+                else
+                    throw new IndexOutOfRangeException("Triple set index out of range: " + i.ToString("0"));
+            }
+        }
         public Triple(double x, double y, double z)
         {
             v1 = x;
@@ -1023,9 +1040,46 @@ namespace Polhemus
             return cc;
 
         }
+
         public static Triple FromBinary(BinaryReader br)
         {
             return new Triple(br.ReadSingle(), br.ReadSingle(), br.ReadSingle());
+        }
+
+        /***** Vector operations *****/
+        public static Triple operator +(Triple a, Triple b)
+        {
+            return new Triple(a.v1 + b.v1, a.v2 + b.v2, a.v3 + b.v3);
+        }
+
+        public static Triple operator -(Triple a, Triple b)
+        {
+            return new Triple(a.v1 - b.v1, a.v2 - b.v2, a.v3 - b.v3);
+        }
+
+        public static Triple operator *(double a, Triple B)
+        {
+            return new Triple(a * B.v1, a * B.v2, a * B.v3);
+        }
+
+        public static Triple Cross(Triple A, Triple B)
+        {
+            Triple C = new Triple();
+            C.v1 = A.v2 * B.v3 - B.v2 * A.v3;
+            C.v2 = B.v1 * A.v3 - A.v1 * B.v3;
+            C.v3 = A.v1 * B.v2 - B.v1 * A.v2;
+            return C;
+        }
+
+        public Triple Norm()
+        {
+            double v = 1D / this.Length();
+            return v * this;
+        }
+
+        public double Length()
+        {
+            return Math.Sqrt(v1 * v1 + v2 * v2 + v3 * v3);
         }
 
         static string SingleConvert(double x)
@@ -1265,6 +1319,11 @@ namespace Polhemus
             Z = br.ReadSingle();
         }
 
+        public Triple ToTriple()
+        {
+            return new Triple(this.X, this.Y, this.Z);
+        }
+
         public override string ToString()
         {
             return "X=" + X.ToString("0.000") + ", Y=" + Y.ToString("0.000") + ", Z=" + Z.ToString("0.000");
@@ -1295,6 +1354,11 @@ namespace Polhemus
             X = br.ReadSingle();
             Y = br.ReadSingle();
             Z = br.ReadSingle();
+        }
+
+        public Triple ToTriple()
+        {
+            return new Triple(this.X, this.Y, this.Z);
         }
 
         public override string ToString()
@@ -1540,7 +1604,8 @@ namespace Polhemus
     ///  and single shot modes cannot be used together.
     /// Callback delegates are provided to process data in real time in each
     ///  of these modes; a parameter is provided to indicate that a particular
-    ///  callback is the final one (continuous and monitor modes).
+    ///  callback is the "final" one (continuous and monitor modes), i.e., the
+    ///  stylus button has been released.
     /// </summary>
     public class StylusAcquisition : BackgroundWorker
     {
@@ -1553,8 +1618,8 @@ namespace Polhemus
         SingleShot _singleShot;
         Monitor _monitor;
         bool _continuousMode;
-        int stylusFrameLoc;
-        
+        int stylusFrameLoc; //where stylus marker state is in the Polhemus data frame
+
         public StylusAcquisition(PolhemusController controller, Continuous continuous, Monitor monitor = null)
         {
             if (controller == null) throw new ArgumentNullException("controller");
@@ -1598,15 +1663,17 @@ namespace Polhemus
             RunWorkerCompleted += new RunWorkerCompletedEventHandler(sa_StylusMarker);
             DoWork += new DoWorkEventHandler(Execute);
 
+            //look in station 1 ResponseFrameDesctiption for a StylusFlag item
             List<IDataFrameType> l = _controller.ResponseFrameDescription[0];
             Type[] l1 = new Type[l.Count + 1];
-            stylusFrameLoc = 0;
+            stylusFrameLoc = 0; //index of the StylusFlag item in the data frame
             foreach (IDataFrameType idf in l)
             {
                 Type t = idf.GetType();
                 if (t == typeof(StylusFlag)) return;
                 l1[stylusFrameLoc++] = t;
             }
+            //if we don't find a StylusFlag, add one to the end of station 1 frame
             l1[stylusFrameLoc] = typeof(StylusFlag);
             _controller.OutputDataList(1, l1);
         }
@@ -1645,6 +1712,15 @@ namespace Polhemus
                 CancelAsync();
         }
 
+        /// <summary>
+        /// This is the routine that is executed on the background thread to acquire "frames" of data
+        ///  from Polhemus by repeatedly doing SingleDataRecordData commands (P) on the Polhemus device.
+        ///  After each frame is acquired from Polhemus (in synchronous mode), a ReportProgress event
+        ///  is generated which in turn executes a delegate on the home thread (if appropriate for
+        ///  the mode that the StylusAcquisition object was created with). A BackgroundWorkerCompleted
+        ///  event is created when this routine exits, resulting in another delegate execution on the
+        ///  home thread.
+        /// </summary>
         const int sleepTime = 20; //Best value; results in about 40 samples/sec with or without monitor running
         void Execute(object sender, DoWorkEventArgs e)
         {
@@ -1678,9 +1754,22 @@ namespace Polhemus
                     Thread.Sleep(sleepTime);
                     currentFrame = _controller.SingleDataRecordOutput();
                     if (bw.CancellationPending) { e.Result = currentFrame; e.Cancel = true; return; }
-                } while (((StylusFlag)currentFrame[0][stylusFrameLoc]).Flag == 1 && _continuousMode); //Wait for button to be released
+                } while (((StylusFlag)currentFrame[0][stylusFrameLoc]).Flag == 1); //Wait for button to be released
             }
             e.Result = currentFrame;
         }
     }
+
+    public class PointAcqusitionFinishedEventArgs : System.EventArgs
+    {
+        public Triple result { get; private set; }
+
+        public PointAcqusitionFinishedEventArgs(Triple P)
+        {
+            result = P;
+        }
+    }
+
+    public delegate void PointAcquisitionFinishedEventHandler(object sender, PointAcqusitionFinishedEventArgs e);
+
 }

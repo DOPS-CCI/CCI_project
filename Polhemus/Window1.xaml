@@ -3,12 +3,12 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:sys="clr-namespace:System;assembly=mscorlib"
         xmlns:local="clr-namespace:Polhemus"
-        Title="Window1" Height="300" Width="800">
+        Title="Electrode Measurement Setup" Height="357" Width="490" ResizeMode="NoResize" SizeToContent="WidthAndHeight" WindowStartupLocation="CenterScreen" FontSize="14">
     <Window.Resources>
         <local:_Templates x:Key="templates">
-            <local:_File _Name="Test1" _FileName="Test1.etr" />
-            <local:_File _Name="Test2" _FileName="Test2.etr" />
-            <local:_File _Name="Test3" _FileName="Test3.etr" />
+            <local:_File _Name="Standard 128" _FileName="Test1.etr" />
+            <local:_File _Name="Standard 64" _FileName="Test2.etr" />
+            <local:_File _Name="Standard 32" _FileName="Test3.etr" />
         </local:_Templates>
         <local:_Hemispheres x:Key="hemispheres">
             <sys:String>X+</sys:String>
@@ -25,37 +25,42 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="Auto"/>
             <ColumnDefinition Width="Auto"/>
         </Grid.ColumnDefinitions>
-            <TextBlock Grid.Row="0" Grid.Column="0" FontSize="14" FontWeight="Bold" Margin="4"  VerticalAlignment="Center" HorizontalAlignment="Right">Template file</TextBlock>
-            <ComboBox DataContext="{StaticResource ResourceKey=templates}" ItemsSource="{Binding}" IsSynchronizedWithCurrentItem="True"  Grid.Row="0" Grid.Column="1" Height="23" HorizontalAlignment="Left" Margin="4" Name="Templates" VerticalAlignment="Top" Width="200" IsEditable="False"  />
-        <TextBlock Grid.Row="1" Grid.Column="0" FontSize="14" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="4">Output file</TextBlock>
+            <TextBlock Grid.Row="0" Grid.Column="0" FontWeight="Bold" Margin="4"  VerticalAlignment="Center" HorizontalAlignment="Right">Template file</TextBlock>
+            <ComboBox DataContext="{StaticResource ResourceKey=templates}" ItemsSource="{Binding}" IsSynchronizedWithCurrentItem="True"  Grid.Row="0" Grid.Column="1" Height="24" HorizontalAlignment="Left" Margin="4" Name="Templates" VerticalAlignment="Center" Width="Auto" IsEditable="False" VerticalContentAlignment="Center" />
+        <TextBlock Grid.Row="1" Grid.Column="0" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="4">Output file</TextBlock>
         <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal">
-            <TextBox Height="23" HorizontalAlignment="Left" Margin="4" Name="FileName" VerticalAlignment="Center" Width="200" VerticalContentAlignment="Center" />
-            <Button Content="Select file" Height="23" Name="button1" Width="80" Margin="4" />
+            <TextBox Height="23" HorizontalAlignment="Left" Margin="4" Name="FileName" FontSize="11" VerticalAlignment="Center" Width="280" VerticalContentAlignment="Center" TextChanged="FileName_changed" IsReadOnly="True" />
+            <Button Content="Select file" Height="24" Name="button1" Width="78" Margin="4" Click="SelectFile_Click" />
         </StackPanel>
-            <TextBlock Grid.Row="2" Grid.Column="0" FontSize="14" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="4">Hemisphere of operation</TextBlock>
-        <ComboBox DataContext="{StaticResource ResourceKey=hemispheres}" ItemsSource="{Binding}" IsSynchronizedWithCurrentItem="True" Grid.Row="2" Grid.Column="1" Height="23" HorizontalAlignment="Left" Margin="4" Name="Hemisphere" VerticalAlignment="Top" Width="40" IsEditable="False" />
+            <TextBlock Grid.Row="2" Grid.Column="0" FontSize="14" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="4">Hemisphere</TextBlock>
+        <ComboBox DataContext="{StaticResource ResourceKey=hemispheres}" ItemsSource="{Binding}" IsSynchronizedWithCurrentItem="True" Grid.Row="2" Grid.Column="1" Height="24" HorizontalAlignment="Left" Margin="4" Name="Hemisphere" VerticalAlignment="Center" Width="Auto" IsEditable="False" SelectedIndex="1" VerticalContentAlignment="Center" />
         <GroupBox Grid.Row="3" Grid.ColumnSpan="2" Margin="4" FontSize="14" FontWeight="Bold"  Header="Mode">
             <StackPanel Orientation="Vertical">
                 <StackPanel Orientation="Horizontal">
-                    <RadioButton Margin="8,4,0,4" FontWeight="Normal" Content="Fixed number of samples (single) = " IsChecked="True" />
-                    <TextBox Height="23" Name="textBox1" Width="40" FontWeight="Normal">1</TextBox>
+                    <RadioButton Name="rb1" Margin="8,4,0,4" FontWeight="Normal" Content="Fixed number of samples (single) = " IsChecked="True" GroupName="ModeSelection" Tag="0" Checked="rb_Checked" />
+                    <TextBox Height="23" Name="Samp1" Width="40" FontWeight="Normal" IsEnabled="{Binding ElementName=rb1, Path=IsChecked}" TextChanged="SampCount1_changed">1</TextBox>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal">
-                    <RadioButton Margin="8,4,0,4" FontWeight="Normal" Content="Fixed number of samples (continuous) = " />
-                    <TextBox Height="23" Name="textBox3" Width="40" FontWeight="Normal">40</TextBox>
+                    <RadioButton Name="rb2" Margin="8,4,0,4" FontWeight="Normal" Content="Fixed number of samples (continuous) = " GroupName="ModeSelection" Tag="1" Checked="rb_Checked" />
+                    <TextBox Height="23" Name="Samp2" Width="40" FontWeight="Normal" IsEnabled="{Binding ElementName=rb2, Path=IsChecked}" TextChanged="SampCount2_changed">40</TextBox>
                 </StackPanel>
-                <RadioButton Margin="8,4" FontWeight="Normal">Sample while button down</RadioButton>
+                <RadioButton Margin="8,4" FontWeight="Normal" GroupName="ModeSelection" Tag="2" Checked="rb_Checked">Sample while button down</RadioButton>
                 <StackPanel Orientation="Horizontal">
-                    <RadioButton Margin="8,4,0,4" FontWeight="Normal" Content="Sample to criteria: SD &lt; "/>
-                    <TextBox Height="23" Name="textBox2" Width="50" FontWeight="Normal">0.100</TextBox>
+                    <RadioButton Name="rb3"  Margin="8,4,0,4" FontWeight="Normal" Content="Sample to criteria: SD &lt; " GroupName="ModeSelection" Tag="3" Checked="rb_Checked" />
+                    <TextBox Height="23" Name="SDThresh" Width="50" FontWeight="Normal" IsEnabled="{Binding ElementName=rb3, Path=IsChecked}" TextChanged="SDThresh_changed">0.100</TextBox>
                 </StackPanel>
-                <CheckBox Margin="8" FontWeight="Normal">Use voice cuing</CheckBox>
+                <CheckBox Name="Voice" Margin="8" FontWeight="Normal">Use voice cuing</CheckBox>
             </StackPanel>
         </GroupBox>
+        <StackPanel Grid.Row="4" Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="4">
+            <Button Content="Cancel" Height="28" Width="75" Margin="4" IsCancel="True" FontSize="14" Click="Cancel_Click" VerticalAlignment="Center" />
+            <Button Name="Begin" Content="Begin" Height="28" Width="75" Margin="4" IsDefault="True" FontSize="14" Click="Begin_Click" IsEnabled="False" VerticalAlignment="Center" />
+        </StackPanel>
     </Grid>
 </Window>

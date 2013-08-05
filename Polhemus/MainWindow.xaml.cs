@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.IO;
 using System.IO.Ports;
 using System.Linq;
@@ -13,6 +14,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Documents;
+using System.Windows.Forms;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -28,60 +30,68 @@ namespace Main
     public partial class MainWindow : Window
     {
         PolhemusController p;
-//        BackgroundWorker bw;
-//        object[] arguments = new object[2];
+        StylusAcquisition sa;
+        SpeechSynthesizer speak = new SpeechSynthesizer();
+        PromptBuilder prompt = new PromptBuilder();
+        int mode;
+        int samples;
+        double threshold;
+        string fileName;
+        int hemisphere;
+        bool voice;
+
+        public event PointAcquisitionFinishedEventHandler AcquisitionFinished;
 
         public MainWindow()
         {
             Window1 w = new Window1();
-            w.Show();
+            w.WindowStartupLocation = WindowStartupLocation.CenterScreen;
+            if (!(bool)w.ShowDialog()) Environment.Exit(0);
+            mode = w._mode;
+            fileName = w._etrFileName;
+            voice = (bool)w.Voice.IsChecked;
+            hemisphere = w.Hemisphere.SelectedIndex;
+            if (mode == 0) samples = w._sampCount1;
+            else if (mode == 1) samples = w._sampCount2;
+            else if (mode == 3) threshold = w._SDThresh;
+            w = null; //free resources
 
             InitializeComponent();
-            SpeechSynthesizer s = new SpeechSynthesizer();
-/*            PromptBuilder pb = new PromptBuilder();
-            pb.StartSentence();
-            pb.AppendText("Electrode");
-            pb.AppendTextWithHint("Cx", SayAs.SpellOut);
-            pb.AppendTextWithHint("2", SayAs.NumberCardinal);
-            pb.EndSentence();
-            s.Speak(pb);
-            pb = new PromptBuilder();
-            pb.StartSentence();
-            pb.AppendText("Sample");
-            pb.AppendTextWithHint("6", SayAs.NumberCardinal);
-            pb.EndSentence();
-            s.Speak(pb);
-            pb = new PromptBuilder();
-            pb.StartSentence();
-            pb.AppendText("Meets criterion with");
-            pb.AppendTextWithHint((2.637D).ToString("0.0###"), SayAs.NumberCardinal);
-            pb.EndSentence();
-            s.Speak(pb); */
-            SpeechRecognizer recognizer = new SpeechRecognizer();
-            Choices commands = new Choices();
-            commands.Add(new string[] { "next", "redo", "previous", "next sample", "sample", "back" });
-            GrammarBuilder gb = new GrammarBuilder();
-            gb.Append(commands);
-            Grammar g = new Grammar(gb);
-            recognizer.LoadGrammar(g);
-            recognizer.SpeechRecognized +=
-                new EventHandler<SpeechRecognizedEventArgs>(sre_SpeechRecognized);
+
+            double screenDPI = 120D; //modify to make window fit to screen
+            this.MinWidth = (double)SystemInformation.WorkingArea.Width * 96D / screenDPI;
+            this.MinHeight = (double)SystemInformation.WorkingArea.Height * 96D / screenDPI;
             PolhemusStream ps = new PolhemusStream();
             p = new PolhemusController(ps);
             p.InitializeSystem();
             p.SetEchoMode(PolhemusController.EchoMode.On);
-            p.HemisphereOfOperation(null, -1, 0, 0);
             p.OutputFormat(PolhemusController.Format.Binary);
+            int v = hemisphere % 2 == 1 ? -1 : 1;
+            if (hemisphere < 2)
+                p.HemisphereOfOperation(null, v, 0, 0);
+            else if (hemisphere < 4)
+                p.HemisphereOfOperation(null, 0, v, 0);
+            else
+                p.HemisphereOfOperation(null, 0, 0, v);
             p.SetUnits(PolhemusController.Units.Metric);
-            Type[] df = { typeof(CartesianCoordinates), typeof(StylusFlag) };
+            Type[] df = { typeof(CartesianCoordinates) };
             p.OutputDataList(null, df);
-            p.Get_OutputDataList(1);
-            StylusAcquisition.Monitor c = Monitor;
-            StylusAcquisition.Continuous sm = NewPoints;
-            sa = new StylusAcquisition(p, sm, c);
+//            StylusAcquisition.Monitor c = Monitor;
+            if (mode == 0)
+            {
+                StylusAcquisition.SingleShot sm = SinglePoint;
+                sa = new StylusAcquisition(p, sm);
+            }
+            else
+            {
+                StylusAcquisition.Continuous sm = ContinuousPoints;
+                sa = new StylusAcquisition(p, sm);
+            }
+            AcquisitionFinished += new PointAcquisitionFinishedEventHandler(AcquisitionLoop);
+            electrodeNumber = -4;
+            AcquisitionLoop(sa, null); //Prime the pump!
         }
 
-        StylusAcquisition sa;
         private void Start_Click(object sender, RoutedEventArgs e)
         {
             Start.IsEnabled = false;
@@ -98,7 +108,7 @@ namespace Main
                 output2.Text = ms[1][0].ToString();
             }
             else
-                MessageBox.Show("Speech recognized: " + e.Result.Text);
+                System.Windows.MessageBox.Show("Speech recognized: " + e.Result.Text);
         }
 
         const int smooth = 1000;
@@ -126,41 +136,172 @@ namespace Main
                 " D=" + dx.ToString("0.000");
         }
 
-        void NewPoint(List<IDataFrameType>[] frame)
+        int pointCount = 0;
+        Triple sumP = new Triple(0, 0, 0);
+        void SinglePoint(List<IDataFrameType>[] frame) //one shot completed delegate
         {
-                output1.Text = p.ResponseFrameDescription[0][0].ToString();
-                output2.Text = p.ResponseFrameDescription[1][0].ToString();
-                sa.Start();
+            if (frame != null)
+            {
+                Triple P = ((CartesianCoordinates)p.ResponseFrameDescription[0][0]).ToTriple() -
+                    ((CartesianCoordinates)p.ResponseFrameDescription[1][0]).ToTriple();
+                sumP += P;
+                if (++pointCount == samples) //we've got the requisite number of points
+                {
+                    Triple t = sumP;
+                    sumP = new Triple(0, 0, 0); //reset for next go around
+                    pointCount = 0;
+                    AcquisitionFinished(sa, new PointAcqusitionFinishedEventArgs((1D / samples) * t)); //and signal done
+                }
+                else sa.Start(); //get another point
+            }
         }
 
         double Dsum = 0;
+        double Dsumsq = 0;
         int Dcount = 0;
-        void NewPoints(List<IDataFrameType>[] frame, bool final) //Continuous mode callback
+        void ContinuousPoints(List<IDataFrameType>[] frame, bool final) //Continuous mode callback
         {
-            if (frame != null) //if not cancelled
+            double m = 0D;
+            double sd = 0D;
+            if (frame != null) //then not cancelled
             {
-                CartesianCoordinates cc0 = (CartesianCoordinates)frame[0][0];
-                CartesianCoordinates cc1 = (CartesianCoordinates)frame[1][0];
-                double dx = cc0.X - cc1.X;
-                double dy = cc0.Y - cc1.Y;
-                double dz = cc0.Z - cc1.Z;
-                double dr = Math.Sqrt(dx * dx + dy * dy + dz * dz);
+                Triple P = ((CartesianCoordinates)p.ResponseFrameDescription[0][0]).ToTriple() -
+                    ((CartesianCoordinates)p.ResponseFrameDescription[1][0]).ToTriple();
+                sumP += P;
+                double dr = P.Length();
                 Dsum += dr;
+                Dsumsq += dr * dr;
                 Dcount++;
+                m = Dsum / Dcount; //running mean
+                sd = Math.Sqrt(Dsumsq / (Dcount * Dcount) - m * m / Dcount); //running standard deviation
+                output2.Text = m.ToString("0.000") + "(" + sd.ToString("0.0000") + ")";
+                if (mode == 1 && Dcount >= samples || mode == 3 && sd < threshold)
+                {
+                    sa.Stop();
+                    Triple t = (1D / Dcount) * sumP;
+                    Dsum = 0;
+                    Dcount = 0;
+                    Dsumsq = 0;
+                    sumP = new Triple(0, 0, 0);
+                    AcquisitionFinished(sa, new PointAcqusitionFinishedEventArgs(t));
+                }
             }
             if (final) //last time through, calculate statistics
             {
-                if (Dcount != 0)
+                if(mode==1||mode==3) //premature stylus button release; redo this electrode
                 {
-                    output1.Text = (Dsum / Dcount).ToString("0.000") + "(" + Dcount.ToString("0") + ")";
                     Dsum = 0;
                     Dcount = 0;
+                    Dsumsq = 0;
+                    sumP = new Triple(0, 0, 0);
+                    electrodeNumber--;
+                    AcquisitionLoop(sa, null);
+
                 }
-                if (frame != null) //restart, if not cancelled
-                    sa.Start();
+                if (Dcount != 0)
+                {
+                    output2.Text = "N = " + Dcount.ToString("0")+
+                        " Mean = "+ m.ToString("0.000") +
+                        " SD = " + sd.ToString("0.0000");
+                    Triple t = (1D / Dcount) * sumP;
+                    Dsum = 0;
+                    Dcount = 0;
+                    Dsumsq = 0;
+                    sumP = new Triple(0, 0, 0);
+                    AcquisitionFinished(sa, new PointAcqusitionFinishedEventArgs(t));
+                }
             }
         }
 
+        Triple PN;
+        Triple PR;
+        Triple PL;
+        int electrodeNumber;
+        private void AcquisitionLoop(object sa, PointAcqusitionFinishedEventArgs e)
+        {
+            if (electrodeNumber == -4) //first entry
+            {
+                electrodeNumber = -3;
+                ElectrodeName.Text = "Nasion";
+                prompt.ClearContent();
+                prompt.StartSentence();
+                prompt.AppendText("Nasion");
+                prompt.EndSentence();
+                speak.Speak(prompt);
+                ((StylusAcquisition)sa).Start();
+                return;
+            }
+            Triple t = e.result;
+            if (electrodeNumber == -3)
+            {
+                electrodeNumber = -2;
+                PN = t;
+                ElectrodeName.Text = "Right preauricular";
+                prompt.ClearContent();
+                prompt.StartSentence();
+                prompt.AppendText("Right preauricular");
+                prompt.EndSentence();
+                speak.Speak(prompt);
+                ((StylusAcquisition)sa).Start();
+                return;
+            }
+            else if (electrodeNumber == -2)
+            {
+                electrodeNumber = -1;
+                PR = t;
+                ElectrodeName.Text = "Left preauricular";
+                prompt.ClearContent();
+                prompt.StartSentence();
+                prompt.AppendText("Left preauricular");
+                prompt.EndSentence();
+                speak.Speak(prompt);
+                ((StylusAcquisition)sa).Start();
+                return;
+            }
+            else if (electrodeNumber == -1) //Three starting points acquired
+            {
+                electrodeNumber = 0;
+                PL = t;
+                CreateCoordinateTransform(); //set up new coordinate system
+            }
+            t = DoCoordinateTransform(t);
+            output1.Text = "Electrode " + electrodeNumber.ToString("0") + ": " + t.ToString();
+            electrodeNumber++;
+            ElectrodeName.Text = "Electrode " + electrodeNumber.ToString("0");
+            prompt.ClearContent();
+            prompt.StartSentence();
+            prompt.AppendText("Electrode");
+            prompt.AppendTextWithHint(electrodeNumber.ToString("0"), SayAs.NumberCardinal);
+            prompt.EndSentence();
+            speak.Speak(prompt);
+            ((StylusAcquisition)sa).Start();
+        }
+
+        Triple Origin;
+        Triple[] Transform = new Triple[3];
+        private void CreateCoordinateTransform()
+        {
+            Origin = 0.5D * (PR + PL);
+            PR -= Origin;
+            PN -= Origin;
+            Transform[0] = PR.Norm();
+            Transform[2] = (Triple.Cross(PR, PN)).Norm();
+            Transform[1] = Triple.Cross(Transform[2], Transform[0]);
+        }
+
+        private Triple DoCoordinateTransform(Triple t)
+        {
+            Triple p = t - Origin;
+            Triple q = new Triple();
+            for (int i = 0; i < 3; i++)
+            {
+                double s = 0D;
+                for (int j = 0; j < 3; j++)
+                    s += Transform[i][j] * p[j];
+                q[i] = s;
+            }
+            return q;
+        }
         private void Stop_Click(object sender, RoutedEventArgs e)
         {
             sa.Stop();
