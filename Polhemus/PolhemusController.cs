@@ -1062,6 +1062,11 @@ namespace Polhemus
             return new Triple(a * B.v1, a * B.v2, a * B.v3);
         }
 
+        public static double Dot(Triple A, Triple B)
+        {
+            return A.v1 * B.v1 + A.v2 * B.v2 + A.v3 * B.v3;
+        }
+
         public static Triple Cross(Triple A, Triple B)
         {
             Triple C = new Triple();
@@ -1618,6 +1623,7 @@ namespace Polhemus
         SingleShot _singleShot;
         Monitor _monitor;
         bool _continuousMode;
+        bool trueCancellation = false;
         int stylusFrameLoc; //where stylus marker state is in the Polhemus data frame
 
         public StylusAcquisition(PolhemusController controller, Continuous continuous, Monitor monitor = null)
@@ -1656,6 +1662,23 @@ namespace Polhemus
             ProgressChanged += new ProgressChangedEventHandler(sa_StylusProgressChanged);
         }
 
+        public void Start()
+        {
+            if (!IsBusy)
+                this.RunWorkerAsync();
+        }
+
+        public void Stop()
+        {
+            CancelAsync();
+        }
+
+        public void Cancel()
+        {
+            trueCancellation = true;
+            Stop();
+        }
+
         void initialization()
         {
             WorkerSupportsCancellation = true;
@@ -1680,36 +1703,27 @@ namespace Polhemus
 
         void sa_StylusProgressChanged(object sender, ProgressChangedEventArgs e)
         {
-            int mode = e.ProgressPercentage;
+            Console.WriteLine("StylusProgressChanged");
             if (_monitor != null)
                 _monitor((List<IDataFrameType>[])e.UserState, false); //independent of stylus button state
-            if (mode == 1 && _continuousMode)
+            if (_continuousMode)
                 _continuous((List<IDataFrameType>[])e.UserState, false); //call continuous monitor delegate
         }
 
         void sa_StylusMarker(object sender, RunWorkerCompletedEventArgs e)
         {
+            Console.WriteLine("StylusMarker " + trueCancellation.ToString() + " " + e.Cancelled.ToString());
             if (e.Error != null)
                 throw e.Error;
             List<IDataFrameType>[] t = e.Cancelled ? null : (List<IDataFrameType>[])e.Result;
+            //NB: t == null if "true" Cancelled; != null if normal completion, i.e. when stylus button
+            //released or criterium hit in continuous mode or on initial push in single shot mode
             if (_monitor != null)
-                _monitor(t, true);
+                _monitor(t, !trueCancellation);
             if (_continuousMode)
-                _continuous(t, true); //make last callback
-            else if (t != null)
+                _continuous(t, !trueCancellation); //make last callback
+            else if (!trueCancellation)
                 _singleShot(t);
-        }
-
-        public void Start()
-        {
-            if (!IsBusy)
-                this.RunWorkerAsync();
-        }
-
-        public void Stop()
-        {
-            if(IsBusy)
-                CancelAsync();
         }
 
         /// <summary>
@@ -1729,20 +1743,26 @@ namespace Polhemus
             {
                 Thread.Sleep(sleepTime);
                 currentFrame = _controller.SingleDataRecordOutput();
-                if (bw.CancellationPending) { e.Result = currentFrame; e.Cancel = true; return; }
+                if (bw.CancellationPending) {
+                    Console.WriteLine("BW: Cancel 1");
+                    e.Result = currentFrame;
+                    e.Cancel = true;
+                    return;
+                }
                 if (_monitor != null)
                     bw.ReportProgress(0, currentFrame); //monitor only while waiting for button release
-            } while (((StylusFlag)currentFrame[0][stylusFrameLoc]).Flag == 1);
+            } while (((StylusFlag)currentFrame[0][stylusFrameLoc]).Flag == 1); //Wait for stylus button to be released
             do //wait for stylus button to be pushed
             {
                 Thread.Sleep(sleepTime);
                 currentFrame = _controller.SingleDataRecordOutput();
                 if (bw.CancellationPending) {
+                    Console.WriteLine("BW: Cancel 2");
                     e.Result = currentFrame;
                     e.Cancel = true;
                     return;
                 }
-                if (((StylusFlag)currentFrame[0][stylusFrameLoc]).Flag == 1) break;
+                if (((StylusFlag)currentFrame[0][stylusFrameLoc]).Flag == 1) break; //stylus button just pushed
                 if (_monitor != null)
                     bw.ReportProgress(0, currentFrame); //monitor and wait for stylus button push
             } while (true); //Wait for button to be pushed
@@ -1753,7 +1773,13 @@ namespace Polhemus
                     bw.ReportProgress(1, currentFrame); //monitor and wait for button release
                     Thread.Sleep(sleepTime);
                     currentFrame = _controller.SingleDataRecordOutput();
-                    if (bw.CancellationPending) { e.Result = currentFrame; e.Cancel = true; return; }
+                    if (bw.CancellationPending)
+                    {
+                        Console.WriteLine("BW: Cancel 3");
+                        e.Result = currentFrame;
+                        e.Cancel = true;
+                        return;
+                    }
                 } while (((StylusFlag)currentFrame[0][stylusFrameLoc]).Flag == 1); //Wait for button to be released
             }
             e.Result = currentFrame;
@@ -1763,10 +1789,12 @@ namespace Polhemus
     public class PointAcqusitionFinishedEventArgs : System.EventArgs
     {
         public Triple result { get; private set; }
+        public bool Retry { get; private set; }
 
-        public PointAcqusitionFinishedEventArgs(Triple P)
+        public PointAcqusitionFinishedEventArgs(Triple P, bool retry = false)
         {
             result = P;
+            Retry = retry;
         }
     }
 

@@ -92,7 +92,7 @@ namespace Main
             AcquisitionLoop(sa, null); //Prime the pump!
         }
 
-        private void Start_Click(object sender, RoutedEventArgs e)
+/*        private void Start_Click(object sender, RoutedEventArgs e)
         {
             Start.IsEnabled = false;
             sa.Start();
@@ -110,7 +110,7 @@ namespace Main
             else
                 System.Windows.MessageBox.Show("Speech recognized: " + e.Result.Text);
         }
-
+*/
         const int smooth = 1000;
         double [] last = new double[smooth];
         double sum = 0D;
@@ -140,6 +140,7 @@ namespace Main
         Triple sumP = new Triple(0, 0, 0);
         void SinglePoint(List<IDataFrameType>[] frame) //one shot completed delegate
         {
+            Console.WriteLine("SinglePoint " + pointCount.ToString("0") + " " + (frame == null).ToString());
             if (frame != null)
             {
                 Triple P = ((CartesianCoordinates)p.ResponseFrameDescription[0][0]).ToTriple() -
@@ -150,6 +151,7 @@ namespace Main
                     Triple t = sumP;
                     sumP = new Triple(0, 0, 0); //reset for next go around
                     pointCount = 0;
+                    electrodeNumber++;
                     AcquisitionFinished(sa, new PointAcqusitionFinishedEventArgs((1D / samples) * t)); //and signal done
                 }
                 else sa.Start(); //get another point
@@ -159,11 +161,13 @@ namespace Main
         double Dsum = 0;
         double Dsumsq = 0;
         int Dcount = 0;
+        double m;
+        double sd;
         void ContinuousPoints(List<IDataFrameType>[] frame, bool final) //Continuous mode callback
         {
-            double m = 0D;
-            double sd = 0D;
-            if (frame != null) //then not cancelled
+            Console.WriteLine("ContinuousPoints " + Dcount.ToString("0") + " " +
+                (frame == null).ToString() + " " + final.ToString());
+            if (!final) //add new point into running averages
             {
                 Triple P = ((CartesianCoordinates)p.ResponseFrameDescription[0][0]).ToTriple() -
                     ((CartesianCoordinates)p.ResponseFrameDescription[1][0]).ToTriple();
@@ -175,39 +179,32 @@ namespace Main
                 m = Dsum / Dcount; //running mean
                 sd = Math.Sqrt(Dsumsq / (Dcount * Dcount) - m * m / Dcount); //running standard deviation
                 output2.Text = m.ToString("0.000") + "(" + sd.ToString("0.0000") + ")";
-                if (mode == 1 && Dcount >= samples || mode == 3 && sd < threshold)
+                if (mode == 1 && Dcount >= samples || mode == 3 && Dcount > 2 && sd < threshold)
                 {
                     sa.Stop();
-                    Triple t = (1D / Dcount) * sumP;
-                    Dsum = 0;
-                    Dcount = 0;
-                    Dsumsq = 0;
-                    sumP = new Triple(0, 0, 0);
-                    AcquisitionFinished(sa, new PointAcqusitionFinishedEventArgs(t));
                 }
             }
-            if (final) //last time through, calculate statistics
+            else //last time through, calculate statistics; final = true
             {
-                if(mode==1||mode==3) //premature stylus button release; redo this electrode
+                if (frame != null && (mode == 1 || mode == 3)) //requires retry for this electrode
                 {
                     Dsum = 0;
                     Dcount = 0;
                     Dsumsq = 0;
                     sumP = new Triple(0, 0, 0);
-                    electrodeNumber--;
-                    AcquisitionLoop(sa, null);
-
+                    AcquisitionFinished(sa, new PointAcqusitionFinishedEventArgs(null, true)); //signal retry
                 }
-                if (Dcount != 0)
+                else
                 {
-                    output2.Text = "N = " + Dcount.ToString("0")+
-                        " Mean = "+ m.ToString("0.000") +
+                    output2.Text = "N = " + Dcount.ToString("0") +
+                        " Mean = " + m.ToString("0.000") +
                         " SD = " + sd.ToString("0.0000");
                     Triple t = (1D / Dcount) * sumP;
                     Dsum = 0;
                     Dcount = 0;
                     Dsumsq = 0;
                     sumP = new Triple(0, 0, 0);
+                    electrodeNumber++; //indicate number of electrode location on board
                     AcquisitionFinished(sa, new PointAcqusitionFinishedEventArgs(t));
                 }
             }
@@ -216,65 +213,75 @@ namespace Main
         Triple PN;
         Triple PR;
         Triple PL;
-        int electrodeNumber;
+        int electrodeNumber = -4; //refers to the electrode location being returned on entry to AcqusitionLoop
+        //this should be incremented at the time of successful acquistion and not if unsuccessful or cancelled
         private void AcquisitionLoop(object sa, PointAcqusitionFinishedEventArgs e)
         {
+            if (e != null)
+                Console.WriteLine("AcquisitionLoop " + electrodeNumber.ToString("0") + " " +
+                    (e.result == null) + " " + (e.Retry).ToString());
+            else
+                Console.WriteLine("AcquisitionLoop " + electrodeNumber.ToString("0"));
             if (electrodeNumber == -4) //first entry
             {
-                electrodeNumber = -3;
-                ElectrodeName.Text = "Nasion";
-                prompt.ClearContent();
-                prompt.StartSentence();
-                prompt.AppendText("Nasion");
-                prompt.EndSentence();
-                speak.Speak(prompt);
+                DoPrompting("Nasion", (e != null) && e.Retry);
                 ((StylusAcquisition)sa).Start();
                 return;
             }
             Triple t = e.result;
             if (electrodeNumber == -3)
             {
-                electrodeNumber = -2;
-                PN = t;
-                ElectrodeName.Text = "Right preauricular";
-                prompt.ClearContent();
-                prompt.StartSentence();
-                prompt.AppendText("Right preauricular");
-                prompt.EndSentence();
-                speak.Speak(prompt);
+                //save previous result
+                if (!e.Retry) //save Nasion
+                    PN = t;
+                //set up next prompt
+                DoPrompting("Right preauricular", e.Retry);
                 ((StylusAcquisition)sa).Start();
                 return;
             }
             else if (electrodeNumber == -2)
             {
-                electrodeNumber = -1;
-                PR = t;
-                ElectrodeName.Text = "Left preauricular";
-                prompt.ClearContent();
-                prompt.StartSentence();
-                prompt.AppendText("Left preauricular");
-                prompt.EndSentence();
-                speak.Speak(prompt);
+                //save previous result
+                if (!e.Retry) //save right preauricular
+                    PR = t;
+                //set up next prompt
+                DoPrompting("Left preauricular", e.Retry);
                 ((StylusAcquisition)sa).Start();
                 return;
             }
             else if (electrodeNumber == -1) //Three starting points acquired
             {
-                electrodeNumber = 0;
-                PL = t;
-                CreateCoordinateTransform(); //set up new coordinate system
+                if (!e.Retry)
+                {
+                    PL = e.result; //save left preauricular and
+                    CreateCoordinateTransform(); //set up new coordinate system
+                }
             }
-            t = DoCoordinateTransform(t);
-            output1.Text = "Electrode " + electrodeNumber.ToString("0") + ": " + t.ToString();
-            electrodeNumber++;
-            ElectrodeName.Text = "Electrode " + electrodeNumber.ToString("0");
-            prompt.ClearContent();
-            prompt.StartSentence();
-            prompt.AppendText("Electrode");
-            prompt.AppendTextWithHint(electrodeNumber.ToString("0"), SayAs.NumberCardinal);
-            prompt.EndSentence();
-            speak.Speak(prompt);
+            if (!e.Retry)
+            {
+                t = DoCoordinateTransform(t);
+                output1.Text = "Electrode " + (electrodeNumber + 1).ToString("0") + ": " + t.ToString();
+            }
+            DoPrompting("Electrode " + (electrodeNumber + 2).ToString("0"), e.Retry);
             ((StylusAcquisition)sa).Start();
+        }
+
+        private void DoPrompting(string electrodeName, bool? redo)
+        {
+            if (voice)
+            {
+                prompt.ClearContent();
+                prompt.StartSentence();
+                if (redo != null && (bool)redo)
+                {
+                    prompt.AppendText("Redoo");
+                    prompt.AppendBreak(PromptBreak.Small);
+                }
+                prompt.AppendText(electrodeName);
+                prompt.EndSentence();
+                speak.Speak(prompt);
+            }
+            ElectrodeName.Text = ((redo != null && (bool)redo) ? "Redo " : "") + electrodeName;
         }
 
         Triple Origin;
@@ -304,7 +311,7 @@ namespace Main
         }
         private void Stop_Click(object sender, RoutedEventArgs e)
         {
-            sa.Stop();
+            sa.Cancel();
         }
     }
 }

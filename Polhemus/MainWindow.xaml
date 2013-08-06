@@ -16,7 +16,7 @@
         </StackPanel>
         <TextBlock Name="output1" Grid.Row="1" Margin="4"/>
         <TextBlock Name="output2" Grid.Row="2" Margin="4" />
-        <Button Name="Start" Grid.Row="3" Width="120" Margin="4" Click="Start_Click">START</Button>
+        <Button Name="Start" Grid.Row="3" Width="120" Margin="4" >START</Button>
         <Button Name="Stop" Grid.Row="4" Width="120" Margin="4" Click="Stop_Click">STOP</Button>
     </Grid>
 </Window>
