@@ -1716,8 +1716,11 @@ namespace Polhemus
             if (e.Error != null)
                 throw e.Error;
             List<IDataFrameType>[] t = e.Cancelled ? null : (List<IDataFrameType>[])e.Result;
-            //NB: t == null if "true" Cancelled; != null if normal completion, i.e. when stylus button
-            //released or criterium hit in continuous mode or on initial push in single shot mode
+            //NB: in the following last calls to the delegates, if t is null and trueCancellation is false =>
+            // extrinsic conclusion to frame; if t is not null and trueCancellation is false => intrisic
+            // end to frame; if trueCancellation is true, then abnormal end to frame: a true cancellation of
+            // the process. Extrinsic means that the frame has been ended by the delegate in the previous call,
+            // while intrinsic means that the frame has ended by release of the stylus button.
             if (_monitor != null)
                 _monitor(t, !trueCancellation);
             if (_continuousMode)
@@ -1745,7 +1748,7 @@ namespace Polhemus
                 currentFrame = _controller.SingleDataRecordOutput();
                 if (bw.CancellationPending) {
                     Console.WriteLine("BW: Cancel 1");
-                    e.Result = currentFrame;
+                    e.Result = currentFrame; //truecancellation vs extrinsic
                     e.Cancel = true;
                     return;
                 }
@@ -1758,7 +1761,7 @@ namespace Polhemus
                 currentFrame = _controller.SingleDataRecordOutput();
                 if (bw.CancellationPending) {
                     Console.WriteLine("BW: Cancel 2");
-                    e.Result = currentFrame;
+                    e.Result = currentFrame; //truecancellation vs extrinsic
                     e.Cancel = true;
                     return;
                 }
@@ -1782,7 +1785,7 @@ namespace Polhemus
                     }
                 } while (((StylusFlag)currentFrame[0][stylusFrameLoc]).Flag == 1); //Wait for button to be released
             }
-            e.Result = currentFrame;
+            e.Result = currentFrame; //intrinsic exit
         }
     }
 

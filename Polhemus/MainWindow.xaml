@@ -14,9 +14,8 @@
         <StackPanel Orientation="Horizontal" Margin="4">
             <TextBlock Name="output3"/>
         </StackPanel>
-        <TextBlock Name="output1" Grid.Row="1" Margin="4"/>
-        <TextBlock Name="output2" Grid.Row="2" Margin="4" />
-        <Button Name="Start" Grid.Row="3" Width="120" Margin="4" >START</Button>
-        <Button Name="Stop" Grid.Row="4" Width="120" Margin="4" Click="Stop_Click">STOP</Button>
+        <TextBlock Name="output1" Grid.Row="1" Margin="4" HorizontalAlignment="Center" FontSize="14"/>
+        <TextBlock Name="output2" Grid.Row="2" Margin="4" HorizontalAlignment="Center" FontSize="14" />
+        <Button Name="Stop" Grid.Row="4" Width="120" Margin="4" Click="Stop_Click">EXIT</Button>
     </Grid>
 </Window>

@@ -118,7 +118,6 @@ namespace Main
         int ilast = 0;
         void Monitor(List<IDataFrameType>[] frame, bool final)
         {
-            if (frame == null) { Start.IsEnabled = true; return; }
             CartesianCoordinates cc0 = (CartesianCoordinates)frame[0][0];
             CartesianCoordinates cc1 = (CartesianCoordinates)frame[1][0];
             double dx = Math.Sqrt(cc0.X * cc0.X + cc0.Y * cc0.Y + cc0.Z * cc0.Z);
@@ -163,11 +162,11 @@ namespace Main
         int Dcount = 0;
         double m;
         double sd;
-        void ContinuousPoints(List<IDataFrameType>[] frame, bool final) //Continuous mode callback
+        void ContinuousPoints(List<IDataFrameType>[] frame, bool final) //Continuous mode callback, modes 1 to 3
         {
-            Console.WriteLine("ContinuousPoints " + Dcount.ToString("0") + " " +
-                (frame == null).ToString() + " " + final.ToString());
-            if (!final) //add new point into running averages
+            int entryType = (frame == null ? (final ? 0 : 1) : (final ? 2 : 3)); //extrinsic:cancel:intrinsic:continued
+            Console.WriteLine("ContinuousPoints " + Dcount.ToString("0") + " " + entryType.ToString("0"));
+            if (entryType == 3/*continued*/) //add new point into running averages
             {
                 Triple P = ((CartesianCoordinates)p.ResponseFrameDescription[0][0]).ToTriple() -
                     ((CartesianCoordinates)p.ResponseFrameDescription[1][0]).ToTriple();
@@ -179,35 +178,50 @@ namespace Main
                 m = Dsum / Dcount; //running mean
                 sd = Math.Sqrt(Dsumsq / (Dcount * Dcount) - m * m / Dcount); //running standard deviation
                 output2.Text = m.ToString("0.000") + "(" + sd.ToString("0.0000") + ")";
+                //check end of frame criteria
                 if (mode == 1 && Dcount >= samples || mode == 3 && Dcount > 2 && sd < threshold)
                 {
-                    sa.Stop();
+                    sa.Stop(); //create an extrinsic end to the frame on next entry
                 }
             }
-            else //last time through, calculate statistics; final = true
-            {
-                if (frame != null && (mode == 1 || mode == 3)) //requires retry for this electrode
-                {
-                    Dsum = 0;
-                    Dcount = 0;
-                    Dsumsq = 0;
-                    sumP = new Triple(0, 0, 0);
-                    AcquisitionFinished(sa, new PointAcqusitionFinishedEventArgs(null, true)); //signal retry
-                }
+            else if (entryType == 0/*extrinsic*/)
+                if (mode == 1 || mode == 3)
+                    NormalEndOfFrame();
                 else
-                {
-                    output2.Text = "N = " + Dcount.ToString("0") +
-                        " Mean = " + m.ToString("0.000") +
-                        " SD = " + sd.ToString("0.0000");
-                    Triple t = (1D / Dcount) * sumP;
-                    Dsum = 0;
-                    Dcount = 0;
-                    Dsumsq = 0;
-                    sumP = new Triple(0, 0, 0);
-                    electrodeNumber++; //indicate number of electrode location on board
-                    AcquisitionFinished(sa, new PointAcqusitionFinishedEventArgs(t));
-                }
+                    ForceRedoOfFrame();
+            else if (entryType == 2/*intrinsic*/)
+                if (mode == 2)
+                    NormalEndOfFrame();
+                else
+                    ForceRedoOfFrame();
+            else //must be true cancellation
+            {
+                //close open files
+                Environment.Exit(1);
             }
+        }
+
+        void NormalEndOfFrame()
+        {
+            output2.Text = "N = " + Dcount.ToString("0") +
+                " Mean = " + m.ToString("0.000") +
+                " SD = " + sd.ToString("0.0000");
+            Triple t = (1D / Dcount) * sumP;
+            Dsum = 0;
+            Dcount = 0;
+            Dsumsq = 0;
+            sumP = new Triple(0, 0, 0);
+            electrodeNumber++; //indicate number of electrode location on board
+            AcquisitionFinished(sa, new PointAcqusitionFinishedEventArgs(t));
+        }
+
+        void ForceRedoOfFrame()
+        {
+            Dsum = 0;
+            Dcount = 0;
+            Dsumsq = 0;
+            sumP = new Triple(0, 0, 0);
+            AcquisitionFinished(sa, new PointAcqusitionFinishedEventArgs(null, true)); //signal retry
         }
 
         Triple PN;
