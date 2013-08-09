@@ -5,11 +5,6 @@
         xmlns:local="clr-namespace:Polhemus"
         Title="Electrode Measurement Setup" Height="357" Width="490" ResizeMode="NoResize" SizeToContent="WidthAndHeight" WindowStartupLocation="CenterScreen" FontSize="14">
     <Window.Resources>
-        <local:_Templates x:Key="templates">
-            <local:_File _Name="Standard 128" _FileName="Test1.etr" />
-            <local:_File _Name="Standard 64" _FileName="Test2.etr" />
-            <local:_File _Name="Standard 32" _FileName="Test3.etr" />
-        </local:_Templates>
         <local:_Hemispheres x:Key="hemispheres">
             <sys:String>X+</sys:String>
             <sys:String>X-</sys:String>
@@ -32,7 +27,7 @@
             <ColumnDefinition Width="Auto"/>
         </Grid.ColumnDefinitions>
             <TextBlock Grid.Row="0" Grid.Column="0" FontWeight="Bold" Margin="4"  VerticalAlignment="Center" HorizontalAlignment="Right">Template file</TextBlock>
-            <ComboBox DataContext="{StaticResource ResourceKey=templates}" ItemsSource="{Binding}" IsSynchronizedWithCurrentItem="True"  Grid.Row="0" Grid.Column="1" Height="24" HorizontalAlignment="Left" Margin="4" Name="Templates" VerticalAlignment="Center" Width="Auto" IsEditable="False" VerticalContentAlignment="Center" />
+            <ComboBox Grid.Row="0" Grid.Column="1" Height="24" HorizontalAlignment="Left" Margin="4" Name="Templates" VerticalAlignment="Center" Width="Auto" IsEditable="False" VerticalContentAlignment="Center" />
         <TextBlock Grid.Row="1" Grid.Column="0" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="4">Output file</TextBlock>
         <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal">
             <TextBox Height="23" HorizontalAlignment="Left" Margin="4" Name="FileName" FontSize="11" VerticalAlignment="Center" Width="280" VerticalContentAlignment="Center" TextChanged="FileName_changed" IsReadOnly="True" />

@@ -4,6 +4,7 @@ using System.Drawing;
 using System.IO;
 using System.IO.Ports;
 using System.Linq;
+using System.Resources;
 using System.Speech.Recognition;
 using System.Speech.Synthesis;
 using System.Text;
@@ -20,6 +21,8 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using System.Xml;
+using ElectrodeFileStream;
 using Polhemus;
 
 namespace Main
@@ -33,10 +36,12 @@ namespace Main
         StylusAcquisition sa;
         SpeechSynthesizer speak = new SpeechSynthesizer();
         PromptBuilder prompt = new PromptBuilder();
+        List<electrodeListElement> templateList;
+        ElectrodeOutputFileStream efs;
+        int numberOfElectrodes;
         int mode;
         int samples;
         double threshold;
-        string fileName;
         int hemisphere;
         bool voice;
 
@@ -45,10 +50,59 @@ namespace Main
         public MainWindow()
         {
             Window1 w = new Window1();
+            foreach (string s in Directory.EnumerateFiles(@"Templates"))
+            {
+                string f = System.IO.Path.GetFileNameWithoutExtension(s);
+                w.Templates.Items.Add(f);
+            }
+            w.Templates.SelectedIndex = 0;
             w.WindowStartupLocation = WindowStartupLocation.CenterScreen;
             if (!(bool)w.ShowDialog()) Environment.Exit(0);
             mode = w._mode;
-            fileName = w._etrFileName;
+
+            //Read in electrode array template
+            XmlReaderSettings settings = new XmlReaderSettings();
+            settings.IgnoreWhitespace = true;
+            settings.IgnoreComments = true;
+            settings.IgnoreProcessingInstructions = true;
+            settings.CloseInput = true;
+            XmlReader templateReader = XmlReader.Create(@"Templates" + System.IO.Path.DirectorySeparatorChar +
+                w.Templates.SelectedValue + ".xml", settings);
+            templateReader.MoveToContent();
+            templateReader.MoveToAttribute("N");
+            numberOfElectrodes = templateReader.ReadContentAsInt(); //number of items
+            templateList = new List<electrodeListElement>(numberOfElectrodes);
+            templateReader.ReadStartElement("ElectrodeNames");
+            for (int i = 0; i < numberOfElectrodes; i++)
+            {
+                templateReader.ReadStartElement("Electrode");
+                electrodeListElement ele = new electrodeListElement();
+                ele.Name = templateReader.ReadElementContentAsString("Print","");
+                if (templateReader.Name == "Speak")
+                {
+                    ele.speakType = templateReader["Type"];
+                    if (ele.speakType == "String")
+                        ele.speakString = templateReader.ReadElementContentAsString("Speak", ""); //read string to speak
+                    else
+                    {
+                        templateReader.ReadStartElement("Speak");
+                        while (templateReader.Name != "Speak")
+                            ele.speakString += templateReader.ReadOuterXml(); //read SSML string to speak
+                        templateReader.ReadEndElement(/*Speak*/);
+                    }
+                }
+                else
+                {
+                    ele.speakType = "None";
+                    ele.speakString = null;
+                }
+                templateList.Add(ele);
+                templateReader.ReadEndElement(/*Electrode*/);
+            }
+            templateReader.ReadEndElement(/*ElectrodeNames"*/);
+            templateReader.Close();
+            efs = new ElectrodeOutputFileStream(
+                new FileStream(w._etrFileName, FileMode.Create, FileAccess.Write), typeof(XYZRecord));
             voice = (bool)w.Voice.IsChecked;
             hemisphere = w.Hemisphere.SelectedIndex;
             if (mode == 0) samples = w._sampCount1;
@@ -77,6 +131,7 @@ namespace Main
             Type[] df = { typeof(CartesianCoordinates) };
             p.OutputDataList(null, df);
 //            StylusAcquisition.Monitor c = Monitor;
+            
             if (mode == 0)
             {
                 StylusAcquisition.SingleShot sm = SinglePoint;
@@ -88,30 +143,11 @@ namespace Main
                 sa = new StylusAcquisition(p, sm);
             }
             AcquisitionFinished += new PointAcquisitionFinishedEventHandler(AcquisitionLoop);
-            electrodeNumber = -4;
+            electrodeNumber = -3;
             AcquisitionLoop(sa, null); //Prime the pump!
         }
 
-/*        private void Start_Click(object sender, RoutedEventArgs e)
-        {
-            Start.IsEnabled = false;
-            sa.Start();
-        }
-
-        void sre_SpeechRecognized(object sender, SpeechRecognizedEventArgs e)
-        {
-            if (e.Result.Text.Contains("sample"))
-            {
-                List<IDataFrameType>[] ms;
-                ms = p.SingleDataRecordOutput();
-                output1.Text = ms[0][0].ToString();
-                output2.Text = ms[1][0].ToString();
-            }
-            else
-                System.Windows.MessageBox.Show("Speech recognized: " + e.Result.Text);
-        }
-*/
-        const int smooth = 1000;
+        const int smooth = 100;
         double [] last = new double[smooth];
         double sum = 0D;
         double ss = 0D;
@@ -145,14 +181,15 @@ namespace Main
                 Triple P = ((CartesianCoordinates)p.ResponseFrameDescription[0][0]).ToTriple() -
                     ((CartesianCoordinates)p.ResponseFrameDescription[1][0]).ToTriple();
                 sumP += P;
-                if (++pointCount == samples) //we've got the requisite number of points
-                {
-                    Triple t = sumP;
-                    sumP = new Triple(0, 0, 0); //reset for next go around
-                    pointCount = 0;
-                    electrodeNumber++;
-                    AcquisitionFinished(sa, new PointAcqusitionFinishedEventArgs((1D / samples) * t)); //and signal done
-                }
+                double dr = P.Length();
+                Dsum += dr;
+                Dsumsq += dr * dr;
+                Dcount++;
+                m = Dsum / Dcount; //running mean
+                sd = Math.Sqrt(Dsumsq / (Dcount * Dcount) - m * m / Dcount); //running standard deviation
+                output2.Text = m.ToString("0.000") + "(" + sd.ToString("0.0000") + ")";
+                if (Dcount >= samples) //we've got the requisite number of points
+                    NormalEndOfFrame();
                 else sa.Start(); //get another point
             }
         }
@@ -204,14 +241,13 @@ namespace Main
         void NormalEndOfFrame()
         {
             output2.Text = "N = " + Dcount.ToString("0") +
-                " Mean = " + m.ToString("0.000") +
+                " Mean distance = " + m.ToString("0.000") +
                 " SD = " + sd.ToString("0.0000");
             Triple t = (1D / Dcount) * sumP;
             Dsum = 0;
             Dcount = 0;
             Dsumsq = 0;
             sumP = new Triple(0, 0, 0);
-            electrodeNumber++; //indicate number of electrode location on board
             AcquisitionFinished(sa, new PointAcqusitionFinishedEventArgs(t));
         }
 
@@ -227,7 +263,7 @@ namespace Main
         Triple PN;
         Triple PR;
         Triple PL;
-        int electrodeNumber = -4; //refers to the electrode location being returned on entry to AcqusitionLoop
+        int electrodeNumber = -3; //refers to the electrode location being returned on entry to AcqusitionLoop
         //this should be incremented at the time of successful acquistion and not if unsuccessful or cancelled
         private void AcquisitionLoop(object sa, PointAcqusitionFinishedEventArgs e)
         {
@@ -236,66 +272,105 @@ namespace Main
                     (e.result == null) + " " + (e.Retry).ToString());
             else
                 Console.WriteLine("AcquisitionLoop " + electrodeNumber.ToString("0"));
-            if (electrodeNumber == -4) //first entry
+            if (electrodeNumber >= 0)
             {
-                DoPrompting("Nasion", (e != null) && e.Retry);
-                ((StylusAcquisition)sa).Start();
-                return;
+                if (!e.Retry)
+                {
+                    Triple t = DoCoordinateTransform(e.result);
+                    output1.Text = templateList[electrodeNumber].Name + ": " + t.ToString();
+                    (new XYZRecord(templateList[electrodeNumber].Name, t.v1, t.v2, t.v3)).write(efs, "");
+                    electrodeNumber++; //on to next electrode location
+                }
             }
-            Triple t = e.result;
-            if (electrodeNumber == -3)
+            else if (electrodeNumber == -3) //first entry
             {
-                //save previous result
-                if (!e.Retry) //save Nasion
-                    PN = t;
-                //set up next prompt
-                DoPrompting("Right preauricular", e.Retry);
+                if (e != null && !e.Retry)
+                {
+                    PN = e.result; //save Nasion
+                    electrodeNumber++;
+                }
+                DoPrompting((e != null) && e.Retry);
                 ((StylusAcquisition)sa).Start();
                 return;
             }
             else if (electrodeNumber == -2)
             {
                 //save previous result
-                if (!e.Retry) //save right preauricular
-                    PR = t;
-                //set up next prompt
-                DoPrompting("Left preauricular", e.Retry);
-                ((StylusAcquisition)sa).Start();
-                return;
-            }
-            else if (electrodeNumber == -1) //Three starting points acquired
-            {
-                if (!e.Retry)
+                if (!e.Retry) //save Right preauricular
                 {
-                    PL = e.result; //save left preauricular and
-                    CreateCoordinateTransform(); //set up new coordinate system
+                    PR = e.result;
+                    electrodeNumber++;
                 }
             }
-            if (!e.Retry)
+            else //electrodeNumber == -1
             {
-                t = DoCoordinateTransform(t);
-                output1.Text = "Electrode " + (electrodeNumber + 1).ToString("0") + ": " + t.ToString();
+                //save previous result
+                if (!e.Retry) //save Left preauricular
+                {
+                    PL = e.result;
+                    CreateCoordinateTransform(); //calculate coordinate transfoamtion
+                    electrodeNumber++;
+                }
             }
-            DoPrompting("Electrode " + (electrodeNumber + 2).ToString("0"), e.Retry);
+            if (electrodeNumber >= numberOfElectrodes)
+            {
+                efs.Close();
+                Environment.Exit(0); //done
+            }
+            DoPrompting(e.Retry);
             ((StylusAcquisition)sa).Start();
+            return;
         }
 
-        private void DoPrompting(string electrodeName, bool? redo)
+        private void DoPrompting(bool? redo)
         {
-            if (voice)
+            if (electrodeNumber >= 0)
             {
-                prompt.ClearContent();
-                prompt.StartSentence();
-                if (redo != null && (bool)redo)
+                electrodeListElement ele = templateList[electrodeNumber];
+                if (voice)
                 {
-                    prompt.AppendText("Redoo");
-                    prompt.AppendBreak(PromptBreak.Small);
+                    prompt.ClearContent();
+                    prompt.StartSentence();
+                    if ((bool)redo)
+                    {
+                        prompt.AppendSsmlMarkup("<phoneme alphabet=\"x-microsoft-ups\" " +
+                            "ph=\"R I S2 D U U S1\">redo</phoneme>");
+                        prompt.AppendBreak(PromptBreak.Small);
+                    }
+                    if (ele.speakType == "String")
+                        prompt.AppendText(ele.speakString);
+                    else if (ele.speakType == "SSML")
+                        prompt.AppendSsmlMarkup(ele.speakString);
+                    prompt.EndSentence();
+                    speak.Speak(prompt);
                 }
-                prompt.AppendText(electrodeName);
-                prompt.EndSentence();
-                speak.Speak(prompt);
+                ElectrodeName.Text = ((bool)redo ? "Redo " : "") + ele.Name;
             }
-            ElectrodeName.Text = ((redo != null && (bool)redo) ? "Redo " : "") + electrodeName;
+            else //one of the set-up positions
+            {
+                string eName;
+                if (electrodeNumber == -3)
+                    eName = "Nasion";
+                else if (electrodeNumber == -2)
+                    eName = "Right preauricular";
+                else
+                    eName = "Left preauricular";
+                if (voice)
+                {
+                    prompt.ClearContent();
+                    prompt.StartSentence();
+                    if (redo != null && (bool)redo)
+                    {
+                        prompt.AppendSsmlMarkup("<phoneme alphabet=\"x-microsoft-ups\" " +
+                            "ph=\"R I S2 D U U S1\">redo</phoneme>");
+                        prompt.AppendBreak(PromptBreak.Small);
+                    }
+                    prompt.AppendText(eName);
+                    prompt.EndSentence();
+                    speak.Speak(prompt);
+                }
+                ElectrodeName.Text = ((redo != null && (bool)redo) ? "Redo " : "") + eName;
+            }
         }
 
         Triple Origin;
@@ -325,7 +400,16 @@ namespace Main
         }
         private void Stop_Click(object sender, RoutedEventArgs e)
         {
+            efs.Close(); //save as partial file
             sa.Cancel();
         }
     }
+
+    internal class electrodeListElement
+    {
+        internal string Name;
+        internal string speakType;
+        internal string speakString;
+    }
+
 }
