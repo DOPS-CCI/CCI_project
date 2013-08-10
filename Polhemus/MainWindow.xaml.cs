@@ -99,10 +99,13 @@ namespace Main
                 templateList.Add(ele);
                 templateReader.ReadEndElement(/*Electrode*/);
             }
-            templateReader.ReadEndElement(/*ElectrodeNames"*/);
+            templateReader.ReadEndElement(/*ElectrodeNames*/);
             templateReader.Close();
+
+            //Open electrode position file
             efs = new ElectrodeOutputFileStream(
                 new FileStream(w._etrFileName, FileMode.Create, FileAccess.Write), typeof(XYZRecord));
+
             voice = (bool)w.Voice.IsChecked;
             hemisphere = w.Hemisphere.SelectedIndex;
             if (mode == 0) samples = w._sampCount1;
@@ -115,45 +118,48 @@ namespace Main
             double screenDPI = 120D; //modify to make window fit to screen
             this.MinWidth = (double)SystemInformation.WorkingArea.Width * 96D / screenDPI;
             this.MinHeight = (double)SystemInformation.WorkingArea.Height * 96D / screenDPI;
+
+            //Initialize Polhemus into standard state
             PolhemusStream ps = new PolhemusStream();
             p = new PolhemusController(ps);
             p.InitializeSystem();
-            p.SetEchoMode(PolhemusController.EchoMode.On);
-            p.OutputFormat(PolhemusController.Format.Binary);
-            int v = hemisphere % 2 == 1 ? -1 : 1;
+            p.SetEchoMode(PolhemusController.EchoMode.On); //Echo on
+            p.OutputFormat(PolhemusController.Format.Binary); //Binary output
+            int v = hemisphere % 2 == 1 ? -1 : 1; //set correct hemisphere of operation
             if (hemisphere < 2)
                 p.HemisphereOfOperation(null, v, 0, 0);
             else if (hemisphere < 4)
                 p.HemisphereOfOperation(null, 0, v, 0);
             else
                 p.HemisphereOfOperation(null, 0, 0, v);
-            p.SetUnits(PolhemusController.Units.Metric);
-            Type[] df = { typeof(CartesianCoordinates) };
+            p.SetUnits(PolhemusController.Units.Metric); //Metric measurements
+            Type[] df = { typeof(CartesianCoordinates) }; //set up cartesian coordinate output only
             p.OutputDataList(null, df);
-//            StylusAcquisition.Monitor c = Monitor;
+            StylusAcquisition.Monitor c = Monitor;
             
             if (mode == 0)
             {
                 StylusAcquisition.SingleShot sm = SinglePoint;
-                sa = new StylusAcquisition(p, sm);
+                sa = new StylusAcquisition(p, sm, c);
             }
             else
             {
                 StylusAcquisition.Continuous sm = ContinuousPoints;
-                sa = new StylusAcquisition(p, sm);
+                sa = new StylusAcquisition(p, sm, c);
             }
             AcquisitionFinished += new PointAcquisitionFinishedEventHandler(AcquisitionLoop);
             electrodeNumber = -3;
             AcquisitionLoop(sa, null); //Prime the pump!
         }
 
-        const int smooth = 100;
+        const int smooth = 50;
         double [] last = new double[smooth];
         double sum = 0D;
         double ss = 0D;
         int ilast = 0;
         void Monitor(List<IDataFrameType>[] frame, bool final)
         {
+            if (frame == null) return;
             CartesianCoordinates cc0 = (CartesianCoordinates)frame[0][0];
             CartesianCoordinates cc1 = (CartesianCoordinates)frame[1][0];
             double dx = Math.Sqrt(cc0.X * cc0.X + cc0.Y * cc0.Y + cc0.Z * cc0.Z);
@@ -231,9 +237,13 @@ namespace Main
                     NormalEndOfFrame();
                 else
                     ForceRedoOfFrame();
-            else //must be true cancellation
+            else //if none of above, must be true cancellation
             {
-                //close open files
+                try
+                {
+                    efs.Close();
+                }
+                catch (InvalidOperationException) {/* file already closed */ }
                 Environment.Exit(1);
             }
         }
@@ -324,19 +334,16 @@ namespace Main
 
         private void DoPrompting(bool? redo)
         {
-            if (electrodeNumber >= 0)
+            if (electrodeNumber >= 0) //then, electrode from template
             {
                 electrodeListElement ele = templateList[electrodeNumber];
-                if (voice)
+                if (voice && ele.speakString != null)
                 {
                     prompt.ClearContent();
                     prompt.StartSentence();
                     if ((bool)redo)
-                    {
                         prompt.AppendSsmlMarkup("<phoneme alphabet=\"x-microsoft-ups\" " +
-                            "ph=\"R I S2 D U U S1\">redo</phoneme>");
-                        prompt.AppendBreak(PromptBreak.Small);
-                    }
+                            "ph=\"S2 R I . S1 D U lng\">redo</phoneme>");
                     if (ele.speakType == "String")
                         prompt.AppendText(ele.speakString);
                     else if (ele.speakType == "SSML")
@@ -357,15 +364,25 @@ namespace Main
                     eName = "Left preauricular";
                 if (voice)
                 {
+                    StringBuilder sb = new StringBuilder();
                     prompt.ClearContent();
                     prompt.StartSentence();
                     if (redo != null && (bool)redo)
                     {
-                        prompt.AppendSsmlMarkup("<phoneme alphabet=\"x-microsoft-ups\" " +
-                            "ph=\"R I S2 D U U S1\">redo</phoneme>");
-                        prompt.AppendBreak(PromptBreak.Small);
+                        sb.Append("<phoneme alphabet=\"x-microsoft-sapi\" " + "ph=\"r iy 2 - d uw 1\">redo</phoneme>");
                     }
-                    prompt.AppendText(eName);
+                    if (electrodeNumber == -3)
+                        sb.Append("<phoneme alphabet=\"x-microsoft-sapi\" " + "ph=\"n ey 1 - z iy eh n\">nasion</phoneme>");
+                    else
+                    {
+                        if (electrodeNumber == -2)
+                            sb.Append("<phoneme alphabet=\"x-microsoft-sapi\" " + "ph=\"r ay t\">right</phoneme>");
+                        else
+                            sb.Append("<phoneme alphabet=\"x-microsoft-sapi\" " + "ph=\"l eh f t\">left</phoneme>");
+                        sb.Append("<phoneme alphabet=\"x-microsoft-sapi\" " +
+                            "ph=\"p r iy 2 - ow - r ih k 1 - y uw - l er\">preauricular</phoneme>");
+                    }
+                    prompt.AppendSsmlMarkup(sb.ToString());
                     prompt.EndSentence();
                     speak.Speak(prompt);
                 }
@@ -402,6 +419,22 @@ namespace Main
         {
             efs.Close(); //save as partial file
             sa.Cancel();
+        }
+
+        private void Skip_Click(object sender, RoutedEventArgs e)
+        {
+
+        }
+
+        private void Redo_Click(object sender, RoutedEventArgs e)
+        {
+
+        }
+
+        private void Window_Closing(object sender, CancelEventArgs e)
+        {
+            if (sa != null)
+                sa.Cancel();
         }
     }
 

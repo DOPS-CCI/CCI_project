@@ -1706,6 +1706,7 @@ namespace Polhemus
             Console.WriteLine("StylusProgressChanged");
             if (_monitor != null)
                 _monitor((List<IDataFrameType>[])e.UserState, false); //independent of stylus button state
+            if (e.ProgressPercentage == 0) return; //use to determine if in last segment of tracking stylus button
             if (_continuousMode)
                 _continuous((List<IDataFrameType>[])e.UserState, false); //call continuous monitor delegate
         }
@@ -1767,7 +1768,7 @@ namespace Polhemus
                 }
                 if (((StylusFlag)currentFrame[0][stylusFrameLoc]).Flag == 1) break; //stylus button just pushed
                 if (_monitor != null)
-                    bw.ReportProgress(0, currentFrame); //monitor and wait for stylus button push
+                    bw.ReportProgress(0, currentFrame); //monitor until stylus button push
             } while (true); //Wait for button to be pushed
             if (_continuousMode)
             {

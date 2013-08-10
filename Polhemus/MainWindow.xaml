@@ -1,7 +1,7 @@
 ﻿<Window x:Class="Main.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="MainWindow" Height="800" Width="1024">
+        Title="MainWindow" Height="800" Width="1024" Top="0" Left="0" Closing="Window_Closing">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="600"/>
@@ -10,12 +10,16 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
-        <TextBlock Name="ElectrodeName" FontSize="160" Grid.Row="0" Text="Nasion" HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap" />
-        <StackPanel Orientation="Horizontal" Margin="4">
-            <TextBlock Name="output3"/>
+        <TextBlock Name="ElectrodeName" FontSize="180" Grid.Row="0" Text="Nasion" HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap" />
+        <TextBlock Name="output1" Grid.Row="1" Margin="4" HorizontalAlignment="Center" FontSize="18"/>
+        <TextBlock Name="output2" Grid.Row="2" Margin="4" HorizontalAlignment="Center" FontSize="18" />
+        <TextBlock Name="output3" Grid.Row="3" Margin="4" HorizontalAlignment="Center" FontSize="18" />
+        <StackPanel Orientation="Horizontal" Grid.Row="4" HorizontalAlignment="Right">
+            <StackPanel Orientation="Horizontal" IsEnabled="False">
+            <Button Name="Skip" Width="100" Margin="8" Click="Skip_Click">SKIP</Button>
+            <Button Name="Redo" Width="100" Margin="8" Click="Redo_Click" IsDefault="True">REDO</Button>
+            </StackPanel>
+            <Button Name="Stop" Width="100" Margin="8" Click="Stop_Click">EXIT</Button>
         </StackPanel>
-        <TextBlock Name="output1" Grid.Row="1" Margin="4" HorizontalAlignment="Center" FontSize="14"/>
-        <TextBlock Name="output2" Grid.Row="2" Margin="4" HorizontalAlignment="Center" FontSize="14" />
-        <Button Name="Stop" Grid.Row="4" Width="120" Margin="4" Click="Stop_Click">EXIT</Button>
     </Grid>
 </Window>

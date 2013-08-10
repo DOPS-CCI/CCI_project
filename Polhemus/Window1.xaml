@@ -50,7 +50,7 @@
                     <RadioButton Name="rb3"  Margin="8,4,0,4" FontWeight="Normal" Content="Sample to criteria: SD &lt; " GroupName="ModeSelection" Tag="3" Checked="rb_Checked" />
                     <TextBox Height="23" Name="SDThresh" Width="50" FontWeight="Normal" IsEnabled="{Binding ElementName=rb3, Path=IsChecked}" TextChanged="SDThresh_changed">0.100</TextBox>
                 </StackPanel>
-                <CheckBox Name="Voice" Margin="8" FontWeight="Normal">Use voice cuing</CheckBox>
+                <CheckBox Name="Voice" Margin="8" FontWeight="Normal" IsChecked="True">Use voice cuing</CheckBox>
             </StackPanel>
         </GroupBox>
         <StackPanel Grid.Row="4" Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="4">
