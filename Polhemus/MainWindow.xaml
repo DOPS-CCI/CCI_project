@@ -11,14 +11,12 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
         <TextBlock Name="ElectrodeName" FontSize="180" Grid.Row="0" Text="Nasion" HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap" />
-        <TextBlock Name="output1" Grid.Row="1" Margin="4" HorizontalAlignment="Center" FontSize="18"/>
+        <TextBlock Name="output1" Grid.Row="1" Margin="4" HorizontalAlignment="Center" FontSize="18" />
         <TextBlock Name="output2" Grid.Row="2" Margin="4" HorizontalAlignment="Center" FontSize="18" />
         <TextBlock Name="output3" Grid.Row="3" Margin="4" HorizontalAlignment="Center" FontSize="18" />
         <StackPanel Orientation="Horizontal" Grid.Row="4" HorizontalAlignment="Right">
-            <StackPanel Orientation="Horizontal" IsEnabled="False">
-            <Button Name="Skip" Width="100" Margin="8" Click="Skip_Click">SKIP</Button>
-            <Button Name="Redo" Width="100" Margin="8" Click="Redo_Click" IsDefault="True">REDO</Button>
-            </StackPanel>
+            <Button Name="Skip" Width="100" Margin="8" Click="Skip_Click" IsDefault="True" IsEnabled="False">SKIP</Button>
+ <!--           <Button Name="Redo" Width="100" Margin="8" Click="Redo_Click" IsEnabled="False">REDO</Button>-->
             <Button Name="Stop" Width="100" Margin="8" Click="Stop_Click">EXIT</Button>
         </StackPanel>
     </Grid>

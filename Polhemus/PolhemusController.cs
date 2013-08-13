@@ -1047,6 +1047,16 @@ namespace Polhemus
         }
 
         /***** Vector operations *****/
+/*        public static bool operator ==(Triple A, Triple B)
+        {
+            return A.v1 == B.v1 && A.v2 == B.v2 && A.v3 == B.v3;
+        }
+
+        public static bool operator !=(Triple A, Triple B)
+        {
+            return !(A == B);
+        }
+*/
         public static Triple operator +(Triple a, Triple b)
         {
             return new Triple(a.v1 + b.v1, a.v2 + b.v2, a.v3 + b.v3);
@@ -1062,7 +1072,7 @@ namespace Polhemus
             return new Triple(a * B.v1, a * B.v2, a * B.v3);
         }
 
-        public static double Dot(Triple A, Triple B)
+        public static double operator *(Triple A, Triple B)
         {
             return A.v1 * B.v1 + A.v2 * B.v2 + A.v3 * B.v3;
         }

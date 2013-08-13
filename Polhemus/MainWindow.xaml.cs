@@ -45,6 +45,9 @@ namespace Main
         int hemisphere;
         bool voice;
 
+        Window2 drawing;
+        Projection projection;
+
         public event PointAcquisitionFinishedEventHandler AcquisitionFinished;
 
         public MainWindow()
@@ -105,6 +108,7 @@ namespace Main
             //Open electrode position file
             efs = new ElectrodeOutputFileStream(
                 new FileStream(w._etrFileName, FileMode.Create, FileAccess.Write), typeof(XYZRecord));
+            electrodeLocations = new List<XYZRecord>(numberOfElectrodes); //set up temporary location list, so changes can be made
 
             voice = (bool)w.Voice.IsChecked;
             hemisphere = w.Hemisphere.SelectedIndex;
@@ -149,6 +153,9 @@ namespace Main
             }
             AcquisitionFinished += new PointAcquisitionFinishedEventHandler(AcquisitionLoop);
             electrodeNumber = -3;
+            drawing = new Window2();
+            drawing.Show();
+            projection = new Projection(new Triple(0, 12.7, 40), 0.5D);
             AcquisitionLoop(sa, null); //Prime the pump!
         }
 
@@ -181,6 +188,7 @@ namespace Main
         Triple sumP = new Triple(0, 0, 0);
         void SinglePoint(List<IDataFrameType>[] frame) //one shot completed delegate
         {
+            Skip.IsEnabled = false;
             Console.WriteLine("SinglePoint " + pointCount.ToString("0") + " " + (frame == null).ToString());
             if (frame != null)
             {
@@ -207,6 +215,7 @@ namespace Main
         double sd;
         void ContinuousPoints(List<IDataFrameType>[] frame, bool final) //Continuous mode callback, modes 1 to 3
         {
+            Skip.IsEnabled = false;
             int entryType = (frame == null ? (final ? 0 : 1) : (final ? 2 : 3)); //extrinsic:cancel:intrinsic:continued
             Console.WriteLine("ContinuousPoints " + Dcount.ToString("0") + " " + entryType.ToString("0"));
             if (entryType == 3/*continued*/) //add new point into running averages
@@ -237,14 +246,23 @@ namespace Main
                     NormalEndOfFrame();
                 else
                     ForceRedoOfFrame();
-            else //if none of above, must be true cancellation
+            else //if none of above, must be true cancellation or skip
             {
-                try
+                if (executeSkip && ++electrodeNumber < numberOfElectrodes)
                 {
-                    efs.Close();
+                    executeSkip = false; //reset
+                    DoPrompting(false);
+                    sa.Start();
                 }
-                catch (InvalidOperationException) {/* file already closed */ }
-                Environment.Exit(1);
+                else //handle as cancellation
+                {
+                    try
+                    {
+                        efs.Close();
+                    }
+                    catch (InvalidOperationException) {/* file already closed */ }
+                    Environment.Exit(0);
+                }
             }
         }
 
@@ -273,6 +291,7 @@ namespace Main
         Triple PN;
         Triple PR;
         Triple PL;
+        List<XYZRecord> electrodeLocations;
         int electrodeNumber = -3; //refers to the electrode location being returned on entry to AcqusitionLoop
         //this should be incremented at the time of successful acquistion and not if unsuccessful or cancelled
         private void AcquisitionLoop(object sa, PointAcqusitionFinishedEventArgs e)
@@ -287,8 +306,20 @@ namespace Main
                 if (!e.Retry)
                 {
                     Triple t = DoCoordinateTransform(e.result);
-                    output1.Text = templateList[electrodeNumber].Name + ": " + t.ToString();
-                    (new XYZRecord(templateList[electrodeNumber].Name, t.v1, t.v2, t.v3)).write(efs, "");
+                    string name = templateList[electrodeNumber].Name;
+                    output1.Text = name + ": " + t.ToString();
+                    if (electrodeLocations.Where(l => l.Name == name).Count() == 0)
+                        electrodeLocations.Add(new XYZRecord(name, t.v1, t.v2, t.v3));
+                    t = projection.Project(t);
+                    Ellipse circle = new Ellipse();
+                    circle.Stroke = System.Windows.Media.Brushes.Transparent;
+                    circle.Fill = System.Windows.Media.Brushes.Red;
+                    double radius = 100 / t.v3;
+                    circle.Width = radius * 2D;
+                    circle.Height = radius * 2D;
+                    Canvas.SetTop(circle, drawing.Draw.ActualHeight / 2 - 25 * t.v2 - radius);
+                    Canvas.SetLeft(circle, drawing.Draw.ActualWidth / 2 + 25 * t.v1 - radius);
+                    drawing.Draw.Children.Add(circle);
                     electrodeNumber++; //on to next electrode location
                 }
             }
@@ -324,6 +355,8 @@ namespace Main
             }
             if (electrodeNumber >= numberOfElectrodes)
             {
+                foreach (XYZRecord xyz in electrodeLocations)
+                    xyz.write(efs, "");
                 efs.Close();
                 Environment.Exit(0); //done
             }
@@ -352,6 +385,7 @@ namespace Main
                     speak.Speak(prompt);
                 }
                 ElectrodeName.Text = ((bool)redo ? "Redo " : "") + ele.Name;
+                Skip.IsEnabled = true;
             }
             else //one of the set-up positions
             {
@@ -372,7 +406,7 @@ namespace Main
                         sb.Append("<phoneme alphabet=\"x-microsoft-sapi\" " + "ph=\"r iy 2 - d uw 1\">redo</phoneme>");
                     }
                     if (electrodeNumber == -3)
-                        sb.Append("<phoneme alphabet=\"x-microsoft-sapi\" " + "ph=\"n ey 1 - z iy eh n\">nasion</phoneme>");
+                        sb.Append("<phoneme alphabet=\"x-microsoft-sapi\" " + "ph=\"n ey 1 - z iy ax n\">nasion</phoneme>");
                     else
                     {
                         if (electrodeNumber == -2)
@@ -380,7 +414,7 @@ namespace Main
                         else
                             sb.Append("<phoneme alphabet=\"x-microsoft-sapi\" " + "ph=\"l eh f t\">left</phoneme>");
                         sb.Append("<phoneme alphabet=\"x-microsoft-sapi\" " +
-                            "ph=\"p r iy 2 - ow - r ih k 1 - y uw - l er\">preauricular</phoneme>");
+                            "ph=\"p r iy 2 - ow - r ih k 1 - y uw - l ax r\">preauricular</phoneme>");
                     }
                     prompt.AppendSsmlMarkup(sb.ToString());
                     prompt.EndSentence();
@@ -421,9 +455,11 @@ namespace Main
             sa.Cancel();
         }
 
+        bool executeSkip = false;
         private void Skip_Click(object sender, RoutedEventArgs e)
         {
-
+            executeSkip = true;
+            sa.Stop();
         }
 
         private void Redo_Click(object sender, RoutedEventArgs e)
