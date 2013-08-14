@@ -25,7 +25,7 @@ using System.Xml;
 using ElectrodeFileStream;
 using Polhemus;
 
-namespace Main
+namespace Polhemus
 {
     /// <summary>
     /// Interaction logic for MainWindow.xaml
@@ -39,6 +39,7 @@ namespace Main
         List<electrodeListElement> templateList;
         ElectrodeOutputFileStream efs;
         int numberOfElectrodes;
+        internal List<XYZRecord> electrodeLocations;
         int mode;
         int samples;
         double threshold;
@@ -153,9 +154,9 @@ namespace Main
             }
             AcquisitionFinished += new PointAcquisitionFinishedEventHandler(AcquisitionLoop);
             electrodeNumber = -3;
-            drawing = new Window2();
+            drawing = new Window2(this);
             drawing.Show();
-            projection = new Projection(new Triple(0, 12.7, 40), 0.5D);
+            projection = new Projection(new Triple(0, 10, 10), 0.5D);
             AcquisitionLoop(sa, null); //Prime the pump!
         }
 
@@ -291,7 +292,6 @@ namespace Main
         Triple PN;
         Triple PR;
         Triple PL;
-        List<XYZRecord> electrodeLocations;
         int electrodeNumber = -3; //refers to the electrode location being returned on entry to AcqusitionLoop
         //this should be incremented at the time of successful acquistion and not if unsuccessful or cancelled
         private void AcquisitionLoop(object sa, PointAcqusitionFinishedEventArgs e)
@@ -309,17 +309,18 @@ namespace Main
                     string name = templateList[electrodeNumber].Name;
                     output1.Text = name + ": " + t.ToString();
                     if (electrodeLocations.Where(l => l.Name == name).Count() == 0)
-                        electrodeLocations.Add(new XYZRecord(name, t.v1, t.v2, t.v3));
-                    t = projection.Project(t);
-                    Ellipse circle = new Ellipse();
-                    circle.Stroke = System.Windows.Media.Brushes.Transparent;
-                    circle.Fill = System.Windows.Media.Brushes.Red;
-                    double radius = 100 / t.v3;
-                    circle.Width = radius * 2D;
-                    circle.Height = radius * 2D;
-                    Canvas.SetTop(circle, drawing.Draw.ActualHeight / 2 - 25 * t.v2 - radius);
-                    Canvas.SetLeft(circle, drawing.Draw.ActualWidth / 2 + 25 * t.v1 - radius);
-                    drawing.Draw.Children.Add(circle);
+                    {
+                        XYZRecord xyz = new XYZRecord(name, t.v1, t.v2, t.v3);
+                        electrodeLocations.Add(xyz);
+                        drawing.addedPoint(xyz);
+                    }
+                    else
+                    {
+                        XYZRecord xyz = electrodeLocations.Where(l => l.Name == name).First();
+/*                        xyz.X = t.v1;
+                        xyz.Y = t.v2;
+                        xyz.Z = t.v3;
+*/                    }
                     electrodeNumber++; //on to next electrode location
                 }
             }

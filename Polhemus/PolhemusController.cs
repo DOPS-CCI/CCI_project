@@ -1072,12 +1072,12 @@ namespace Polhemus
             return new Triple(a * B.v1, a * B.v2, a * B.v3);
         }
 
-        public static double operator *(Triple A, Triple B)
+        public static double operator *(Triple A, Triple B) //Dot product
         {
             return A.v1 * B.v1 + A.v2 * B.v2 + A.v3 * B.v3;
         }
 
-        public static Triple Cross(Triple A, Triple B)
+        public static Triple Cross(Triple A, Triple B) //Cross product
         {
             Triple C = new Triple();
             C.v1 = A.v2 * B.v3 - B.v2 * A.v3;
