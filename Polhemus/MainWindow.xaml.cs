@@ -46,7 +46,7 @@ namespace Polhemus
         int hemisphere;
         bool voice;
 
-        Window2 drawing;
+//        Window2 drawing;
         Projection projection;
 
         public event PointAcquisitionFinishedEventHandler AcquisitionFinished;
@@ -117,6 +117,7 @@ namespace Polhemus
             else if (mode == 1) samples = w._sampCount2;
             else if (mode == 3) threshold = w._SDThresh;
             w = null; //free resources
+            projection = new Projection(new Triple(0, eyeDistance, 0), FOV);
 
             InitializeComponent();
 
@@ -154,9 +155,6 @@ namespace Polhemus
             }
             AcquisitionFinished += new PointAcquisitionFinishedEventHandler(AcquisitionLoop);
             electrodeNumber = -3;
-            drawing = new Window2(this);
-            drawing.Show();
-            projection = new Projection(new Triple(0, 10, 10), 0.5D);
             AcquisitionLoop(sa, null); //Prime the pump!
         }
 
@@ -180,7 +178,7 @@ namespace Polhemus
             sum += d - d0;
             ss += d * d - d0 * d0;
             double Mean = sum / smooth;
-            double SD = Math.Sqrt(ss/smooth - Mean * Mean);
+            double SD = Math.Sqrt(ss / smooth - Mean * Mean);
             output3.Text = Mean.ToString("0.000") + " SD=" + SD.ToString("0.000") +
                 " D=" + dx.ToString("0.000");
         }
@@ -312,7 +310,7 @@ namespace Polhemus
                     {
                         XYZRecord xyz = new XYZRecord(name, t.v1, t.v2, t.v3);
                         electrodeLocations.Add(xyz);
-                        drawing.addedPoint(xyz);
+                        addPointToView(xyz);
                     }
                     else
                     {
@@ -356,10 +354,8 @@ namespace Polhemus
             }
             if (electrodeNumber >= numberOfElectrodes)
             {
-                foreach (XYZRecord xyz in electrodeLocations)
-                    xyz.write(efs, "");
-                efs.Close();
-                Environment.Exit(0); //done
+                writeElectrodeFile();
+                return; //done
             }
             DoPrompting(e.Retry);
             ((StylusAcquisition)sa).Start();
@@ -450,10 +446,22 @@ namespace Polhemus
             }
             return q;
         }
+
+        private void writeElectrodeFile()
+        {
+            if (efs != null)
+            {
+                output3.Text = "Writing out " + electrodeLocations.Count().ToString("0") + " electrode records.";
+                foreach (XYZRecord xyz in electrodeLocations)
+                    xyz.write(efs, "");
+                efs.Close();
+                efs = null;
+            }
+        }
+
         private void Stop_Click(object sender, RoutedEventArgs e)
         {
-            efs.Close(); //save as partial file
-            sa.Cancel();
+            this.Close();
         }
 
         bool executeSkip = false;
@@ -470,8 +478,89 @@ namespace Polhemus
 
         private void Window_Closing(object sender, CancelEventArgs e)
         {
+            writeElectrodeFile(); //just in case exit via window close only
             if (sa != null)
                 sa.Cancel();
+        }
+
+        const double radius = 30;
+        const double FOV = 0.5; //in radians
+        double cosYaw = 1D;
+        double sinYaw = 0D;
+        double yaw
+        {
+            set
+            {
+                double a = value * Math.PI / 180D;
+                cosYaw = Math.Cos(a);
+                sinYaw = Math.Sin(a);
+            }
+        }
+        double cosPitch = 1D;
+        double sinPitch = 0D;
+        double pitch
+        {
+            set
+            {
+                double a = value * Math.PI / 180D;
+                cosPitch = Math.Cos(a);
+                sinPitch = Math.Sin(a);
+            }
+        }
+
+        double eyeDistance = Math.Pow(10D, 1.5D);
+
+        internal void addPointToView(XYZRecord xyz)
+        {
+            Triple t = new Triple(xyz.X, xyz.Y, xyz.Z);
+            t = projection.Project(t);
+            Ellipse circle = new Ellipse();
+            circle.Stroke = System.Windows.Media.Brushes.Transparent;
+            int pink = (int)(3 * t.v3);
+            if (pink > 200)
+                pink = 200;
+            circle.Fill = new SolidColorBrush(System.Windows.Media.Color.FromRgb(255, (byte)pink, (byte)pink));
+            double r = 120D / t.v3;
+            circle.Height = circle.Width = r * 2D;
+            Canvas.SetTop(circle, Draw.ActualHeight / 2 - 100 * t.v2 - r);
+            Canvas.SetLeft(circle, Draw.ActualWidth / 2 + 100 * t.v1 - r);
+            Canvas.SetZIndex(circle, (int)(-t.v3 * 100));
+            circle.ToolTip = new TextBlock(new Run(xyz.Name));
+            circle.MouseDown+=new MouseButtonEventHandler(circle_MouseDown);
+            Draw.Children.Add(circle);
+        }
+
+        internal void updateView()
+        {
+            projection.Eye = eyeDistance * (new Triple(-cosPitch * sinYaw, cosPitch * cosYaw, sinPitch));
+            Draw.Children.Clear(); //redraw all, since new Eye position
+            foreach (XYZRecord el in electrodeLocations)
+                addPointToView(el);
+        }
+
+        private void Yaw_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            yaw = e.NewValue;
+            updateView();
+        }
+
+        private void Pitch_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            pitch = e.NewValue;
+            updateView();
+        }
+
+        private void circle_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            Ellipse circle = (Ellipse)sender;
+            string name = ((Run)(((TextBlock)circle.ToolTip).Inlines.First())).Text;
+            ButtonInfo.Text = electrodeLocations.Where(l => l.Name == name).First().ToString();
+        }
+
+        private void Magnification_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            eyeDistance = Math.Pow(10D, e.NewValue);
+            updateView();
         }
     }
 

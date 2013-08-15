@@ -1238,7 +1238,7 @@ namespace Polhemus
             else
             {
                 if (!_errorDictionary.TryGetValue(_errNum, out _errMess))
-                    _errMess = "";
+                    _errMess = "Polhemus error " + _errNum.ToString("X2");
             }
         }
     }

@@ -11,6 +11,7 @@ namespace Polhemus
         Triple Tx;
         Triple Ty;
         Triple Tz;
+
         Triple _eye;
         public Triple Eye
         {
