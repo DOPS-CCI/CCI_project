@@ -205,6 +205,10 @@ namespace Polhemus
                     NormalEndOfFrame();
                 else sa.Start(); //get another point
             }
+            else if (executeSkip)
+            {
+                ForceEndOfFrame();
+            }
         }
 
         double Dsum = 0;
@@ -239,30 +243,20 @@ namespace Polhemus
                 if (mode == 1 || mode == 3)
                     NormalEndOfFrame();
                 else
-                    ForceRedoOfFrame();
+                    ForceEndOfFrame();
             else if (entryType == 2/*intrinsic*/)
                 if (mode == 2)
                     NormalEndOfFrame();
                 else
-                    ForceRedoOfFrame();
+                    ForceEndOfFrame();
             else //if none of above, must be true cancellation or skip
-            {
-                if (executeSkip && ++electrodeNumber < numberOfElectrodes)
-                {
-                    executeSkip = false; //reset
-                    DoPrompting(false);
-                    sa.Start();
-                }
+                if (executeSkip)
+                    ForceEndOfFrame();
                 else //handle as cancellation
                 {
-                    try
-                    {
-                        efs.Close();
-                    }
-                    catch (InvalidOperationException) {/* file already closed */ }
+                    writeElectrodeFile();
                     Environment.Exit(0);
                 }
-            }
         }
 
         void NormalEndOfFrame()
@@ -278,13 +272,13 @@ namespace Polhemus
             AcquisitionFinished(sa, new PointAcqusitionFinishedEventArgs(t));
         }
 
-        void ForceRedoOfFrame()
+        void ForceEndOfFrame()
         {
             Dsum = 0;
             Dcount = 0;
             Dsumsq = 0;
             sumP = new Triple(0, 0, 0);
-            AcquisitionFinished(sa, new PointAcqusitionFinishedEventArgs(null, true)); //signal retry
+            AcquisitionFinished(sa, new PointAcqusitionFinishedEventArgs(null, !executeSkip)); //signal retry or skip
         }
 
         Triple PN;
@@ -299,58 +293,67 @@ namespace Polhemus
                     (e.result == null) + " " + (e.Retry).ToString());
             else
                 Console.WriteLine("AcquisitionLoop " + electrodeNumber.ToString("0"));
-            if (electrodeNumber >= 0)
+            if (!executeSkip)
             {
-                if (!e.Retry)
+                if (electrodeNumber >= 0)
                 {
-                    Triple t = DoCoordinateTransform(e.result);
-                    string name = templateList[electrodeNumber].Name;
-                    output1.Text = name + ": " + t.ToString();
-                    if (electrodeLocations.Where(l => l.Name == name).Count() == 0)
+                    if (!e.Retry)
                     {
-                        XYZRecord xyz = new XYZRecord(name, t.v1, t.v2, t.v3);
-                        electrodeLocations.Add(xyz);
-                        addPointToView(xyz);
+                        Triple t = DoCoordinateTransform(e.result);
+                        string name = templateList[electrodeNumber].Name;
+                        output1.Text = name + ": " + t.ToString();
+                        if (electrodeLocations.Where(l => l.Name == name).Count() == 0)
+                        {
+                            XYZRecord xyz = new XYZRecord(name, t.v1, t.v2, t.v3);
+                            electrodeLocations.Add(xyz);
+                            addPointToView(xyz);
+                        }
+                        else
+                        {
+                            XYZRecord xyz = electrodeLocations.Where(l => l.Name == name).First();
+                            /*                        xyz.X = t.v1;
+                                                    xyz.Y = t.v2;
+                                                    xyz.Z = t.v3;
+                            */
+                        }
+                        electrodeNumber++; //on to next electrode location
                     }
-                    else
+                }
+                else if (electrodeNumber == -3) //first entry
+                {
+                    if (e != null && !e.Retry)
                     {
-                        XYZRecord xyz = electrodeLocations.Where(l => l.Name == name).First();
-/*                        xyz.X = t.v1;
-                        xyz.Y = t.v2;
-                        xyz.Z = t.v3;
-*/                    }
-                    electrodeNumber++; //on to next electrode location
+                        PN = e.result; //save Nasion
+                        electrodeNumber++;
+                    }
+                    DoPrompting((e != null) && e.Retry);
+                    ((StylusAcquisition)sa).Start();
+                    return;
+                }
+                else if (electrodeNumber == -2)
+                {
+                    //save previous result
+                    if (!e.Retry) //save Right preauricular
+                    {
+                        PR = e.result;
+                        electrodeNumber++;
+                    }
+                }
+                else //electrodeNumber == -1
+                {
+                    //save previous result
+                    if (!e.Retry) //save Left preauricular
+                    {
+                        PL = e.result;
+                        CreateCoordinateTransform(); //calculate coordinate transfoamtion
+                        electrodeNumber++;
+                    }
                 }
             }
-            else if (electrodeNumber == -3) //first entry
+            else //executing skip
             {
-                if (e != null && !e.Retry)
-                {
-                    PN = e.result; //save Nasion
-                    electrodeNumber++;
-                }
-                DoPrompting((e != null) && e.Retry);
-                ((StylusAcquisition)sa).Start();
-                return;
-            }
-            else if (electrodeNumber == -2)
-            {
-                //save previous result
-                if (!e.Retry) //save Right preauricular
-                {
-                    PR = e.result;
-                    electrodeNumber++;
-                }
-            }
-            else //electrodeNumber == -1
-            {
-                //save previous result
-                if (!e.Retry) //save Left preauricular
-                {
-                    PL = e.result;
-                    CreateCoordinateTransform(); //calculate coordinate transfoamtion
-                    electrodeNumber++;
-                }
+                electrodeNumber++;
+                executeSkip = false;
             }
             if (electrodeNumber >= numberOfElectrodes)
             {
@@ -451,11 +454,11 @@ namespace Polhemus
         {
             if (efs != null)
             {
-                output3.Text = "Writing out " + electrodeLocations.Count().ToString("0") + " electrode records.";
                 foreach (XYZRecord xyz in electrodeLocations)
                     xyz.write(efs, "");
                 efs.Close();
                 efs = null;
+                output3.Text = "Written out " + electrodeLocations.Count().ToString("0") + " electrode location records.";
             }
         }
 
@@ -479,7 +482,7 @@ namespace Polhemus
         private void Window_Closing(object sender, CancelEventArgs e)
         {
             writeElectrodeFile(); //just in case exit via window close only
-            if (sa != null)
+            if (sa != null) //and make sure background thread not still running
                 sa.Cancel();
         }
 
@@ -516,7 +519,7 @@ namespace Polhemus
             t = projection.Project(t);
             Ellipse circle = new Ellipse();
             circle.Stroke = System.Windows.Media.Brushes.Transparent;
-            int pink = (int)(3 * t.v3);
+            int pink = (int)(5 * t.v3);
             if (pink > 200)
                 pink = 200;
             circle.Fill = new SolidColorBrush(System.Windows.Media.Color.FromRgb(255, (byte)pink, (byte)pink));
