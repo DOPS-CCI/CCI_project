@@ -12,7 +12,7 @@ namespace EDFPlusConverter
     {
         XmlWriter logStream;
 
-        public LogFile(string fileName)
+        public LogFile(string fileName, IEnumerable<GVMapElement> map)
         {
             XmlWriterSettings settings = new XmlWriterSettings();
             settings.Indent = true;
@@ -23,6 +23,15 @@ namespace EDFPlusConverter
             DateTime dt = DateTime.Now;
             logStream.WriteElementString("Date", dt.ToString("D"));
             logStream.WriteElementString("Time", dt.ToString("T"));
+            logStream.WriteStartElement("EventToGVMap");
+            foreach (GVMapElement e in map)
+            {
+                logStream.WriteStartElement("GVValue");
+                logStream.WriteAttributeString("Event", e.Name);
+                logStream.WriteValue(e.Value);
+                logStream.WriteEndElement(/*GVValue*/);
+            }
+            logStream.WriteEndElement(/*EventToGVMap*/);
         }
 
         public void registerHeader(Converter c)
@@ -34,7 +43,7 @@ namespace EDFPlusConverter
             }
             else //BDFConverter
             {
-                conversionType = "EDF";
+                conversionType = "BDF";
             }
             logStream.WriteStartElement("Conversion");
             logStream.WriteAttributeString("Type", conversionType);
@@ -52,9 +61,9 @@ namespace EDFPlusConverter
             logStream.WriteElementString("Length", c.newRecordLengthSec.ToString("0.0000") + "secs");
             logStream.WriteElementString("Decimation", c.decimation.ToString("0"));
             logStream.WriteElementString("EventOffset", c.offset.ToString("0.0000") + "secs");
-            if (conversionType == "EDF")
+            if (conversionType == "BDF")
             {
-                logStream.WriteElementString("DeletedEventsAsZero", ((EDFConverter)c).deleteAsZero ? "True" : "False");
+                logStream.WriteElementString("DeletedEventsAsZero", ((BDFConverter)c).deleteAsZero ? "True" : "False");
             }
             logStream.WriteStartElement("Processing");
             string p;

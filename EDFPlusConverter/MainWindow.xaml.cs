@@ -35,7 +35,7 @@ namespace EDFPlusConverter
         int oldNP;
         int newNP;
         EDFPlusConverter.FMConverter fmc = null;
-        EDFPlusConverter.EDFConverter edfc = null;
+        EDFPlusConverter.BDFConverter bdfc = null;
 
         ObservableCollection<GVMapElement> GVMapElements = new ObservableCollection<GVMapElement>();
         List<EventMark> EventMarks = new List<EventMark>();
@@ -157,16 +157,16 @@ namespace EDFPlusConverter
                 bwfmc.RunWorkerCompleted += bw_RunWorkerCompleted;
                 bwfmc.WorkerReportsProgress = true;
             }
-            if ((bool)EDFconvert.IsChecked)
+            if ((bool)BDFconvert.IsChecked)
             {
-                if (edfc == null) /* Just in time singleton */
-                    edfc = new EDFPlusConverter.EDFConverter();
+                if (bdfc == null) /* Just in time singleton */
+                    bdfc = new EDFPlusConverter.BDFConverter();
 
-                createConverterBase(edfc);
+                createConverterBase(bdfc);
 
-                edfc.deleteAsZero = (bool)DeleteAsZero.IsChecked;
+                bdfc.deleteAsZero = (bool)DeleteAsZero.IsChecked;
                 bwedfc = new BackgroundWorker();
-                bwedfc.DoWork += new DoWorkEventHandler(edfc.Execute);
+                bwedfc.DoWork += new DoWorkEventHandler(bdfc.Execute);
                 bwedfc.ProgressChanged += new ProgressChangedEventHandler(bw_ProgressChanged);
                 bwedfc.RunWorkerCompleted += bw_RunWorkerCompleted;
                 bwedfc.WorkerReportsProgress = true;
@@ -178,12 +178,12 @@ namespace EDFPlusConverter
                 bwlast = bwfmc;
                 bwlast.RunWorkerAsync();
             }
-            else if (_convertType == 2) //EDF only
+            else if (_convertType == 2) //BDF only
             {
                 bwlast = bwedfc;
                 bwlast.RunWorkerAsync();
             }
-            else //both FM and EDF
+            else //both FM and BDF
             {
                 bwfirst = bwfmc;
                 bwlast = bwedfc;
@@ -221,12 +221,12 @@ namespace EDFPlusConverter
 
         void bw_ProgressChanged(object sender, ProgressChangedEventArgs e)
         {
-            StatusLine.Text = (sender == bwfmc ? "FMConverter" : "EDFConverter") + " conversion status: " + (string)e.UserState;
+            StatusLine.Text = (sender == bwfmc ? "FMConverter" : "BDFConverter") + " conversion status: " + (string)e.UserState;
         }
 
         void bw_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
         {
-            string source = sender == bwfmc ? "FMConverter" : "EDFConverter";
+            string source = sender == bwfmc ? "FMConverter" : "BDFConverter";
             if (e.Error != null)
             {
                 StatusLine.Foreground = new SolidColorBrush(Colors.Red);
@@ -239,9 +239,9 @@ namespace EDFPlusConverter
                 StatusLine.Text = source + " status: Completed conversion with " + res[0].ToString() + " records in " + res[1].ToString() + " recordsets generated.";
                 CCIUtilities.Log.writeToLog(source + " completed conversion, generating " + res[1].ToString() + " recordsets");
             }
-            if (sender == bwfirst) //need to do EDF conversion too
+            if (sender == bwfirst) //need to do BDF conversion too
             {
-                bwlast.RunWorkerAsync(); //start second conversion (always EDF)
+                bwlast.RunWorkerAsync(); //start second conversion (always BDF)
             }
             else
             {
@@ -373,7 +373,7 @@ namespace EDFPlusConverter
         {
             try
             {
-                return CCIUtilities.Utilities.parseChannelList(str, 1, edfPlus.NumberOfChannels - 1, true); //exclude EDF Annotations channel
+                return CCIUtilities.Utilities.parseChannelList(str, 1, edfPlus.NumberOfChannels - 1, true); //exclude EDF+ Annotations channel
             }
             catch
             {
@@ -493,12 +493,12 @@ namespace EDFPlusConverter
                     convertButtonLabel.Text = "Convert to FM";
                 else
                     ConvertFM.IsEnabled = false;
-            else if (_convertType == 2) convertButtonLabel.Text = "Convert to EDF";
+            else if (_convertType == 2) convertButtonLabel.Text = "Convert to BDF";
             else if (_convertType == 3)
                 if(FMconvert.IsEnabled)
-                    convertButtonLabel.Text = "Convert to FM and EDF";
+                    convertButtonLabel.Text = "Convert to FM and BDF";
                 else
-                    convertButtonLabel.Text = "Convert to EDF";
+                    convertButtonLabel.Text = "Convert to BDF";
         }
 
         private void radioButton_Changed(object sender, RoutedEventArgs e)
@@ -556,7 +556,7 @@ namespace EDFPlusConverter
                 foreach (GVMapElement gv in GVMapElements.Where(n => n.Value > gv1.Value)) gv.Value--;
                 GVMap.SelectedIndex = 0;
                 DeleteAsZero.Visibility = Visibility.Visible; //may need
-                DeleteAsZero.IsEnabled = (bool)EDFconvert.IsChecked;
+                DeleteAsZero.IsEnabled = (bool)BDFconvert.IsChecked;
             }
             else
             {
@@ -604,8 +604,8 @@ namespace EDFPlusConverter
             _convertType = 0;
             if ((bool)FMconvert.IsChecked) _convertType++;
             Offsets.IsEnabled = GVNamePanel.IsEnabled = (bool)FMconvert.IsChecked;
-            if ((bool)EDFconvert.IsChecked) _convertType += 2;
-            DeleteAsZero.IsEnabled = (bool)EDFconvert.IsChecked;
+            if ((bool)BDFconvert.IsChecked) _convertType += 2;
+            DeleteAsZero.IsEnabled = (bool)BDFconvert.IsChecked;
             checkError();
         }
 

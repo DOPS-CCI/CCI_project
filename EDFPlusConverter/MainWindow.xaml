@@ -76,7 +76,7 @@
                             </TextBox>
                         </StackPanel>
                         <CheckBox Name="DeleteAsZero" Grid.Column="2" VerticalContentAlignment="Center" VerticalAlignment="Center"
-                                  Margin="4" IsChecked="True" Visibility="Collapsed">Show deleted events as zero in EDF</CheckBox>
+                                  Margin="4" IsChecked="True" Visibility="Collapsed">Show deleted events as zero in BDF: Status</CheckBox>
                     </Grid>
             </Grid>
         </GroupBox>
@@ -177,13 +177,13 @@
             </Grid.ColumnDefinitions>
                 <StackPanel Orientation="Horizontal" Grid.Column="0">
                     <CheckBox Name="FMconvert" IsChecked="True" VerticalAlignment="Center" Margin="8,0" Click="CheckBox_Click">Create FILMAN file</CheckBox>
-                    <CheckBox Name="EDFconvert" VerticalAlignment="Center" Margin="8,0" IsChecked="True" Click="CheckBox_Click">Create EDF file</CheckBox>
+                    <CheckBox Name="BDFconvert" VerticalAlignment="Center" Margin="8,0" IsChecked="True" Click="CheckBox_Click">Create BDF file</CheckBox>
                 </StackPanel>
                     <StackPanel Grid.Column="1" Orientation="Horizontal" Grid.ColumnSpan="2" HorizontalAlignment="Right">
                 <Button VerticalAlignment="Center" Margin="8,4" Height="24" Name="Cancel" Width="80" FontSize="14" Click="Cancel_Click">Exit</Button>
                 <Button VerticalAlignment="Center" Margin="8,4" Height="24" Name="ConvertFM" Width="Auto" FontSize="14" Click="ConvertFM_Click">
                         <Button.Content>
-                            <TextBlock Name="convertButtonLabel" Margin="4,0">Convert to FM and EDF</TextBlock>
+                            <TextBlock Name="convertButtonLabel" Margin="4,0">Convert to FM and BDF</TextBlock>
                         </Button.Content>
                 </Button>
                 </StackPanel>

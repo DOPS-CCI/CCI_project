@@ -51,7 +51,7 @@ namespace EDFPlusConverter
                 3, 0, channels.Count,
                 newRecordLengthPts,
                 FILMANFileStream.FILMANFileStream.Format.Real);
-            log = new LogFile(dlg.FileName + ".log.xml");
+            log = new LogFile(dlg.FileName + ".log.xml", GVMapElements);
             FMStream.IS = Convert.ToInt32((double)newRecordLengthPts / newRecordLengthSec); //rounding method
             bigBuff = new float[edfPlus.NumberOfChannels - 1, FMStream.ND]; //have to dimension to BDF rather than FMStream
             //in case we need for reference calculations
