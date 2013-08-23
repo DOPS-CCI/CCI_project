@@ -314,22 +314,23 @@ namespace Polhemus
                     _responseFrameDescription[i].Clear();
             else
                 _responseFrameDescription[(int)station - 1].Clear();
+            IDataFrameType dft = null;
             foreach (Type outputType in outputTypes)
             {
-                IDataFrameType dft = (IDataFrameType)Activator.CreateInstance(outputType);
-                sb.Append("," + dft.ParameterValue.ToString("0"));
                 if (station == null)
                 {
-                    _responseFrameDescription[0].Add(dft);
-
-                    for (int i = 1; i < MaxStations; i++)
+                    for (int i = 0; i < MaxStations; i++)
                     {
                         dft = (IDataFrameType)Activator.CreateInstance(outputType);
                         _responseFrameDescription[i].Add(dft);
                     }
                 }
                 else
+                {
+                    dft = (IDataFrameType)Activator.CreateInstance(outputType);
                     _responseFrameDescription[(int)station - 1].Add(dft);
+                }
+                sb.Append("," + dft.ParameterValue.ToString("0"));
             }
             SendCommand(sb.ToString(), true);
         }
@@ -1047,27 +1048,18 @@ namespace Polhemus
         }
 
         /***** Vector operations *****/
-/*        public static bool operator ==(Triple A, Triple B)
-        {
-            return A.v1 == B.v1 && A.v2 == B.v2 && A.v3 == B.v3;
-        }
 
-        public static bool operator !=(Triple A, Triple B)
-        {
-            return !(A == B);
-        }
-*/
-        public static Triple operator +(Triple a, Triple b)
+        public static Triple operator +(Triple a, Triple b) //Sum
         {
             return new Triple(a.v1 + b.v1, a.v2 + b.v2, a.v3 + b.v3);
         }
 
-        public static Triple operator -(Triple a, Triple b)
+        public static Triple operator -(Triple a, Triple b) //Difference
         {
             return new Triple(a.v1 - b.v1, a.v2 - b.v2, a.v3 - b.v3);
         }
 
-        public static Triple operator *(double a, Triple B)
+        public static Triple operator *(double a, Triple B) //Multiplication by scalar
         {
             return new Triple(a * B.v1, a * B.v2, a * B.v3);
         }
@@ -1086,20 +1078,20 @@ namespace Polhemus
             return C;
         }
 
-        public Triple Norm()
+        public Triple Norm() //Normalize vector
         {
             double v = 1D / this.Length();
             return v * this;
         }
 
-        public double Length()
+        public double Length() //Length of vector
         {
             return Math.Sqrt(v1 * v1 + v2 * v2 + v3 * v3);
         }
 
         static string SingleConvert(double x)
         {
-            if (double.IsNaN(x)) return ",";
+            if (double.IsNaN(x)) return ","; //safely handle NaN
             return "," + x.ToString("0.0000");
         }
 
@@ -1138,12 +1130,12 @@ namespace Polhemus
 
         public static Quadruple FromASCII(StreamReader sr, string format)
         {
-            Quadruple cc = new Quadruple();
-            cc.v1 = (double)PolhemusController.parseASCIIStream(sr, format);
-            cc.v2 = (double)PolhemusController.parseASCIIStream(sr, format);
-            cc.v3 = (double)PolhemusController.parseASCIIStream(sr, format);
-            cc.v4 = (double)PolhemusController.parseASCIIStream(sr, format);
-            return cc;
+            Quadruple q = new Quadruple();
+            q.v1 = (double)PolhemusController.parseASCIIStream(sr, format);
+            q.v2 = (double)PolhemusController.parseASCIIStream(sr, format);
+            q.v3 = (double)PolhemusController.parseASCIIStream(sr, format);
+            q.v4 = (double)PolhemusController.parseASCIIStream(sr, format);
+            return q;
 
         }
         public static Quadruple FromBinary(BinaryReader br)
@@ -1448,7 +1440,7 @@ namespace Polhemus
 
     public class DirectionCosineMatrix : IDataFrameType
     {
-        public double[,] Matrix = new double[3, 3];
+        public Triple[] Matrix = new Triple[3];
 
         public int ParameterValue { get { return 6; } }
 
@@ -1456,39 +1448,47 @@ namespace Polhemus
 
         public int BinaryLength { get { return 36; } }
 
+        public DirectionCosineMatrix()
+        {
+            for (int i = 0; i < 3; i++)
+                Matrix[i] = new Triple();
+        }
+
         public void FromASCII(StreamReader sr)
         {
             int i = 0;
             for (int j = 0; j < 3; j++)
-                Matrix[i, j] = (double)PolhemusController.parseASCIIStream(sr, "Sx.xxxxxB");
+                Matrix[j][i] = (double)PolhemusController.parseASCIIStream(sr, "Sx.xxxxxB");
             PolhemusController.parseASCIIStream(sr, "<>");
             i = 1;
             PolhemusController.parseASCIIStream(sr, "AAAA"); //skip 4 blanks at beginning of line
             for (int j = 0; j < 3; j++)
-                Matrix[i, j] = (double)PolhemusController.parseASCIIStream(sr, "Sx.xxxxxB");
+                Matrix[j][i] = (double)PolhemusController.parseASCIIStream(sr, "Sx.xxxxxB");
             PolhemusController.parseASCIIStream(sr, "<>");
             i = 2;
             PolhemusController.parseASCIIStream(sr, "AAAA"); //skip 4 blanks at beginning of line
             for (int j = 0; j < 3; j++)
-                Matrix[i, j] = (double)PolhemusController.parseASCIIStream(sr, "Sx.xxxxxB");
+                Matrix[j][i] = (double)PolhemusController.parseASCIIStream(sr, "Sx.xxxxxB");
+            PolhemusController.parseASCIIStream(sr, "<>");
         }
 
         public void FromBinary(BinaryReader br)
         {
             for (int i = 0; i < 3; i++)
                 for (int j = 0; j < 3; j++)
-                    Matrix[i, j] = br.ReadSingle();
+                    Matrix[j][i] = br.ReadSingle();
+        }
+
+        public Triple Transform(Triple v)
+        {
+            return new Triple(v * Matrix[0], v * Matrix[1], v * Matrix[2]);
         }
 
         public override string ToString()
         {
             StringBuilder sb = new StringBuilder("[ ");
             for (int i = 0; i < 3; i++)
-            {
-                for (int j = 0; j < 3; j++)
-                    sb.Append(Matrix[i, j].ToString("0.0000") + " ");
-                sb.Append("/ ");
-            }
+                sb.Append(Matrix[0][i].ToString("0.0000") + "," + Matrix[1][i].ToString("0.0000") + "," + Matrix[2][i].ToString("0.0000") + " / ");
             sb.Replace("/ ", "]", sb.Length - 2, 2);
             return sb.ToString();
         }
@@ -1713,7 +1713,9 @@ namespace Polhemus
 
         void sa_StylusProgressChanged(object sender, ProgressChangedEventArgs e)
         {
+#if TRACE
             Console.WriteLine("StylusProgressChanged");
+#endif
             if (_monitor != null)
                 _monitor((List<IDataFrameType>[])e.UserState, false); //independent of stylus button state
             if (e.ProgressPercentage == 0) return; //use to determine if in last segment of tracking stylus button
@@ -1723,7 +1725,9 @@ namespace Polhemus
 
         void sa_StylusMarker(object sender, RunWorkerCompletedEventArgs e)
         {
+#if TRACE
             Console.WriteLine("StylusMarker " + trueCancellation.ToString() + " " + e.Cancelled.ToString());
+#endif
             if (e.Error != null)
                 throw e.Error;
             List<IDataFrameType>[] t = e.Cancelled ? null : (List<IDataFrameType>[])e.Result;
@@ -1758,7 +1762,9 @@ namespace Polhemus
                 Thread.Sleep(sleepTime);
                 currentFrame = _controller.SingleDataRecordOutput();
                 if (bw.CancellationPending) {
+#if TRACE
                     Console.WriteLine("BW: Cancel 1");
+#endif
                     e.Result = currentFrame; //truecancellation vs extrinsic
                     e.Cancel = true;
                     return;
@@ -1771,7 +1777,9 @@ namespace Polhemus
                 Thread.Sleep(sleepTime);
                 currentFrame = _controller.SingleDataRecordOutput();
                 if (bw.CancellationPending) {
+#if TRACE
                     Console.WriteLine("BW: Cancel 2");
+#endif
                     e.Result = currentFrame; //truecancellation vs extrinsic
                     e.Cancel = true;
                     return;
@@ -1789,7 +1797,9 @@ namespace Polhemus
                     currentFrame = _controller.SingleDataRecordOutput();
                     if (bw.CancellationPending)
                     {
+#if TRACE
                         Console.WriteLine("BW: Cancel 3");
+#endif
                         e.Result = currentFrame;
                         e.Cancel = true;
                         return;

@@ -46,7 +46,6 @@ namespace Polhemus
         int hemisphere;
         bool voice;
 
-//        Window2 drawing;
         Projection projection;
 
         public event PointAcquisitionFinishedEventHandler AcquisitionFinished;
@@ -116,8 +115,7 @@ namespace Polhemus
             if (mode == 0) samples = w._sampCount1;
             else if (mode == 1) samples = w._sampCount2;
             else if (mode == 3) threshold = w._SDThresh;
-            w = null; //free resources
-            projection = new Projection(new Triple(0, eyeDistance, 0), FOV);
+            projection = new Projection(new Triple(0, 0, eyeDistance), FOV);
 
             InitializeComponent();
 
@@ -139,10 +137,14 @@ namespace Polhemus
             else
                 p.HemisphereOfOperation(null, 0, 0, v);
             p.SetUnits(PolhemusController.Units.Metric); //Metric measurements
-            Type[] df = { typeof(CartesianCoordinates) }; //set up cartesian coordinate output only
-            p.OutputDataList(null, df);
-            StylusAcquisition.Monitor c = Monitor;
-            
+            Type[] df1 = { typeof(CartesianCoordinates) }; //set up cartesian coordinate output only for stylus
+            p.OutputDataList(1, df1);
+            Type[] df2 = { typeof(CartesianCoordinates), typeof(DirectionCosineMatrix) }; //coordinates and direction cosines for sensor 2
+            p.OutputDataList(2, df2);
+            StylusAcquisition.Monitor c = null;
+            if ((bool)w.Monitor.IsChecked)
+                c = Monitor;
+            w = null; //free resources
             if (mode == 0)
             {
                 StylusAcquisition.SingleShot sm = SinglePoint;
@@ -166,12 +168,10 @@ namespace Polhemus
         void Monitor(List<IDataFrameType>[] frame, bool final)
         {
             if (frame == null) return;
-            CartesianCoordinates cc0 = (CartesianCoordinates)frame[0][0];
-            CartesianCoordinates cc1 = (CartesianCoordinates)frame[1][0];
-            double dx = Math.Sqrt(cc0.X * cc0.X + cc0.Y * cc0.Y + cc0.Z * cc0.Z);
-            double d = Math.Sqrt((cc0.X - cc1.X) * (cc0.X - cc1.X) +
-                (cc0.Y - cc1.Y) * (cc0.Y - cc1.Y) +
-                (cc0.Z - cc1.Z) * (cc0.Z - cc1.Z));
+            Triple cc0 = ((CartesianCoordinates)frame[0][0]).ToTriple();
+            Triple cc1 = ((CartesianCoordinates)frame[1][0]).ToTriple();
+            double dx = cc0.Length();
+            double d = (cc0 - cc1).Length();
             double d0 = last[ilast];
             last[ilast] = d;
             ilast = ++ilast % smooth;
@@ -188,11 +188,15 @@ namespace Polhemus
         void SinglePoint(List<IDataFrameType>[] frame) //one shot completed delegate
         {
             Skip.IsEnabled = false;
+#if TRACE
             Console.WriteLine("SinglePoint " + pointCount.ToString("0") + " " + (frame == null).ToString());
+#endif
             if (frame != null)
             {
-                Triple P = ((CartesianCoordinates)p.ResponseFrameDescription[0][0]).ToTriple() -
+                Triple newP = ((CartesianCoordinates)p.ResponseFrameDescription[0][0]).ToTriple() -
                     ((CartesianCoordinates)p.ResponseFrameDescription[1][0]).ToTriple();
+                DirectionCosineMatrix t = (DirectionCosineMatrix)p.ResponseFrameDescription[1][1];
+                Triple P = t.Transform(newP);
                 sumP += P;
                 double dr = P.Length();
                 Dsum += dr;
@@ -220,11 +224,15 @@ namespace Polhemus
         {
             Skip.IsEnabled = false;
             int entryType = (frame == null ? (final ? 0 : 1) : (final ? 2 : 3)); //extrinsic:cancel:intrinsic:continued
+#if TRACE
             Console.WriteLine("ContinuousPoints " + Dcount.ToString("0") + " " + entryType.ToString("0"));
+#endif
             if (entryType == 3/*continued*/) //add new point into running averages
             {
-                Triple P = ((CartesianCoordinates)p.ResponseFrameDescription[0][0]).ToTriple() -
+                Triple newP = ((CartesianCoordinates)p.ResponseFrameDescription[0][0]).ToTriple() -
                     ((CartesianCoordinates)p.ResponseFrameDescription[1][0]).ToTriple();
+                DirectionCosineMatrix t = (DirectionCosineMatrix)p.ResponseFrameDescription[1][1];
+                Triple P = t.Transform(newP);
                 sumP += P;
                 double dr = P.Length();
                 Dsum += dr;
@@ -288,11 +296,13 @@ namespace Polhemus
         //this should be incremented at the time of successful acquistion and not if unsuccessful or cancelled
         private void AcquisitionLoop(object sa, PointAcqusitionFinishedEventArgs e)
         {
+#if TRACE
             if (e != null)
                 Console.WriteLine("AcquisitionLoop " + electrodeNumber.ToString("0") + " " +
                     (e.result == null) + " " + (e.Retry).ToString());
             else
                 Console.WriteLine("AcquisitionLoop " + electrodeNumber.ToString("0"));
+#endif
             if (!executeSkip)
             {
                 if (electrodeNumber >= 0)
@@ -302,19 +312,19 @@ namespace Polhemus
                         Triple t = DoCoordinateTransform(e.result);
                         string name = templateList[electrodeNumber].Name;
                         output1.Text = name + ": " + t.ToString();
-                        if (electrodeLocations.Where(l => l.Name == name).Count() == 0)
+                        if (electrodeLocations.Where(l => l.Name == name).Count() == 0) //assure unique electrode name
                         {
                             XYZRecord xyz = new XYZRecord(name, t.v1, t.v2, t.v3);
                             electrodeLocations.Add(xyz);
                             addPointToView(xyz);
                         }
-                        else
+                        else //this is a replacement
                         {
-                            XYZRecord xyz = electrodeLocations.Where(l => l.Name == name).First();
-                            /*                        xyz.X = t.v1;
-                                                    xyz.Y = t.v2;
-                                                    xyz.Z = t.v3;
-                            */
+                            XYZRecord XYZ = electrodeLocations.Where(l => l.Name == name).First(); //get item to be replaced
+                            XYZRecord newXYZ = new XYZRecord(name, XYZ.X, XYZ.Y, XYZ.Z); //create new entry
+                            int n = electrodeLocations.IndexOf(XYZ); //and replace old
+                            electrodeLocations.Remove(XYZ);
+                            electrodeLocations.Insert(n, newXYZ);
                         }
                         electrodeNumber++; //on to next electrode location
                     }
@@ -439,15 +449,7 @@ namespace Polhemus
         private Triple DoCoordinateTransform(Triple t)
         {
             Triple p = t - Origin;
-            Triple q = new Triple();
-            for (int i = 0; i < 3; i++)
-            {
-                double s = 0D;
-                for (int j = 0; j < 3; j++)
-                    s += Transform[i][j] * p[j];
-                q[i] = s;
-            }
-            return q;
+            return new Triple(p * Transform[0], p * Transform[1], p * Transform[2]);
         }
 
         private void writeElectrodeFile()
@@ -476,12 +478,13 @@ namespace Polhemus
 
         private void Redo_Click(object sender, RoutedEventArgs e)
         {
-
+            electrodeNumber--;
+            DoPrompting(true);
         }
 
         private void Window_Closing(object sender, CancelEventArgs e)
         {
-            writeElectrodeFile(); //just in case exit via window close only
+            writeElectrodeFile(); //just in case this exit is via window close only
             if (sa != null) //and make sure background thread not still running
                 sa.Cancel();
         }
@@ -523,7 +526,7 @@ namespace Polhemus
             if (pink > 200)
                 pink = 200;
             circle.Fill = new SolidColorBrush(System.Windows.Media.Color.FromRgb(255, (byte)pink, (byte)pink));
-            double r = 120D / t.v3;
+            double r = 90D / t.v3;
             circle.Height = circle.Width = r * 2D;
             Canvas.SetTop(circle, Draw.ActualHeight / 2 - 100 * t.v2 - r);
             Canvas.SetLeft(circle, Draw.ActualWidth / 2 + 100 * t.v1 - r);

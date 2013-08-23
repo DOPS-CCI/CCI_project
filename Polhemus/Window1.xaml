@@ -34,7 +34,7 @@
             <Button Content="Select file" Height="24" Name="button1" Width="78" Margin="4" Click="SelectFile_Click" />
         </StackPanel>
             <TextBlock Grid.Row="2" Grid.Column="0" FontSize="14" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="4">Hemisphere</TextBlock>
-        <ComboBox DataContext="{StaticResource ResourceKey=hemispheres}" ItemsSource="{Binding}" IsSynchronizedWithCurrentItem="True" Grid.Row="2" Grid.Column="1" Height="24" HorizontalAlignment="Left" Margin="4" Name="Hemisphere" VerticalAlignment="Center" Width="Auto" IsEditable="False" SelectedIndex="1" VerticalContentAlignment="Center" />
+        <ComboBox DataContext="{StaticResource ResourceKey=hemispheres}" ItemsSource="{Binding}" IsSynchronizedWithCurrentItem="True" Grid.Row="2" Grid.Column="1" Height="24" HorizontalAlignment="Left" Margin="4" Name="Hemisphere" VerticalAlignment="Center" Width="Auto" IsEditable="False" SelectedIndex="0" VerticalContentAlignment="Center" />
         <GroupBox Grid.Row="3" Grid.ColumnSpan="2" Margin="4" FontSize="14" FontWeight="Bold"  Header="Mode">
             <StackPanel Orientation="Vertical">
                 <StackPanel Orientation="Horizontal">
@@ -50,7 +50,10 @@
                     <RadioButton Name="rb3"  Margin="8,4,0,4" FontWeight="Normal" Content="Sample to criteria: SD &lt; " GroupName="ModeSelection" Tag="3" Checked="rb_Checked" />
                     <TextBox Height="23" Name="SDThresh" Width="50" FontWeight="Normal" IsEnabled="{Binding ElementName=rb3, Path=IsChecked}" TextChanged="SDThresh_changed">0.100</TextBox>
                 </StackPanel>
+                <StackPanel Orientation="Horizontal">
                 <CheckBox Name="Voice" Margin="8" FontWeight="Normal" IsChecked="True">Use voice cuing</CheckBox>
+                <CheckBox Name="Monitor" Margin="8" FontWeight="Normal" IsChecked="True">Use monitoring function</CheckBox>
+                </StackPanel>
             </StackPanel>
         </GroupBox>
         <StackPanel Grid.Row="4" Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="4">

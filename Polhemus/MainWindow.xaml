@@ -28,7 +28,7 @@
             <Slider Grid.Row="0" Grid.Column="0" Name="Magnification" Orientation="Vertical" Value="1.5" Maximum="2" Minimum="1" ValueChanged="Magnification_ValueChanged"></Slider>
             <TextBlock Grid.Column="1" Name="ButtonInfo" VerticalAlignment="Bottom" HorizontalAlignment="Right" Background="#00000000"/>
             <Slider Grid.Row="1" Grid.Column="1" Name="Yaw" Orientation="Horizontal" Value="0" Maximum="180" Minimum="-180" ValueChanged="Yaw_ValueChanged"></Slider>
-            <Slider Grid.Column="3" Name="Pitch" Orientation="Vertical" Value="0" Maximum="90" Minimum="-90" ValueChanged="Pitch_ValueChanged"></Slider>
+            <Slider Grid.Column="3" Name="Pitch" Orientation="Vertical" Value="90" Maximum="90" Minimum="-90" ValueChanged="Pitch_ValueChanged"></Slider>
         </Grid>
         <TextBlock Grid.Row="0" Grid.RowSpan="5" Grid.Column="1" Name="ElectrodeName" FontSize="120" Text="Nasion" HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap" />
         <TextBlock Grid.Column="0" Name="output1" Grid.Row="1" Margin="4" HorizontalAlignment="Center" FontSize="18" />
@@ -36,7 +36,7 @@
         <TextBlock Grid.Column="0" Name="output3" Grid.Row="3" Margin="4" HorizontalAlignment="Center" FontSize="18" />
         <StackPanel Orientation="Horizontal" Grid.Row="4" HorizontalAlignment="Center">
             <Button Name="Skip" Width="100" Margin="8" Click="Skip_Click" IsDefault="True" IsEnabled="False">SKIP</Button>
- <!--           <Button Name="Redo" Width="100" Margin="8" Click="Redo_Click" IsEnabled="False">REDO</Button>-->
+            <Button Name="Redo" Width="100" Margin="8" Click="Redo_Click" IsEnabled="False">REDO</Button>
             <Button Name="Stop" Width="100" Margin="8" Click="Stop_Click">EXIT</Button>
         </StackPanel>
     </Grid>
