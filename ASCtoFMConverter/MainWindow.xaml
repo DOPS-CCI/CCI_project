@@ -52,7 +52,8 @@
             <StackPanel Orientation="Horizontal">
                 <TextBox Name="SelChan" Width="492" TextChanged="SelChan_TextChanged">
                     <TextBox.ToolTip>List channels to be included in output file</TextBox.ToolTip>
-                    0-15</TextBox>
+                    1-16
+                </TextBox>
                 <TextBox Name="SelChanName" Width="145" Margin="10,0,0,0" IsEnabled="True" IsReadOnly="True">16 channels</TextBox>
             </StackPanel>
         </GroupBox>
@@ -114,10 +115,6 @@
                     <RadioButton Grid.Column="2" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="2,2,0,2" Height="17"  Name="removeTrends" IsEnabled="True" VerticalContentAlignment="Top">
                         <RadioButton.Content>Remove channel trends</RadioButton.Content>
                         <RadioButton.ToolTip>Check to remove linear trend from each channel</RadioButton.ToolTip>
-                    </RadioButton>
-                    <RadioButton Grid.Column="3" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="2,2,0,2" Height="17"  Name="splineOffsets" IsEnabled="True" VerticalContentAlignment="Top">
-                        <RadioButton.Content>Remove drift by spline</RadioButton.Content>
-                        <RadioButton.ToolTip>Check to trends based on spline fit</RadioButton.ToolTip>
                     </RadioButton>
                 </Grid>
             </StackPanel>

@@ -12,6 +12,7 @@ using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Forms;
 using System.Windows.Media;
+using BDFEDFFileStream;
 using CCILibrary;
 using EventDictionary;
 using GroupVarDictionary;
@@ -531,7 +532,7 @@ namespace ASCtoFMConverter
             conv.decimation = _decimation;
             conv.removeOffsets = (bool)removeOffsets.IsChecked;
             conv.removeTrends = (bool)removeTrends.IsChecked;
-            conv.removeSpline = (bool)splineOffsets.IsChecked;
+//            conv.removeSpline = (bool)splineOffsets.IsChecked;
             conv.radinOffset = Radin.IsEnabled && (bool)Radin.IsChecked;
             if (conv.radinOffset)
             {

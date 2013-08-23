@@ -83,7 +83,6 @@ namespace ASCtoFMConverter
                 p = "None";
                 if (c.removeTrends) p = "Offset and linear trend removal";
                 else if (c.removeOffsets) p = "Offset removal";
-                else if (c.removeSpline) p = "Spline removal";
             }
             logStream.WriteString(p);
             logStream.WriteEndElement(/* Processing */);

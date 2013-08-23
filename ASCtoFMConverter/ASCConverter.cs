@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Text;
+using BDFEDFFileStream;
 using ElectrodeFileStream;
 using Event;
 using EventFile;
@@ -24,14 +25,13 @@ namespace ASCtoFMConverter
         public int decimation;
         public bool removeOffsets;
         public bool removeTrends;
-        public bool removeSpline;
         public bool radinOffset;
         public int radinLow;
         public int radinHigh;
         public List<int> channels;
         public List<List<int>> referenceGroups = null;
         public List<List<int>> referenceChannels = null;
-        public BDFEDFFileReader bdf;
+        public BDFEDFFileStream.BDFEDFFileReader bdf;
         public List<GVEntry> GV;
         public double FMRecLength;
         public int samplingRate;
@@ -274,7 +274,7 @@ namespace ASCtoFMConverter
             log.Close();
             Log.writeToLog("Completed ASC conversion with " + FMStream.NR.ToString("0") + " FM records created");
         }
-        BSpline3 bSpline = null;
+
         private void createFILMANRecord(BDFPoint startingPt, BDFPoint endPt, InputEvent evt)
         {
             if (startingPt.Rec < 0) return; //start of record outside of file coverage; so skip it
@@ -282,9 +282,9 @@ namespace ASCtoFMConverter
 
             /***** Read correct portion of BDF file and decimate *****/
             int pt = 0;
-            int j;
-            int k;
-            int p = 0; //set to avoid compiler complaining about uninitialized variable!
+            int j = 0; //set to avoid compiler complaining about uninitialized variable!
+            int k = 0;
+            int p = 0;
             for (int rec = startingPt.Rec; rec <= endPt.Rec; rec++)
             {
                 if (bdf.read(rec) == null) throw new Exception("Unable to read BDF record #" + rec.ToString("0"));
@@ -330,15 +330,10 @@ namespace ASCtoFMConverter
                     for (int i = 0; i < FMStream.ND; i++) beta += (bigBuff[channel, i] - ave) * ((double)i - t);
                     beta = 12.0D * beta / fn;
                 }
-                if (removeSpline) //calculate offset for removal by spline regression
-                {
-                    throw new NotImplementedException("Spline removal of offsets not yet implemented.");
-                }
                 for (int i = 0; i < FMStream.ND; i++)
                     FMStream.record[i] = bigBuff[channel, i] - (ave + beta * ((double)i - t));
                 FMStream.write(); //Channel number group variable taken care of here
             }
-            bSpline=null;
         }
 
         private void calculateReferencedData()
