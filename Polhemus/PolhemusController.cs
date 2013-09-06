@@ -1469,7 +1469,6 @@ namespace Polhemus
             PolhemusController.parseASCIIStream(sr, "AAAA"); //skip 4 blanks at beginning of line
             for (int j = 0; j < 3; j++)
                 Matrix[j][i] = (double)PolhemusController.parseASCIIStream(sr, "Sx.xxxxxB");
-            PolhemusController.parseASCIIStream(sr, "<>");
         }
 
         public void FromBinary(BinaryReader br)
