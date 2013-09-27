@@ -218,11 +218,6 @@ namespace ElectrodeFileStream
             return angleDiff(this.Phi, this.Theta, ((PhiThetaRecord)er).Phi, ((PhiThetaRecord)er).Theta);
         }
 
-        public string ToString(string format)
-        {
-            return Math.Round(Phi * ToDeg).ToString(format) + "," + Math.Round(Theta * ToDeg).ToString(format);
-        }
-
         public override string ToString()
         {
             return "PhiTheta: " + (Phi * ToDeg).ToString("0.0") + ", " + (Theta * ToDeg).ToString("0.0");
@@ -429,6 +424,11 @@ namespace ElectrodeFileStream
         {
             Phi = phi;
             Theta = theta;
+        }
+
+        public string ToString(string format)
+        {
+            return Math.Round(Phi).ToString(format) + "," + Math.Round(Theta).ToString(format);
         }
     }
 }

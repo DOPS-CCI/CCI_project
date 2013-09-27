@@ -113,7 +113,7 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Converter.cs" />
-    <Compile Include="EDFConverter.cs" />
+    <Compile Include="BDFConverter.cs" />
     <Compile Include="FMConverter.cs" />
     <Compile Include="LogFile.cs" />
     <Compile Include="Properties\Settings.Designer.cs">

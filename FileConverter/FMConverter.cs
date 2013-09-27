@@ -68,8 +68,8 @@ namespace FileConverter
             {
                 string s = BDF.channelLabel(channels[i]);
                 ElectrodeFileStream.ElectrodeRecord p;
-                if (etrFile.etrPositions.TryGetValue(s, out p))
-                    FMStream.ChannelNames(i, s.PadRight(16, ' ') + p);   //add electrode location information, if available
+                if (etrFile.etrPositions.TryGetValue(s, out p))   //add electrode location information, if available
+                    FMStream.ChannelNames(i, s.PadRight(16, ' ') + p.projectPhiTheta().ToString("0"));
                 else
                     FMStream.ChannelNames(i, s);
             }

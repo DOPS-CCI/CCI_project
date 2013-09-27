@@ -93,10 +93,10 @@ namespace ASCtoFMConverter
 
             for (j = 0; j < FMStream.NC; j++) //generate channel labels
             {
-                string s = bdf.channelLabel(j);
+                string s = bdf.channelLabel(channels[j]);
                 ElectrodeFileStream.ElectrodeRecord p;
                 if (etrFile.etrPositions.TryGetValue(s, out p))
-                    FMStream.ChannelNames(j, s.PadRight(16, ' ') + p);   //add electrode location information, if available
+                    FMStream.ChannelNames(j, s.PadRight(16, ' ') + p.projectPhiTheta().ToString("0"));   //add electrode location information, if available
                 else
                     FMStream.ChannelNames(j, s);
             }
