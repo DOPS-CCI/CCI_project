@@ -1,0 +1,55 @@
+﻿<Window x:Class="FMDataConsolidator.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:FMDataConsolidator"
+        Title="FILMAN Data Consolidator" MaxHeight="720" WindowStartupLocation="CenterScreen" VerticalAlignment="Top" 
+        Height="Auto" Width="854">
+    <Window.Resources>
+        <Style x:Key="NormalButton" TargetType="Button">
+            <Setter Property="Width" Value="80"/>
+            <Setter Property="Margin" Value="8"/>
+            <Setter Property="Height" Value="24"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+        </Style>
+    </Window.Resources>
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <GroupBox Grid.Row="0" Header="FILMAN Files" BorderBrush="Blue">
+            <StackPanel Orientation="Vertical">
+                <ListBox Name="Files" Height="Auto" MaxHeight="500" MinHeight="140"/>
+                <StackPanel Orientation="Horizontal">
+                    <Button Style="{StaticResource NormalButton}" Click="AddFile_Click">Add file</Button>
+                    <Button Name="RemoveFile" Style="{StaticResource NormalButton}" IsEnabled="False" Click="RemoveFile_Click">Remove file</Button>
+                </StackPanel>
+            </StackPanel>
+        </GroupBox>
+        <GroupBox Grid.Row="1" Header="SYSTAT File" BorderBrush="Blue">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition/>
+                </Grid.ColumnDefinitions>
+                <Border Grid.Column="0" BorderBrush="Blue">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                        <TextBox Name="SYSTATFileName" Height="24" Width="500" Margin="8" TextChanged="SYSTATFileName_TextChanged">SYSTATfile.xxx</TextBox>
+                        <Button Style="{StaticResource NormalButton}" Click="BrowseSYSTAT_Click">Browse...</Button>
+                    </StackPanel>
+                </Border>
+                <GroupBox Grid.Column="1" Header="Format" HorizontalAlignment="Right" VerticalAlignment="Center" BorderBrush="Blue" Margin="2">
+                    <StackPanel Orientation="Horizontal">
+                        <RadioButton Name="SYS" IsChecked="True" Margin="4" Checked="Format_Checked">Single</RadioButton>
+                        <RadioButton Margin="4" Checked="Format_Checked">Double</RadioButton>
+                    </StackPanel>
+                </GroupBox>
+            </Grid>
+        </GroupBox>
+        <StackPanel Orientation="Horizontal" Grid.Row="2" HorizontalAlignment="Right" VerticalAlignment="Center">
+            <Button Style="{StaticResource NormalButton}" IsCancel="True" Click="Cancel_Click">Cancel</Button>
+            <Button Style="{StaticResource NormalButton}" IsEnabled="False">Create file</Button>
+        </StackPanel>
+    </Grid>
+</Window>

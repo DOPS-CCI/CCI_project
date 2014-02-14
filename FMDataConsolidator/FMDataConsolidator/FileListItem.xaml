@@ -1,0 +1,76 @@
+﻿<ListBoxItem x:Class="FMDataConsolidator.FileListItem"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:core="clr-namespace:System;assembly=mscorlib"
+             xmlns:local="clr-namespace:FMDataConsolidator"
+             mc:Ignorable="d" 
+             d:DesignHeight="157" d:DesignWidth="800"
+             DataContext="{Binding RelativeSource={RelativeSource Self}}">
+    <ListBoxItem.Resources>
+        <ObjectDataProvider x:Key="NSEnum" MethodName="GetValues" ObjectType="{x:Type core:Enum}">
+            <ObjectDataProvider.MethodParameters>
+                <x:Type Type="local:NSEnum"/>
+            </ObjectDataProvider.MethodParameters>
+        </ObjectDataProvider>
+    </ListBoxItem.Resources>
+    <Border BorderBrush="Black" BorderThickness="2" Margin="2" CornerRadius="6">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition/>
+                <RowDefinition/>
+                <RowDefinition/>
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="244"/>
+                <ColumnDefinition Width="544"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Name="FileName" Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" FontSize="20" Margin="6">File Name</TextBlock>
+            <GroupBox Grid.Row="1" Grid.Column="0" Header="Group Variables">
+                <DataGrid Name="GVs" ItemsSource="{Binding GroupVars}" SelectionMode="Extended" CanUserAddRows="False" CanUserDeleteRows="False" CanUserReorderColumns="False" CanUserResizeRows="False" CanUserSortColumns="False" AutoGenerateColumns="False">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Width="80" Binding="{Binding FM_GVName}" IsReadOnly="True">
+                            <DataGridTextColumn.Header>
+                                <TextBlock Width="80" TextAlignment="Center" FontWeight="Bold">GV</TextBlock>
+                            </DataGridTextColumn.Header>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Width="80" Binding="{Binding GVName}">
+                        <DataGridTextColumn.Header>
+                            <TextBlock Width="80" TextAlignment="Center" FontWeight="Bold">Name</TextBlock>
+                        </DataGridTextColumn.Header>
+                        </DataGridTextColumn>
+                        <DataGridComboBoxColumn Width="60" SelectedItemBinding="{Binding Format}" ItemsSource="{Binding Source={StaticResource NSEnum}}">
+                            <DataGridComboBoxColumn.Header>
+                                <TextBlock Width="60" TextAlignment="Center" FontWeight="Bold">N/S</TextBlock>
+                            </DataGridComboBoxColumn.Header>
+                            </DataGridComboBoxColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </GroupBox>
+            <GroupBox Grid.Row="1" Grid.Column="1" Header="Points">
+                <DataGrid Name="Points" ItemsSource="{Binding PointGroups}" SelectionMode="Single" CanUserAddRows="False" CanUserDeleteRows="False" CanUserReorderColumns="False" CanUserResizeRows="False" CanUserSortColumns="False" AutoGenerateColumns="False" CellEditEnding="Points_CellEditEnding">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Width="440" Binding="{Binding SelectionString}">
+                        <DataGridTextColumn.Header>
+                                <TextBlock Width="440" TextAlignment="Center" FontWeight="Bold">Selection</TextBlock>
+                        </DataGridTextColumn.Header>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Width="80" Binding="{Binding Name}">
+                        <DataGridTextColumn.Header>
+                            <TextBlock Width="80" TextAlignment="Center" FontWeight="Bold">Name</TextBlock>
+                        </DataGridTextColumn.Header>
+                        </DataGridTextColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </GroupBox>
+            <StackPanel Grid.Column="1" Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Left">
+            <Button Width="16" Height="16" Margin="12,2,2,2" Click="AddButton_Click">
+                    <TextBlock FontWeight="Bold" Margin="0,-4,0,0">+</TextBlock></Button>
+                <Button Name="RemovePointSelection" Width="16" Height="16" Margin="2" Click="RemoveButton_Click" IsEnabled="False">
+                    <TextBlock FontWeight="Bold" Margin="0,-4,0,0">-</TextBlock>
+                </Button>
+            </StackPanel>
+        </Grid>
+    </Border>
+</ListBoxItem>
