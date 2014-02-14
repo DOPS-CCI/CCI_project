@@ -29,7 +29,7 @@
     <InstallUrl>http://zoomlenz.net/CCI/publish/ASCtoFMConverter/</InstallUrl>
     <CreateWebPageOnPublish>true</CreateWebPageOnPublish>
     <WebPage>publish.htm</WebPage>
-    <ApplicationRevision>10</ApplicationRevision>
+    <ApplicationRevision>11</ApplicationRevision>
     <ApplicationVersion>1.0.0.%2a</ApplicationVersion>
     <UseApplicationTrust>false</UseApplicationTrust>
     <PublishWizardCompleted>true</PublishWizardCompleted>
@@ -62,10 +62,10 @@
   </PropertyGroup>
   <PropertyGroup />
   <PropertyGroup>
-    <ManifestCertificateThumbprint>A64692BA22A095F62081E28068D83513837CE6CC</ManifestCertificateThumbprint>
+    <ManifestCertificateThumbprint>3BC07EFE7FF2837C7AACF22ED9A3CAE2E08E359C</ManifestCertificateThumbprint>
   </PropertyGroup>
   <PropertyGroup>
-    <ManifestKeyFile>ASCtoFMConverter_1_TemporaryKey.pfx</ManifestKeyFile>
+    <ManifestKeyFile>ASCtoFMConverter_TemporaryKey.pfx</ManifestKeyFile>
   </PropertyGroup>
   <PropertyGroup>
     <SignManifests>true</SignManifests>
@@ -137,6 +137,7 @@
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
     </EmbeddedResource>
     <None Include="app.config" />
+    <None Include="ASCtoFMConverter_TemporaryKey.pfx" />
     <None Include="Properties\app.manifest" />
     <None Include="ASCtoFMConverter_1_TemporaryKey.pfx" />
     <None Include="Properties\Settings.settings">
