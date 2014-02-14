@@ -107,11 +107,11 @@ namespace ElectrodeFileStream
 
         protected ElectrodeRecord() { }
 
-        protected ElectrodeRecord(string name) { Name = name; } //create an electrode with name
+        protected ElectrodeRecord(string name) { Name = name; } //create a new electrode record with name
 
-        public abstract void read(XmlReader xr, string nameSpace); //read in next electrode record form XML file
+        public abstract void read(XmlReader xr, string nameSpace); //read in next electrode record from XML file
 
-        public abstract void write(ElectrodeOutputFileStream ofs, string nameSpace); //write single electrode record to XML file
+        public abstract void write(ElectrodeOutputFileStream ofs, string nameSpace); //write an electrode record to XML file
 
         public abstract Point projectXY(); //project electrode coordinates to X-Y space (isomorphic to Phi-Theta space)
 
@@ -123,9 +123,10 @@ namespace ElectrodeFileStream
         public abstract double DistanceTo(ElectrodeRecord er); //distance on surface of standard sphere between electrodes;
             //Note: this is not the actual distance between electrodes in XYZ space, but the arc length on the sphere
 
-        public abstract override string ToString();
+        public abstract override string ToString(); //standard descriptive output for this record
+            //Note: to obtain a simple "phi,theta" output use projectPhiTheta().ToString(format)
 
-        protected const double radius = 10D;
+        protected const double radius = 10D; //standard "head radius" in centimeters
         protected static double angleDiff(double phi1, double theta1, double phi2, double theta2)
         {
             double DTheta = theta1 - theta2;
@@ -144,7 +145,7 @@ namespace ElectrodeFileStream
     public class PhiThetaRecord : ElectrodeRecord
     {
         public double Phi { get; private set; } //should be in radians: 0 <= Phi <= PI ; angle from vertex
-        public double Theta { get; private set; } //in radians -PI < Theta <= PI ; angle to right from nasion
+        public double Theta { get; private set; } //in radians -PI < Theta <= PI ; positive angle to right from nasion
 
         public PhiThetaRecord() { }
 
@@ -221,6 +222,11 @@ namespace ElectrodeFileStream
         public override string ToString()
         {
             return "PhiTheta: " + (Phi * ToDeg).ToString("0.0") + ", " + (Theta * ToDeg).ToString("0.0");
+        }
+
+        public string ToString(string format)
+        {
+            return (Phi * ToDeg).ToString(format) + "," + (Theta * ToDeg).ToString(format);
         }
 
         const double ToRad = Math.PI / 180D;
