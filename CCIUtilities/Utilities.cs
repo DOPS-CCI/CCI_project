@@ -45,18 +45,25 @@ namespace CCIUtilities
         /// <param name="chanMin">Minimum channel number</param>
         /// <param name="chanMax">Maximum channel number</param>
         /// <param name="convertToZero">If true, convert to zero-based channel numbers</param>
+        /// <param name="returnNullForError">If true, returns null if error in <code>str</code>,
+        /// otherwise throws exception; optional parameter, defaults to false</param>
         /// <returns>Sorted List&lt;int&gt; of channel numbers</returns>
-        public static List<int> parseChannelList(string str, int chanMin, int chanMax, bool convertToZero)
+        public static List<int> parseChannelList(string str, int chanMin, int chanMax,
+            bool convertToZero, bool returnNullForError = false)
         {
             if (str == null || str == "") return null;
             List<int> list = new List<int>();
             Regex r = new Regex(@"^(?:(?<single>\d+)|(?<multi>(?<from>\d+)-(?<to>\d+)(:(?<by>-?\d+))?))$");
             string[] group = Regex.Split(str, ",");
-            for (int k=0;k<group.Length;k++)
+            for (int k = 0; k < group.Length; k++)
             {
                 Match m = r.Match(group[k]);
-                if(!m.Success)
+                if (!m.Success)
+                {
+                    if (returnNullForError)
+                        return null;
                     throw new Exception("Invalid group string: " + group[k]);
+                }
                 int start;
                 int end;
                 int incr = 1;
@@ -81,7 +88,11 @@ namespace CCIUtilities
                     int newEntry = j - (convertToZero ? 1 : 0);
                     if (list.Contains(newEntry)) continue; // allow no dups, ignore
                     if (j < chanMin || j > chanMax)
+                    {
+                        if (returnNullForError)
+                            return null;
                         throw new Exception("Channel out of range: " + j.ToString("0")); // must be valid channel, not Status
+                    }
                     list.Add(newEntry);
                 }
             }
