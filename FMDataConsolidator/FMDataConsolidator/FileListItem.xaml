@@ -23,13 +23,15 @@
                 <RowDefinition/>
             </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="244"/>
+                <ColumnDefinition Width="264"/>
                 <ColumnDefinition Width="544"/>
             </Grid.ColumnDefinitions>
             <TextBlock Name="FileName" Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" FontSize="20" Margin="6">File Name</TextBlock>
             <GroupBox Grid.Row="1" Grid.Column="0" Header="Group Variables">
-                <DataGrid Name="GVs" ItemsSource="{Binding GroupVars}" SelectionMode="Extended" CanUserAddRows="False" CanUserDeleteRows="False" CanUserReorderColumns="False" CanUserResizeRows="False" CanUserSortColumns="False" AutoGenerateColumns="False">
+                <DataGrid Name="GVs" ItemsSource="{Binding GroupVars}" SelectionMode="Extended" CanUserAddRows="False" CanUserDeleteRows="False" CanUserReorderColumns="False" CanUserResizeRows="False" CanUserSortColumns="False" AutoGenerateColumns="False" CellEditEnding="GVs_CellEditEnding">
                     <DataGrid.Columns>
+                        <DataGridCheckBoxColumn Binding="{Binding IsSel}" CanUserResize="False" Width="20">
+                        </DataGridCheckBoxColumn>
                         <DataGridTextColumn Width="80" Binding="{Binding FM_GVName}" IsReadOnly="True">
                             <DataGridTextColumn.Header>
                                 <TextBlock Width="80" TextAlignment="Center" FontWeight="Bold">GV</TextBlock>
@@ -48,13 +50,18 @@
                     </DataGrid.Columns>
                 </DataGrid>
             </GroupBox>
-            <GroupBox Grid.Row="1" Grid.Column="1" Header="Points">
+            <GroupBox Grid.Row="1" Grid.Column="1" Header="Point selection">
                 <DataGrid Name="Points" ItemsSource="{Binding PointGroups}" SelectionMode="Single" CanUserAddRows="False" CanUserDeleteRows="False" CanUserReorderColumns="False" CanUserResizeRows="False" CanUserSortColumns="False" AutoGenerateColumns="False" CellEditEnding="Points_CellEditEnding">
                     <DataGrid.Columns>
-                        <DataGridTextColumn Width="440" Binding="{Binding SelectionString}">
+                        <DataGridTextColumn Width="180" Binding="{Binding ChannelSelectionString}">
                         <DataGridTextColumn.Header>
-                                <TextBlock Width="440" TextAlignment="Center" FontWeight="Bold">Selection</TextBlock>
+                                <TextBlock Width="180" TextAlignment="Center" FontWeight="Bold">Channels</TextBlock>
                         </DataGridTextColumn.Header>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Width="260" Binding="{Binding PointSelectionString}">
+                            <DataGridTextColumn.Header>
+                                <TextBlock Width="260" TextAlignment="Center" FontWeight="Bold">Points</TextBlock>
+                            </DataGridTextColumn.Header>
                         </DataGridTextColumn>
                         <DataGridTextColumn Width="80" Binding="{Binding Name}">
                         <DataGridTextColumn.Header>

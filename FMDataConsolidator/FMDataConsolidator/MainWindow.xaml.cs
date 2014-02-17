@@ -23,7 +23,8 @@ namespace FMDataConsolidator
     /// </summary>
     public partial class MainWindow : Window
     {
-        List<FILMANFileRecord> FILMANFileRecords = new List<FILMANFileRecord>(1);
+        List<FileListItem> FILMANFileRecords = new List<FileListItem>(1);
+//        private EventHandler checkForError;
 
         public MainWindow()
         {
@@ -36,7 +37,8 @@ namespace FMDataConsolidator
             if ((ffr = OpenFILMANFile()) == null) return;
             FileListItem fli = new FileListItem(ffr);
             Files.Items.Add(fli);
-            ffr.stream.Description(0);
+            FILMANFileRecords.Add(fli);
+            fli.ErrorCheckReq+=new EventHandler(checkForError);
             if (Files.Items.Count > 1) RemoveFile.IsEnabled = true;
         }
 
@@ -93,6 +95,13 @@ namespace FMDataConsolidator
             if (SYS == null) return "sys";
             if ((bool)SYS.IsChecked) return "sys";
             else return "syd";
+        }
+
+        private void checkForError(object sender, EventArgs e)
+        {
+            foreach (FileListItem fli in FILMANFileRecords)
+                if (fli.IsError()) { Create.IsEnabled = false; return; }
+            Create.IsEnabled = true;
         }
 
         private void BrowseSYSTAT_Click(object sender, RoutedEventArgs e)
