@@ -23,11 +23,13 @@ namespace FMDataConsolidator
     /// </summary>
     public partial class MainWindow : Window
     {
-        List<FileListItem> FILMANFileRecords = new List<FileListItem>(1);
-//        private EventHandler checkForError;
+        const int SYSTATMaxPoints = 8100; //maximum number of data points allowed by SYSTAT
+
+        public List<FILMANFileRecord> FILMANFileRecords { get; set; }
 
         public MainWindow()
         {
+            FILMANFileRecords = new List<FILMANFileRecord>(1);
             InitializeComponent();
         }
 
@@ -35,19 +37,21 @@ namespace FMDataConsolidator
         {
             FILMANFileRecord ffr;
             if ((ffr = OpenFILMANFile()) == null) return;
-            FileListItem fli = new FileListItem(ffr);
-            Files.Items.Add(fli);
-            FILMANFileRecords.Add(fli);
-            fli.ErrorCheckReq+=new EventHandler(checkForError);
-            if (Files.Items.Count > 1) RemoveFile.IsEnabled = true;
+            FILMANFileRecords.Add(ffr);
+            Files.Items.Add(ffr.filePointSelector);
+            if (FILMANFileRecords.Count > 1) RemoveFile.IsEnabled = true;
+            NumberOfDataPoints.Text = TotalDataPoints().ToString("0");
+            checkForError(ffr, null);
         }
 
         private void RemoveFile_Click(object sender, RoutedEventArgs e)
         {
-            object fli = Files.SelectedItem;
-            if (fli == null) return;
-            Files.Items.Remove(fli);
-            if (Files.Items.Count <= 1) RemoveFile.IsEnabled = false;
+            int selection = Files.SelectedIndex;
+            if (selection < 0) return;
+            Files.Items.RemoveAt(selection);
+            FILMANFileRecords.RemoveAt(selection);
+            if (FILMANFileRecords.Count <= 1) RemoveFile.IsEnabled = false;
+            checkForError(null, null);
         }
 
         private FILMANFileRecord OpenFILMANFile()
@@ -74,6 +78,10 @@ namespace FMDataConsolidator
             FILMANFileRecord ffr = new FILMANFileRecord();
             ffr.path = ofd.FileName;
             ffr.stream = fmTemp;
+            FileListItem fli = new FileListItem(ffr);
+            ffr.filePointSelector = fli;
+            fli.ErrorCheckReq += new EventHandler(checkForError);
+
             return ffr;
         }
 
@@ -99,9 +107,26 @@ namespace FMDataConsolidator
 
         private void checkForError(object sender, EventArgs e)
         {
-            foreach (FileListItem fli in FILMANFileRecords)
-                if (fli.IsError()) { Create.IsEnabled = false; return; }
             Create.IsEnabled = true;
+            foreach (FILMANFileRecord ffr in FILMANFileRecords)
+                if (ffr.filePointSelector.IsError()) Create.IsEnabled = false;
+            int sum = TotalDataPoints();
+            if (sum == 0 || sum > SYSTATMaxPoints)
+            {
+                NumberOfDataPoints.Foreground = Brushes.Red;
+                Create.IsEnabled = false;
+            }
+            else
+                NumberOfDataPoints.Foreground = Brushes.Black;
+            NumberOfDataPoints.Text = sum.ToString("0");
+        }
+
+        private int TotalDataPoints()
+        {
+            int sum = 0;
+            foreach (FILMANFileRecord ffr in FILMANFileRecords)
+                sum += ffr.filePointSelector.NumberOfDataPoints;
+            return sum;
         }
 
         private void BrowseSYSTAT_Click(object sender, RoutedEventArgs e)
@@ -123,11 +148,17 @@ namespace FMDataConsolidator
         {
             Application.Current.Shutdown(0);
         }
+
+        private void Create_Click(object sender, RoutedEventArgs e)
+        {
+
+        }
     }
 
     public class FILMANFileRecord
     {
         public FILMANInputStream stream { get; internal set; }
         public string path { get; internal set; }
+        public FileListItem filePointSelector { get; internal set; }
     }
 }

@@ -3,12 +3,17 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:FMDataConsolidator"
         Title="FILMAN Data Consolidator" MaxHeight="720" WindowStartupLocation="CenterScreen" VerticalAlignment="Top" 
-        Height="Auto" Width="854">
+        Height="Auto" Width="928"
+        DataContext="{Binding RelativeSource={RelativeSource Self}}">
     <Window.Resources>
-        <Style x:Key="NormalButton" TargetType="Button">
+        <Style TargetType="Button">
             <Setter Property="Width" Value="80"/>
             <Setter Property="Margin" Value="8"/>
             <Setter Property="Height" Value="24"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+        </Style>
+        <Style TargetType="TextBlock">
+            <Setter Property="FontSize" Value="16"/>
             <Setter Property="FontWeight" Value="Bold"/>
         </Style>
     </Window.Resources>
@@ -22,8 +27,8 @@
             <StackPanel Orientation="Vertical">
                 <ListBox Name="Files" Height="Auto" MaxHeight="500" MinHeight="140"/>
                 <StackPanel Orientation="Horizontal">
-                    <Button Style="{StaticResource NormalButton}" Click="AddFile_Click">Add file</Button>
-                    <Button Name="RemoveFile" Style="{StaticResource NormalButton}" IsEnabled="False" Click="RemoveFile_Click">Remove file</Button>
+                    <Button Click="AddFile_Click">Add file</Button>
+                    <Button Name="RemoveFile" IsEnabled="False" Click="RemoveFile_Click">Remove file</Button>
                 </StackPanel>
             </StackPanel>
         </GroupBox>
@@ -36,7 +41,7 @@
                 <Border Grid.Column="0" BorderBrush="Blue">
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
                         <TextBox Name="SYSTATFileName" Height="24" Width="500" Margin="8" TextChanged="SYSTATFileName_TextChanged">SYSTATfile.xxx</TextBox>
-                        <Button Style="{StaticResource NormalButton}" Click="BrowseSYSTAT_Click">Browse...</Button>
+                        <Button Click="BrowseSYSTAT_Click">Browse...</Button>
                     </StackPanel>
                 </Border>
                 <GroupBox Grid.Column="1" Header="Format" HorizontalAlignment="Right" VerticalAlignment="Center" BorderBrush="Blue" Margin="2">
@@ -47,9 +52,13 @@
                 </GroupBox>
             </Grid>
         </GroupBox>
+        <StackPanel Orientation="Horizontal" Grid.Row="2" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="8">
+            <TextBlock Name="Temp" Text="Number of Systat data points = "/>
+            <TextBlock Name="NumberOfDataPoints" Foreground="Red">0</TextBlock>
+        </StackPanel>
         <StackPanel Orientation="Horizontal" Grid.Row="2" HorizontalAlignment="Right" VerticalAlignment="Center">
-            <Button Style="{StaticResource NormalButton}" IsCancel="True" Click="Cancel_Click">Cancel</Button>
-            <Button Name="Create" Style="{StaticResource NormalButton}" IsEnabled="False">Create file</Button>
+            <Button IsCancel="True" Click="Cancel_Click">Cancel</Button>
+            <Button Name="Create" IsEnabled="False" Click="Create_Click">Create file</Button>
         </StackPanel>
     </Grid>
 </Window>

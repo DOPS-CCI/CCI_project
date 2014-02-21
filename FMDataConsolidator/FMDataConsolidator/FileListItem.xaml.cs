@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -25,11 +26,25 @@ namespace FMDataConsolidator
     {
         static int fileUID = 0;
         internal FILMANFileRecord FFR;
-        internal FILMANInputStream fis;
         int FileUID;
         int numberOfRecords;
-        ObservableCollection<PointGroup> _PointGroups = new ObservableCollection<PointGroup>();
-        ObservableCollection<GroupVar> _GroupVars = new ObservableCollection<GroupVar>();
+        PointGroupsClass _PointGroups = new PointGroupsClass();
+        GroupVarsClass _GroupVars = new GroupVarsClass();
+
+        public PointGroupsClass PointGroups { get { return _PointGroups; } }
+        public GroupVarsClass GroupVars { get { return _GroupVars; } }
+        public int NumberOfDataPoints
+        {
+            get
+            {
+                int sum = 0;
+                foreach (GroupVar gv in _GroupVars)
+                    if (gv.IsSel && gv.namingConvention != null) sum++;
+                foreach (PointGroup pg in _PointGroups)
+                    sum += pg.NumberOfDataPoints();
+                return sum;
+            }
+        }
 
         List<SYSTATDatum> SYSTATData;
 
@@ -43,7 +58,7 @@ namespace FMDataConsolidator
             FileUID = ++fileUID;
             FFR = ffr;
             FileName.Text = ffr.path;
-            fis = ffr.stream;
+            FILMANInputStream fis = ffr.stream;
 
             ToolTip tt = new ToolTip();
             string s = fis.Description(0);
@@ -73,66 +88,31 @@ namespace FMDataConsolidator
             AddNewPointGroup();
         }
 
-        public ObservableCollection<PointGroup> PointGroups { get { return _PointGroups; } }
-        public ObservableCollection<GroupVar> GroupVars { get { return _GroupVars; } }
-
         private void AddButton_Click(object sender, RoutedEventArgs e)
         {
             AddNewPointGroup();
             RemovePointSelection.IsEnabled = true;
+            ErrorCheckReq(null, null);
         }
 
         private void RemoveButton_Click(object sender, RoutedEventArgs e)
         {
             int pg = this.Points.SelectedIndex;
             if (pg < 0) return;
+            PointGroup p = _PointGroups[pg];
             _PointGroups.RemoveAt(pg);
             if (_PointGroups.Count <= 1) RemovePointSelection.IsEnabled = false;
+            ErrorCheckReq(null, null);
         }
 
         private void AddNewPointGroup()
         {
-//            FILMANInputStream fis = FFR.stream;
-            int nc = fis.NC;
-            int np = fis.NP;
-            _PointGroups.Add(new PointGroup(nc, np, "F%FC%cP%p"));
+            int nc = FFR.stream.NC;
+            int np = FFR.stream.NP;
+
+            PointGroup pg = new PointGroup(nc, np, "F%FC%cP%p");
+            _PointGroups.Add(pg);
             _PointGroups.Last().namingConvention =  PointNameParser.Parse("F%FC%cP%p"); //parser not known to PointGroup constructor
-        }
-
-        private void Points_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
-        {
-            DataGridColumn col = e.Column;
-            DataGridRow row = e.Row;
-            TextBox tb = (TextBox)col.GetCellContent(row);
-            string content = tb.Text;
-            if (col.DisplayIndex == 0) //Channel selection
-            {
-                ((PointGroup)row.Item).selectedChannels = Utilities.parseChannelList(content, 1, fis.NC, true, true);
-            }
-            else if (col.DisplayIndex == 1) //Point selection
-            {
-                ((PointGroup)row.Item).selectedPoints = Utilities.parseChannelList(content, 1, fis.NP, true, true);
-            }
-            else if (col.DisplayIndex == 2) //naming convention
-            {
-                ((PointGroup)row.Item).namingConvention = PointNameParser.Parse(content);
-            }
-            else return;
-            ErrorCheckReq(this, null);
-        }
-
-        private void GVs_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
-        {
-            DataGridColumn col = e.Column;
-            if (col.DisplayIndex == 2)
-            {
-                TextBox tb = (TextBox)col.GetCellContent(e.Row);
-                ((GroupVar)e.Row.Item).namingConvention = GVNameParser.Parse(tb.Text);
-            }
-            else if (col.DisplayIndex == 0)
-                ((GroupVar)e.Row.Item).IsSel = !((GroupVar)e.Row.Item).IsSel;
-            else return;
-            ErrorCheckReq(this, null);
         }
 
         public void AddToSYSTATDataList(List<SYSTATDatum> list)
@@ -152,23 +132,167 @@ namespace FMDataConsolidator
             foreach (GroupVar gv in _GroupVars)
                 if (gv.IsSel && gv.namingConvention == null) return true;
             foreach (PointGroup pg in _PointGroups)
-                if (pg.selectedChannels == null || pg.selectedPoints == null || pg.namingConvention == null)
+                if (pg.channelError || pg.pointError || pg.namingError)
                     return true;
 
             return false;
         }
         public event EventHandler ErrorCheckReq;
+
+        private void Channels_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            TextBox tb = (TextBox)sender;
+            PointGroup pg = (PointGroup)tb.DataContext;
+            pg.ChannelSelectionString = tb.Text;
+            pg.selectedChannels =
+                  Utilities.parseChannelList(pg.ChannelSelectionString, 1, FFR.stream.NC, true, true);
+            ErrorCheckReq(pg, null);
+        }
+
+        private void Points_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            TextBox tb = (TextBox)sender;
+            PointGroup pg = (PointGroup)tb.DataContext;
+            pg.PointSelectionString = tb.Text;
+            pg.selectedPoints =
+                  Utilities.parseChannelList(pg.PointSelectionString, 1, FFR.stream.NP, true, true);
+            ErrorCheckReq(pg, null);
+        }
+
+        private void Name_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            TextBox tb = (TextBox)sender;
+            PointGroup pg = (PointGroup)tb.DataContext;
+            pg.Name = tb.Text;
+            pg.namingConvention = PointNameParser.Parse(pg.Name);
+            ErrorCheckReq(pg, null);
+        }
+
+        private void GVName_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            TextBox tb = (TextBox)sender;
+            GroupVar gv = (GroupVar)tb.DataContext;
+            gv.GVName = tb.Text;
+            gv.namingConvention = GVNameParser.Parse(gv.GVName);
+            ErrorCheckReq(gv, null);
+        }
+
+        private void GVSelection_Changed(object sender, RoutedEventArgs e)
+        {
+            ErrorCheckReq((GroupVar)((CheckBox)sender).DataContext, null);
+        }
     }
 
-
-    public class PointGroup
+    public class PointGroupsClass : ObservableCollection<PointGroup> { }
+    public class PointGroup: INotifyPropertyChanged
     {
-        public string ChannelSelectionString { get; set; }
-        public string PointSelectionString { get; set; }
-        internal List<int> selectedChannels;
-        internal List<int> selectedPoints;
-        internal SYSTATNameStringParser.NameEncoding namingConvention;
-        public string Name { get; set; }
+        public event PropertyChangedEventHandler PropertyChanged;
+
+        string _ChannelSelectionString;
+        public string ChannelSelectionString
+        {
+            get { return _ChannelSelectionString; }
+            set
+            {
+                if (_ChannelSelectionString != value)
+                {
+                    _ChannelSelectionString = value;
+                    Notify("ChannelSelectionString");
+                }
+            }
+        }
+
+        string _PointSelectionString;
+        public string PointSelectionString
+        {
+            get { return _PointSelectionString; }
+            set
+            {
+                {
+                    if (_PointSelectionString != value)
+                    {
+                        _PointSelectionString = value;
+                        Notify("PointSelectionString");
+                    }
+                }
+            }
+        }
+
+        string _Name;
+        public string Name
+        {
+            get { return _Name; }
+            set
+            {
+                {
+                    if (_Name != value)
+                    {
+                        _Name = value;
+                        Notify("Name");
+                    }
+                }
+            }
+        }
+
+        List<int> _selectedChannels;
+        internal List<int> selectedChannels
+        {
+            get { return _selectedChannels; }
+            set
+            {
+                List<int> old = _selectedChannels;
+                _selectedChannels = value;
+                if (_selectedChannels == null && old != null || _selectedChannels != null && old == null)
+                    Notify("channelError");
+            }
+        }
+        public bool channelError
+        {
+            get
+            {
+                return _selectedChannels == null;
+            }
+        }
+
+        List<int> _selectedPoints;
+        internal List<int> selectedPoints
+        {
+            get { return _selectedPoints; }
+            set
+            {
+                List<int> old = _selectedPoints;
+                 _selectedPoints = value;
+                if (_selectedPoints == null && old != null || _selectedPoints != null && old == null)
+                    Notify("pointError");
+            }
+        }
+        public bool pointError
+        {
+            get
+            {
+                return selectedPoints == null;
+            }
+        }
+
+        SYSTATNameStringParser.NameEncoding _namingConvention;
+        internal SYSTATNameStringParser.NameEncoding namingConvention
+        {
+            get { return _namingConvention; }
+            set
+            {
+                SYSTATNameStringParser.NameEncoding old = _namingConvention;
+                _namingConvention = value;
+                if (_namingConvention == null && old != null || _namingConvention != null && old == null)
+                    Notify("namingError");
+            }
+        }
+        public bool namingError
+        {
+            get
+            {
+                return namingConvention == null;
+            }
+        }
 
         public PointGroup(int nc, int np, string name)
         {
@@ -178,6 +302,18 @@ namespace FMDataConsolidator
             selectedPoints = Utilities.parseChannelList(PointSelectionString, 1, np, true, true);
             Name = name;
         }
+
+        public int NumberOfDataPoints()
+        {
+            if (channelError || pointError || namingError) return 0; //only count valid entries
+            return selectedChannels.Count * selectedPoints.Count;
+        }
+
+        private void Notify(string p)
+        {
+            if(this.PropertyChanged!=null)
+                PropertyChanged(this, new PropertyChangedEventArgs(p));
+        }
     }
 
     struct SelectedPoint
@@ -186,9 +322,17 @@ namespace FMDataConsolidator
         int PointNumber;
     }
 
-    public class GroupVar{
+    public class GroupVarsClass: ObservableCollection<GroupVar>
+    {
+        public GroupVarsClass() : base() { }
+    }
+    public class GroupVar: INotifyPropertyChanged
+    {
+        public event PropertyChangedEventHandler PropertyChanged;
+
         public bool IsSel { get; set; }
-        public string FM_GVName { get; set; }
+        public string FM_GVName { get; internal set; }
+        public NSEnum Format { get; set; }
         string _GVName;
         public string GVName
         {
@@ -199,11 +343,36 @@ namespace FMDataConsolidator
             set
             {
                 _GVName = value.Substring(0, Math.Min(12, value.Length)); //limit length to 12
+                Notify("GVName");
             }
         }
-        public NSEnum Format { get; set; }
-        internal SYSTATNameStringParser.NameEncoding namingConvention;
+        public bool GVNameError
+        {
+            get
+            {
+                return namingConvention == null;
+            }
+        }
+        SYSTATNameStringParser.NameEncoding _namingConvention;
+        internal SYSTATNameStringParser.NameEncoding namingConvention
+        {
+            get { return _namingConvention; }
+            set
+            {
+                SYSTATNameStringParser.NameEncoding old = _namingConvention;
+                _namingConvention = value;
+                if (_namingConvention == null && old != null || _namingConvention != null && old == null)
+                    Notify("GVNameError");
+            }
+            
+        }
         internal int Index { get; set; }
+
+        private void Notify(string p)
+        {
+            if (this.PropertyChanged != null)
+                PropertyChanged(this, new PropertyChangedEventArgs(p));
+        }
     }
 
     public class SYSTATDatum
