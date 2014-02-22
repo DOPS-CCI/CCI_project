@@ -159,40 +159,43 @@ namespace SYSTATFileStream
 
         public class Variable
         {
+            string _Name;
             public string Name
             {
-                get { return Name + (Type == SVarType.Str ? "$" : ""); }
-                private set { Name = value; }
+                get { return _Name + (_Type == SVarType.Str ? "$" : ""); }
+                private set { _Name = value; }
             }
+            SVarType _Type;
             public SVarType Type
             {
-                get { return Type; }
-                private set { Type = value; }
+                get { return _Type; }
+                private set { _Type = value; }
             }
+            Object _Value;
             public Object Value
             {
                 set
                 {
                     Type valueType = value.GetType();
-                    if (this.Type == SVarType.Num) //this Variable is a numeric type
+                    if (this._Type == SVarType.Num) //this Variable is a numeric type
                         if (valueType == typeof(double) || valueType == typeof(float))
                         {
-                            this.Value = (double)value; //always save as a double
+                            this._Value = (double)value; //always save as a double
                             return;
                         }
                         else ;
                     else if (valueType == typeof(string)) //this Variable is a string type
                     { //assure 12 characters long
                         if (((string)value).Length < 12)
-                            this.Value = ((string)value).PadRight(12);
+                            this._Value = ((string)value).PadRight(12);
                         else
-                            this.Value = ((string)value).Substring(0, 12);
+                            this._Value = ((string)value).Substring(0, 12);
                         return;
                     }
                     throw new Exception("SYSTATFileStream: attempt to set variable " + this.Name +
                         " to invalid type of " + valueType.ToString());
                 }
-                internal get { return Value; }
+                internal get { return _Value; }
             }
 
             static string NamePatt = @"^\s*(?<nameChars>[A-Za-z0-9_]*(\(\d+\))?[A-Za-z0-9_]*)(?<str>\$?)\s*$";
@@ -213,6 +216,7 @@ namespace SYSTATFileStream
                                 Name = m.Groups["nameChars"].Value;
                                 return;
                             }
+                            else ; //fall through to throw exception
                         else // must be string type
                             if (type == SVarType.Str && len <= 11)
                             {
