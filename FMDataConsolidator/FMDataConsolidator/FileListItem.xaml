@@ -83,7 +83,7 @@
                 <RowDefinition/>
             </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="314"/>
+                <ColumnDefinition Width="318"/>
                 <ColumnDefinition Width="568"/>
             </Grid.ColumnDefinitions>
             <TextBlock Name="FileName" Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" FontSize="20" Margin="6" TextAlignment="Left" FontWeight="Normal">File Name</TextBlock>

@@ -26,7 +26,7 @@ namespace FMDataConsolidator
     {
         static int fileUID = 0;
         internal FILMANFileRecord FFR;
-        int FileUID;
+        public int FileUID { get; private set; }
         int numberOfRecords;
         PointGroupsClass _PointGroups = new PointGroupsClass();
         GroupVarsClass _GroupVars = new GroupVarsClass();
@@ -48,8 +48,8 @@ namespace FMDataConsolidator
 
         List<SYSTATDatum> SYSTATData;
 
-        static SYSTATNameStringParser GVNameParser = new SYSTATNameStringParser("FGg");
-        static SYSTATNameStringParser PointNameParser = new SYSTATNameStringParser("FCcPp");
+        public static SYSTATNameStringParser GVNameParser = new SYSTATNameStringParser("FGg");
+        public static SYSTATNameStringParser PointNameParser = new SYSTATNameStringParser("FCcPp");
 
         public FileListItem(FILMANFileRecord ffr)
         {

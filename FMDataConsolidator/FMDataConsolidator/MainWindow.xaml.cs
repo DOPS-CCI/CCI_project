@@ -13,7 +13,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using Microsoft.Win32;
 using FILMANFileStream;
-using SYSTATFileStream;
+using SYSTAT = SYSTATFileStream;
 
 
 namespace FMDataConsolidator
@@ -151,8 +151,65 @@ namespace FMDataConsolidator
 
         private void Create_Click(object sender, RoutedEventArgs e)
         {
+            SYSTAT.SYSTATFileStream systat =
+                new SYSTAT.SYSTATFileStream(SYSTATFileName.Text,
+                    ((bool)SYS.IsChecked) ? SYSTAT.SYSTATFileStream.SFileType.S : SYSTAT.SYSTATFileStream.SFileType.D);
+            foreach (FILMANFileRecord ffr in FILMANFileRecords)//First capture all the data variables to be created
+            {
+                systat.AddCommentLine(ffr.path); //FIRST comment line names file
+                for (int i = 0; i < 6; i++)
+                    systat.AddCommentLine(ffr.stream.Description(i));
+                systat.AddCommentLine(new string('*', 72)); //LAST comment line to mark end
+                FileListItem fli = ffr.filePointSelector;
+                int[] GVcodes = new int[3] { fli.FileUID, 2, 0 }; //FGg
+                // F is the FileUID
+                // G is the old GV number from FILMAN
+                // g is the renumbering of GVs
+                foreach (GroupVar gv in fli.GroupVars) //first the GVs
+                {
+                    GVcodes[1]++;
+                    if (gv.IsSel)
+                    {
+                        GVcodes[2]++;
+                        string s = FileListItem.GVNameParser.Encode(GVcodes, gv.namingConvention);
+                        SYSTAT.SYSTATFileStream.Variable v;
+                        if (gv.Format == NSEnum.String)
+                            v = new SYSTAT.SYSTATFileStream.Variable(
+                                s + "$", SYSTAT.SYSTATFileStream.SVarType.Str);
+                        else
+                            v = new SYSTAT.SYSTATFileStream.Variable(
+                                s, SYSTAT.SYSTATFileStream.SVarType.Num);
+                        systat.AddVariable(v);
+                    }
+                }
+                int[] Pcodes = new int[5] { fli.FileUID, 0, 0, 0, 0 }; //FCcPp
+                // F is the FileUID
+                // C is the original channel number from FILMAN (1-based)
+                // c is the renumbering of channels (1-based)
+                // P is the original point number from FILMAN (1-based)
+                // p is the renumbering of points (1-based)
+                foreach (PointGroup pg in fli.PointGroups) //then the data points
+                {
+                    foreach (int channel in pg.selectedChannels)
+                    {
+                        Pcodes[1] = channel + 1;
+                        Pcodes[2]++;
+                        foreach (int point in pg.selectedPoints)
+                        {
+                            Pcodes[3] = point + 1;
+                            Pcodes[4]++;
+                            string s = FileListItem.PointNameParser.Encode(Pcodes, pg.namingConvention);
+                            SYSTAT.SYSTATFileStream.Variable v = new SYSTAT.SYSTATFileStream.Variable(s);
+                            systat.AddVariable(v);
+                        }
+                    }
+                }
+            } //end data variable capture; now we can write the SYSTAT header
+            systat.WriteHeader();
 
+            systat.CloseStream();
         }
+
     }
 
     public class FILMANFileRecord
