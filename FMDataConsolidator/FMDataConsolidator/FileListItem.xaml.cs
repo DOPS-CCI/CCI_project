@@ -46,7 +46,7 @@ namespace FMDataConsolidator
             }
         }
 
-        List<SYSTATDatum> SYSTATData;
+//        List<SYSTATDatum> SYSTATData;
 
         public static SYSTATNameStringParser GVNameParser = new SYSTATNameStringParser("FGg");
         public static SYSTATNameStringParser PointNameParser = new SYSTATNameStringParser("FCcPp");
@@ -114,7 +114,7 @@ namespace FMDataConsolidator
             _PointGroups.Add(pg);
             _PointGroups.Last().namingConvention =  PointNameParser.Parse("F%FC%cP%p"); //parser not known to PointGroup constructor
         }
-
+/*
         public void AddToSYSTATDataList(List<SYSTATDatum> list)
         {
             foreach (GroupVar gv in GVs.SelectedItems)
@@ -126,7 +126,7 @@ namespace FMDataConsolidator
                 sd.Name = gv.GVName;
             }   
         }
-
+*/
         public bool IsError()
         {
             foreach (GroupVar gv in _GroupVars)
@@ -374,7 +374,7 @@ namespace FMDataConsolidator
                 PropertyChanged(this, new PropertyChangedEventArgs(p));
         }
     }
-
+/*
     public class SYSTATDatum
     {
         internal FILMANInputStream FMStream { get; set; }
@@ -382,7 +382,7 @@ namespace FMDataConsolidator
         internal int Index2 { get; set; } //if negative indicates a GV: -1 = Number,-2 = String; otherwise point number
         internal string Name { get; set; }
     }
-
+*/
     public class SYSTATNameStringParser
     {
         Regex ok;

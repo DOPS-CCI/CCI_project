@@ -151,6 +151,7 @@ namespace FMDataConsolidator
 
         private void Create_Click(object sender, RoutedEventArgs e)
         {
+            FileListItem fli;
             SYSTAT.SYSTATFileStream systat =
                 new SYSTAT.SYSTATFileStream(SYSTATFileName.Text,
                     ((bool)SYS.IsChecked) ? SYSTAT.SYSTATFileStream.SFileType.S : SYSTAT.SYSTATFileStream.SFileType.D);
@@ -160,7 +161,7 @@ namespace FMDataConsolidator
                 for (int i = 0; i < 6; i++)
                     systat.AddCommentLine(ffr.stream.Description(i));
                 systat.AddCommentLine(new string('*', 72)); //LAST comment line to mark end
-                FileListItem fli = ffr.filePointSelector;
+                fli = ffr.filePointSelector;
                 int[] GVcodes = new int[3] { fli.FileUID, 2, 0 }; //FGg
                 // F is the FileUID
                 // G is the old GV number from FILMAN
@@ -176,9 +177,11 @@ namespace FMDataConsolidator
                         if (gv.Format == NSEnum.String)
                             v = new SYSTAT.SYSTATFileStream.Variable(
                                 s + "$", SYSTAT.SYSTATFileStream.SVarType.Str);
-                        else
+                        else if (gv.Format == NSEnum.Number)
                             v = new SYSTAT.SYSTATFileStream.Variable(
                                 s, SYSTAT.SYSTATFileStream.SVarType.Num);
+                        else //here we'll handle case of GV encoded as string
+                            v = null;
                         systat.AddVariable(v);
                     }
                 }
@@ -206,6 +209,36 @@ namespace FMDataConsolidator
                 }
             } //end data variable capture; now we can write the SYSTAT header
             systat.WriteHeader();
+            FILMANRecord FMRec;
+            int numberOfRecords = FILMANFileRecords[0].stream.NR / FILMANFileRecords[0].stream.NC;
+            for (int recordNum = 0; recordNum < numberOfRecords; recordNum++)
+            {
+                int pointNumber=0;
+                foreach (FILMANFileRecord ffr in FILMANFileRecords)
+                {
+                    fli = ffr.filePointSelector;
+                    FMRec = ffr.stream.read(recordNum, 0); //read first channel to get GV values
+                    foreach (GroupVar gv in fli.GroupVars)
+                    {
+                        if (gv.IsSel)
+                        {
+                            systat.SetVariable(pointNumber++, FMRec.GV[gv.Index]);
+                        }
+                    }
+                    foreach (PointGroup pg in fli.PointGroups)
+                    {
+                        foreach (int chan in pg.selectedChannels)
+                        {
+                            FMRec=ffr.stream.read(recordNum,chan);
+                            foreach (int pt in pg.selectedPoints)
+                            {
+                                systat.SetVariable(pointNumber++, FMRec[pt]);
+                            }
+                        }
+                    }
+                }
+                systat.WriteDataRecord();
+            }
 
             systat.CloseStream();
         }
