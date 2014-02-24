@@ -118,7 +118,9 @@ namespace SYSTATFileStream
                 if (var.Type == SVarType.Str) //now we're searching for string-valued variables
                 {
                     writer.Write((byte)0x0C);
-                    writer.Write((string)var.Value);
+                    string s = (string)var.Value;
+                    for (int i = 0; i < 12; i++) //have to write by chars to avoid leading count
+                        writer.Write(s[i]);
                     writer.Write((byte)0x0C);
                 }
             }
@@ -183,15 +185,27 @@ namespace SYSTATFileStream
                             this._Value = (double)value; //always save as a double
                             return;
                         }
+                        else if (valueType == typeof(int)) //this might be used to store a GV as a number
+                        {
+                            this._Value = Convert.ToDouble((int)value);
+                            return;
+                        }
                         else ;
-                    else if (valueType == typeof(string)) //this Variable is a string type
-                    { //assure 12 characters long
-                        if (((string)value).Length < 12)
-                            this._Value = ((string)value).PadRight(12);
-                        else
-                            this._Value = ((string)value).Substring(0, 12);
-                        return;
-                    }
+                    else //this._Type == SVarType.Str => this Variable is a string type
+                        if (valueType == typeof(string))
+                        {
+                            //assure 12 characters long
+                            if (((string)value).Length < 12)
+                                this._Value = ((string)value).PadRight(12);
+                            else
+                                this._Value = ((string)value).Substring(0, 12);
+                            return;
+                        }
+                        else if (valueType == typeof(int)) //this might be used to store a GV integer as a string
+                        {
+                            this._Value = ((int)value).ToString("0").PadRight(12);
+                            return;
+                        }
                     throw new Exception("SYSTATFileStream: attempt to set variable " + this.Name +
                         " to invalid type of " + valueType.ToString());
                 }
