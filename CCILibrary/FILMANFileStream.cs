@@ -189,6 +189,14 @@ namespace FILMANFileStream
     {
         BinaryReader br;
         public FILMANRecord record;
+        public int NRecordSets
+        {
+            get
+            {
+                if (_nc == 0) return 0;
+                return _nr / _nc;
+            }
+        }
 
         /// <summary>
         /// Construct new FILMAN input stream
