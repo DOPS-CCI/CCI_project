@@ -39,8 +39,9 @@ namespace FMDataConsolidator
             if ((ffr = OpenFILMANFile()) == null) return;
             FILMANFileRecords.Add(ffr);
             Files.Items.Add(ffr.filePointSelector);
-            if (FILMANFileRecords.Count > 1) RemoveFile.IsEnabled = true;
+            if (FILMANFileRecords.Count > 0) RemoveFile.IsEnabled = true;
             NumberOfDataPoints.Text = TotalDataPoints().ToString("0");
+            checkNumberFILMANRecords();
             checkForError(ffr, null);
         }
 
@@ -50,7 +51,8 @@ namespace FMDataConsolidator
             if (selection < 0) return;
             Files.Items.RemoveAt(selection);
             FILMANFileRecords.RemoveAt(selection);
-            if (FILMANFileRecords.Count <= 1) RemoveFile.IsEnabled = false;
+            if (FILMANFileRecords.Count <= 0) RemoveFile.IsEnabled = false;
+            checkNumberFILMANRecords();
             checkForError(null, null);
         }
 
@@ -81,7 +83,7 @@ namespace FMDataConsolidator
             FileListItem fli = new FileListItem(ffr);
             ffr.filePointSelector = fli;
             fli.ErrorCheckReq += new EventHandler(checkForError);
-
+            checkForError(fli, null);
             return ffr;
         }
 
@@ -119,6 +121,27 @@ namespace FMDataConsolidator
             else
                 NumberOfDataPoints.Foreground = Brushes.Black;
             NumberOfDataPoints.Text = sum.ToString("0");
+        }
+
+        private bool checkNumberFILMANRecords()
+        {
+            int v, N;
+            Dictionary<int, int> NRecs = new Dictionary<int, int>();
+            foreach (FILMANFileRecord ffr in FILMANFileRecords) //form subsets of the set of files, based on number of recordsets in each
+            {
+                N = ffr.stream.NRecordSets;
+                if (NRecs.TryGetValue(N, out v)) NRecs[N] = v + 1;
+                else NRecs[N] = 1;
+            }
+            v = NRecs.Values.Max(); //size of the largest subset(s)
+            v = NRecs.Where(n => n.Value.Equals(v)).OrderBy(n => n.Key).Last().Key; //choose the subset having the most recordsets -- arbitrary
+            foreach (FILMANFileRecord ffr in FILMANFileRecords)
+            {
+                N = ffr.stream.NRecordSets;
+                if (N == v) ffr.filePointSelector.NRecSetsOK = true; //mark OK files in this subset
+                else ffr.filePointSelector.NRecSetsOK = false; //and not OK files not in this subset
+            }
+            return false;
         }
 
         private int TotalDataPoints()
@@ -210,7 +233,7 @@ namespace FMDataConsolidator
             } //end data variable capture; now we can write the SYSTAT header
             systat.WriteHeader();
             FILMANRecord FMRec;
-            int numberOfRecords = FILMANFileRecords[0].stream.NR / FILMANFileRecords[0].stream.NC;
+            int numberOfRecords = FILMANFileRecords[0].stream.NRecordSets;
             for (int recordNum = 0; recordNum < numberOfRecords; recordNum++)
             {
                 int pointNumber=0;

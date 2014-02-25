@@ -22,12 +22,11 @@ namespace FMDataConsolidator
     /// <summary>
     /// Interaction logic for FileListItem.xaml
     /// </summary>
-    public partial class FileListItem : ListBoxItem
+    public partial class FileListItem : ListBoxItem, INotifyPropertyChanged
     {
         static int fileUID = 0;
         internal FILMANFileRecord FFR;
         public int FileUID { get; private set; }
-        int numberOfRecords;
         PointGroupsClass _PointGroups = new PointGroupsClass();
         GroupVarsClass _GroupVars = new GroupVarsClass();
 
@@ -45,18 +44,38 @@ namespace FMDataConsolidator
                 return sum;
             }
         }
-
-//        List<SYSTATDatum> SYSTATData;
+        public int NumberOfRecordsets
+        {
+            get
+            {
+                if (FFR != null) return FFR.stream.NRecordSets;
+                else return 0;
+            }
+        }
+        bool _NRecSetsOK = true;
+        public bool NRecSetsOK
+        {
+            get { return _NRecSetsOK; }
+            internal set
+            {
+                if (_NRecSetsOK == value) return;
+                _NRecSetsOK = value;
+                Notify("NRecSetsOK");
+            }
+        }
 
         public static SYSTATNameStringParser GVNameParser = new SYSTATNameStringParser("FGg");
         public static SYSTATNameStringParser PointNameParser = new SYSTATNameStringParser("FCcPp");
 
+        public event EventHandler ErrorCheckReq;
+
         public FileListItem(FILMANFileRecord ffr)
         {
-            InitializeComponent();
-
             FileUID = ++fileUID;
             FFR = ffr;
+
+            InitializeComponent();
+
             FileName.Text = ffr.path;
             FILMANInputStream fis = ffr.stream;
 
@@ -71,7 +90,6 @@ namespace FMDataConsolidator
             }
             tt.Content = sb.ToString();
             FileName.ToolTip = tt;
-            numberOfRecords = fis.NR;
             int ng = fis.NG;
             for (int i = 2; i < ng; i++)
             {
@@ -107,37 +125,20 @@ namespace FMDataConsolidator
 
         private void AddNewPointGroup()
         {
-            int nc = FFR.stream.NC;
-            int np = FFR.stream.NP;
-
-            PointGroup pg = new PointGroup(nc, np, "F%FC%cP%p");
+            PointGroup pg = new PointGroup(FFR.stream.NC, FFR.stream.ND, "F%FC%cP%p");
             _PointGroups.Add(pg);
             _PointGroups.Last().namingConvention =  PointNameParser.Parse("F%FC%cP%p"); //parser not known to PointGroup constructor
         }
-/*
-        public void AddToSYSTATDataList(List<SYSTATDatum> list)
-        {
-            foreach (GroupVar gv in GVs.SelectedItems)
-            {
-                SYSTATDatum sd = new SYSTATDatum();
-                sd.FMStream = this.FFR.stream;
-                sd.Index1 = gv.Index;
-                sd.Index2 = gv.Format == NSEnum.Number ? -1 : -2;
-                sd.Name = gv.GVName;
-            }   
-        }
-*/
+
         public bool IsError()
         {
             foreach (GroupVar gv in _GroupVars)
-                if (gv.IsSel && gv.namingConvention == null) return true;
+                if (gv.IsSel && gv.GVNameError) return true;
             foreach (PointGroup pg in _PointGroups)
-                if (pg.channelError || pg.pointError || pg.namingError)
-                    return true;
+                if (pg.channelError || pg.pointError || pg.namingError) return true;
 
-            return false;
+            return !_NRecSetsOK;
         }
-        public event EventHandler ErrorCheckReq;
 
         private void Channels_TextChanged(object sender, TextChangedEventArgs e)
         {
@@ -155,7 +156,7 @@ namespace FMDataConsolidator
             PointGroup pg = (PointGroup)tb.DataContext;
             pg.PointSelectionString = tb.Text;
             pg.selectedPoints =
-                  Utilities.parseChannelList(pg.PointSelectionString, 1, FFR.stream.NP, true, true);
+                  Utilities.parseChannelList(pg.PointSelectionString, 1, FFR.stream.ND, true, true);
             ErrorCheckReq(pg, null);
         }
 
@@ -181,9 +182,22 @@ namespace FMDataConsolidator
         {
             ErrorCheckReq((GroupVar)((CheckBox)sender).DataContext, null);
         }
+
+        private void GVformat_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            ErrorCheckReq((GroupVar)((ComboBox)sender).DataContext, null);
+        }
+
+        public event PropertyChangedEventHandler PropertyChanged;
+        private void Notify(string p)
+        {
+            if (this.PropertyChanged != null)
+                PropertyChanged(this, new PropertyChangedEventArgs(p));
+        }
     }
 
-    public class PointGroupsClass : ObservableCollection<PointGroup> { }
+    public class PointGroupsClass : ObservableCollection<PointGroup> { } //Wrapper for PointGroup list
+
     public class PointGroup: INotifyPropertyChanged
     {
         public event PropertyChangedEventHandler PropertyChanged;
@@ -280,17 +294,15 @@ namespace FMDataConsolidator
             get { return _namingConvention; }
             set
             {
-                SYSTATNameStringParser.NameEncoding old = _namingConvention;
                 _namingConvention = value;
-                if (_namingConvention == null && old != null || _namingConvention != null && old == null)
-                    Notify("namingError");
+                Notify("namingError");
             }
         }
         public bool namingError
         {
             get
             {
-                return namingConvention == null;
+                return _namingConvention == null || _namingConvention.MinimumLength > 12;
             }
         }
 
@@ -316,23 +328,26 @@ namespace FMDataConsolidator
         }
     }
 
-    struct SelectedPoint
-    {
-        int RecordNumber;
-        int PointNumber;
-    }
-
-    public class GroupVarsClass: ObservableCollection<GroupVar>
-    {
-        public GroupVarsClass() : base() { }
-    }
+    public class GroupVarsClass : ObservableCollection<GroupVar> { }
     public class GroupVar: INotifyPropertyChanged
     {
         public event PropertyChangedEventHandler PropertyChanged;
 
         public bool IsSel { get; set; }
+
         public string FM_GVName { get; internal set; }
-        public NSEnum Format { get; set; }
+
+        NSEnum _Format;
+        public NSEnum Format
+        {
+            get { return _Format; }
+            set
+            {
+                if (value == _Format) return;
+                _Format = value;
+                Notify("GVNameError");
+            }
+        }
         string _GVName;
         public string GVName
         {
@@ -342,7 +357,7 @@ namespace FMDataConsolidator
             }
             set
             {
-                _GVName = value.Substring(0, Math.Min(12, value.Length)); //limit length to 12
+                _GVName = value;
                 Notify("GVName");
             }
         }
@@ -350,7 +365,7 @@ namespace FMDataConsolidator
         {
             get
             {
-                return namingConvention == null;
+                return _namingConvention == null || _namingConvention.MinimumLength > (_Format == NSEnum.Number ? 12 : 11);
             }
         }
         SYSTATNameStringParser.NameEncoding _namingConvention;
@@ -359,10 +374,8 @@ namespace FMDataConsolidator
             get { return _namingConvention; }
             set
             {
-                SYSTATNameStringParser.NameEncoding old = _namingConvention;
                 _namingConvention = value;
-                if (_namingConvention == null && old != null || _namingConvention != null && old == null)
-                    Notify("GVNameError");
+                Notify("GVNameError");
             }
             
         }
@@ -374,15 +387,7 @@ namespace FMDataConsolidator
                 PropertyChanged(this, new PropertyChangedEventArgs(p));
         }
     }
-/*
-    public class SYSTATDatum
-    {
-        internal FILMANInputStream FMStream { get; set; }
-        internal int Index1 { get; set; }
-        internal int Index2 { get; set; } //if negative indicates a GV: -1 = Number,-2 = String; otherwise point number
-        internal string Name { get; set; }
-    }
-*/
+
     public class SYSTATNameStringParser
     {
         Regex ok;
@@ -442,7 +447,21 @@ namespace FMDataConsolidator
             return sb.ToString();
         }
 
-        public class NameEncoding : List<Char_CodePairs> { } //hides actual encoding format from user of SYSTATNameStringParser
+        public class NameEncoding : List<Char_CodePairs>
+        {  //hides actual encoding format from user of SYSTATNameStringParser
+            public int MinimumLength
+            {
+                get
+                {
+                    int sum = 0;
+                    foreach (Char_CodePairs cc in this)
+                    {
+                        sum += cc.chars.Length + (cc.code != ' ' ? cc.leading + (cc.paren ? 2 : 0) : 0);
+                    }
+                    return sum;
+                }
+            }
+        }
 
         public class Char_CodePairs
         {
@@ -453,5 +472,5 @@ namespace FMDataConsolidator
         }
     }
 
-    public enum NSEnum { Number, String }
+    public enum NSEnum { Number, String, MappedString }
 }

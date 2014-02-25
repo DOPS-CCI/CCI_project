@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:FMDataConsolidator"
         Title="FILMAN Data Consolidator" MaxHeight="720" WindowStartupLocation="CenterScreen" VerticalAlignment="Top" 
-        Height="Auto" Width="928"
+        Height="Auto" Width="948"
         DataContext="{Binding RelativeSource={RelativeSource Self}}">
     <Window.Resources>
         <Style TargetType="Button">

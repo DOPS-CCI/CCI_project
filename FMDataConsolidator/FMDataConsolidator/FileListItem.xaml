@@ -21,6 +21,18 @@
             <Setter Property="FontWeight" Value="Bold"/>
             <Setter Property="TextAlignment" Value="Center"/>
         </Style>
+        <Style x:Key="FileNameStyle" TargetType="TextBlock">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Path=NRecSetsOK, Mode=OneWay}" Value="False">
+                    <Setter Property="Foreground" Value="Red"/>
+                    <Setter Property="Background" Value="Pink"/>
+                </DataTrigger>
+            </Style.Triggers>
+            <Setter Property="FontSize" Value="20"/>
+            <Setter Property="FontWeight" Value="Normal"/>
+            <Setter Property="TextAlignment" Value="Left"/>
+            <Setter Property="Margin" Value="6"/>
+        </Style>
         <DataTemplate DataType="{x:Type local:PointGroup}">
             <StackPanel Orientation="Horizontal">
                 <TextBox Name="channelSelector" Text="{Binding Path=ChannelSelectionString}" Width="170" TextChanged="Channels_TextChanged"/>
@@ -56,7 +68,7 @@
                 <CheckBox IsChecked="{Binding Path=IsSel}" Checked="GVSelection_Changed" Unchecked="GVSelection_Changed" VerticalAlignment="Center" />
                 <TextBox Text="{Binding Path=FM_GVName, Mode=OneWay}" Width="90"/>
                 <TextBox Name="GVname" Text="{Binding Path=GVName}" Width="90" TextChanged="GVName_TextChanged"/>
-                <ComboBox Name="GVformat" Width="70" SelectedItem="{Binding Path=Format}" ItemsSource="{Binding Source={StaticResource NSEnum}}">
+                <ComboBox Name="GVformat" Width="70" SelectedItem="{Binding Path=Format}" ItemsSource="{Binding Source={StaticResource NSEnum}}" SelectionChanged="GVformat_SelectionChanged">
                     <ComboBox.Resources>
                         <Style TargetType="TextBlock">
                             <Setter Property="FontWeight" Value="Normal"/>
@@ -86,7 +98,7 @@
                 <ColumnDefinition Width="318"/>
                 <ColumnDefinition Width="568"/>
             </Grid.ColumnDefinitions>
-            <TextBlock Name="FileName" Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" FontSize="20" Margin="6" TextAlignment="Left" FontWeight="Normal">File Name</TextBlock>
+            <TextBlock Name="FileName" Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Style="{StaticResource FileNameStyle}" >File Name</TextBlock>
             <GroupBox Grid.Row="1" Grid.Column="0" Header="Group Variables">
                 <ListView Name="GVs" ItemsSource="{Binding GroupVars}">
                     <ListView.View>
@@ -140,6 +152,10 @@
                     <TextBlock Text="-"/>
                 </Button>
             </StackPanel>
+            <TextBlock Grid.Row="2" Grid.Column="0">
+                <TextBlock Text="Number of recordsets = "/>
+                <TextBlock Text="{Binding NumberOfRecordsets, Mode=OneTime}"/>
+            </TextBlock>
         </Grid>
     </Border>
 </ListBoxItem>
