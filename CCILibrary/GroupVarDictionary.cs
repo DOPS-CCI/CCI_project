@@ -53,7 +53,7 @@ namespace GroupVarDictionary
                 return val.ToString("0");
             foreach (KeyValuePair<string, int> entry in GVValueDictionary)
                 if (entry.Value == val) return entry.Key;
-            return "";
+            return val.ToString("0");
         }
 
         public override string ToString()

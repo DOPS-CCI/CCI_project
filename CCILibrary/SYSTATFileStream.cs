@@ -34,7 +34,7 @@ namespace SYSTATFileStream
             Comments = new List<string>();
             Variables = new List<Variable>(1);
             writer = new BinaryWriter(
-                new FileStream(filePath + (fileTypeS ? ".SYS" : ".SYD"), FileMode.Create, FileAccess.Write),
+                new FileStream(Path.ChangeExtension(filePath, (fileTypeS ? ".sys" : ".syd")), FileMode.Create, FileAccess.Write),
                 Encoding.ASCII);
             //allocate appropriate-sized buffer
             if (fileTypeS)
@@ -207,7 +207,7 @@ namespace SYSTATFileStream
                             return;
                         }
                     throw new Exception("SYSTATFileStream: attempt to set variable " + this.Name +
-                        " to invalid type of " + valueType.ToString());
+                        " of type " + valueType.ToString() + " by type " + value.GetType().ToString());
                 }
                 internal get { return _Value; }
             }
