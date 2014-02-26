@@ -64,11 +64,11 @@
             </DataTemplate.Triggers>
         </DataTemplate>
         <DataTemplate DataType="{x:Type local:GroupVar}">
-            <StackPanel Orientation="Horizontal">
+            <StackPanel Orientation="Horizontal" ToolTip="{Binding Path=Description}">
                 <CheckBox IsChecked="{Binding Path=IsSel}" Checked="GVSelection_Changed" Unchecked="GVSelection_Changed" VerticalAlignment="Center" />
                 <TextBox Text="{Binding Path=FM_GVName, Mode=OneWay}" Width="90"/>
                 <TextBox Name="GVname" Text="{Binding Path=GVName}" Width="90" TextChanged="GVName_TextChanged"/>
-                <ComboBox Name="GVformat" Width="70" SelectedItem="{Binding Path=Format}" ItemsSource="{Binding Source={StaticResource NSEnum}}" SelectionChanged="GVformat_SelectionChanged">
+                <ComboBox  Width="70" SelectedItem="{Binding Path=Format}" ItemsSource="{Binding Source={StaticResource NSEnum}, Mode=OneTime}" SelectionChanged="GVformat_SelectionChanged">
                     <ComboBox.Resources>
                         <Style TargetType="TextBlock">
                             <Setter Property="FontWeight" Value="Normal"/>

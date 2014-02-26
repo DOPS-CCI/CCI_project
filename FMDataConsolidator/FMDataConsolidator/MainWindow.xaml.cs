@@ -14,7 +14,9 @@ using System.Windows.Navigation;
 using Microsoft.Win32;
 using FILMANFileStream;
 using SYSTAT = SYSTATFileStream;
-
+using HeaderFileStream;
+using Header;
+using GroupVarDictionary;
 
 namespace FMDataConsolidator
 {
@@ -37,6 +39,7 @@ namespace FMDataConsolidator
         {
             FILMANFileRecord ffr;
             if ((ffr = OpenFILMANFile()) == null) return;
+
             FILMANFileRecords.Add(ffr);
             Files.Items.Add(ffr.filePointSelector);
             if (FILMANFileRecords.Count > 0) RemoveFile.IsEnabled = true;
@@ -80,6 +83,16 @@ namespace FMDataConsolidator
             FILMANFileRecord ffr = new FILMANFileRecord();
             ffr.path = ofd.FileName;
             ffr.stream = fmTemp;
+            //Now check to see if there is a Header file available
+            string directory = Path.GetDirectoryName(ffr.path);
+            IEnumerable<string> hdrFiles = Directory.EnumerateFiles(directory, "*.hdr");
+            if (hdrFiles.Count() > 0) //there's a candidate Header file in this directory
+            {
+                HeaderFileReader headerFile = new HeaderFileReader
+                    (new FileStream(hdrFiles.First(), FileMode.Open, FileAccess.Read));
+                ffr.GVDictionary = headerFile.read().GroupVars; //save the GroupVar dictionary
+                headerFile.Dispose(); //closes file
+            }
             FileListItem fli = new FileListItem(ffr);
             ffr.filePointSelector = fli;
             fli.ErrorCheckReq += new EventHandler(checkForError);
@@ -197,14 +210,12 @@ namespace FMDataConsolidator
                         GVcodes[2]++;
                         string s = FileListItem.GVNameParser.Encode(GVcodes, gv.namingConvention);
                         SYSTAT.SYSTATFileStream.Variable v;
-                        if (gv.Format == NSEnum.String)
+                        if (gv.Format == NSEnum.String || gv.Format == NSEnum.MappedString)
                             v = new SYSTAT.SYSTATFileStream.Variable(
                                 s + "$", SYSTAT.SYSTATFileStream.SVarType.Str);
-                        else if (gv.Format == NSEnum.Number)
+                        else //gv.Format == NSEnum.Number
                             v = new SYSTAT.SYSTATFileStream.Variable(
                                 s, SYSTAT.SYSTATFileStream.SVarType.Num);
-                        else //here we'll handle case of GV encoded as string
-                            v = null;
                         systat.AddVariable(v);
                     }
                 }
@@ -232,6 +243,7 @@ namespace FMDataConsolidator
                 }
             } //end data variable capture; now we can write the SYSTAT header
             systat.WriteHeader();
+
             FILMANRecord FMRec;
             int numberOfRecords = FILMANFileRecords[0].stream.NRecordSets;
             for (int recordNum = 0; recordNum < numberOfRecords; recordNum++)
@@ -245,7 +257,11 @@ namespace FMDataConsolidator
                     {
                         if (gv.IsSel)
                         {
-                            systat.SetVariable(pointNumber++, FMRec.GV[gv.Index]);
+                            int GVValue = FMRec.GV[gv.Index];
+                            if (gv.GVE == null || gv.Format == NSEnum.Number || gv.Format == NSEnum.String)
+                                systat.SetVariable(pointNumber++, GVValue);
+                            else //GVE != null & Format == NSEnum.MappingString
+                                systat.SetVariable(pointNumber++, gv.GVE.ConvertGVValueIntegerToString(GVValue));
                         }
                     }
                     foreach (PointGroup pg in fli.PointGroups)
@@ -272,6 +288,7 @@ namespace FMDataConsolidator
     {
         public FILMANInputStream stream { get; internal set; }
         public string path { get; internal set; }
+        public GroupVarDictionary.GroupVarDictionary GVDictionary = null;
         public FileListItem filePointSelector { get; internal set; }
     }
 }

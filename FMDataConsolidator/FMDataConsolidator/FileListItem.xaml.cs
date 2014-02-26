@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -12,10 +13,10 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
-using System.Windows.Shapes;
 using System.Collections.ObjectModel;
 using FILMANFileStream;
 using CCIUtilities;
+using GroupVarDictionary;
 
 namespace FMDataConsolidator
 {
@@ -90,17 +91,24 @@ namespace FMDataConsolidator
             }
             tt.Content = sb.ToString();
             FileName.ToolTip = tt;
+
             int ng = fis.NG;
             for (int i = 2; i < ng; i++)
             {
-                _GroupVars.Add(new GroupVar
-                {
-                    FM_GVName = fis.GVNames(i).Trim(),
-                    GVName = fis.GVNames(i),
-                    Format = NSEnum.String,
-                    namingConvention = GVNameParser.Parse(fis.GVNames(i)),
-                    Index = i
-                });
+                GroupVar gv = new GroupVar();
+                gv.FM_GVName = fis.GVNames(i).Trim();
+                gv.GVName = fis.GVNames(i);
+                gv.Format = NSEnum.String;
+                gv.namingConvention = GVNameParser.Parse(fis.GVNames(i));
+                gv.Index = i;
+                GVEntry gve = null;
+                if (ffr.GVDictionary != null) //see if there is a GV string mapping
+                    if (ffr.GVDictionary.TryGetValue(gv.FM_GVName, out gve))
+                    {
+                        gv.GVE = gve;
+                        gv.Description = gve.Description;
+                    }
+                _GroupVars.Add(gv);
             }
 
             AddNewPointGroup();
@@ -368,6 +376,7 @@ namespace FMDataConsolidator
                 return _namingConvention == null || _namingConvention.MinimumLength > (_Format == NSEnum.Number ? 12 : 11);
             }
         }
+        public GVEntry GVE;
         SYSTATNameStringParser.NameEncoding _namingConvention;
         internal SYSTATNameStringParser.NameEncoding namingConvention
         {
@@ -380,6 +389,19 @@ namespace FMDataConsolidator
             
         }
         internal int Index { get; set; }
+        string _Description = null;
+        public string Description
+        {
+            get
+            {
+                return _Description;
+            }
+            set
+            {
+                _Description = value;
+                Notify("Description");
+            }
+        }
 
         private void Notify(string p)
         {
