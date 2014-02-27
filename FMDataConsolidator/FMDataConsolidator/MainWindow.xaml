@@ -4,7 +4,7 @@
         xmlns:local="clr-namespace:FMDataConsolidator"
         Title="FILMAN Data Consolidator" MaxHeight="720" WindowStartupLocation="CenterScreen" VerticalAlignment="Top" 
         Height="Auto" Width="948"
-        DataContext="{Binding RelativeSource={RelativeSource Self}}">
+        DataContext="{Binding RelativeSource={RelativeSource Self}}" Closing="Window_Closing">
     <Window.Resources>
         <Style TargetType="Button">
             <Setter Property="Width" Value="80"/>

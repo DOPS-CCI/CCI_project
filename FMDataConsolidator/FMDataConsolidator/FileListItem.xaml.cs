@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
@@ -8,12 +9,6 @@ using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Collections.ObjectModel;
 using FILMANFileStream;
 using CCIUtilities;
 using GroupVarDictionary;
@@ -102,12 +97,11 @@ namespace FMDataConsolidator
                 gv.namingConvention = GVNameParser.Parse(fis.GVNames(i));
                 gv.Index = i;
                 GVEntry gve = null;
-                if (ffr.GVDictionary != null) //see if there is a GV string mapping
-                    if (ffr.GVDictionary.TryGetValue(gv.FM_GVName, out gve))
-                    {
-                        gv.GVE = gve;
-                        gv.Description = gve.Description;
-                    }
+                if (ffr.GVDictionary != null && ffr.GVDictionary.TryGetValue(gv.FM_GVName, out gve)) //see if there is a GV string mapping
+                {
+                    gv.GVE = gve;
+                    gv.Description = gve.Description;
+                }
                 _GroupVars.Add(gv);
             }
 
@@ -345,6 +339,17 @@ namespace FMDataConsolidator
 
         public string FM_GVName { get; internal set; }
 
+        public static NSEnum[] _comboUnmapped = { NSEnum.Number, NSEnum.String };
+        public NSEnum[] comboUnmapped
+        {
+            get { return _comboUnmapped; }
+        }
+        public static NSEnum[] _comboMapped = { NSEnum.Number, NSEnum.String, NSEnum.MappedString };
+        public NSEnum[] comboMapped
+        {
+            get { return _comboMapped; }
+        }
+
         NSEnum _Format;
         public NSEnum Format
         {
@@ -376,7 +381,15 @@ namespace FMDataConsolidator
                 return _namingConvention == null || _namingConvention.MinimumLength > (_Format == NSEnum.Number ? 12 : 11);
             }
         }
-        public GVEntry GVE;
+        public GVEntry GVE { get; internal set; }
+        public bool HasGVValueMapping
+        {
+            get
+            {
+                return GVE != null && GVE.GVValueDictionary != null;
+            }
+        }
+
         SYSTATNameStringParser.NameEncoding _namingConvention;
         internal SYSTATNameStringParser.NameEncoding namingConvention
         {
@@ -495,4 +508,5 @@ namespace FMDataConsolidator
     }
 
     public enum NSEnum { Number, String, MappedString }
+
 }

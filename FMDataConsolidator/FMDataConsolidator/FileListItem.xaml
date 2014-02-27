@@ -68,7 +68,7 @@
                 <CheckBox IsChecked="{Binding Path=IsSel}" Checked="GVSelection_Changed" Unchecked="GVSelection_Changed" VerticalAlignment="Center" />
                 <TextBox Text="{Binding Path=FM_GVName, Mode=OneWay}" Width="90"/>
                 <TextBox Name="GVname" Text="{Binding Path=GVName}" Width="90" TextChanged="GVName_TextChanged"/>
-                <ComboBox  Width="70" SelectedItem="{Binding Path=Format}" ItemsSource="{Binding Source={StaticResource NSEnum}, Mode=OneTime}" SelectionChanged="GVformat_SelectionChanged">
+                <ComboBox Name="GVformat"  Width="70" SelectedItem="{Binding Path=Format}" ItemsSource="{Binding Path=comboMapped, Mode=OneTime}"  SelectionChanged="GVformat_SelectionChanged">
                     <ComboBox.Resources>
                         <Style TargetType="TextBlock">
                             <Setter Property="FontWeight" Value="Normal"/>
@@ -83,6 +83,13 @@
                 </DataTrigger>
                 <DataTrigger Binding="{Binding Path=GVNameError, Mode=OneWay}" Value="False">
                     <Setter Property="Foreground" Value="Black" TargetName="GVname"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Path=HasGVValueMapping}" Value="False">
+                    <Setter Property="ItemsSource" TargetName="GVformat">
+                        <Setter.Value>
+                            <Binding Path="comboUnmapped" Mode="OneTime" />
+                        </Setter.Value>
+                    </Setter>
                 </DataTrigger>
             </DataTemplate.Triggers>
         </DataTemplate>
