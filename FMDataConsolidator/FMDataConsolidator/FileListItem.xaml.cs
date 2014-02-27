@@ -60,8 +60,8 @@ namespace FMDataConsolidator
             }
         }
 
-        public static SYSTATNameStringParser GVNameParser = new SYSTATNameStringParser("FGg");
-        public static SYSTATNameStringParser PointNameParser = new SYSTATNameStringParser("FCcPp");
+        public static SYSTATNameStringParser GVNameParser = new SYSTATNameStringParser("FfGg");
+        public static SYSTATNameStringParser PointNameParser = new SYSTATNameStringParser("FfCcPp");
 
         public event EventHandler ErrorCheckReq;
 
@@ -127,9 +127,9 @@ namespace FMDataConsolidator
 
         private void AddNewPointGroup()
         {
-            PointGroup pg = new PointGroup(FFR.stream.NC, FFR.stream.ND, "F%FC%cP%p");
+            PointGroup pg = new PointGroup(FFR.stream.NC, FFR.stream.ND, "F%FC%C(%P)");
             _PointGroups.Add(pg);
-            _PointGroups.Last().namingConvention =  PointNameParser.Parse("F%FC%cP%p"); //parser not known to PointGroup constructor
+            _PointGroups.Last().namingConvention = PointNameParser.Parse("F%FC%C(%P)"); //parser not known to PointGroup constructor
         }
 
         public bool IsError()
@@ -498,7 +498,7 @@ namespace FMDataConsolidator
             }
         }
 
-        public class Char_CodePairs
+        public class Char_CodePairs //has to be public because wi have to hand back NameEncoding: List<Char_CodePairs>
         {
             internal string chars;
             internal char code = ' ';
