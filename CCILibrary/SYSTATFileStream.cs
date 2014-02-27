@@ -11,9 +11,9 @@ namespace SYSTATFileStream
     /// To use this class to write a SYSTAT file:
     ///     1. Create the stream with constructor, indicating output file path and .SYS or .SYD
     ///     2. Add zero or more Comments with AddComment
-    ///     3. Add one or more Variables (in order) with AddVariable
+    ///     3. Create and add one or more Variables (in order) with AddVariable
     ///     4. Write header using WriteHeader
-    ///     5. Fill each record of Variables using SetVariable
+    ///     5. Fill each record of Variables using SetVariableValue
     ///     6. Write the record using WriteDataRecord
     ///     7. Loop to #5 until done
     ///     8. Call CloseStream to finish file and close it
@@ -25,16 +25,17 @@ namespace SYSTATFileStream
         bool fileTypeS; //S (single) type file?
         BinaryWriter writer; //main writer to stream
 
-        public enum SFileType { S, D }
-        public enum SVarType { Num, Str }
+        public enum SFileType { SYS, SYD }
+        public enum SVarType { Number, String }
 
-        public SYSTATFileStream(string filePath, SFileType t)
+        public SYSTATFileStream(string filePath, SFileType t) //constructor
         {
-            fileTypeS = t == SFileType.S;
+            fileTypeS = t == SFileType.SYS;
             Comments = new List<string>();
             Variables = new List<Variable>(1);
             writer = new BinaryWriter(
-                new FileStream(Path.ChangeExtension(filePath, (fileTypeS ? ".sys" : ".syd")), FileMode.Create, FileAccess.Write),
+                new FileStream(Path.ChangeExtension(filePath, (fileTypeS ? ".sys" : ".syd")),
+                    FileMode.Create, FileAccess.Write),
                 Encoding.ASCII);
             //allocate appropriate-sized buffer
             if (fileTypeS)
@@ -56,7 +57,7 @@ namespace SYSTATFileStream
             Variables.Add(var);
         }
 
-        public void SetVariable(int index, object value)
+        public void SetVariableValue(int index, object value)
         {
             Variables[index].Value = value;
         }
@@ -107,7 +108,7 @@ namespace SYSTATFileStream
             bufferN = 0;
             foreach (Variable var in Variables)
             {
-                if (var.Type == SVarType.Num) //this is first pass through variables, looking for numbers only
+                if (var.Type == SVarType.Number) //this is first pass through variables, looking for numbers only
                 {
                     addNumericToBuffer((double)var.Value);
                 }
@@ -115,7 +116,7 @@ namespace SYSTATFileStream
             writeBuffer(true); //write out any last numeric items
             foreach (Variable var in Variables)
             {
-                if (var.Type == SVarType.Str) //now we're searching for string-valued variables
+                if (var.Type == SVarType.String) //now we're searching for string-valued variables
                 {
                     writer.Write((byte)0x0C);
                     string s = (string)var.Value;
@@ -132,13 +133,13 @@ namespace SYSTATFileStream
         {
             if (bufferN == buffer.Length) //write out last buffer and reset buffer pointer
             {
-                writeBuffer();
+                writeBuffer(); //not last as we still have at least one more point
                 bufferN = 0;
             }
             buffer[bufferN++] = v;
         }
 
-        private void writeBuffer(bool last = false)
+        private void writeBuffer(bool last = false) //if last is true, this is last buffer in record
         {
             if (bufferN == 0) return; //only occurs if there are no numeric values at all
             byte headtail = last ? Convert.ToByte(bufferN * (fileTypeS ? 4 : 8)) : (byte)0x81;
@@ -164,7 +165,7 @@ namespace SYSTATFileStream
             string _Name;
             public string Name
             {
-                get { return _Name + (_Type == SVarType.Str ? "$" : ""); }
+                get { return _Name + (_Type == SVarType.String ? "$" : ""); }
                 private set { _Name = value; }
             }
             SVarType _Type;
@@ -173,13 +174,14 @@ namespace SYSTATFileStream
                 get { return _Type; }
                 private set { _Type = value; }
             }
-            Object _Value;
+            Object _Value; //always stored as a double or a 12-char string
             public Object Value
             {
                 set
                 {
                     Type valueType = value.GetType();
-                    if (this._Type == SVarType.Num) //this Variable is a numeric type
+                    if (this._Type == SVarType.Number) //this Variable is a numeric type
+                        //so, the stored value must be a single/float/int or there is an error
                         if (valueType == typeof(double) || valueType == typeof(float))
                         {
                             this._Value = (double)value; //always save as a double
@@ -192,6 +194,7 @@ namespace SYSTATFileStream
                         }
                         else ;
                     else //this._Type == SVarType.Str => this Variable is a string type
+                        //so, the stored value must be a string or an integer or there is an error
                         if (valueType == typeof(string))
                         {
                             //assure 12 characters long
@@ -207,7 +210,7 @@ namespace SYSTATFileStream
                             return;
                         }
                     throw new Exception("SYSTATFileStream: attempt to set variable " + this.Name +
-                        " of type " + valueType.ToString() + " by type " + value.GetType().ToString());
+                        " of type " + _Type.ToString() + " with type " + valueType.ToString());
                 }
                 internal get { return _Value; }
             }
@@ -215,7 +218,11 @@ namespace SYSTATFileStream
             static string NamePatt = @"^\s*(?<nameChars>[A-Za-z0-9_]*(\(\d+\))?[A-Za-z0-9_]*)(?<str>\$?)\s*$";
             static Regex NameRegex = new Regex(NamePatt);
 
-
+            /// <summary>
+            /// Create a new variable with name and type
+            /// </summary>
+            /// <param name="name">Name of new variable; if ends in $ type must be String; otherwise type controls</param>
+            /// <param name="type">Type of new variable</param>
             public Variable(string name, SVarType type)
             {
                 Match m = NameRegex.Match(name);
@@ -223,25 +230,29 @@ namespace SYSTATFileStream
                 {
                     int len = m.Groups["nameChars"].Length;
                     if (len > 0) // can match name of length zero
-                        if (m.Groups["str"].Length == 0) // no force of string type
-                            if (len <= (type == SVarType.Num ? 12 : 11)) // valid value name
+                        if (m.Groups["str"].Length == 0) // may be either String or Number
+                            if (len <= (type == SVarType.Number ? 12 : 11)) // valid value name
                             {
-                                Type = type;
-                                Name = m.Groups["nameChars"].Value;
+                                _Type = type;
+                                _Name = m.Groups["nameChars"].Value;
                                 return;
                             }
                             else ; //fall through to throw exception
-                        else // must be string type
-                            if (type == SVarType.Str && len <= 11)
+                        else // must be String type if ends in $
+                            if (type == SVarType.String && len <= 11)
                             {
-                                Type = SVarType.Str;
-                                Name = m.Groups["nameChars"].Value;
+                                _Type = SVarType.String;
+                                _Name = m.Groups["nameChars"].Value;
                                 return;
                             }
                 }
                 throw new Exception("STATFileStream: Invalid Variable name of type " + type.ToString() + ": " + m.Groups["nameChars"].Value);
             }
 
+            /// <summary>
+            /// Create a Variable with the Type implied by the name
+            /// </summary>
+            /// <param name="name">Name of the variable; Type is String if it ends in $, Number otherwise</param>
             public Variable(string name)
             {
                 Match m = NameRegex.Match(name);
@@ -249,25 +260,26 @@ namespace SYSTATFileStream
                 {
                     int len = m.Groups["nameChars"].Length;
                     if (len > 0) // can match name of length zero
-                        if (m.Groups["str"].Length == 0) // numeric type
-                            if (len <= 12 ) // valid value name
+                        if (m.Groups["str"].Length == 0) // must be numeric type
+                            if (len <= 12) // valid value name
                             {
-                                Type = SVarType.Num;
-                                Name = m.Groups["nameChars"].Value;
+                                _Type = SVarType.Number;
+                                _Name = m.Groups["nameChars"].Value;
                                 return;
                             }
-                            else // must be string type
-                                if (len <= 11)
-                                {
-                                    Type = SVarType.Str;
-                                    Name = m.Groups["nameChars"].Value;
-                                    return;
-                                }
+                            else ;
+                        else // must be string type because it ends in $
+                            if (len <= 11)
+                            {
+                                _Type = SVarType.String;
+                                _Name = m.Groups["nameChars"].Value;
+                                return;
+                            }
                 }
                 throw new Exception("SYSTATFileStream: Invalid Variable name: " + m.Groups["nameChars"].Value);
             }
 
-            public string GetCenteredName()
+            public string GetCenteredName() //Utility to center Name in a 12 char field
             {
                 string name = Name;
                 int len = 6 + name.Length / 2;
