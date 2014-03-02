@@ -26,6 +26,8 @@ namespace FMGraph2
         internal double _fmin;
         internal double _fmax;
         private double _fmaxMax;
+        internal int _pmin;
+        internal int _pmax;
         internal int _dec;
         internal double _asp;
         internal double _Ymax;
@@ -54,7 +56,7 @@ namespace FMGraph2
 
         private void click_Check(object sender, RoutedEventArgs e)
         {
-            checkError();
+            calculatePoints();
         }
 
         private void AllChannels_Checked(object sender, RoutedEventArgs e)
@@ -217,15 +219,30 @@ namespace FMGraph2
             this.HeaderInfo.Text = s.ToString();
             double graphletMax = fmr.Max();
             double graphletMin = fmr.Min();
-            if (graphletMin >= 0D || graphletMin > -graphletMax * 0.01D) { Pos.IsChecked = true; F.IsChecked = true; }
-            else { PosNeg.IsChecked = true; T.IsChecked = true; }
+            if (fm.IS > 0)
+            {
+                T.IsEnabled = true;
+                F.IsEnabled = true;
+                if (graphletMin >= 0D || graphletMin > -graphletMax * 0.01D) { Pos.IsChecked = true; F.IsChecked = true; }
+                else { PosNeg.IsChecked = true; T.IsChecked = true; }
+                _tmaxMax=(double)fm.ND / fm.IS;
+                Tmin.Text = "0.0";
+                Tmax.Text = _tmaxMax.ToString("0.0");
+                _fmaxMax=(double)fm.IS;
+                Fmin.Text = "0.0";
+                Fmax.Text = _fmaxMax.ToString("0.0");
+            }
+            else
+            {
+                P.IsChecked = true;
+                T.IsEnabled = false;
+                F.IsEnabled = false;
+                if (graphletMin >= 0D || graphletMin > -graphletMax * 0.01D) Pos.IsChecked = true;
+                else PosNeg.IsChecked = true;
+            }
+            Pmin.Text = "1";
+            Pmax.Text = fm.ND.ToString("0");
             DecimationBox.Text = "1";
-            _tmaxMax=(double)fm.ND / fm.IS;
-            Tmin.Text = "0.0";
-            Tmax.Text = _tmaxMax.ToString("0.0");
-            _fmaxMax=(double)fm.IS;
-            Fmin.Text = "0.0";
-            Fmax.Text = _fmaxMax.ToString("0.0");
             IncludeY.IsChecked = true;
             yAxis.Text = "Y-axis";
             scaleToRecsetMax.IsChecked = true;
@@ -282,10 +299,15 @@ namespace FMGraph2
                     if (_tmin >= _tmax || _tmax > _tmaxMax) throw new Exception();
                     p = (_tmax - _tmin) * ((double)fm.IS);
                 }
-                else
+                else if ((bool)F.IsChecked)
                 {
                     if (_fmin >= _fmax || _fmax > _fmaxMax) throw new Exception();
                     p = (_fmax - _fmin) * ((double)fm.ND) / ((double)fm.IS);
+                }
+                else
+                {
+                    if (_pmin >= _pmax || _pmax > fm.ND) throw new Exception();
+                    p = _pmax - _pmin + 1;
                 }
                 if (_dec <= 0) throw new Exception();
                 p = (p - 1D) / ((double)_dec);
@@ -381,6 +403,40 @@ namespace FMGraph2
             {
                 _dec = 0;
                 DecimationBox.BorderBrush = Brushes.Red;
+            }
+            calculatePoints();
+        }
+
+        private void Pmin_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (sender == null) return;
+            try
+            {
+                _pmin = Convert.ToInt32(Pmin.Text);
+                if (_pmin <= 0D || (fm != null && _pmin >= fm.ND)) throw new Exception();
+                Pmin.BorderBrush = Brushes.MediumBlue;
+            }
+            catch
+            {
+                _pmin = _pmax;
+                Pmin.BorderBrush = Brushes.Red;
+            }
+            calculatePoints();
+        }
+
+        private void Pmax_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (sender == null) return;
+            try
+            {
+                _pmax = Convert.ToInt32(Pmax.Text);
+                if (_pmax <= 1D || (fm != null && _pmax > fm.ND)) throw new Exception();
+                Pmax.BorderBrush = Brushes.MediumBlue;
+            }
+            catch
+            {
+                _pmax = 0;
+                Pmax.BorderBrush = Brushes.Red;
             }
             calculatePoints();
         }

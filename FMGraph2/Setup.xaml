@@ -61,6 +61,12 @@
                         <TextBox Name="Fmax" Height="20" Padding="2,0,2,0" MinWidth="60" VerticalAlignment="Center" IsEnabled="{Binding ElementName=F,Path=IsChecked}" TextChanged="Fmax_TextChanged"/>
                         <Label>Hz</Label>
                     </StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <RadioButton Name="P" Margin="0,0,4,0" VerticalAlignment="Center" Click="click_Check" GroupName="TFselect">Points:</RadioButton>
+                        <TextBox Name="Pmin" Height="20" Padding="2,0,2,0" MinWidth="60" VerticalAlignment="Center" IsEnabled="{Binding ElementName=P,Path=IsChecked}" TextChanged="Pmin_TextChanged"/>
+                        <Label>-</Label>
+                        <TextBox Name="Pmax" Height="20" Padding="2,0,2,0" MinWidth="60" VerticalAlignment="Center" IsEnabled="{Binding ElementName=P,Path=IsChecked}" TextChanged="Pmax_TextChanged"/>
+                    </StackPanel>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal">
                     <Label Margin="8,4,4,0">Decimation factor =</Label>

@@ -1,7 +1,7 @@
 ﻿<Window x:Class="FMGraph2.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        MinWidth="540" MinHeight="800" WindowStartupLocation="CenterScreen"
+        MinWidth="540" MinHeight="800" WindowStartupLocation="Manual" Top="0"
         Title="FMGraph2" ResizeMode="CanResizeWithGrip" Closed="Window_Closed" SizeToContent="WidthAndHeight">
     <ScrollViewer HorizontalScrollBarVisibility="Auto">
     <Grid>

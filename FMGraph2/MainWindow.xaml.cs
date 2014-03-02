@@ -48,6 +48,7 @@ namespace FMGraph2
     public enum XType
     {
         Time,
-        Freq
+        Freq,
+        Points
     }
 }
