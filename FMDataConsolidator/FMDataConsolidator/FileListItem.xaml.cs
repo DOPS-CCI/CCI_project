@@ -117,11 +117,16 @@ namespace FMDataConsolidator
 
         private void RemoveButton_Click(object sender, RoutedEventArgs e)
         {
-            int pg = this.Points.SelectedIndex;
-            if (pg < 0) return;
+            int pg;
+            if (this.Points.Items.Count == 1) pg = 0;
+            else
+            {
+                pg = this.Points.SelectedIndex;
+                if (pg < 0) return;
+            }
             PointGroup p = _PointGroups[pg];
             _PointGroups.RemoveAt(pg);
-            if (_PointGroups.Count <= 1) RemovePointSelection.IsEnabled = false;
+            if (_PointGroups.Count <= 0) RemovePointSelection.IsEnabled = false;
             ErrorCheckReq(null, null);
         }
 

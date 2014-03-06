@@ -47,8 +47,13 @@ namespace FMDataConsolidator
 
         private void RemoveFile_Click(object sender, RoutedEventArgs e)
         {
-            int selection = Files.SelectedIndex;
-            if (selection < 0) return;
+            int selection;
+            if (Files.Items.Count == 1) selection = 0;
+            else
+            {
+                selection = Files.SelectedIndex;
+                if (selection < 0) return;
+            }
             Files.Items.RemoveAt(selection);
             FILMANFileRecords.RemoveAt(selection);
             if (FILMANFileRecords.Count <= 0) RemoveFile.IsEnabled = false;
@@ -97,10 +102,12 @@ namespace FMDataConsolidator
             return ffr;
         }
 
-        private string OpenSYSTATFile()
+        private string OpenSYSTATFile(string directory)
         {
             SaveFileDialog sfd = new SaveFileDialog();
             sfd.Title = "Create a SYSTAT file ...";
+            if (directory != null)
+                sfd.InitialDirectory = directory;
             sfd.AddExtension = false;
             sfd.OverwritePrompt = false; //we'll ask later if file duplicate, when we know final format
             sfd.DefaultExt = ".sys"; // Default file extension
@@ -119,6 +126,7 @@ namespace FMDataConsolidator
 
         private void checkForError(object sender, EventArgs e)
         {
+            if (FILMANFileRecords.Count == 0) { Create.IsEnabled = false; return; }
             Create.IsEnabled = true;
             foreach (FILMANFileRecord ffr in FILMANFileRecords)
                 if (ffr.filePointSelector.IsError()) Create.IsEnabled = false;
@@ -133,9 +141,10 @@ namespace FMDataConsolidator
             NumberOfDataPoints.Text = sum.ToString("0");
         }
 
-        private bool checkNumberFILMANRecords()
+        private void checkNumberFILMANRecords()
         {
             int v, N;
+            if (FILMANFileRecords.Count == 0) return;
             Dictionary<int, int> NRecs = new Dictionary<int, int>();
             foreach (FILMANFileRecord ffr in FILMANFileRecords) //form subsets of the set of files, based on number of recordsets in each
             {
@@ -148,10 +157,9 @@ namespace FMDataConsolidator
             foreach (FILMANFileRecord ffr in FILMANFileRecords)
             {
                 N = ffr.stream.NRecordSets;
-                if (N == v) ffr.filePointSelector.NRecSetsOK = true; //mark OK files in this subset
-                else ffr.filePointSelector.NRecSetsOK = false; //and not OK files not in this subset
+                if (N == v) ffr.filePointSelector.NRecSetsOK = true; //mark OK for files in this subset
+                else ffr.filePointSelector.NRecSetsOK = false; //and not OK for files not in this subset
             }
-            return false;
         }
 
         private int TotalDataPoints()
@@ -164,7 +172,10 @@ namespace FMDataConsolidator
 
         private void BrowseSYSTAT_Click(object sender, RoutedEventArgs e)
         {
-            SYSTATFileName.Text = OpenSYSTATFile();
+            if (FILMANFileRecords.Count != 0)
+                SYSTATFileName.Text = OpenSYSTATFile(FILMANFileRecords[0].path);
+            else
+                SYSTATFileName.Text = OpenSYSTATFile(null);
         }
 
         private void Format_Checked(object sender, RoutedEventArgs e)

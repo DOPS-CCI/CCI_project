@@ -155,7 +155,7 @@
                 <Button Click="AddButton_Click">
                     <TextBlock Text="+"/>
                 </Button>
-                <Button Name="RemovePointSelection" Click="RemoveButton_Click" IsEnabled="False">
+                <Button Name="RemovePointSelection" Click="RemoveButton_Click">
                     <TextBlock Text="-"/>
                 </Button>
             </StackPanel>
