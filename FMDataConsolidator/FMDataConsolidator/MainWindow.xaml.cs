@@ -195,7 +195,7 @@ namespace FMDataConsolidator
 
         private void Create_Click(object sender, RoutedEventArgs e)
         {
-
+            Create.Visibility = Visibility.Hidden;
             Log.writeToLog("Beginning data consolidation to: " + SYSTATFileName.Text);
             FileListItem fli;
             try
@@ -296,8 +296,11 @@ namespace FMDataConsolidator
             }
             catch (Exception err)
             {
-                Log.writeToLog("***** ERROR ***** Source: " + err.Source + " Message: " + err.Message);
+                ErrorWindow ew = new ErrorWindow();
+                ew.Message = "***** ERROR ***** Source: " + err.Source + " Message: " + err.Message;
+                ew.ShowDialog();
             }
+            Create.Visibility = Visibility.Visible;
         }
 
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)

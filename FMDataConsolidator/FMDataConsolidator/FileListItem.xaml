@@ -6,8 +6,8 @@
              xmlns:core="clr-namespace:System;assembly=mscorlib"
              xmlns:local="clr-namespace:FMDataConsolidator"
              mc:Ignorable="d"
-             d:DesignHeight="157" d:DesignWidth="880"
-             DataContext="{Binding RelativeSource={RelativeSource Self}}">
+             d:DesignHeight="157" d:DesignWidth="925"
+             DataContext="{Binding RelativeSource={RelativeSource Self}}" MaxHeight="580">
     <ListBoxItem.Resources>
         <ObjectDataProvider x:Key="NSEnum" MethodName="GetValues" ObjectType="{x:Type core:Enum}">
             <ObjectDataProvider.MethodParameters>
@@ -28,7 +28,7 @@
                     <Setter Property="Background" Value="Pink"/>
                 </DataTrigger>
             </Style.Triggers>
-            <Setter Property="FontSize" Value="20"/>
+            <Setter Property="FontSize" Value="18"/>
             <Setter Property="FontWeight" Value="Normal"/>
             <Setter Property="TextAlignment" Value="Left"/>
             <Setter Property="Margin" Value="6"/>
@@ -97,16 +97,19 @@
     <Border BorderBrush="Black" BorderThickness="2" Margin="2" CornerRadius="6">
         <Grid>
             <Grid.RowDefinitions>
-                <RowDefinition/>
-                <RowDefinition/>
-                <RowDefinition/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="318"/>
-                <ColumnDefinition Width="568"/>
+                <ColumnDefinition Width="335"/>
+                <ColumnDefinition Width="585"/>
             </Grid.ColumnDefinitions>
             <TextBlock Name="FileName" Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Style="{StaticResource FileNameStyle}" >File Name</TextBlock>
-            <GroupBox Grid.Row="1" Grid.Column="0" Header="Group Variables">
+            <GroupBox Grid.Row="1" Grid.Column="0">
+                <GroupBox.Header>
+                    <TextBlock>Group Variables</TextBlock>
+                </GroupBox.Header>
                 <ListView Name="GVs" ItemsSource="{Binding GroupVars}">
                     <ListView.View>
                         <GridView>
@@ -123,7 +126,10 @@
                     </ListView.View>
                 </ListView>
             </GroupBox>
-            <GroupBox Grid.Row="1" Grid.Column="1" Header="Point selection">
+            <GroupBox Grid.Row="1" Grid.Column="1">
+                <GroupBox.Header>
+                    <TextBlock>Point selection</TextBlock>
+                </GroupBox.Header>
                 <ListView Name="Points" ItemsSource="{Binding PointGroups}">
                     <ListView.View>
                         <GridView>
