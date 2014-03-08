@@ -37,11 +37,6 @@ namespace SYSTATFileStream
                 new FileStream(Path.ChangeExtension(filePath, (fileTypeS ? ".sys" : ".syd")),
                     FileMode.Create, FileAccess.Write),
                 Encoding.ASCII);
-            //allocate appropriate-sized buffer
-            if (fileTypeS)
-                buffer = new double[32];
-            else
-                buffer = new double[16];
         }
 
         public void AddCommentLine(string comment)
@@ -103,54 +98,68 @@ namespace SYSTATFileStream
             }
         }
 
-        public void WriteDataRecord()
+        public void WriteDataRecord() //called when all Variable.Value have been set and ready to write out record
         {
             bufferN = 0;
             foreach (Variable var in Variables)
             {
                 if (var.Type == SVarType.Number) //this is first pass through variables, looking for numbers only
-                {
                     addNumericToBuffer((double)var.Value);
-                }
             }
-            writeBuffer(true); //write out any last numeric items
             foreach (Variable var in Variables)
             {
                 if (var.Type == SVarType.String) //now we're searching for string-valued variables
-                {
-                    writer.Write((byte)0x0C);
-                    string s = (string)var.Value;
-                    for (int i = 0; i < 12; i++) //have to write by chars to avoid leading count
-                        writer.Write(s[i]);
-                    writer.Write((byte)0x0C);
-                }
+                    addStringToBuffer((string)var.Value);
             }
+            writeBuffer(true); //write out any last items
         }
 
-        double[] buffer;
+        byte[] buffer = new byte[128];
         int bufferN;
         private void addNumericToBuffer(double v)
         {
-            if (bufferN == buffer.Length) //write out last buffer and reset buffer pointer
+            if (fileTypeS)
             {
-                writeBuffer(); //not last as we still have at least one more point
-                bufferN = 0;
+                float f = (float)v; //convert to single precision
+                unsafe
+                {
+                    byte* b = (byte*)&f;
+                    for (int i = 0; i < sizeof(float); i++)
+                        addByteToBuffer(*b++);
+                }
             }
-            buffer[bufferN++] = v;
+            else
+                unsafe
+                {
+                    byte* b = (byte*)&v;
+                    for (int i = 0; i < sizeof(double); i++)
+                        addByteToBuffer(*b++);
+                }
         }
 
-        private void writeBuffer(bool last = false) //if last is true, this is last buffer in record
+        private void addStringToBuffer(string v)
         {
-            if (bufferN == 0) return; //only occurs if there are no numeric values at all
-            byte headtail = last ? Convert.ToByte(bufferN * (fileTypeS ? 4 : 8)) : (byte)0x81;
+            foreach (char c in v)
+                addByteToBuffer(Convert.ToByte(c));
+        }
+
+        private void addByteToBuffer(byte b)
+        {
+            if (bufferN == buffer.Length)
+            {
+                writeBuffer();
+                bufferN = 0;
+            }
+            buffer[bufferN++] = b;
+        }
+
+        private void writeBuffer(bool last = false) //if last is true, last buffer in record
+        {
+            if (bufferN == 0) return; //shouldn't happen -- safety
+            byte headtail = last ? Convert.ToByte(bufferN) : (byte)0x81;
             writer.Write(headtail);
             for (int i = 0; i < bufferN; i++)
-            {
-                if (fileTypeS)
-                    writer.Write((float)buffer[i]);
-                else
                     writer.Write(buffer[i]);
-            }
             writer.Write(headtail);
         }
 

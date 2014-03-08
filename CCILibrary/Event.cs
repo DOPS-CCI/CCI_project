@@ -151,7 +151,13 @@ namespace Event
 
         public int GetGVIndex(string gv)
         {
-            return ede.GroupVars.FindIndex(g => g.Name == gv);
+            int r = -1;
+            try
+            {
+                r = ede.GroupVars.FindIndex(g => g.Name == gv);
+            }
+            catch { }
+            return r;
         }
     }
 
