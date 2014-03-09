@@ -61,7 +61,7 @@ namespace FMDataConsolidator
         }
 
         public static SYSTATNameStringParser GVNameParser = new SYSTATNameStringParser("FfGg");
-        public static SYSTATNameStringParser PointNameParser = new SYSTATNameStringParser("FfCcPp");
+        public static SYSTATNameStringParser PointNameParser = new SYSTATNameStringParser("FfCcPp", "N");
 
         public event EventHandler ErrorCheckReq;
 
@@ -130,11 +130,12 @@ namespace FMDataConsolidator
             ErrorCheckReq(null, null);
         }
 
+        const string defaultCode = "F%F_&N(%P)";
         private void AddNewPointGroup()
         {
-            PointGroup pg = new PointGroup(FFR.stream.NC, FFR.stream.ND, "F%FC%C(%P)");
+            PointGroup pg = new PointGroup(FFR.stream.NC, FFR.stream.ND, defaultCode);
             _PointGroups.Add(pg);
-            _PointGroups.Last().namingConvention = PointNameParser.Parse("F%FC%C(%P)"); //parser not known to PointGroup constructor
+            _PointGroups.Last().namingConvention = PointNameParser.Parse(defaultCode); //parser not known to PointGroup constructor
         }
 
         public bool IsError()
@@ -434,13 +435,23 @@ namespace FMDataConsolidator
         Regex parser;
         string _codes;
 
-        public SYSTATNameStringParser(string codes)
+        public SYSTATNameStringParser(string ncodes, string acodes = "")
         {
-            ok = new Regex(@"^[A-Za-z_]([A-Za-z0-9_]+|%\d?[" + codes + @"]|\(%\d?[" + codes + @"]\))*$");
-            parser = new Regex(@"^((?'chars'[A-Za-z0-9_]*)((%(?'lead'\d)?(?'code'[" + codes +
-                @"])|(\(%(?'lead'\d)?(?'pcode'[" + codes + @"])\))))|(?'chars'[A-Za-z0-9_]+))");
-            _codes = codes;
+            if (acodes == "")
+            {
+                ok = new Regex(@"^[A-Za-z_]([A-Za-z0-9_]+|%\d?[" + ncodes + @"]|\(%\d?[" + ncodes + @"]\))*$");
+                parser = new Regex(@"^((?'chars'[A-Za-z0-9_]*)((%(?'lead'\d)?(?'code'[" + ncodes +
+                    @"])|(\(%(?'lead'\d)?(?'pcode'[" + ncodes + @"])\))))|(?'chars'[A-Za-z0-9_]+))");
+            }
+            else
+            {
+                ok = new Regex(@"^([A-Za-z_]|&[" + acodes + @"])([A-Za-z0-9_]+|%\d?[" + ncodes + @"]|\(%\d?[" + ncodes + @"]\)|&[" + acodes + @"])*$");
+                parser = new Regex(@"^((?'chars'[A-Za-z0-9_]*)((%(?'lead'\d)?(?'code'[" + ncodes +
+                    @"])|(\(%(?'lead'\d)?(?'pcode'[" + ncodes + @"])\))|&(?'code'[" + acodes + @"])))|(?'chars'[A-Za-z0-9_]+))");
+            }
+            _codes = ncodes + acodes;
         }
+
         public bool ParseOK(string codeString)
         {
             return ok.IsMatch(codeString);
@@ -455,7 +466,7 @@ namespace FMDataConsolidator
             {
                 Char_CodePairs ccp = new Char_CodePairs();
                 Match m = parser.Match(cs);
-                cs = cs.Substring(m.Length);
+                cs = cs.Substring(m.Length); //update remaining code string
                 ccp.chars = m.Groups["chars"].Value;
                 if (m.Groups["code"].Length > 0)
                     ccp.code = m.Groups["code"].Value[0];
@@ -472,7 +483,7 @@ namespace FMDataConsolidator
             return encoding;
         }
 
-        public string Encode(int[] values, NameEncoding encoding)
+        public string Encode(object[] values, NameEncoding encoding)
         {
             string f;
             StringBuilder sb = new StringBuilder();
@@ -480,8 +491,16 @@ namespace FMDataConsolidator
             {
                 sb.Append(ccp.chars + (ccp.paren ? "(" : ""));
                 if (ccp.code == ' ') continue;
-                f = new string('0', ccp.leading); //format for number
-                sb.Append(values[_codes.IndexOf(ccp.code)].ToString(f) + (ccp.paren ? ")" : ""));
+                int icode = _codes.IndexOf(ccp.code);
+                if (values[icode].GetType() == typeof(int))
+                {
+                    f = new string('0', ccp.leading); //format for number
+                    sb.Append(((int)values[icode]).ToString(f) + (ccp.paren ? ")" : ""));
+                }
+                else
+                {
+                    sb.Append((string)values[icode] + (ccp.paren ? ")" : ""));
+                }
             }
 
             return sb.ToString();
@@ -503,7 +522,7 @@ namespace FMDataConsolidator
             }
         }
 
-        public class Char_CodePairs //has to be public because wi have to hand back NameEncoding: List<Char_CodePairs>
+        public class Char_CodePairs //has to be public because we have to hand back NameEncoding: List<Char_CodePairs>
         {
             internal string chars;
             internal char code = ' ';
