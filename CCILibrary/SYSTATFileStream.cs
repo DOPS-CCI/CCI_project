@@ -49,6 +49,8 @@ namespace SYSTATFileStream
 
         public void AddVariable(Variable var)
         {
+            if (Variables.Contains(var))
+                throw new Exception("SYSTATFileStream: Attempt to add duplicate variable named: " + var.Name);
             Variables.Add(var);
         }
 
@@ -169,7 +171,7 @@ namespace SYSTATFileStream
             writer.BaseStream.Close(); //and close the stream
         }
 
-        public class Variable
+        public class Variable: IEquatable<Variable>
         {
             string _Name;
             public string Name
@@ -255,7 +257,7 @@ namespace SYSTATFileStream
                                 return;
                             }
                 }
-                throw new Exception("STATFileStream: Invalid Variable name of type " + type.ToString() + ": " + m.Groups["nameChars"].Value);
+                throw new Exception("STATFileStream.Variable: Invalid Variable name of type " + type.ToString() + ": " + name);
             }
 
             /// <summary>
@@ -285,7 +287,7 @@ namespace SYSTATFileStream
                                 return;
                             }
                 }
-                throw new Exception("SYSTATFileStream: Invalid Variable name: " + m.Groups["nameChars"].Value);
+                throw new Exception("SYSTATFileStream.Variable: Invalid Variable name: " + name);
             }
 
             public string GetCenteredName() //Utility to center Name in a 12 char field
@@ -294,6 +296,11 @@ namespace SYSTATFileStream
                 int len = 6 + name.Length / 2;
                 name = name.PadLeft(len);
                 return name.PadRight(12);
+            }
+
+            public bool Equals(Variable other)
+            {
+                return this._Name == other._Name;
             }
         }
     }
