@@ -54,6 +54,7 @@
     <Compile Include="BDFEDFFileStream.cs" />
     <Compile Include="BDFFileStream.cs" />
     <Compile Include="BDFPoint.cs" />
+    <Compile Include="CSVStream.cs" />
     <Compile Include="ElectrodeFileStream.cs" />
     <Compile Include="Event.cs" />
     <Compile Include="EventDictionary.cs" />
