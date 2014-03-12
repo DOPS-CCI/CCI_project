@@ -9,6 +9,7 @@ using System.Windows.Media;
 using Microsoft.Win32;
 using FILMANFileStream;
 using SYSTAT = SYSTATFileStream;
+using CSV = CSVStream;
 using HeaderFileStream;
 using Header;
 using GroupVarDictionary;
@@ -21,28 +22,39 @@ namespace FMDataConsolidator
     /// </summary>
     public partial class MainWindow : Window
     {
-        const int SYSTATMaxPoints = 8100; //maximum number of data points allowed by SYSTAT
+        const int SYSTATMaxPoints = 8192; //maximum number of data points allowed by SYSTAT
 
         public List<FILMANFileRecord> FILMANFileRecords { get; set; }
+        public List<CSVFileRecord> CSVFileRecords { get; set; }
 
         public MainWindow()
         {
             Log.writeToLog("Starting FMDataConsolidator " + Utilities.getVersionNumber());
-            FILMANFileRecords = new List<FILMANFileRecord>(1);
+            FILMANFileRecords = new List<FILMANFileRecord>();
+            CSVFileRecords = new List<CSVFileRecord>();
             InitializeComponent();
         }
 
-        private void AddFile_Click(object sender, RoutedEventArgs e)
+        private void AddFMFile_Click(object sender, RoutedEventArgs e)
         {
             FILMANFileRecord ffr;
             if ((ffr = OpenFILMANFile()) == null) return;
 
             FILMANFileRecords.Add(ffr);
-            Files.Items.Add(ffr.filePointSelector);
-            if (FILMANFileRecords.Count > 0) RemoveFile.IsEnabled = true;
-            NumberOfDataPoints.Text = TotalDataPoints().ToString("0");
-            checkNumberFILMANRecords();
+            Files.Items.Add(ffr.FMFilePointSelector);
+            if (FILMANFileRecords.Count + CSVFileRecords.Count > 0) RemoveFile.IsEnabled = true;
+            checkNumberRecords();
             checkForError(ffr, null);
+        }
+
+        private void AddCVSFile_Click(object sender, RoutedEventArgs e)
+        {
+            CSVFileRecord cfr;
+            if ((cfr = OpenCVSFile()) == null) return;
+
+            CSVFileRecords.Add(cfr);
+            Files.Items.Add(cfr.CSVFilePointSelector);
+            checkForError(cfr, null);
         }
 
         private void RemoveFile_Click(object sender, RoutedEventArgs e)
@@ -54,10 +66,13 @@ namespace FMDataConsolidator
                 selection = Files.SelectedIndex;
                 if (selection < 0) return;
             }
-            Files.Items.RemoveAt(selection);
-            FILMANFileRecords.RemoveAt(selection);
-            if (FILMANFileRecords.Count <= 0) RemoveFile.IsEnabled = false;
-            checkNumberFILMANRecords();
+            ListBoxItem removed = (ListBoxItem)Files.Items[selection]; //selection is ListBoxItem (either FMFileListItem or CSVFileListItem)
+            Files.Items.Remove(removed);
+            if (removed.GetType() == typeof(FMFileListItem))
+                FILMANFileRecords.Remove(((FMFileListItem)removed).FFR);
+            else
+                CSVFileRecords.Remove(((CSVFileListItem)removed).CSV);
+            checkNumberRecords();
             checkForError(null, null);
         }
 
@@ -95,13 +110,43 @@ namespace FMDataConsolidator
                 ffr.GVDictionary = headerFile.read().GroupVars; //save the GroupVar dictionary
                 headerFile.Dispose(); //closes file
             }
-            FileListItem fli = new FileListItem(ffr);
-            ffr.filePointSelector = fli;
+            FMFileListItem fli = new FMFileListItem(ffr);
+            ffr.FMFilePointSelector = fli;
             fli.ErrorCheckReq += new EventHandler(checkForError);
             checkForError(fli, null);
             return ffr;
         }
 
+        private CSVFileRecord OpenCVSFile()
+        {
+            OpenFileDialog ofd = new OpenFileDialog();
+            ofd.Title = "Open a CSV file ...";
+            ofd.AddExtension = true;
+            ofd.DefaultExt = ".csv"; // Default file extension
+            ofd.Filter = "CSV files (.csv)|*.csv|All files|*.*"; // Filter files by extension
+            Nullable<bool> result = ofd.ShowDialog();
+            if (result == false) return null;
+
+            CSV.CSVInputStream csvStream;
+            try
+            {
+                csvStream = new CSV.CSVInputStream(ofd.FileName);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Unable to read CVS file " + ofd.FileName + "." + Environment.NewLine + "Exception: " + ex.Message,
+                    "CVS error", MessageBoxButton.OK, MessageBoxImage.Error);
+                return null;
+            }
+            CSVFileRecord csv = new CSVFileRecord();
+            csv.stream = csvStream;
+            csv.path = ofd.FileName;
+            CSVFileListItem cfi = new CSVFileListItem(csv);
+            csv.CSVFilePointSelector = cfi;
+            cfi.ErrorCheckReq += new EventHandler(checkForError);
+            checkForError(cfi, null);
+            return csv;
+        }
         private string OpenSYSTATFile(string directory)
         {
             SaveFileDialog sfd = new SaveFileDialog();
@@ -126,10 +171,10 @@ namespace FMDataConsolidator
 
         private void checkForError(object sender, EventArgs e)
         {
-            if (FILMANFileRecords.Count == 0) { Create.IsEnabled = false; return; }
+            if (FILMANFileRecords.Count + CSVFileRecords.Count == 0) { Create.IsEnabled = false; return; }
             Create.IsEnabled = true;
             foreach (FILMANFileRecord ffr in FILMANFileRecords)
-                if (ffr.filePointSelector.IsError()) Create.IsEnabled = false;
+                if (ffr.FMFilePointSelector.IsError()) Create.IsEnabled = false;
             int sum = TotalDataPoints();
             if (sum == 0 || sum > SYSTATMaxPoints)
             {
@@ -141,14 +186,20 @@ namespace FMDataConsolidator
             NumberOfDataPoints.Text = sum.ToString("0");
         }
 
-        private void checkNumberFILMANRecords()
+        private void checkNumberRecords()
         {
             int v, N;
-            if (FILMANFileRecords.Count == 0) return;
+            if (FILMANFileRecords.Count + CSVFileRecords.Count == 0) return;
             Dictionary<int, int> NRecs = new Dictionary<int, int>();
             foreach (FILMANFileRecord ffr in FILMANFileRecords) //form subsets of the set of files, based on number of recordsets in each
             {
                 N = ffr.stream.NRecordSets;
+                if (NRecs.TryGetValue(N, out v)) NRecs[N] = v + 1;
+                else NRecs[N] = 1;
+            }
+            foreach (CSVFileRecord cfr in CSVFileRecords)
+            {
+                N = cfr.stream.NumberOfRecords;
                 if (NRecs.TryGetValue(N, out v)) NRecs[N] = v + 1;
                 else NRecs[N] = 1;
             }
@@ -157,8 +208,14 @@ namespace FMDataConsolidator
             foreach (FILMANFileRecord ffr in FILMANFileRecords)
             {
                 N = ffr.stream.NRecordSets;
-                if (N == v) ffr.filePointSelector.NRecSetsOK = true; //mark OK for files in this subset
-                else ffr.filePointSelector.NRecSetsOK = false; //and not OK for files not in this subset
+                if (N == v) ffr.FMFilePointSelector.NRecSetsOK = true; //mark OK for files in this subset
+                else ffr.FMFilePointSelector.NRecSetsOK = false; //and not OK for files not in this subset
+            }
+            foreach (CSVFileRecord cfr in CSVFileRecords)
+            {
+                N = cfr.stream.NumberOfRecords;
+                if (N == v) cfr.CSVFilePointSelector.NRecSetsOK = true;
+                else cfr.CSVFilePointSelector.NRecSetsOK = false;
             }
         }
 
@@ -166,7 +223,9 @@ namespace FMDataConsolidator
         {
             int sum = 0;
             foreach (FILMANFileRecord ffr in FILMANFileRecords)
-                sum += ffr.filePointSelector.NumberOfDataPoints;
+                sum += ffr.FMFilePointSelector.NumberOfDataPoints;
+            foreach (CSVFileRecord cfr in CSVFileRecords)
+                sum += cfr.CSVFilePointSelector.NumberOfDataPoints;
             return sum;
         }
 
@@ -197,13 +256,13 @@ namespace FMDataConsolidator
         {
             Create.Visibility = Visibility.Hidden;
             Log.writeToLog("Beginning data consolidation to: " + SYSTATFileName.Text);
-            FileListItem fli;
+            FMFileListItem fli;
             SYSTAT.SYSTATFileStream systat = null;
             try
             {
                 systat = new SYSTAT.SYSTATFileStream(SYSTATFileName.Text,
                     ((bool)SYS.IsChecked) ? SYSTAT.SYSTATFileStream.SFileType.SYS : SYSTAT.SYSTATFileStream.SFileType.SYD);
-                Log.writeToLog("Consolidating from FILMAN files:");
+                Log.writeToLog("Consolidating from files:");
                 int fNum = 0;
                 string s;
                 foreach (FILMANFileRecord ffr in FILMANFileRecords)//First capture all the data variables to be created
@@ -213,7 +272,7 @@ namespace FMDataConsolidator
                     for (int i = 0; i < 6; i++)
                         systat.AddCommentLine(ffr.stream.Description(i));
                     systat.AddCommentLine(new string('*', 72)); //LAST comment line to mark end
-                    fli = ffr.filePointSelector;
+                    fli = ffr.FMFilePointSelector;
                     object[] GVcodes = new object[4] { fli.FileUID, ++fNum, 2, 0 }; //FfGg
                     // F is the FileUID
                     // G is the old GV number from FILMAN
@@ -224,7 +283,7 @@ namespace FMDataConsolidator
                         if (gv.IsSel)
                         {
                             GVcodes[3] = (int)GVcodes[3] + 1;
-                            s = FileListItem.GVNameParser.Encode(GVcodes, gv.namingConvention);
+                            s = FMFileListItem.GVNameParser.Encode(GVcodes, gv.namingConvention);
                             SYSTAT.SYSTATFileStream.Variable v;
                             v = new SYSTAT.SYSTATFileStream.Variable(s,
                                 gv.Format == NSEnum.Number ? SYSTAT.SYSTATFileStream.SVarType.Number : SYSTAT.SYSTATFileStream.SVarType.String);
@@ -251,24 +310,41 @@ namespace FMDataConsolidator
                             {
                                 Pcodes[4] = point + 1;
                                 Pcodes[5] = (int)Pcodes[5] + 1;
-                                s = FileListItem.PointNameParser.Encode(Pcodes, pg.namingConvention);
+                                s = FMFileListItem.PointNameParser.Encode(Pcodes, pg.namingConvention);
                                 SYSTAT.SYSTATFileStream.Variable v = new SYSTAT.SYSTATFileStream.Variable(s.Substring(0, Math.Min(12, s.Length)));
                                 systat.AddVariable(v);
                             }
+                        }
+                    }
+                }
+                foreach (CSVFileRecord cfr in CSVFileRecords) //now get CSV variables
+                {
+                    Log.writeToLog("     " + cfr.path);
+                    foreach (CSV.Variable v in cfr.stream.CSVVariables)
+                    {
+                        if (v.IsSel)
+                        {
+                            SYSTAT.SYSTATFileStream.Variable var;
+                            var = new SYSTAT.SYSTATFileStream.Variable(v.Name, v.Type);
+                            systat.AddVariable(var);
                         }
                     }
                 } //end data variable capture; now we can write the SYSTAT header
                 systat.WriteHeader();
 
                 FILMANRecord FMRec;
-                int numberOfRecords = FILMANFileRecords[0].stream.NRecordSets;
+                int numberOfRecords;
+                if (FILMANFileRecords.Count > 0)
+                    numberOfRecords = FILMANFileRecords[0].stream.NRecordSets;
+                else
+                    numberOfRecords = CSVFileRecords[0].stream.NumberOfRecords;
                 Log.writeToLog("Creating " + numberOfRecords.ToString("0") + " records of " + TotalDataPoints().ToString("0") + " points");
                 for (int recordNum = 0; recordNum < numberOfRecords; recordNum++)
                 {
                     int pointNumber = 0;
                     foreach (FILMANFileRecord ffr in FILMANFileRecords)
                     {
-                        fli = ffr.filePointSelector;
+                        fli = ffr.FMFilePointSelector;
                         FMRec = ffr.stream.read(recordNum, 0); //read first channel to get GV values
                         foreach (GroupVar gv in fli.GroupVars)
                         {
@@ -292,6 +368,13 @@ namespace FMDataConsolidator
                                 }
                             }
                         }
+                    }
+                    foreach (CSVFileRecord cfr in CSVFileRecords) //now get CSV variables
+                    {
+                        cfr.stream.Read();
+                        foreach (CSV.Variable v in cfr.stream.CSVVariables)
+                            if (v.IsSel)
+                                systat.SetVariableValue(pointNumber++, v.Value);
                     }
                     systat.WriteDataRecord();
                 }
@@ -321,6 +404,13 @@ namespace FMDataConsolidator
         public FILMANInputStream stream { get; internal set; }
         public string path { get; internal set; }
         public GroupVarDictionary.GroupVarDictionary GVDictionary = null;
-        public FileListItem filePointSelector { get; internal set; }
+        public FMFileListItem FMFilePointSelector { get; internal set; }
+    }
+
+    public class CSVFileRecord
+    {
+        public CSV.CSVInputStream stream { get; internal set; }
+        public string path { get; internal set; }
+        public CSVFileListItem CSVFilePointSelector { get; internal set; }
     }
 }

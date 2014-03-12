@@ -1,4 +1,4 @@
-﻿<ListBoxItem x:Class="FMDataConsolidator.FileListItem"
+﻿<ListBoxItem x:Class="FMDataConsolidator.FMFileListItem"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -6,7 +6,7 @@
              xmlns:core="clr-namespace:System;assembly=mscorlib"
              xmlns:local="clr-namespace:FMDataConsolidator"
              mc:Ignorable="d"
-             d:DesignHeight="157" d:DesignWidth="925"
+             d:DesignHeight="110" d:DesignWidth="925"
              DataContext="{Binding RelativeSource={RelativeSource Self}}" MaxHeight="580">
     <ListBoxItem.Resources>
         <ObjectDataProvider x:Key="NSEnum" MethodName="GetValues" ObjectType="{x:Type core:Enum}">

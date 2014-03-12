@@ -1,0 +1,63 @@
+﻿<ListBoxItem x:Class="FMDataConsolidator.CSVFileListItem"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:core="clr-namespace:System;assembly=mscorlib"
+             xmlns:local="clr-namespace:FMDataConsolidator"
+             xmlns:lib="clr-namespace:CSVStream;assembly=CCILibrary"
+             mc:Ignorable="d"
+             d:DesignHeight="186" d:DesignWidth="925"
+             DataContext="{Binding RelativeSource={RelativeSource Self}}" MaxHeight="580">
+    <ListBoxItem.Resources>
+        <Style TargetType="TextBlock">
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="TextAlignment" Value="Center"/>
+        </Style>
+        <Style x:Key="FileNameStyle" TargetType="TextBlock">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Path=NRecSetsOK, Mode=OneWay}" Value="False">
+                    <Setter Property="Foreground" Value="Red"/>
+                    <Setter Property="Background" Value="Pink"/>
+                </DataTrigger>
+            </Style.Triggers>
+            <Setter Property="FontSize" Value="18"/>
+            <Setter Property="FontWeight" Value="Normal"/>
+            <Setter Property="TextAlignment" Value="Left"/>
+            <Setter Property="Margin" Value="6"/>
+        </Style>
+        <DataTemplate DataType="{x:Type lib:Variable}">
+            <Border BorderBrush="Blue" Margin="2" BorderThickness="1">
+                <StackPanel Orientation="Horizontal" Margin="2">
+                    <CheckBox IsChecked="{Binding Path=IsSel}" Checked="VarSelection_Changed" Unchecked="VarSelection_Changed" VerticalAlignment="Center"  Margin="2"/>
+                    <TextBlock Text="{Binding Path=Name, Mode=OneWay}" Margin="2" FontWeight="Bold" VerticalAlignment="Center" />
+                    <ComboBox Name="VarFormat" Width="70" SelectedItem="{Binding Path=Type}" ItemsSource="{Binding Path=combo, Mode=OneTime}" Margin="2"/>
+                </StackPanel>
+            </Border>
+            <DataTemplate.Triggers>
+                <DataTrigger Binding="{Binding Path=IsNum}" Value="False">
+                    <Setter Property="ItemsSource" TargetName="VarFormat">
+                        <Setter.Value>
+                            <Binding Path="comboStringOnly" Mode="OneTime" />
+                        </Setter.Value>
+                    </Setter>
+                </DataTrigger>
+            </DataTemplate.Triggers>
+        </DataTemplate>
+    </ListBoxItem.Resources>
+    <Border BorderBrush="Black" BorderThickness="2" Margin="2" CornerRadius="6">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <TextBlock Name="FileName" Grid.Row="0" Grid.Column="0" Style="{StaticResource FileNameStyle}" >File Name</TextBlock>
+            <GroupBox Grid.Row="1" Margin="4">
+                <GroupBox.Header>
+                    <TextBlock>Variables</TextBlock>
+                </GroupBox.Header>
+                <WrapPanel Name="VariableEntries" Width="890" Margin="5"/>
+            </GroupBox>
+        </Grid>
+    </Border>
+</ListBoxItem>

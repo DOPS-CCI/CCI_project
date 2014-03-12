@@ -16,9 +16,9 @@ using GroupVarDictionary;
 namespace FMDataConsolidator
 {
     /// <summary>
-    /// Interaction logic for FileListItem.xaml
+    /// Interaction logic for FMFileListItem.xaml
     /// </summary>
-    public partial class FileListItem : ListBoxItem, INotifyPropertyChanged
+    public partial class FMFileListItem : ListBoxItem, INotifyPropertyChanged
     {
         static int fileUID = 0;
         internal FILMANFileRecord FFR;
@@ -65,7 +65,7 @@ namespace FMDataConsolidator
 
         public event EventHandler ErrorCheckReq;
 
-        public FileListItem(FILMANFileRecord ffr)
+        public FMFileListItem(FILMANFileRecord ffr)
         {
             FileUID = ++fileUID;
             FFR = ffr;
