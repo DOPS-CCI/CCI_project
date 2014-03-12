@@ -18,6 +18,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using CCILibrary;
+using BDFEDFFileStream;
 using ElectrodeFileStream;
 using Event;
 using EventFile;
@@ -72,10 +73,10 @@ namespace CreateBDFFile
             file.channelLabel(parameters.nChan, "Status");
             file.transducer(parameters.nChan, "None");
             file.dimension(parameters.nChan, "None");
-            file.pMin(parameters.nChan, -(int)Math.Pow(2D, 23D));
-            file.pMax(parameters.nChan, (int)Math.Pow(2D, 23D) - 1);
-            file.dMin(parameters.nChan, file.pMin(parameters.nChan));
-            file.dMax(parameters.nChan, file.pMax(parameters.nChan));
+            file.pMin(parameters.nChan, -Math.Pow(2D, 23D));
+            file.pMax(parameters.nChan, Math.Pow(2D, 23D) - 1);
+            file.dMin(parameters.nChan, (int)file.pMin(parameters.nChan));
+            file.dMax(parameters.nChan, (int)file.pMax(parameters.nChan));
             file.prefilter(parameters.nChan, "None");
 
             /* ***** Create Electrode position file ***** */
