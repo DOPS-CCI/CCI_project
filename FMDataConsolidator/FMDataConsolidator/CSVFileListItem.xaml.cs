@@ -37,7 +37,7 @@ namespace FMDataConsolidator
             FileName.Text = CSV.path;
             foreach (Variable v in CSV.stream.CSVVariables)
             {
-                ContentControl g = new ContentControl();
+                ContentControl g = new ContentControl(); //have to wrap in a control to get DataTemplate XAML to work on Variable
                 g.Content = v;
                 VariableEntries.Children.Add(g);
             }
