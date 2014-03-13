@@ -23,7 +23,8 @@ namespace CSVStream
             }
         }
         StreamReader reader;
-        static Regex nameParse = new Regex(@"^(?'name'[A-Za-z][A-Za-z_0-9]*(\([0-9]+\))?[A-Za-z_0-9]*)(?'string'\$)?$");
+        static Regex nameParse = new Regex(@"^(?'name'[A-Za-z][A-Za-z_0-9]*(\([0-9]+\))?[A-Za-z_0-9]*)(?'string'\$)?$"); //for validation of SYSTAT variable names
+        static Regex valueParse = new Regex(@"(^|,)((?<d>[^,""]*?)|(\""(?<d>([^\""]|\""\"")*?)\""))(?=(,|$))"); //for comma separated values, including quoted values
 
         public CSVInputStream(string path)
         {
@@ -31,10 +32,11 @@ namespace CSVStream
             {
                 reader = new StreamReader(path, Encoding.ASCII);
                 string line = reader.ReadLine(); //get first line which contains variable names
-                string[] names = line.Split(new char[] { ',' });
+                MatchCollection names = valueParse.Matches(line);
                 CSVVariables = new Variables();
-                foreach (string s in names)
+                foreach (Match name in names)
                 {
+                    string s = name.Groups["d"].Value;
                     Match m = nameParse.Match(s);
                     if (m.Success)
                     {
@@ -61,21 +63,30 @@ namespace CSVStream
         public void Read()
         {
             string line = reader.ReadLine();
-            string[] values = line.Split(new char[] { ',' });
+            MatchCollection values = valueParse.Matches(line);
             int i = 0;
-            foreach (string s in values)
+            foreach (Match value in values)
             {
+                string s = value.Groups["d"].Value.Replace("\"\"", "\"").Trim(); //replace doubled quotes with single quotes
                 Variable v = CSVVariables[i++];
                 if (v.Type == SYSTAT.SYSTATFileStream.SVarType.String)
-                    v.Value = s;
+                {
+                    if (s == "")
+                        v.Value = Variable.MissingString;
+                    else
+                        v.Value = s;
+                }
                 else
                     try
                     {
-                        v.Value = Convert.ToDouble(s);
+                        if (s == "" || s == ".")
+                            v.Value = Variable.MissingNumber;
+                        else
+                            v.Value = Convert.ToDouble(s);
                     }
                     catch
                     {
-                        throw new Exception("CVSInputStream: invalid value for variable " + v.Name + ": " + s);
+                        throw new Exception("CSVInputStream: invalid value for variable " + v.Name + ": " + s);
                     }
             }
         }
@@ -85,6 +96,9 @@ namespace CSVStream
 
     public class Variable: INotifyPropertyChanged
     {
+        internal const double MissingNumber = -1E36D;
+        internal const string MissingString = "";
+
         string _Name;
         public string Name
         {
@@ -114,6 +128,7 @@ namespace CSVStream
             }
         }
 
+        //Items used to display combobox selections
         public static SYSTAT.SYSTATFileStream.SVarType[] _comboStringOnly = { SYSTAT.SYSTATFileStream.SVarType.String };
         public SYSTAT.SYSTATFileStream.SVarType[] comboStringOnly
         {
@@ -125,6 +140,9 @@ namespace CSVStream
             get { return _combo; }
         }
 
+        public override string ToString(){
+            return (IsSel ? "*" : "") + Name + "=" + (Value == null ? "null" : Value.ToString());
+        }
 
         public event PropertyChangedEventHandler PropertyChanged;
         private void Notify(string p)

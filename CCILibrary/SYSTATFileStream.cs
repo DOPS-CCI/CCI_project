@@ -298,6 +298,11 @@ namespace SYSTATFileStream
                 return name.PadRight(12);
             }
 
+            public override string ToString()
+            {
+                return Name + "=" + _Value.ToString();
+            }
+
             public bool Equals(Variable other)
             {
                 return this._Name == other._Name;
