@@ -90,6 +90,11 @@ namespace CSVStream
                     }
             }
         }
+
+        public void Close()
+        {
+            reader.Close();
+        }
     }
 
     public class Variables : ObservableCollection<Variable> { }
