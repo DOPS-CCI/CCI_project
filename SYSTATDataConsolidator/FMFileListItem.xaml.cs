@@ -22,22 +22,18 @@ namespace SYSTATDataConsolidator
     /// </summary>
     public partial class FMFileListItem : ListBoxItem, INotifyPropertyChanged, IFilePointSelector
     {
+        #region Properties and fields
         static int fileUID = 0;
         public int FileUID { get; private set; }
 
         PointGroupsClass _PointGroups = new PointGroupsClass();
-        GroupVarsClass _GroupVars = new GroupVarsClass();
-
         public PointGroupsClass PointGroups { get { return _PointGroups; } }
+
+        GroupVarsClass _GroupVars = new GroupVarsClass();
         public GroupVarsClass GroupVars { get { return _GroupVars; } }
 
         FILMANFileRecordsClass _FILMANFileRecords = new FILMANFileRecordsClass();
-        public FILMANFileRecordsClass FILMANFileRecords
-        {
-            get { return _FILMANFileRecords; }
-        }
-
-        public event EventHandler ErrorCheckReq;
+        public FILMANFileRecordsClass FILMANFileRecords { get { return _FILMANFileRecords; } }
 
         public int NumberOfDataPoints
         {
@@ -71,6 +67,21 @@ namespace SYSTATDataConsolidator
             }
         }
 
+        public bool IsError
+        {
+            get
+            {
+                {
+                    foreach (GroupVar gv in _GroupVars)
+                        if (gv.IsSel && gv.GVNameError) return true;
+                    foreach (PointGroup pg in _PointGroups)
+                        if (pg.channelError || pg.pointError || pg.namingError) return true;
+
+                    return false;
+                }
+            }
+        }
+
         public FileRecord this[int i]
         {
             get
@@ -79,29 +90,25 @@ namespace SYSTATDataConsolidator
             }
         }
 
-        bool _NRecSetsOK = true;
-        public bool NRecSetsOK
-        {
-            get { return _NRecSetsOK; }
-            internal set
-            {
-                if (_NRecSetsOK == value) return;
-                _NRecSetsOK = value;
-                Notify("NRecSetsOK");
-            }
-        }
+        public event EventHandler ErrorCheckReq;
 
-        int numberOfFMChannels;
-        int numberOfFMDataPoints;
+        public event PropertyChangedEventHandler PropertyChanged;
 
         public static SYSTATNameStringParser GVNameParser = new SYSTATNameStringParser("FfGg");
         public static SYSTATNameStringParser PointNameParser = new SYSTATNameStringParser("FfCcPp", "N");
 
+        int numberOfFMChannels;
+        int numberOfFMDataPoints;
+        int numberOfFMGVs;
+        #endregion
+
+        #region Constructors
         public FMFileListItem(FILMANFileRecord ffr)
         {
             FileUID = ++fileUID;
             numberOfFMChannels = ffr.stream.NC;
             numberOfFMDataPoints = ffr.stream.ND;
+            numberOfFMGVs = ffr.stream.NG;
 
             InitializeComponent();
 
@@ -136,12 +143,13 @@ namespace SYSTATDataConsolidator
                 }
                 _GroupVars.Add(gv);
             }
-
             AddNewPointGroup();
             _FILMANFileRecords.Add(ffr);
             Notify("NumberOfRecords");
         }
+        #endregion
 
+        #region Event handlers
         private void AddButton_Click(object sender, RoutedEventArgs e)
         {
             AddNewPointGroup();
@@ -170,21 +178,6 @@ namespace SYSTATDataConsolidator
             PointGroup pg = new PointGroup(numberOfFMChannels, numberOfFMDataPoints, defaultCode);
             _PointGroups.Add(pg);
             _PointGroups.Last().namingConvention = PointNameParser.Parse(defaultCode); //parser not known to PointGroup constructor
-        }
-
-        public bool IsError
-        {
-            get
-            {
-                {
-                    foreach (GroupVar gv in _GroupVars)
-                        if (gv.IsSel && gv.GVNameError) return true;
-                    foreach (PointGroup pg in _PointGroups)
-                        if (pg.channelError || pg.pointError || pg.namingError) return true;
-
-                    return !_NRecSetsOK;
-                }
-            }
         }
 
         private void Channels_TextChanged(object sender, TextChangedEventArgs e)
@@ -235,38 +228,35 @@ namespace SYSTATDataConsolidator
             ErrorCheckReq((GroupVar)((ComboBox)sender).DataContext, null);
         }
 
-        public event PropertyChangedEventHandler PropertyChanged;
-        private void Notify(string p)
-        {
-            if (this.PropertyChanged != null)
-                PropertyChanged(this, new PropertyChangedEventArgs(p));
-        }
-
         private void AddFileButton_Click(object sender, RoutedEventArgs e)
         {
             FILMANFileRecord ffr = OpenFILMANFile();
             if (ffr == null) return;
-            if (ffr.stream.NC != numberOfFMChannels)
-            {
-                ErrorWindow ew = new ErrorWindow();
-                ew.Message = "Incompatable number of channels (" + ffr.stream.NC.ToString("0") + " vs. " +
-                    numberOfFMChannels.ToString("0") + ") in file " + ffr.path;
-                ew.ShowDialog();
-                return;
-            }
-            if (ffr.stream.ND != numberOfFMDataPoints)
-            {
-                ErrorWindow ew = new ErrorWindow();
-                ew.Message = "Incompatable number of data points (" + ffr.stream.ND.ToString("0") + " vs. " +
-                    numberOfFMDataPoints.ToString("0") + ") in file " + ffr.path;
-                ew.ShowDialog();
-                return;
-            }
+            if (FileCompatabilityError(ffr)) return;
             _FILMANFileRecords.Add(ffr);
             Notify("NumberOfRecords");
             if (_FILMANFileRecords.Count > 1)  RemoveFileSelection.IsEnabled = true;
             ErrorCheckReq(ffr, null); //signal overall error checking
         }
+
+        private void RemoveFileButton_Click(object sender, RoutedEventArgs e)
+        {
+            int selection;
+            if (_FILMANFileRecords.Count == 1) selection = 0;
+            else
+            {
+                selection = FileNames.SelectedIndex;
+                if (selection < 0) return;
+            }
+            FILMANFileRecord removed = _FILMANFileRecords[selection];
+            _FILMANFileRecords.Remove(removed);
+            if (_FILMANFileRecords.Count <= 1) RemoveFileSelection.IsEnabled = false;
+            Notify("NumberOfRecords");
+            ErrorCheckReq(null, null);
+        }
+        #endregion
+
+        #region Internal and private methods
 
         internal static FILMANFileRecord OpenFILMANFile()
         {
@@ -305,23 +295,45 @@ namespace SYSTATDataConsolidator
             return ffr;
         }
 
-
-        private void RemoveFileButton_Click(object sender, RoutedEventArgs e)
+        private void Notify(string p)
         {
-            int selection;
-            if (_FILMANFileRecords.Count == 1) selection = 0;
-            else
-            {
-                selection = FileNames.SelectedIndex;
-                if (selection < 0) return;
-            }
-            FILMANFileRecord removed = _FILMANFileRecords[selection];
-            _FILMANFileRecords.Remove(removed);
-            if (_FILMANFileRecords.Count <= 1) RemoveFileSelection.IsEnabled = false;
-            Notify("NumberOfRecords");
-            ErrorCheckReq(null, null);
+            if (this.PropertyChanged != null)
+                PropertyChanged(this, new PropertyChangedEventArgs(p));
         }
 
+        private bool FileCompatabilityError(FILMANFileRecord ffr)
+        {
+            if (ffr.stream.NC != numberOfFMChannels)
+            {
+                ErrorWindow ew = new ErrorWindow();
+                ew.Message = "Incompatable number of channels (" + ffr.stream.NC.ToString("0") + " vs. " +
+                    numberOfFMChannels.ToString("0") + ") in file " + ffr.path;
+                ew.ShowDialog();
+                ffr.stream.Close();
+                return true;
+            }
+            if (ffr.stream.ND != numberOfFMDataPoints)
+            {
+                ErrorWindow ew = new ErrorWindow();
+                ew.Message = "Incompatable number of data points (" + ffr.stream.ND.ToString("0") + " vs. " +
+                    numberOfFMDataPoints.ToString("0") + ") in file " + ffr.path;
+                ew.ShowDialog();
+                ffr.stream.Close();
+                return true;
+            }
+            if (ffr.stream.NG != numberOfFMGVs)
+            {
+                ErrorWindow ew = new ErrorWindow();
+                ew.Message = "Incompatable number of group variables (" + (ffr.stream.NG - 2).ToString("0") + " vs. " +
+                    (numberOfFMGVs - 2).ToString("0") + ") in file " + ffr.path;
+                ew.ShowDialog();
+                ffr.stream.Close();
+                return true;
+            }
+            return false;
+        }
+
+        #endregion
     }
 
     public class PointGroupsClass : ObservableCollection<PointGroup> { } //Wrapper for PointGroup list
@@ -460,6 +472,7 @@ namespace SYSTATDataConsolidator
     public class FILMANFileRecordsClass : ObservableCollection<FILMANFileRecord> { }
 
     public class GroupVarsClass : ObservableCollection<GroupVar> { }
+
     public class GroupVar: INotifyPropertyChanged
     {
         public event PropertyChangedEventHandler PropertyChanged;

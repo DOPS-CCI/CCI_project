@@ -8,6 +8,7 @@ using System.Windows;
 using System.Windows.Controls;
 using Microsoft.Win32;
 using CSVStream;
+using CCIUtilities;
 
 namespace SYSTATDataConsolidator
 {
@@ -20,36 +21,6 @@ namespace SYSTATDataConsolidator
         public CSVFileRecordsClass CSVFileRecords { get { return _CSVFileRecords; } }
 
         public event EventHandler ErrorCheckReq;
-
-        bool _NRecSetsOK = true;
-        public bool NRecSetsOK
-        {
-            get { return _NRecSetsOK; }
-            internal set
-            {
-                if (_NRecSetsOK == value) return;
-                _NRecSetsOK = value;
-                Notify("NRecSetsOK");
-            }
-        }
-
-        public CSVFileListItem(CSVFileRecord csv)
-        {
-            InitializeComponent();
-            foreach (Variable v in csv.stream.CSVVariables)
-            {
-                ContentControl g = new ContentControl(); //have to wrap in a control to get DataTemplate XAML to work on Variable
-                g.Content = v;
-                VariableEntries.Children.Add(g);
-            }
-//            csv.PointSelector = this;
-            _CSVFileRecords.Add(csv);
-        }
-
-        private void VarSelection_Changed(object sender, RoutedEventArgs e)
-        {
-            ErrorCheckReq(this, null);
-        }
 
         public int NumberOfDataPoints
         {
@@ -95,13 +66,61 @@ namespace SYSTATDataConsolidator
             get { return false; }
         }
 
+        public CSVFileListItem(CSVFileRecord csv)
+        {
+            InitializeComponent();
+            foreach (Variable v in csv.stream.CSVVariables)
+                v.IsSel = true; //selected by default
+            _CSVFileRecords.Add(csv);
+            Notify("NumberOfRecords");
+        }
+
+        private void VarSelection_Changed(object sender, RoutedEventArgs e)
+        {
+            synchVariableSelection();
+            ErrorCheckReq(this, null);
+        }
+
         private void AddFileButton_Click(object sender, RoutedEventArgs e)
         {
             CSVFileRecord csv = OpenCSVFile();
             if (csv == null) return;
+            if (FileCompatabilityError(csv))
+            {
+                csv.stream.Close();
+                return;
+            }
             _CSVFileRecords.Add(csv);
+            synchVariableSelection();
+            Notify("NumberOfRecords");
             if (_CSVFileRecords.Count > 1) RemoveFileSelection.IsEnabled = true;
             ErrorCheckReq(csv, null); //signal overall error checking
+        }
+
+        private bool FileCompatabilityError(CSVFileRecord csv)
+        {
+            CSVInputStream csv0 = _CSVFileRecords[0].stream; //there's always at least one file and it must be compatable with first file added
+            if (csv0.CSVVariables.Count != csv.stream.CSVVariables.Count)
+            {
+                ErrorWindow ew = new ErrorWindow();
+                ew.Message = "Incompatable number of variables (" + csv.stream.CSVVariables.Count.ToString("0") + " vs. " +
+                    csv0.CSVVariables.Count.ToString("0") + ") in added CSV file: " + csv.path;
+                ew.ShowDialog();
+                return true;
+            }
+            int i = 0;
+            foreach (Variable v in csv0.CSVVariables)
+            {
+                if (v.Name != csv.stream.CSVVariables[i++].Name)
+                {
+                    ErrorWindow ew = new ErrorWindow();
+                    ew.Message = "Incompatable variable name (" + csv.stream.CSVVariables[i++].Name + " vs. " +
+                        v.Name + ") in added CSV file: " + csv.path;
+                    ew.ShowDialog();
+                    return true;
+                }
+            }
+            return false;
         }
 
         private void RemoveFileButton_Click(object sender, RoutedEventArgs e)
@@ -115,6 +134,7 @@ namespace SYSTATDataConsolidator
             }
             CSVFileRecord removed = _CSVFileRecords[selection];
             _CSVFileRecords.Remove(removed);
+            Notify("NumberOfRecords");
             if (_CSVFileRecords.Count <= 1) RemoveFileSelection.IsEnabled = false;
             ErrorCheckReq(null, null); //signal overall error checking
         }
@@ -147,6 +167,17 @@ namespace SYSTATDataConsolidator
             return csv;
         }
 
+        private void synchVariableSelection()
+        {
+            int j = 0;
+            foreach (Variable v in CSVFileRecords[0].stream.CSVVariables)
+            {
+                for (int i = 1; i < CSVFileRecords.Count; i++)
+                    _CSVFileRecords[i].stream.CSVVariables[j].IsSel = v.IsSel;
+                j++;
+            }
+        }
+
         public event PropertyChangedEventHandler PropertyChanged;
         private void Notify(string p)
         {
@@ -154,6 +185,7 @@ namespace SYSTATDataConsolidator
                 PropertyChanged(this, new PropertyChangedEventArgs(p));
         }
     }
+
     public class CSVFileRecordsClass : ObservableCollection<CSVFileRecord> { }
 
 }

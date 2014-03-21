@@ -84,7 +84,7 @@
         <DataTemplate DataType="{x:Type local:FileRecord}">
             <TextBlock FontSize="16">
                 <TextBlock Text="{Binding Path=path, Mode=OneTime}"/>
-                <TextBlock Text="{Binding Path=NumberOfRecords, Mode=OneTime, StringFormat=({0:0})}"/>
+                <TextBlock Text="{Binding Path=NumberOfRecords, Mode=OneTime, StringFormat=({0:0} records)}"/>
             </TextBlock>
         </DataTemplate>
     </ListBoxItem.Resources>

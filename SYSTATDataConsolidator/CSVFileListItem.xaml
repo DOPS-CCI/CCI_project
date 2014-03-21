@@ -7,7 +7,7 @@
              xmlns:local="clr-namespace:SYSTATDataConsolidator"
              xmlns:lib="clr-namespace:CSVStream;assembly=CCILibrary"
              mc:Ignorable="d"
-             d:DesignHeight="82" d:DesignWidth="955"
+             d:DesignHeight="132" d:DesignWidth="955"
              DataContext="{Binding RelativeSource={RelativeSource Self}}" MaxHeight="580">
     <ListBoxItem.Resources>
         <Style TargetType="TextBlock">
@@ -18,7 +18,7 @@
             <Border BorderBrush="Blue" Margin="2" BorderThickness="1">
                 <StackPanel Orientation="Horizontal" Margin="2">
                     <CheckBox IsChecked="{Binding Path=IsSel}" Checked="VarSelection_Changed" Unchecked="VarSelection_Changed" VerticalAlignment="Center"  Margin="2"/>
-                    <TextBlock Text="{Binding Path=Name, Mode=OneWay}" Margin="2" FontWeight="Bold" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding Path=Name, Mode=OneWay}" FontWeight="Bold" Margin="2" VerticalAlignment="Center" />
                     <ComboBox Name="VarFormat" Width="70" SelectedItem="{Binding Path=Type}" ItemsSource="{Binding Path=combo, Mode=OneTime}" Margin="2"/>
                 </StackPanel>
             </Border>
@@ -35,13 +35,14 @@
         <DataTemplate DataType="{x:Type local:FileRecord}">
             <TextBlock FontSize="16">
                 <TextBlock Text="{Binding Path=path, Mode=OneTime}"/>
-                <TextBlock Text="{Binding Path=NumberOfRecords, Mode=OneTime, StringFormat=({0:0})}"/>
+                <TextBlock Text="{Binding Path=NumberOfRecords, Mode=OneTime, StringFormat=({0:0} records)}"/>
             </TextBlock>
         </DataTemplate>
     </ListBoxItem.Resources>
     <Border BorderBrush="Black" BorderThickness="2" Margin="2" CornerRadius="6">
         <Grid>
             <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
@@ -71,8 +72,16 @@
                 <GroupBox.Header>
                     <TextBlock>Variables</TextBlock>
                 </GroupBox.Header>
-                <WrapPanel Name="VariableEntries" Width="920" Margin="5"/>
+                <WrapPanel Name="VariableEntries" Width="920" Margin="5">
+                    <WrapPanel.Children>
+                        <ItemsControl ItemsSource="{Binding Path=CSVFileRecords[0].stream.CSVVariables}"/>
+                    </WrapPanel.Children>
+                </WrapPanel>
             </GroupBox>
+            <TextBlock Grid.Row="2" Grid.Column="0" Margin="2">
+                <TextBlock Text="Total number of records ="/>
+                <TextBlock Text="{Binding Path=NumberOfRecords, Mode=OneWay}"/>
+            </TextBlock>
         </Grid>
     </Border>
 </ListBoxItem>

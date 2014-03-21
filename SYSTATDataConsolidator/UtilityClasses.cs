@@ -14,7 +14,7 @@ namespace SYSTATDataConsolidator
     public abstract class FileRecord : INotifyPropertyChanged
     {
         string _path;
-        public string path
+        public string path //path to the file location
         {
             get { return _path; }
             internal set
@@ -26,7 +26,7 @@ namespace SYSTATDataConsolidator
             }
         }
 
-        abstract public int NumberOfRecords { get; }
+        abstract public int NumberOfRecords { get; } //number of records in this file
 
         public event PropertyChangedEventHandler PropertyChanged;
         protected void Notify(string p)
@@ -34,16 +34,15 @@ namespace SYSTATDataConsolidator
             if (this.PropertyChanged != null)
                 PropertyChanged(this, new PropertyChangedEventArgs(p));
         }
-
     }
 
     public interface IFilePointSelector
     {
-        int NumberOfRecords { get; }
-        int NumberOfDataPoints { get; }
-        bool IsError { get; }
-        FileRecord this[int i] { get; }
-        int NumberOfFiles { get; }
+        int NumberOfRecords { get; } //total number of records associated with this variable selector
+        int NumberOfDataPoints { get; } //number of data points selected in this variable selector
+        int NumberOfFiles { get; } //number of files applied to this variable selector
+        bool IsError { get; } //has this varaible selector created an error
+        FileRecord this[int i] { get; } //returns the file index i
     }
 
     public class FILMANFileRecord : FileRecord
@@ -55,7 +54,6 @@ namespace SYSTATDataConsolidator
         {
             get { return stream.NRecordSets; }
         }
-
     }
 
     public class CSVFileRecord: FileRecord
@@ -69,9 +67,11 @@ namespace SYSTATDataConsolidator
                 return stream.NumberOfRecords;
             }
         }
-
     }
 
+    /// <summary>
+    /// Class for describing and parsing acceptable SYSTAT .sys variable names
+    /// </summary>
     public class SYSTATNameStringParser
     {
         Regex ok;
@@ -81,7 +81,7 @@ namespace SYSTATDataConsolidator
         /// <summary>
         /// Primary constructor for SYSTANameStringParser
         /// </summary>
-        /// <param name="ncodes">Letters that code numerical strings</param>
+        /// <param name="ncodes">Letters that code for numerical strings</param>
         /// <param name="acodes">Letters that code for alphanumeric strings; default is none (empty string)</param>
         public SYSTATNameStringParser(string ncodes, string acodes = "")
         {

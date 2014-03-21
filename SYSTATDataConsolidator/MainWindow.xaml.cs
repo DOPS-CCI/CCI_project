@@ -184,7 +184,8 @@ namespace SYSTATDataConsolidator
                 string s;
                 foreach (IFilePointSelector fr in FilePointSelectors)//First capture all the data variables to be created
                 {
-                    Log.writeToLog("     " + fr[0].path);
+                    for (int i = 0; i < fr.NumberOfFiles; i++)
+                        Log.writeToLog("     " + fr[i].path);
                     if (fr.GetType() == typeof(FMFileListItem))
                     {
                         systat.AddCommentLine(fr[0].path); //FIRST comment line names file ***** What about other files? *****
@@ -237,17 +238,13 @@ namespace SYSTATDataConsolidator
                         }
                     }
                     else //get CSV variables
-                    {
-                        foreach (CSV.Variable v in ((CSVFileRecord)fr).stream.CSVVariables)
-                        {
+                        foreach (CSV.Variable v in ((CSVFileRecord)fr[0]).stream.CSVVariables)
                             if (v.IsSel)
                             {
                                 SYSTAT.SYSTATFileStream.Variable var;
                                 var = new SYSTAT.SYSTATFileStream.Variable(v.Name, v.Type);
                                 systat.AddVariable(var);
                             }
-                        }
-                    }
                 } //end data variable capture; now we can write the SYSTAT header
                 systat.WriteHeader();
 
@@ -292,7 +289,7 @@ namespace SYSTATDataConsolidator
                             }
                             else
                             {
-                                CSVFileRecord cfr = (CSVFileRecord)fr;
+                                CSVFileRecord cfr = (CSVFileRecord)fr[rowFile];
                                 cfr.stream.Read();
                                 foreach (CSV.Variable v in cfr.stream.CSVVariables)
                                     if (v.IsSel)
