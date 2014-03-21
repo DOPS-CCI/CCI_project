@@ -1,0 +1,190 @@
+﻿<ListBoxItem x:Class="SYSTATDataConsolidator.FMFileListItem"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:core="clr-namespace:System;assembly=mscorlib"
+             xmlns:local="clr-namespace:SYSTATDataConsolidator"
+             mc:Ignorable="d"
+             d:DesignHeight="124" d:DesignWidth="925"
+             DataContext="{Binding RelativeSource={RelativeSource Self}}" MaxHeight="580">
+    <ListBoxItem.Resources>
+        <ObjectDataProvider x:Key="NSEnum" MethodName="GetValues" ObjectType="{x:Type core:Enum}">
+            <ObjectDataProvider.MethodParameters>
+                <x:Type Type="local:NSEnum"/>
+            </ObjectDataProvider.MethodParameters>
+        </ObjectDataProvider>
+        <Style TargetType="TextBox">
+            <Setter Property="Margin" Value="4,0"/>
+        </Style>
+        <Style TargetType="TextBlock">
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="TextAlignment" Value="Center"/>
+        </Style>
+        <DataTemplate DataType="{x:Type local:PointGroup}">
+            <StackPanel Orientation="Horizontal">
+                <TextBox Name="channelSelector" Text="{Binding Path=ChannelSelectionString}" Width="170" TextChanged="Channels_TextChanged"/>
+                <TextBox Name="pointSelector" Text="{Binding Path=PointSelectionString}" Width="250" TextChanged="Points_TextChanged"/>
+                <TextBox Name="namingSelector" Text="{Binding Path=Name}" Width="90" TextChanged="Name_TextChanged" />
+            </StackPanel>
+            <DataTemplate.Triggers>
+                <DataTrigger Binding="{Binding Path=channelError, Mode=OneWay}" Value="True">
+                    <Setter Property="Foreground" Value="Red" TargetName="channelSelector"/>
+                    <Setter Property="Background" Value="Pink" TargetName="channelSelector"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Path=channelError, Mode=OneWay}" Value="False">
+                    <Setter Property="Foreground" Value="Black" TargetName="channelSelector"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Path=pointError, Mode=OneWay}" Value="True">
+                    <Setter Property="Foreground" Value="Red" TargetName="pointSelector"/>
+                    <Setter Property="Background" Value="Pink" TargetName="pointSelector"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Path=pointError, Mode=OneWay}" Value="False">
+                    <Setter Property="Foreground" Value="Black" TargetName="pointSelector"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Path=namingError, Mode=OneWay}" Value="True">
+                    <Setter Property="Foreground" Value="Red" TargetName="namingSelector"/>
+                    <Setter Property="Background" Value="Pink" TargetName="namingSelector"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Path=namingError, Mode=OneWay}" Value="False">
+                    <Setter Property="Foreground" Value="Black" TargetName="namingSelector"/>
+                </DataTrigger>
+            </DataTemplate.Triggers>
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type local:GroupVar}">
+            <StackPanel Orientation="Horizontal" ToolTip="{Binding Path=Description}">
+                <CheckBox IsChecked="{Binding Path=IsSel}" Checked="GVSelection_Changed" Unchecked="GVSelection_Changed" VerticalAlignment="Center" />
+                <TextBox Text="{Binding Path=FM_GVName, Mode=OneWay}" Width="90" IsEnabled="False"/>
+                <TextBox Name="GVname" Text="{Binding Path=GVName}" Width="90" TextChanged="GVName_TextChanged"/>
+                <ComboBox Name="GVformat"  Width="70" SelectedItem="{Binding Path=Format}" ItemsSource="{Binding Path=comboMapped, Mode=OneTime}"  SelectionChanged="GVformat_SelectionChanged">
+                    <ComboBox.Resources>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="FontWeight" Value="Normal"/>
+                        </Style>
+                    </ComboBox.Resources>
+                </ComboBox>
+            </StackPanel>
+            <DataTemplate.Triggers>
+                <DataTrigger Binding="{Binding Path=GVNameError, Mode=OneWay}" Value="True">
+                    <Setter Property="Foreground" Value="Red" TargetName="GVname"/>
+                    <Setter Property="Background" Value="Pink" TargetName="GVname"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Path=GVNameError, Mode=OneWay}" Value="False">
+                    <Setter Property="Foreground" Value="Black" TargetName="GVname"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Path=HasGVValueMapping}" Value="False">
+                    <Setter Property="ItemsSource" TargetName="GVformat">
+                        <Setter.Value>
+                            <Binding Path="comboUnmapped" Mode="OneTime" />
+                        </Setter.Value>
+                    </Setter>
+                </DataTrigger>
+            </DataTemplate.Triggers>
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type local:FileRecord}">
+            <TextBlock FontSize="16">
+                <TextBlock Text="{Binding Path=path, Mode=OneTime}"/>
+                <TextBlock Text="{Binding Path=NumberOfRecords, Mode=OneTime, StringFormat=({0:0})}"/>
+            </TextBlock>
+        </DataTemplate>
+    </ListBoxItem.Resources>
+    <Border BorderBrush="Black" BorderThickness="2" Margin="2" CornerRadius="6">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="335"/>
+                <ColumnDefinition Width="585"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <Grid Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3">
+                <ListBox Name="FileNames" ItemsSource="{Binding Path=FILMANFileRecords, Mode=OneWay}" />
+                <StackPanel Orientation="Vertical" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="4">
+                    <StackPanel.Resources>
+                        <Style TargetType="Button">
+                            <Setter Property="Height" Value="16"/>
+                            <Setter Property="Width" Value="16"/>
+                            <Setter Property="Margin" Value="2"/>
+                        </Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Margin" Value="0,-4,0,0"/>
+                            <Setter Property="FontWeight" Value="ExtraBlack"/>
+                        </Style>
+                    </StackPanel.Resources>
+                    <Button Click="AddFileButton_Click">
+                        <TextBlock Text="+"/>
+                    </Button>
+                    <Button Name="RemoveFileSelection" Click="RemoveFileButton_Click" IsEnabled="False">
+                        <TextBlock Text="-"/>
+                    </Button>
+                </StackPanel>
+        </Grid>
+        <GroupBox Grid.Row="1" Grid.Column="0">
+                <GroupBox.Header>
+                    <TextBlock>Group Variables</TextBlock>
+                </GroupBox.Header>
+                <ListView Name="GVs" ItemsSource="{Binding GroupVars}">
+                    <ListView.View>
+                        <GridView>
+                            <GridViewColumn>
+                                <GridViewColumn.Header>
+                                    <StackPanel Orientation="Horizontal" Margin="16,0,0,0">
+                                        <TextBlock Width="98" Text="FMName" />
+                                        <TextBlock Width="98" Text="Name" />
+                                        <TextBlock Width="78" Text="N/S" />
+                                    </StackPanel>
+                                </GridViewColumn.Header>
+                            </GridViewColumn>
+                        </GridView>
+                    </ListView.View>
+                </ListView>
+            </GroupBox>
+            <GroupBox Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2">
+                <GroupBox.Header>
+                    <TextBlock>Point selection</TextBlock>
+                </GroupBox.Header>
+                <ListView Name="Points" ItemsSource="{Binding PointGroups}">
+                    <ListView.View>
+                        <GridView>
+                            <GridViewColumn>
+                                <GridViewColumn.Header>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Width="178" Text="Channels" />
+                                        <TextBlock Width="258" Text="Points" />
+                                        <TextBlock Width="98" Text="Names"/>
+                                    </StackPanel>
+                                </GridViewColumn.Header>
+                            </GridViewColumn>
+                        </GridView>
+                    </ListView.View>
+                </ListView>
+            </GroupBox>
+            <StackPanel Grid.Column="1" Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Left" Margin="8,0,0,0">
+                <StackPanel.Resources>
+                    <Style TargetType="Button">
+                        <Setter Property="Height" Value="16"/>
+                        <Setter Property="Width" Value="16"/>
+                        <Setter Property="Margin" Value="2"/>
+                    </Style>
+                    <Style TargetType="TextBlock">
+                        <Setter Property="Margin" Value="0,-4,0,0"/>
+                        <Setter Property="FontWeight" Value="ExtraBlack"/>
+                    </Style>
+                </StackPanel.Resources>
+                <Button Click="AddButton_Click">
+                    <TextBlock Text="+"/>
+                </Button>
+                <Button Name="RemovePointSelection" Click="RemoveButton_Click">
+                    <TextBlock Text="-"/>
+                </Button>
+            </StackPanel>
+            <TextBlock Grid.Row="2" Grid.Column="0">
+                <TextBlock Text="Total number of recordsets = "/>
+                <TextBlock Text="{Binding Path=NumberOfRecords, Mode=OneWay}"/>
+            </TextBlock>
+        </Grid>
+    </Border>
+</ListBoxItem>
