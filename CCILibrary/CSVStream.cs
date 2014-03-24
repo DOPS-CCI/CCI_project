@@ -40,9 +40,8 @@ namespace CSVStream
                     Match m = nameParse.Match(s);
                     if (m.Success)
                     {
-                        Variable v = new Variable();
-                        v.Name = m.Groups["name"].Value;
-                        v.Type = m.Groups["string"].Length > 0 ? SYSTAT.SYSTATFileStream.SVarType.String : SYSTAT.SYSTATFileStream.SVarType.Number;
+                        Variable v = new Variable(m.Groups["name"].Value,
+                            m.Groups["string"].Length > 0 ? SYSTAT.SYSTATFileStream.SVarType.String : SYSTAT.SYSTATFileStream.SVarType.Number);
                         CSVVariables.Add(v);
                         continue;
                     }
@@ -104,12 +103,23 @@ namespace CSVStream
         internal const double MissingNumber = -1E36D;
         internal const string MissingString = "";
 
-        string _Name;
+        string _OriginalName; //this property doesn't change if type changes
+        public string OriginalName
+        {
+            get { return _OriginalName; }
+        }
+
+        string _Name; //this property changes depending on the current type
         public string Name
         {
             get { return _Name + (IsNum ? "" : "$"); }
-            internal set { _Name = value; }
         }
+
+        public string BaseName //this property doesn't change and doesn't include any terminating $
+        {
+            get { return _Name; }
+        }
+        
         SYSTAT.SYSTATFileStream.SVarType _Type;
         public SYSTAT.SYSTATFileStream.SVarType Type
         {
@@ -131,6 +141,13 @@ namespace CSVStream
             {
                 return _Type == SYSTAT.SYSTATFileStream.SVarType.Number;
             }
+        }
+
+        internal Variable(string name, SYSTAT.SYSTATFileStream.SVarType type)
+        {
+            _Name = name;
+            _Type = type;
+            _OriginalName = Name;
         }
 
         //Items used to display combobox selections
