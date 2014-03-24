@@ -1,11 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Threading;
 using Microsoft.Win32;
 using FILMANFileStream;
 using SYSTAT = SYSTATFileStream;
@@ -23,6 +25,10 @@ namespace SYSTATDataConsolidator
     {
         const int SYSTATMaxPoints = 8192; //maximum number of data points allowed by SYSTAT
 
+        BackgroundWorker bw;
+
+        public SYSTAT.SYSTATFileStream systat;
+
         public List<IFilePointSelector> FilePointSelectors { get; set; }
 
         public MainWindow()
@@ -30,6 +36,7 @@ namespace SYSTATDataConsolidator
             Log.writeToLog("Starting SYSTATDataConsolidator " + Utilities.getVersionNumber());
             FilePointSelectors = new List<IFilePointSelector>();
             InitializeComponent();
+            bw = (BackgroundWorker)this.FindResource("bw");
         }
 
         private void AddFMFile_Click(object sender, RoutedEventArgs e)
@@ -166,31 +173,68 @@ namespace SYSTATDataConsolidator
 
         private void Cancel_Click(object sender, RoutedEventArgs e)
         {
-            Application.Current.Shutdown(0);
+            bw.CancelAsync();
         }
 
         private void Create_Click(object sender, RoutedEventArgs e)
         {
-            Create.Visibility = Visibility.Hidden;
+            Create.Visibility = Visibility.Collapsed;
+            Progress.Text = "0%";
+            Progress.Visibility = Visibility.Visible;
+            QuitButton.Visibility = Visibility.Collapsed;
+            CancelButton.Visibility = Visibility.Visible;
             Log.writeToLog("Beginning data consolidation to: " + SYSTATFileName.Text);
-            FMFileListItem fli;
-            SYSTAT.SYSTATFileStream systat = null;
             try
             {
                 systat = new SYSTAT.SYSTATFileStream(SYSTATFileName.Text,
                     ((bool)SYS.IsChecked) ? SYSTAT.SYSTATFileStream.SFileType.SYS : SYSTAT.SYSTATFileStream.SFileType.SYD);
-                Log.writeToLog("Consolidating from files:");
-                int fNum = 0;
-                string s;
+                bw.RunWorkerAsync(this);
+            }
+            catch (Exception err)
+            {
+                ErrorWindow ew = new ErrorWindow();
+                ew.Message = "***** ERROR ***** MainWindow: " + err.Message;
+                ew.ShowDialog();
+                if (systat != null) systat.CloseStream();
+            }
+        }
+
+        private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            Log.writeToLog("Ending SYSTATDataConsolidator");
+        }
+
+        private int rowsInColumn(int column)
+        {
+            if (column >= FilePointSelectors.Count) return 0;
+                return FilePointSelectors[column].NumberOfFiles;
+        }
+
+        private int recsInItem(int row, int column) //call only after validating number of rows in column
+        {
+            return FilePointSelectors[column][row].NumberOfRecords;
+        }
+
+        private void bw_DoWork(object sender, DoWorkEventArgs e)
+        {
+            MainWindow mw = (MainWindow)e.Argument;
+            FMFileListItem fli;
+            int fNum = 0;
+            string s;
+            try
+            {
                 foreach (IFilePointSelector fr in FilePointSelectors)//First capture all the data variables to be created
                 {
                     for (int i = 0; i < fr.NumberOfFiles; i++)
                         Log.writeToLog("     " + fr[i].path);
                     if (fr.GetType() == typeof(FMFileListItem))
                     {
-                        systat.AddCommentLine(fr[0].path); //FIRST comment line names file ***** What about other files? *****
-                        for (int i = 0; i < 6; i++)
-                            systat.AddCommentLine(((FILMANFileRecord)fr).stream.Description(i));
+                        for (int i = 0; i < fr.NumberOfFiles; i++)
+                        {
+                            systat.AddCommentLine(fr[i].path); //FIRST comment lines name files
+                            for (int j = 0; j < 6; j++)
+                                systat.AddCommentLine(((FILMANFileRecord)fr[i]).stream.Description(j));
+                        }
                         systat.AddCommentLine(new string('*', 72)); //LAST comment line to mark end
                         fli = (FMFileListItem)fr;
                         object[] GVcodes = new object[4] { fli.FileUID, ++fNum, 2, 0 }; //FfGg
@@ -223,7 +267,7 @@ namespace SYSTATDataConsolidator
                             foreach (int channel in pg.selectedChannels)
                             {
                                 Pcodes[2] = channel + 1;
-                                s = ((FILMANFileRecord)fr).stream.ChannelNames(channel);
+                                s = ((FILMANFileRecord)fr[0]).stream.ChannelNames(channel);
                                 Pcodes[6] = s.Substring(0, Math.Min(s.Length, 11)).Trim().Replace(' ', '_');
                                 Pcodes[3] = (int)Pcodes[3] + 1;
                                 foreach (int point in pg.selectedPoints)
@@ -252,9 +296,10 @@ namespace SYSTATDataConsolidator
                 int[] recordsPerFile = new int[rowsInColumn(0)];
                 for (int i = 0; i < recordsPerFile.Length; i++)
                     recordsPerFile[i] = recsInItem(i, 0);
+                int recordNumber = 1;
                 int numberOfRecords = FilePointSelectors[0].NumberOfRecords;
                 Log.writeToLog("Creating " + numberOfRecords.ToString("0") + " records of " + TotalDataPoints().ToString("0") + " points");
-                for(int rowFile = 0; rowFile < recordsPerFile.Length; rowFile++)
+                for (int rowFile = 0; rowFile < recordsPerFile.Length; rowFile++)
                     for (int recNum = 0; recNum < recordsPerFile[rowFile]; recNum++)
                     {
                         int pointNumber = 0;
@@ -297,6 +342,13 @@ namespace SYSTATDataConsolidator
                             }
                         }
                         systat.WriteDataRecord();
+                        int prog = Convert.ToInt32(100D * ((double)(recordNumber++)) / ((double)(numberOfRecords)));
+                        bw.ReportProgress(prog);
+                        if (bw.CancellationPending) //check for abort
+                        {
+                            e.Cancel = true;
+                            return;
+                        }
                     }
 
                 systat.CloseStream();
@@ -304,28 +356,40 @@ namespace SYSTATDataConsolidator
             }
             catch (Exception err)
             {
-                ErrorWindow ew = new ErrorWindow();
-                ew.Message = "***** ERROR ***** Source: " + err.Source + " Message: " + err.Message;
-                ew.ShowDialog();
-                if (systat != null) systat.CloseStream();
+                throw new Exception("Source: " + err.Source + " Message: " + err.Message, err);
             }
+        }
+
+        private void bw_ProgressChanged(object sender, ProgressChangedEventArgs e)
+        {
+            Progress.Text = e.ProgressPercentage.ToString("0") + "%";
+        }
+
+        private void bw_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
+        {
+            if (e.Cancelled)
+            {
+                if (systat != null) systat.CloseStream();
+                Log.writeToLog("***** Cancelled *****");
+            }
+            else
+                if (e.Error != null)
+                {
+                    string s = "***** ERROR ***** " + e.Error.Message;
+                    ErrorWindow ew = new ErrorWindow();
+                    ew.Message = s;
+                    ew.ShowDialog();
+                    Log.writeToLog(s);
+                }
+            Progress.Visibility = Visibility.Collapsed;
             Create.Visibility = Visibility.Visible;
+            CancelButton.Visibility = Visibility.Collapsed;
+            QuitButton.Visibility = Visibility.Visible;
         }
 
-        private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+        private void Quit_Click(object sender, RoutedEventArgs e)
         {
-            Log.writeToLog("Ending SYSTATDataConsolidator");
-        }
-
-        private int rowsInColumn(int column)
-        {
-            if (column >= FilePointSelectors.Count) return 0;
-                return FilePointSelectors[column].NumberOfFiles;
-        }
-
-        private int recsInItem(int row, int column) //call only after validating number of rows in column
-        {
-            return FilePointSelectors[column][row].NumberOfRecords;
+            Application.Current.Shutdown(0);
         }
     }
 }

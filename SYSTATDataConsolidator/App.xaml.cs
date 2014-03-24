@@ -12,5 +12,6 @@ namespace SYSTATDataConsolidator
     /// </summary>
     public partial class App : Application
     {
+
     }
 }

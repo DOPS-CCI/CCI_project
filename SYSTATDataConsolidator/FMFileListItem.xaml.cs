@@ -565,6 +565,9 @@ namespace SYSTATDataConsolidator
         }
     }
 
+    /// <summary>
+    /// Enumeration for Group Variable types
+    /// </summary>
     public enum NSEnum { Number, String, MappedString }
 
 }

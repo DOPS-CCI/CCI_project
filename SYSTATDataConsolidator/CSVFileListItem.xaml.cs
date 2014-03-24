@@ -111,11 +111,11 @@ namespace SYSTATDataConsolidator
             int i = 0;
             foreach (Variable v in csv0.CSVVariables)
             {
-                if (v.Name != csv.stream.CSVVariables[i++].Name)
+                if (v.OriginalName != csv.stream.CSVVariables[i++].OriginalName)
                 {
                     ErrorWindow ew = new ErrorWindow();
-                    ew.Message = "Incompatable variable name (" + csv.stream.CSVVariables[i++].Name + " vs. " +
-                        v.Name + ") in added CSV file: " + csv.path;
+                    ew.Message = "Incompatable variable name (" + csv.stream.CSVVariables[i++].OriginalName + " vs. " +
+                        v.OriginalName + ") in added CSV file: " + csv.path;
                     ew.ShowDialog();
                     return true;
                 }
@@ -173,7 +173,10 @@ namespace SYSTATDataConsolidator
             foreach (Variable v in CSVFileRecords[0].stream.CSVVariables)
             {
                 for (int i = 1; i < CSVFileRecords.Count; i++)
+                {
                     _CSVFileRecords[i].stream.CSVVariables[j].IsSel = v.IsSel;
+                    _CSVFileRecords[i].stream.CSVVariables[j].Type = v.Type;
+                }
                 j++;
             }
         }
@@ -183,6 +186,11 @@ namespace SYSTATDataConsolidator
         {
             if (this.PropertyChanged != null)
                 PropertyChanged(this, new PropertyChangedEventArgs(p));
+        }
+
+        private void VarFormat_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            synchVariableSelection();
         }
     }
 

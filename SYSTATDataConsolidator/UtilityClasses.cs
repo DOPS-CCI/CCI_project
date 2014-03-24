@@ -10,10 +10,15 @@ using CSVStream;
 
 namespace SYSTATDataConsolidator
 {
-
+    /// <summary>
+    /// Base class for input files
+    /// </summary>
     public abstract class FileRecord : INotifyPropertyChanged
     {
         string _path;
+        /// <summary>
+        /// Directory path and file name to the described file
+        /// </summary>
         public string path //path to the file location
         {
             get { return _path; }
@@ -26,7 +31,10 @@ namespace SYSTATDataConsolidator
             }
         }
 
-        abstract public int NumberOfRecords { get; } //number of records in this file
+        /// <summary>
+        /// Number of distinct records in this file
+        /// </summary>
+        abstract public int NumberOfRecords { get; }
 
         public event PropertyChangedEventHandler PropertyChanged;
         protected void Notify(string p)
@@ -38,11 +46,28 @@ namespace SYSTATDataConsolidator
 
     public interface IFilePointSelector
     {
-        int NumberOfRecords { get; } //total number of records associated with this variable selector
-        int NumberOfDataPoints { get; } //number of data points selected in this variable selector
-        int NumberOfFiles { get; } //number of files applied to this variable selector
-        bool IsError { get; } //has this varaible selector created an error
-        FileRecord this[int i] { get; } //returns the file index i
+        /// <summary>
+        /// Total number of records associated with this variable selector
+        /// </summary>
+        int NumberOfRecords { get; }
+        /// <summary>
+        /// Number of data points selected in this variable selector
+        /// </summary>
+        int NumberOfDataPoints { get; }
+        /// <summary>
+        /// Number of files applied to this variable selector; always >= 1
+        /// </summary>
+        int NumberOfFiles { get; }
+        /// <summary>
+        /// Is there an error on this variable selector?
+        /// </summary>
+        bool IsError { get; }
+        /// <summary>
+        /// Returns the indexed file
+        /// </summary>
+        /// <param name="i">Zero-based index of the desired FileRecord in this Point Selector</param>
+        /// <returns></returns>
+        FileRecord this[int i] { get; }
     }
 
     public class FILMANFileRecord : FileRecord

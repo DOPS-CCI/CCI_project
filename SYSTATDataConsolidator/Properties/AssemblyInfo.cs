@@ -10,9 +10,9 @@ using System.Windows;
 [assembly: AssemblyTitle("SYSTATDataConsolidator")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("Microsoft")]
+[assembly: AssemblyCompany("Cedar Creek Institute")]
 [assembly: AssemblyProduct("SYSTATDataConsolidator")]
-[assembly: AssemblyCopyright("Copyright © Microsoft 2014")]
+[assembly: AssemblyCopyright("Copyright © Cedar Creek Institute 2014")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
