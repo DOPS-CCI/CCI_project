@@ -379,6 +379,7 @@ namespace SYSTATDataConsolidator
                     ErrorWindow ew = new ErrorWindow();
                     ew.Message = s;
                     ew.ShowDialog();
+                    if (systat != null) systat.CloseStream();
                     Log.writeToLog(s);
                 }
             Progress.Visibility = Visibility.Collapsed;
