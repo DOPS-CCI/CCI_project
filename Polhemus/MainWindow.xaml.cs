@@ -335,6 +335,7 @@ namespace Polhemus
                     {
                         PN = e.result; //save Nasion
                         electrodeNumber++;
+                        Redo.IsEnabled = true;
                     }
                     DoPrompting((e != null) && e.Retry);
                     ((StylusAcquisition)sa).Start();
@@ -367,6 +368,16 @@ namespace Polhemus
             }
             if (electrodeNumber >= numberOfElectrodes)
             {
+                if (voice)
+                {
+                    int n = electrodeLocations.Count;
+                    prompt.ClearContent();
+                    prompt.StartSentence();
+                    prompt.AppendText("Completed acquisition of " + n.ToString("0") + " electrodes.");
+                    prompt.EndSentence();
+                    speak.Speak(prompt);
+                }
+                ElectrodeName.Text = "";
                 writeElectrodeFile();
                 return; //done
             }
@@ -431,6 +442,7 @@ namespace Polhemus
                     speak.Speak(prompt);
                 }
                 ElectrodeName.Text = ((redo != null && (bool)redo) ? "Redo " : "") + eName;
+                Skip.IsEnabled = false; //can't skip indicial point
             }
         }
 
@@ -439,10 +451,10 @@ namespace Polhemus
         private void CreateCoordinateTransform()
         {
             Origin = 0.5D * (PR + PL);
-            PR -= Origin;
-            PN -= Origin;
-            Transform[0] = PR.Norm();
-            Transform[2] = (Triple.Cross(PR, PN)).Norm();
+            Triple pr = PR - Origin;
+            Triple pn = PN - Origin;
+            Transform[0] = pr.Norm();
+            Transform[2] = (Triple.Cross(pr, pn)).Norm();
             Transform[1] = Triple.Cross(Transform[2], Transform[0]);
         }
 
@@ -460,7 +472,7 @@ namespace Polhemus
                     xyz.write(efs, "");
                 efs.Close();
                 efs = null;
-                output3.Text = "Written out " + electrodeLocations.Count().ToString("0") + " electrode location records.";
+                output3.Text = "Wrote " + electrodeLocations.Count().ToString("0") + " electrode location records.";
             }
         }
 
@@ -479,6 +491,7 @@ namespace Polhemus
         private void Redo_Click(object sender, RoutedEventArgs e)
         {
             electrodeNumber--;
+            if (electrodeNumber <= -3) Redo.IsEnabled = false;
             DoPrompting(true);
         }
 
