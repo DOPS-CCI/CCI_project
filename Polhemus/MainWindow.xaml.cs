@@ -36,7 +36,7 @@ namespace Polhemus
         StylusAcquisition sa;
         SpeechSynthesizer speak = new SpeechSynthesizer();
         PromptBuilder prompt = new PromptBuilder();
-        List<electrodeListElement> templateList;
+        List<electrodeTemplateListElement> templateList;
         ElectrodeOutputFileStream efs;
         int numberOfElectrodes;
         internal List<XYZRecord> electrodeLocations;
@@ -74,12 +74,12 @@ namespace Polhemus
             templateReader.MoveToContent();
             templateReader.MoveToAttribute("N");
             numberOfElectrodes = templateReader.ReadContentAsInt(); //number of items
-            templateList = new List<electrodeListElement>(numberOfElectrodes);
+            templateList = new List<electrodeTemplateListElement>(numberOfElectrodes);
             templateReader.ReadStartElement("ElectrodeNames");
             for (int i = 0; i < numberOfElectrodes; i++)
             {
                 templateReader.ReadStartElement("Electrode");
-                electrodeListElement ele = new electrodeListElement();
+                electrodeTemplateListElement ele = new electrodeTemplateListElement();
                 ele.Name = templateReader.ReadElementContentAsString("Print","");
                 if (templateReader.Name == "Speak")
                 {
@@ -115,7 +115,7 @@ namespace Polhemus
             if (mode == 0) samples = w._sampCount1;
             else if (mode == 1) samples = w._sampCount2;
             else if (mode == 3) threshold = w._SDThresh;
-            projection = new Projection(new Triple(0, 0, eyeDistance), FOV);
+            projection = new Projection(eyeDistance);
 
             InitializeComponent();
 
@@ -183,7 +183,7 @@ namespace Polhemus
                 " D=" + dx.ToString("0.000");
         }
 
-        int pointCount = 0;
+//        int pointCount = 0;
         Triple sumP = new Triple(0, 0, 0);
         void SinglePoint(List<IDataFrameType>[] frame) //one shot completed delegate
         {
@@ -312,19 +312,19 @@ namespace Polhemus
                         Triple t = DoCoordinateTransform(e.result);
                         string name = templateList[electrodeNumber].Name;
                         output1.Text = name + ": " + t.ToString();
+                        XYZRecord xyz = new XYZRecord(name, t.v1, t.v2, t.v3);
                         if (electrodeLocations.Where(l => l.Name == name).Count() == 0) //assure unique electrode name
                         {
-                            XYZRecord xyz = new XYZRecord(name, t.v1, t.v2, t.v3);
                             electrodeLocations.Add(xyz);
                             addPointToView(xyz);
                         }
                         else //this is a replacement
                         {
-                            XYZRecord XYZ = electrodeLocations.Where(l => l.Name == name).First(); //get item to be replaced
-                            XYZRecord newXYZ = new XYZRecord(name, XYZ.X, XYZ.Y, XYZ.Z); //create new entry
-                            int n = electrodeLocations.IndexOf(XYZ); //and replace old
-                            electrodeLocations.Remove(XYZ);
-                            electrodeLocations.Insert(n, newXYZ);
+                            XYZRecord oldXYZ = electrodeLocations.Where(l => l.Name == name).First(); //get item to be replaced
+                            int n = electrodeLocations.IndexOf(oldXYZ); //and replace old
+                            electrodeLocations.Remove(oldXYZ); //remove
+                            electrodeLocations.Insert(n, xyz); //replace with new
+                            updateView(); //and redraw
                         }
                         electrodeNumber++; //on to next electrode location
                     }
@@ -390,7 +390,7 @@ namespace Polhemus
         {
             if (electrodeNumber >= 0) //then, electrode from template
             {
-                electrodeListElement ele = templateList[electrodeNumber];
+                electrodeTemplateListElement ele = templateList[electrodeNumber];
                 if (voice && ele.speakString != null)
                 {
                     prompt.ClearContent();
@@ -495,6 +495,13 @@ namespace Polhemus
             DoPrompting(true);
         }
 
+        private void Delete_Click(object sender, RoutedEventArgs e)
+        {
+            string s = templateList[electrodeNumber].Name;
+            XYZRecord xyz = electrodeLocations.Where(l => l.Name == s).First();
+            if (xyz != null) electrodeLocations.Remove(xyz);
+        }
+
         private void Window_Closing(object sender, CancelEventArgs e)
         {
             writeElectrodeFile(); //just in case this exit is via window close only
@@ -504,45 +511,27 @@ namespace Polhemus
 
         const double radius = 30;
         const double FOV = 0.5; //in radians
-        double cosYaw = 1D;
-        double sinYaw = 0D;
-        double yaw
-        {
-            set
-            {
-                double a = value * Math.PI / 180D;
-                cosYaw = Math.Cos(a);
-                sinYaw = Math.Sin(a);
-            }
-        }
-        double cosPitch = 1D;
-        double sinPitch = 0D;
-        double pitch
-        {
-            set
-            {
-                double a = value * Math.PI / 180D;
-                cosPitch = Math.Cos(a);
-                sinPitch = Math.Sin(a);
-            }
-        }
 
-        double eyeDistance = Math.Pow(10D, 1.5D);
+        double yaw;
+        double pitch;
+        double roll;
+
+        double eyeDistance = Math.Pow(10D, 1.35D);
+        const double viewScale = 10D;
 
         internal void addPointToView(XYZRecord xyz)
         {
             Triple t = new Triple(xyz.X, xyz.Y, xyz.Z);
             t = projection.Project(t);
+            if (t.v3 <= 0) return;
             Ellipse circle = new Ellipse();
             circle.Stroke = System.Windows.Media.Brushes.Transparent;
-            int pink = (int)(5 * t.v3);
-            if (pink > 200)
-                pink = 200;
+            int pink = Math.Min((int)(10 * Math.Sqrt(t.v3)), 200);
             circle.Fill = new SolidColorBrush(System.Windows.Media.Color.FromRgb(255, (byte)pink, (byte)pink));
-            double r = 90D / t.v3;
+            double r = Math.Max(200D / t.v3, 1.5D);
             circle.Height = circle.Width = r * 2D;
-            Canvas.SetTop(circle, Draw.ActualHeight / 2 - 100 * t.v2 - r);
-            Canvas.SetLeft(circle, Draw.ActualWidth / 2 + 100 * t.v1 - r);
+            Canvas.SetTop(circle, Draw.ActualHeight / 2 - viewScale * t.v2 - r);
+            Canvas.SetLeft(circle, Draw.ActualWidth / 2 + viewScale * t.v1 - r);
             Canvas.SetZIndex(circle, (int)(-t.v3 * 100));
             circle.ToolTip = new TextBlock(new Run(xyz.Name));
             circle.MouseDown+=new MouseButtonEventHandler(circle_MouseDown);
@@ -551,7 +540,6 @@ namespace Polhemus
 
         internal void updateView()
         {
-            projection.Eye = eyeDistance * (new Triple(-cosPitch * sinYaw, cosPitch * cosYaw, sinPitch));
             Draw.Children.Clear(); //redraw all, since new Eye position
             foreach (XYZRecord el in electrodeLocations)
                 addPointToView(el);
@@ -560,12 +548,21 @@ namespace Polhemus
         private void Yaw_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
             yaw = e.NewValue;
+            projection.ChangeYaw(yaw);
             updateView();
         }
 
         private void Pitch_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
             pitch = e.NewValue;
+            projection.ChangePitch(pitch);
+            updateView();
+        }
+
+        private void Roll_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            roll = e.NewValue;
+            projection.ChangeRoll(roll);
             updateView();
         }
 
@@ -579,11 +576,19 @@ namespace Polhemus
         private void Magnification_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
             eyeDistance = Math.Pow(10D, e.NewValue);
+            projection.Eye = eyeDistance;
             updateView();
+        }
+
+        private void ResetView_Click(object sender, RoutedEventArgs e)
+        {
+            Yaw.Value = 0D;
+            Roll.Value = 0D;
+            Pitch.Value = 0D;
         }
     }
 
-    internal class electrodeListElement
+    internal class electrodeTemplateListElement
     {
         internal string Name;
         internal string speakType;
