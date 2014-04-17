@@ -14,7 +14,8 @@ namespace Polhemus
 
         public double Eye;
 
-        const double horizonFactor = 90D;
+        const double scaleFactor = 25D;
+        const double horizonFactor = 0.75;
 
         //direction sines and cosines
         double sinPitch = 0D;
@@ -76,14 +77,12 @@ namespace Polhemus
         }
         public Triple Project(Triple point)
         {
-            //used to calculate rotation of point as observed from and projected onto eye
+            //used to calculate rotation of point as observed from and projected onto eye plane
             Triple p = new Triple(0, 0, Eye - Tz * point);
-            if (p.v3 <= 0D) return p; //point behind plane: not going to show anyway
-            double factor = horizonFactor / p.v3;
-            p.v1 = factor * (Tx * point);
+            if (p.v3 <= 0D) return p; //point behind eye plane: not going to show anyway
+            double factor = scaleFactor / Math.Pow(p.v3, horizonFactor); //scale towards vanashing point
+            p.v1 = factor * (Tx * point); //rotate and scale projected point
             p.v2 = factor * (Ty * point);
-//            double theta = Math.Acos(Ty * d.Norm()) / (FOV * r1); //displacement from origin,
-                //as observed from e as angular displacement
             return p;
         }
     }

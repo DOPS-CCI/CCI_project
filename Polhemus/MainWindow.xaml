@@ -26,7 +26,7 @@
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <Canvas Grid.Row="0" Grid.Column="1" Name="Draw" Height="600" Width="600" ClipToBounds="True"></Canvas>
-            <Slider Grid.Row="2" Grid.Column="1" Name="Magnification" Orientation="Horizontal" Value="1.375" Maximum="1.75" Minimum="1" ValueChanged="Magnification_ValueChanged" FlowDirection="RightToLeft" LargeChange="0.2" SmallChange="0.05"></Slider>
+            <Slider Grid.Row="2" Grid.Column="1" Name="Magnification" Orientation="Horizontal" Value="1.5" Maximum="2" Minimum="1" ValueChanged="Magnification_ValueChanged" FlowDirection="RightToLeft" LargeChange="0.2" SmallChange="0.05"></Slider>
             <TextBlock Grid.Column="1" Name="ButtonInfo" VerticalAlignment="Bottom" HorizontalAlignment="Left" Background="#00000000"/>
             <Slider Grid.Row="1" Grid.Column="1" Name="Yaw" Orientation="Horizontal" Value="0" Maximum="180" Minimum="-180" ValueChanged="Yaw_ValueChanged"></Slider>
             <Slider Grid.Column="3" Name="Pitch" Orientation="Vertical" Value="0" Maximum="180" Minimum="-180" ValueChanged="Pitch_ValueChanged"></Slider>

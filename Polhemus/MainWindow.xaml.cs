@@ -510,7 +510,6 @@ namespace Polhemus
         }
 
         const double radius = 30;
-        const double FOV = 0.5; //in radians
 
         double yaw;
         double pitch;
@@ -526,9 +525,9 @@ namespace Polhemus
             if (t.v3 <= 0) return;
             Ellipse circle = new Ellipse();
             circle.Stroke = System.Windows.Media.Brushes.Transparent;
-            int pink = Math.Min((int)(10 * Math.Sqrt(t.v3)), 200);
+            int pink = Math.Min((int)(10 * Math.Pow(t.v3,0.75)), 180);
             circle.Fill = new SolidColorBrush(System.Windows.Media.Color.FromRgb(255, (byte)pink, (byte)pink));
-            double r = Math.Max(200D / t.v3, 1.5D);
+            double r = Math.Max(100D / t.v3, 2.5D);
             circle.Height = circle.Width = r * 2D;
             Canvas.SetTop(circle, Draw.ActualHeight / 2 - viewScale * t.v2 - r);
             Canvas.SetLeft(circle, Draw.ActualWidth / 2 + viewScale * t.v1 - r);
