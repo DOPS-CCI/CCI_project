@@ -317,6 +317,7 @@ namespace Polhemus
                         {
                             electrodeLocations.Add(xyz);
                             addPointToView(xyz);
+                            Delete.IsEnabled = true;
                         }
                         else //this is a replacement
                         {
@@ -498,8 +499,12 @@ namespace Polhemus
         private void Delete_Click(object sender, RoutedEventArgs e)
         {
             string s = templateList[electrodeNumber].Name;
-            XYZRecord xyz = electrodeLocations.Where(l => l.Name == s).First();
+            IEnumerable<XYZRecord> list = electrodeLocations.Where(l => l.Name == s);
+            if (list == null || list.Count() == 0) return;
+            XYZRecord xyz = list.First();
             if (xyz != null) electrodeLocations.Remove(xyz);
+            if (electrodeLocations.Count <= 0) Delete.IsEnabled = false;
+            updateView();
         }
 
         private void Window_Closing(object sender, CancelEventArgs e)
@@ -549,6 +554,16 @@ namespace Polhemus
             yaw = e.NewValue;
             projection.ChangeYaw(yaw);
             updateView();
+            updateLabels();
+        }
+
+        private void updateLabels()
+        {
+            string[] labels = projection.nameDirections();
+            UpDirection.Text = labels[0];
+            DownDirection.Text = labels[2];
+            RightDirection.Text = labels[1];
+            LeftDirection.Text = labels[3];
         }
 
         private void Pitch_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
@@ -556,6 +571,7 @@ namespace Polhemus
             pitch = e.NewValue;
             projection.ChangePitch(pitch);
             updateView();
+            updateLabels();
         }
 
         private void Roll_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
@@ -563,6 +579,7 @@ namespace Polhemus
             roll = e.NewValue;
             projection.ChangeRoll(roll);
             updateView();
+            updateLabels();
         }
 
         private void circle_MouseDown(object sender, MouseButtonEventArgs e)

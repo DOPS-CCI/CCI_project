@@ -35,6 +35,15 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
+  <PropertyGroup>
+    <ApplicationIcon>PolhemusIcon.ico</ApplicationIcon>
+  </PropertyGroup>
+  <PropertyGroup>
+    <SignManifests>true</SignManifests>
+  </PropertyGroup>
+  <PropertyGroup>
+    <ManifestCertificateThumbprint>6A96AA5F9D4272A836256BC324A93229169DED6C</ManifestCertificateThumbprint>
+  </PropertyGroup>
   <ItemGroup>
     <Reference Include="CCILibrary">
       <HintPath>..\CCILibrary\bin\Debug\CCILibrary.dll</HintPath>
@@ -116,6 +125,9 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Resources\" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="PolhemusIcon.ico" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

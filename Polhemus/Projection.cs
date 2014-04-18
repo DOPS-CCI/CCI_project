@@ -85,5 +85,49 @@ namespace Polhemus
             p.v2 = factor * (Ty * point);
             return p;
         }
+
+        double C22 = Math.Cos(Math.PI / 8D);
+        double T67 = Math.Tan(3D * Math.PI / 8D);
+        public string[] nameDirections()
+        {
+            double x, y;
+            string[] d = new string[4];
+            for (int i = 0; i < 4; i++) d[i] = "";
+            if (Math.Abs(Tz.v1) < C22) //then R/L shows
+            {
+                x = Tx.v1;
+                y = Ty.v1;
+                if (x > 0 && Math.Abs(y / x) < T67) { d[1] = "R"; d[3] = "L"; }
+                else
+                    if (x < 0 && Math.Abs(y / x) < T67) { d[1] = "L"; d[3] = "R"; }
+                if (y > 0 && Math.Abs(x / y) < T67) { d[0] = "R"; d[2] = "L"; }
+                else
+                    if (y < 0 && Math.Abs(x / y) < T67) { d[0] = "L"; d[2] = "R"; }
+
+            }
+            if (Math.Abs(Tz.v2) < C22) //then A/P shows
+            {
+                x = Tx.v2;
+                y = Ty.v2;
+                if (x > 0 && Math.Abs(y / x) < T67) { d[1] = d[1] + "A"; d[3] = d[3] + "P"; }
+                else
+                    if (x < 0 && Math.Abs(y / x) < T67) { d[1] = d[1] + "P"; d[3] = d[3] + "A"; }
+                if (y > 0 && Math.Abs(x / y) < T67) { d[0] = d[0] + "A"; d[2] = d[2] + "P"; }
+                else
+                    if (y < 0 && Math.Abs(x / y) < T67) { d[0] = d[0] + "P"; d[2] = d[2] + "A"; }
+            }
+            if (Math.Abs(Tz.v3) < C22) //then S/I shows
+            {
+                x = Tx.v3;
+                y = Ty.v3;
+                if (x > 0 && Math.Abs(y / x) < T67) { d[1] = d[1] + "S"; d[3] = d[3] + "I"; }
+                else
+                    if (x < 0 && Math.Abs(y / x) < T67) { d[1] = d[1] + "I"; d[3] = d[3] + "S"; }
+                if (y > 0 && Math.Abs(x / y) < T67) { d[0] = d[0] + "S"; d[2] = d[2] + "I"; }
+                else
+                    if (y < 0 && Math.Abs(x / y) < T67) { d[0] = d[0] + "I"; d[2] = d[2] + "S"; }
+            }
+            return d;
+        }
     }
 }

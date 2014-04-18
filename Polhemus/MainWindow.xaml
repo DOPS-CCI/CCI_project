@@ -26,6 +26,10 @@
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <Canvas Grid.Row="0" Grid.Column="1" Name="Draw" Height="600" Width="600" ClipToBounds="True"></Canvas>
+            <TextBlock Grid.Row="0" Grid.Column="1" Name="UpDirection" HorizontalAlignment="Center" VerticalAlignment="Top" FontWeight="Bold" FontSize="14">A</TextBlock>
+            <TextBlock Grid.Row="0" Grid.Column="1" Name="DownDirection" HorizontalAlignment="Center" VerticalAlignment="Bottom" FontWeight="Bold" FontSize="14">P</TextBlock>
+            <TextBlock Grid.Row="0" Grid.Column="1" Name="LeftDirection" HorizontalAlignment="Left" VerticalAlignment="Center" FontWeight="Bold" FontSize="14">L</TextBlock>
+            <TextBlock Grid.Row="0" Grid.Column="1" Name="RightDirection" HorizontalAlignment="Right" VerticalAlignment="Center" FontWeight="Bold" FontSize="14">R</TextBlock>
             <Slider Grid.Row="2" Grid.Column="1" Name="Magnification" Orientation="Horizontal" Value="1.5" Maximum="2" Minimum="1" ValueChanged="Magnification_ValueChanged" FlowDirection="RightToLeft" LargeChange="0.2" SmallChange="0.05"></Slider>
             <TextBlock Grid.Column="1" Name="ButtonInfo" VerticalAlignment="Bottom" HorizontalAlignment="Left" Background="#00000000"/>
             <Slider Grid.Row="1" Grid.Column="1" Name="Yaw" Orientation="Horizontal" Value="0" Maximum="180" Minimum="-180" ValueChanged="Yaw_ValueChanged"></Slider>
