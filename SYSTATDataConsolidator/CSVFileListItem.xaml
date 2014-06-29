@@ -7,8 +7,8 @@
              xmlns:local="clr-namespace:SYSTATDataConsolidator"
              xmlns:lib="clr-namespace:CSVStream;assembly=CCILibrary"
              mc:Ignorable="d"
-             d:DesignHeight="132" d:DesignWidth="955"
-             DataContext="{Binding RelativeSource={RelativeSource Self}}" MaxHeight="580">
+             d:DesignHeight="132" d:DesignWidth="1000"
+             DataContext="{Binding RelativeSource={RelativeSource Self}}" MaxHeight="580" Width="975">
     <ListBoxItem.Resources>
         <Style TargetType="TextBlock">
             <Setter Property="FontWeight" Value="Bold"/>
@@ -39,7 +39,9 @@
             </TextBlock>
         </DataTemplate>
     </ListBoxItem.Resources>
-    <Border BorderBrush="Black" BorderThickness="2" Margin="2" CornerRadius="6">
+    <GroupBox BorderBrush="Black" BorderThickness="2" Width="975">
+        <GroupBox.Header>
+            <TextBlock FontSize="13">CSV Variable source</TextBlock></GroupBox.Header>
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
@@ -91,5 +93,5 @@
                 <TextBlock Text="{Binding Path=NumberOfRecords, Mode=OneWay}"/>
             </TextBlock>
         </Grid>
-    </Border>
+    </GroupBox>
 </ListBoxItem>

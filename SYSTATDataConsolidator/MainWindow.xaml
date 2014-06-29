@@ -28,7 +28,7 @@
         </Grid.RowDefinitions>
         <GroupBox Grid.Row="0" BorderBrush="Blue">
             <GroupBox.Header>
-                <TextBlock FontSize="13">Source files</TextBlock>
+                <TextBlock FontSize="13">Source files -> SYSTAT variable groups</TextBlock>
             </GroupBox.Header>
             <StackPanel Orientation="Vertical">
                 <ListBox Name="Files" Height="700"/>
@@ -59,7 +59,7 @@
         </GroupBox>
         <GroupBox Grid.Row="1" BorderBrush="Blue">
             <GroupBox.Header>
-                <TextBlock FontSize="13">SYSTAT file</TextBlock>
+                <TextBlock FontSize="13">SYSTAT output file</TextBlock>
             </GroupBox.Header>
             <Grid>
                 <Grid.ColumnDefinitions>

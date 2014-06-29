@@ -6,8 +6,8 @@
              xmlns:core="clr-namespace:System;assembly=mscorlib"
              xmlns:local="clr-namespace:SYSTATDataConsolidator"
              mc:Ignorable="d"
-             d:DesignHeight="124" d:DesignWidth="925"
-             DataContext="{Binding RelativeSource={RelativeSource Self}}" MaxHeight="580">
+             d:DesignHeight="144" d:DesignWidth="1000"
+             DataContext="{Binding RelativeSource={RelativeSource Self}}" MaxHeight="580" Width="975">
     <ListBoxItem.Resources>
         <ObjectDataProvider x:Key="NSEnum" MethodName="GetValues" ObjectType="{x:Type core:Enum}">
             <ObjectDataProvider.MethodParameters>
@@ -25,7 +25,7 @@
             <StackPanel Orientation="Horizontal">
                 <TextBox Name="channelSelector" Text="{Binding Path=ChannelSelectionString}" Width="170" TextChanged="Channels_TextChanged"/>
                 <TextBox Name="pointSelector" Text="{Binding Path=PointSelectionString}" Width="250" TextChanged="Points_TextChanged"/>
-                <TextBox Name="namingSelector" Text="{Binding Path=Name}" Width="90" TextChanged="Name_TextChanged" />
+                <TextBox Name="namingSelector" Text="{Binding Path=Name}" Width="145" TextChanged="Name_TextChanged" />
             </StackPanel>
             <DataTemplate.Triggers>
                 <DataTrigger Binding="{Binding Path=channelError, Mode=OneWay}" Value="True">
@@ -88,7 +88,10 @@
             </TextBlock>
         </DataTemplate>
     </ListBoxItem.Resources>
-    <Border BorderBrush="Black" BorderThickness="2" Margin="2" CornerRadius="6">
+    <!--<Border BorderBrush="Black" BorderThickness="2" Margin="2" CornerRadius="6">-->
+    <GroupBox BorderBrush="Black" BorderThickness="2" Width="975">
+        <GroupBox.Header>
+            <TextBlock FontSize="13">FILMAN Variable source</TextBlock> </GroupBox.Header>
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
@@ -98,7 +101,7 @@
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="335"/>
                 <ColumnDefinition Width="585"/>
-                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="40"/>
             </Grid.ColumnDefinitions>
             <Grid Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3">
                 <ListBox Name="FileNames" ItemsSource="{Binding Path=FILMANFileRecords, Mode=OneWay}" />
@@ -152,9 +155,9 @@
                             <GridViewColumn>
                                 <GridViewColumn.Header>
                                     <StackPanel Orientation="Horizontal">
-                                        <TextBlock Width="178" Text="Channels" />
-                                        <TextBlock Width="258" Text="Points" />
-                                        <TextBlock Width="98" Text="Names"/>
+                                        <TextBlock Width="170" Text="Channels" HorizontalAlignment="Center" />
+                                        <TextBlock Width="250" Text="Points" HorizontalAlignment="Center" />
+                                        <TextBlock Width="145" Text="Names" HorizontalAlignment="Center"/>
                                     </StackPanel>
                                 </GridViewColumn.Header>
                             </GridViewColumn>
@@ -186,5 +189,6 @@
                 <TextBlock Text="{Binding Path=NumberOfRecords, Mode=OneWay}"/>
             </TextBlock>
         </Grid>
-    </Border>
+   <!--</Border>-->
+    </GroupBox>
 </ListBoxItem>
