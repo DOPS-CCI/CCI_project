@@ -54,8 +54,9 @@ namespace Header
             str.Append("LongDescription: " + LongDescription.Substring(0, Math.Min(LongDescription.Length,59)) + nl);
             foreach (string s in Experimenter)
                 str.Append("Experimenter: " + s + nl);
-            foreach (KeyValuePair<string, GVEntry> kvp in GroupVars)
-                str.Append("GroupVar defined: " + kvp.Key + nl);
+            if (GroupVars != null)
+                foreach (KeyValuePair<string, GVEntry> kvp in GroupVars)
+                    str.Append("GroupVar defined: " + kvp.Key + nl);
             foreach (KeyValuePair<string, EventDictionaryEntry> kvp in Events)
                 str.Append("Event defined: " + kvp.Key + nl);
             str.Append("Status bits: " + Status.ToString("0") + nl);
