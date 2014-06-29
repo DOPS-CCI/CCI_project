@@ -5,7 +5,7 @@ using System.IO;
 using System.IO.Ports;
 using System.Linq;
 using System.Resources;
-using System.Speech.Recognition;
+//using System.Speech.Recognition;
 using System.Speech.Synthesis;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -23,6 +23,7 @@ using System.Windows.Navigation;
 using System.Windows.Shapes;
 using System.Xml;
 using ElectrodeFileStream;
+using CCIUtilities;
 using Polhemus;
 
 namespace Polhemus
@@ -48,12 +49,16 @@ namespace Polhemus
 
         Projection projection;
 
+        const string templatesFolder = @"Templates"; //location of template files
+        const double screenDPI = 120D; //modify to make window fit to screen
+        const int smooth = 50; //smoothing factor for moving average distance
+
         public event PointAcquisitionFinishedEventHandler AcquisitionFinished;
 
         public MainWindow()
         {
             Window1 w = new Window1();
-            foreach (string s in Directory.EnumerateFiles(@"Templates"))
+            foreach (string s in Directory.EnumerateFiles(templatesFolder))
             {
                 string f = System.IO.Path.GetFileNameWithoutExtension(s);
                 w.Templates.Items.Add(f);
@@ -69,7 +74,7 @@ namespace Polhemus
             settings.IgnoreComments = true;
             settings.IgnoreProcessingInstructions = true;
             settings.CloseInput = true;
-            XmlReader templateReader = XmlReader.Create(@"Templates" + System.IO.Path.DirectorySeparatorChar +
+            XmlReader templateReader = XmlReader.Create(templatesFolder + System.IO.Path.DirectorySeparatorChar +
                 w.Templates.SelectedValue + ".xml", settings);
             templateReader.MoveToContent();
             templateReader.MoveToAttribute("N");
@@ -119,49 +124,57 @@ namespace Polhemus
 
             InitializeComponent();
 
-            double screenDPI = 120D; //modify to make window fit to screen
             this.MinWidth = (double)SystemInformation.WorkingArea.Width * 96D / screenDPI;
             this.MinHeight = (double)SystemInformation.WorkingArea.Height * 96D / screenDPI;
 
             //Initialize Polhemus into standard state
-            PolhemusStream ps = new PolhemusStream();
-            p = new PolhemusController(ps);
-            p.InitializeSystem();
-            p.SetEchoMode(PolhemusController.EchoMode.On); //Echo on
-            p.OutputFormat(PolhemusController.Format.Binary); //Binary output
-            int v = hemisphere % 2 == 1 ? -1 : 1; //set correct hemisphere of operation
-            if (hemisphere < 2)
-                p.HemisphereOfOperation(null, v, 0, 0);
-            else if (hemisphere < 4)
-                p.HemisphereOfOperation(null, 0, v, 0);
-            else
-                p.HemisphereOfOperation(null, 0, 0, v);
-            p.SetUnits(PolhemusController.Units.Metric); //Metric measurements
-            Type[] df1 = { typeof(CartesianCoordinates) }; //set up cartesian coordinate output only for stylus
-            p.OutputDataList(1, df1);
-            Type[] df2 = { typeof(CartesianCoordinates), typeof(DirectionCosineMatrix) }; //coordinates and direction cosines for sensor 2
-            p.OutputDataList(2, df2);
-            StylusAcquisition.Monitor c = null;
-            if ((bool)w.Monitor.IsChecked)
-                c = Monitor;
-            w = null; //free resources
-            if (mode == 0)
+            try
             {
-                StylusAcquisition.SingleShot sm = SinglePoint;
-                sa = new StylusAcquisition(p, sm, c);
+                PolhemusStream ps = new PolhemusStream();
+                p = new PolhemusController(ps);
+                p.InitializeSystem();
+                p.SetEchoMode(PolhemusController.EchoMode.On); //Echo on
+                p.OutputFormat(PolhemusController.Format.Binary); //Binary output
+                int v = hemisphere % 2 == 1 ? -1 : 1; //set correct hemisphere of operation
+                if (hemisphere < 2)
+                    p.HemisphereOfOperation(null, v, 0, 0);
+                else if (hemisphere < 4)
+                    p.HemisphereOfOperation(null, 0, v, 0);
+                else
+                    p.HemisphereOfOperation(null, 0, 0, v);
+                p.SetUnits(PolhemusController.Units.Metric); //Metric measurements
+                Type[] df1 = { typeof(CartesianCoordinates) }; //set up cartesian coordinate output only for stylus
+                p.OutputDataList(1, df1);
+                Type[] df2 = { typeof(CartesianCoordinates), typeof(DirectionCosineMatrix) }; //coordinates and direction cosines for reference sensor
+                p.OutputDataList(2, df2);
+                StylusAcquisition.Monitor c = null;
+                if ((bool)w.Monitor.IsChecked)
+                    c = Monitor;
+                w = null; //free resources
+                if (mode == 0)
+                {
+                    StylusAcquisition.SingleShot sm = SinglePoint;
+                    sa = new StylusAcquisition(p, sm, c);
+                }
+                else
+                {
+                    StylusAcquisition.Continuous sm = ContinuousPoints;
+                    sa = new StylusAcquisition(p, sm, c);
+                }
+                AcquisitionFinished += new PointAcquisitionFinishedEventHandler(AcquisitionLoop);
+                electrodeNumber = -3; //Fiducial points are first
+                AcquisitionLoop(sa, null); //Prime the pump!
             }
-            else
+            catch (Exception e)
             {
-                StylusAcquisition.Continuous sm = ContinuousPoints;
-                sa = new StylusAcquisition(p, sm, c);
+                ErrorWindow ew = new ErrorWindow();
+                ew.Message = "Error in Polhemus initialization: " + e.Message;
+                ew.ShowDialog();
+                Environment.Exit(1);
             }
-            AcquisitionFinished += new PointAcquisitionFinishedEventHandler(AcquisitionLoop);
-            electrodeNumber = -3;
-            AcquisitionLoop(sa, null); //Prime the pump!
         }
 
-        const int smooth = 50;
-        double [] last = new double[smooth];
+        double [] last = new double[smooth]; //history for moving average
         double sum = 0D;
         double ss = 0D;
         int ilast = 0;
@@ -178,12 +191,11 @@ namespace Polhemus
             sum += d - d0;
             ss += d * d - d0 * d0;
             double Mean = sum / smooth;
-            double SD = Math.Sqrt(ss / smooth - Mean * Mean);
+            double SD = Math.Sqrt((ss - smooth * Mean * Mean) / (smooth - 1));
             output3.Text = Mean.ToString("0.000") + " SD=" + SD.ToString("0.000") +
                 " D=" + dx.ToString("0.000");
         }
 
-//        int pointCount = 0;
         Triple sumP = new Triple(0, 0, 0);
         void SinglePoint(List<IDataFrameType>[] frame) //one shot completed delegate
         {
@@ -203,8 +215,9 @@ namespace Polhemus
                 Dsumsq += dr * dr;
                 Dcount++;
                 m = Dsum / Dcount; //running mean
-                sd = Math.Sqrt(Dsumsq / (Dcount * Dcount) - m * m / Dcount); //running standard deviation
-                output2.Text = m.ToString("0.000") + "(" + sd.ToString("0.0000") + ")";
+                if (Dcount > 1)
+                    sd = Math.Sqrt((Dsumsq - m * m * Dcount) / (Dcount - 1)); //running standard deviation
+                output2.Text = m.ToString("0.000") + (Dcount > 1 ? "(" + sd.ToString("0.0000") + ")" : "");
                 if (Dcount >= samples) //we've got the requisite number of points
                     NormalEndOfFrame();
                 else sa.Start(); //get another point
@@ -239,10 +252,11 @@ namespace Polhemus
                 Dsumsq += dr * dr;
                 Dcount++;
                 m = Dsum / Dcount; //running mean
-                sd = Math.Sqrt(Dsumsq / (Dcount * Dcount) - m * m / Dcount); //running standard deviation
-                output2.Text = m.ToString("0.000") + "(" + sd.ToString("0.0000") + ")";
+                if (Dcount > 1)
+                    sd = Math.Sqrt((Dsumsq - m * m * Dcount) / (Dcount - 1)); //running standard deviation
+                output2.Text = m.ToString("0.000") + (Dcount > 1 ? "(" + sd.ToString("0.0000") + ")" : "");
                 //check end of frame criteria
-                if (mode == 1 && Dcount >= samples || mode == 3 && Dcount > 2 && sd < threshold)
+                if (mode == 1 && Dcount >= samples || mode == 3 && Dcount >= 2 && sd < threshold)
                 {
                     sa.Stop(); //create an extrinsic end to the frame on next entry
                 }
@@ -271,7 +285,7 @@ namespace Polhemus
         {
             output2.Text = "N = " + Dcount.ToString("0") +
                 " Mean distance = " + m.ToString("0.000") +
-                " SD = " + sd.ToString("0.0000");
+                (Dcount > 1 ? " SD = " + sd.ToString("0.0000") : "");
             Triple t = (1D / Dcount) * sumP;
             Dsum = 0;
             Dcount = 0;
@@ -357,8 +371,9 @@ namespace Polhemus
                     if (!e.Retry) //save Left preauricular
                     {
                         PL = e.result;
-                        CreateCoordinateTransform(); //calculate coordinate transfoamtion
+                        CreateCoordinateTransform(); //calculate coordinate transformtion
                         electrodeNumber++;
+                        drawAxes();
                     }
                 }
             }
@@ -526,7 +541,7 @@ namespace Polhemus
         internal void addPointToView(XYZRecord xyz)
         {
             Triple t = new Triple(xyz.X, xyz.Y, xyz.Z);
-            t = projection.Project(t);
+            t = projection.PerspectiveProject(t);
             if (t.v3 <= 0) return;
             Ellipse circle = new Ellipse();
             circle.Stroke = System.Windows.Media.Brushes.Transparent;
@@ -547,6 +562,67 @@ namespace Polhemus
             Draw.Children.Clear(); //redraw all, since new Eye position
             foreach (XYZRecord el in electrodeLocations)
                 addPointToView(el);
+            drawAxes();
+        }
+
+        const double axisThickness = 2D;
+        private void drawAxes()
+        {
+            Triple t;
+            if (Draw.ActualHeight == 0) return;
+            t = projection.Project(new Triple(viewScale * 200D / eyeDistance, 0, 0));
+            Line lx = drawAxisLine(t.v1, t.v2);
+            lx.Stroke = System.Windows.Media.Brushes.Red;
+            Draw.Children.Add(lx);
+            TextBlock tbx = drawAxisLabel(t.v1, t.v2, "x");
+            tbx.Foreground = System.Windows.Media.Brushes.Red;
+            Canvas.SetZIndex(tbx, (int)((t.v3 - eyeDistance) * 100));
+            Draw.Children.Add(tbx);
+
+
+            t = projection.Project(new Triple(0, viewScale * 200D / eyeDistance, 0));
+            Line ly = drawAxisLine(t.v1, t.v2);
+            ly.Stroke = System.Windows.Media.Brushes.Green;
+            Draw.Children.Add(ly);
+            TextBlock tby = drawAxisLabel(t.v1, t.v2, "y");
+            tby.Foreground = System.Windows.Media.Brushes.Green;
+            Canvas.SetZIndex(tby, (int)((t.v3 - eyeDistance) * 100));
+            Draw.Children.Add(tby);
+
+            t = projection.Project(new Triple(0, 0, viewScale * 200D / eyeDistance));
+            Line lz = drawAxisLine(t.v1, t.v2);
+            lz.Stroke = System.Windows.Media.Brushes.Blue;
+            Draw.Children.Add(lz);
+            TextBlock tbz = drawAxisLabel(t.v1, t.v2, "z");
+            tbz.Foreground = System.Windows.Media.Brushes.Blue;
+            Canvas.SetZIndex(tbz, (int)((t.v3 - eyeDistance) * 100));
+            Draw.Children.Add(tbz);
+        }
+
+        private Line drawAxisLine(double x, double y)
+        {
+            Line axis = new Line();
+            axis.X2 = x;
+            axis.Y2 = -y;
+            axis.StrokeThickness = axisThickness;
+            axis.StrokeStartLineCap = PenLineCap.Round;
+            axis.StrokeEndLineCap = PenLineCap.Round;
+            if (axis.X2 >= 0) Canvas.SetLeft(axis, (Draw.ActualWidth - axisThickness) / 2);
+            else Canvas.SetRight(axis, (Draw.ActualWidth + axisThickness) / 2);
+            if (axis.Y2 >= 0) Canvas.SetTop(axis, (Draw.ActualHeight - axisThickness) / 2);
+            else Canvas.SetBottom(axis, (Draw.ActualHeight + axisThickness) / 2);
+            Canvas.SetZIndex(axis, (int)(-eyeDistance * 100));
+            return axis;
+        }
+
+        private TextBlock drawAxisLabel(double x, double y, string l)
+        {
+            TextBlock tb = new TextBlock(new Run(l));
+            tb.FontSize = 12;
+            if (x >= 0) Canvas.SetLeft(tb, Draw.ActualWidth / 2 + x);
+            else Canvas.SetRight(tb, Draw.ActualWidth / 2 - x);
+            Canvas.SetTop(tb, Draw.ActualHeight / 2 - y - 6);
+            return tb;
         }
 
         private void Yaw_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
@@ -594,6 +670,7 @@ namespace Polhemus
             eyeDistance = Math.Pow(10D, e.NewValue);
             projection.Eye = eyeDistance;
             updateView();
+            updateLabels();
         }
 
         private void ResetView_Click(object sender, RoutedEventArgs e)
