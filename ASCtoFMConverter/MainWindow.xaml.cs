@@ -32,6 +32,7 @@ namespace ASCtoFMConverter
         List<GVEntry> _GVList;
         string directory;
         int samplingRate;
+        double markerOffset;
         ASCtoFMConverter.ASCConverter asc = null;
 
         int _decimation;
@@ -143,6 +144,15 @@ namespace ASCtoFMConverter
 
         private void ConvertFM_Click(object sender, RoutedEventArgs e)
         {
+            if ((bool)NoMarkers.IsChecked)
+            {
+                SetUpIgnoreStatus dialog = new SetUpIgnoreStatus();
+                dialog.Owner = this;
+                if (!(bool)dialog.ShowDialog())
+                    return; //without conversion
+                markerOffset = dialog.offsetValue;
+            }
+
             ConvertFM.Visibility = Visibility.Hidden;
             Done.Visibility = Visibility.Collapsed;
             Cancel.Visibility = Visibility.Visible;
@@ -567,6 +577,8 @@ namespace ASCtoFMConverter
             conv.ED = this.ED;
             conv.FMRecLength = this._recLength;
             conv.samplingRate = this.samplingRate;
+            if (conv.ignoreStatus = (bool)NoMarkers.IsChecked)
+                conv.offsetToFirstEvent = markerOffset;
         }
 
         private EpisodeDescription getEpisode(EpisodeDescriptionEntry ede)

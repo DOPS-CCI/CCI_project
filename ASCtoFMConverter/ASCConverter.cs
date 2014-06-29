@@ -35,6 +35,8 @@ namespace ASCtoFMConverter
         public List<GVEntry> GV;
         public double FMRecLength;
         public int samplingRate;
+        public bool ignoreStatus;
+        public double offsetToFirstEvent = -1D; //Negative to indicate use actual times in Events
 
         protected BackgroundWorker bw;
         protected double[,] bigBuff;
@@ -154,7 +156,7 @@ namespace ASCtoFMConverter
 
             EventFactory.Instance(ED);
 
-            int epiNo = 0; //found episode number
+            int epiNo = 0; //found episode counter
 
             for (int i = 0; i < specs.Length; i++) //loop through episode specifications
             {
@@ -166,12 +168,20 @@ namespace ASCtoFMConverter
 
                 bool more = EFREnum.MoveNext(); //move to first Event
                 if (i == 0 && more) // and use it to calculate indexTime via call to zeroTime
-                    bdf.setZeroTime(EFREnum.Current);
+                {
+                    if (ignoreStatus) //cannot use Status markers to synchronize clocks, so
+                        if (offsetToFirstEvent < 0) //use raw Event clock times
+                            bdf.setZeroTime(0D);
+                        else //or use a give offset to first Event
+                            bdf.setZeroTime(EFREnum.Current.Time - offsetToFirstEvent);
+                    else
+                        bdf.setZeroTime(EFREnum.Current);
+                }
 
                 // Technique is to loop through Event file until an Event is found that matches the
-                // current startEvent in spec[i]; from that point and a matching endEvent is sought;
+                // current startEvent in spec[i]; from that point a matching endEvent is sought;
                 // episode is then processed; note that this implies that overlapping episodes are not
-                // generally permitted except when caused by offsets.
+                // generally permitted (in a give specification) except when caused by offsets.
                 while (more) //loop through end of Event file
                 {
                     EpisodeMark em = currentEpisode.Start;

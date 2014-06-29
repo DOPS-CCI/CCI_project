@@ -596,6 +596,17 @@ namespace BDFEDFFileStream
         }
 
         /// <summary>
+        /// Sets the time of start of file (record 0, point 0) to a given value
+        /// After this, value may be accessed via property <code>zeroTime</code>
+        /// WARNING: use with caution; the BDF and Event clocks may not be synchronized
+        /// </summary>
+        /// <param name="zeroTime">time to set zeroTime to</param>
+        public void setZeroTime(double zeroTime)
+        {
+            _zeroTime = zeroTime;
+        }
+
+        /// <summary>
         /// Read-only property which is the time from the first point in file to the reference Event (graycode)
         /// </summary>
         public double zeroTime
