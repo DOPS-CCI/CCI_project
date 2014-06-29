@@ -40,7 +40,8 @@ namespace DatasetReviewer
         public double currentDisplayOffsetInSecs = 0D;
         public double oldDisplayWidthInSecs = 10D;
         public double oldDisplayOffsetInSecs = -10D;
-        public BDFEDFFileReader bdf;
+        public BDFEDFFileStream.BDFEDFFileReader bdf;
+//        public BDFEDFFileReader bdf;
         Header.Header head;
         internal string directory;
         internal bool includeANAs = true;
@@ -78,7 +79,7 @@ namespace DatasetReviewer
                     head = (new HeaderFileReader(dlg.OpenFile())).read();
                     ED = head.Events;
 
-                    bdf = new BDFEDFFileReader(
+                    bdf = new BDFEDFFileStream.BDFEDFFileReader(
                         new FileStream(System.IO.Path.Combine(directory, head.BDFFile),
                             FileMode.Open, FileAccess.Read));
                     int samplingRate = bdf.NSamp / bdf.RecordDuration;
@@ -356,8 +357,8 @@ namespace DatasetReviewer
         private void reDrawEvents()
         {
             EventMarkers.Children.Clear();
-            BDFLoc start = bdf.LocationFactory.New().FromSecs(currentDisplayOffsetInSecs);
-            BDFLoc end = bdf.LocationFactory.New().FromSecs(currentDisplayOffsetInSecs + currentDisplayWidthInSecs);
+            BDFEDFFileStream.BDFLoc start = bdf.LocationFactory.New().FromSecs(currentDisplayOffsetInSecs);
+            BDFEDFFileStream.BDFLoc end = bdf.LocationFactory.New().FromSecs(currentDisplayOffsetInSecs + currentDisplayWidthInSecs);
             GrayCode sample = new GrayCode(head.Status);
             GrayCode lastSample = new GrayCode(sample);
             lastSample.Value = 0;
@@ -365,7 +366,7 @@ namespace DatasetReviewer
                 lastSample.Value = (uint)bdf.getStatusSample(start++) & head.Mask; //get sample before start of segment
             else
                 start++;
-            for (BDFLoc p = start; p.lessThan(end); p++)
+            for (BDFEDFFileStream.BDFLoc p = start; p.lessThan(end); p++)
             {
                 sample.Value = (uint)bdf.getStatusSample(p) & head.Mask;
                 if (sample.Value != lastSample.Value)
@@ -559,8 +560,8 @@ namespace DatasetReviewer
 
             double lowSecs = currentDisplayOffsetInSecs;
             double highSecs = lowSecs + currentDisplayWidthInSecs;
-            BDFLoc lowBDFP = bdf.LocationFactory.New().FromSecs(lowSecs);
-            BDFLoc highBDFP = bdf.LocationFactory.New().FromSecs(highSecs);
+            BDFEDFFileStream.BDFLoc lowBDFP = bdf.LocationFactory.New().FromSecs(lowSecs);
+            BDFEDFFileStream.BDFLoc highBDFP = bdf.LocationFactory.New().FromSecs(highSecs);
 
             //determine if overlap of new display with old
             bool overlap = false;
@@ -637,7 +638,7 @@ namespace DatasetReviewer
             if (completeRedraw)
             //1. Redraw everything
             {
-                for (BDFLoc i = lowBDFP; i.lessThan(highBDFP); i.Increment(ChannelGraph.decimateNew))
+                for (BDFEDFFileStream.BDFLoc i = lowBDFP; i.lessThan(highBDFP); i.Increment(ChannelGraph.decimateNew))
                 {
                     if (i.IsInFile)
                     {
@@ -654,7 +655,7 @@ namespace DatasetReviewer
                 if (removeHigh > 0)
                 //2. Add points below current point list
                 {
-                    for (BDFLoc i = ((ChannelGraph)chans[0]).FilePointList[0].fileLocation - ChannelGraph.decimateNew;
+                    for (BDFEDFFileStream.BDFLoc i = ((ChannelGraph)chans[0]).FilePointList[0].fileLocation - ChannelGraph.decimateNew;
                         lowBDFP.lessThan(i); i.Decrement(ChannelGraph.decimateNew))
                     {
                         if (i.IsInFile)
@@ -673,7 +674,7 @@ namespace DatasetReviewer
                 if (removeLow > 0)
                 //3. Add points above current point list
                 {
-                    for (BDFLoc i = ((ChannelGraph)chans[0]).FilePointList.Last().fileLocation + ChannelGraph.decimateNew;
+                    for (BDFEDFFileStream.BDFLoc i = ((ChannelGraph)chans[0]).FilePointList.Last().fileLocation + ChannelGraph.decimateNew;
                         i.lessThan(highBDFP); i.Increment(ChannelGraph.decimateNew))
                     {
                         if (i.IsInFile)
@@ -831,7 +832,7 @@ namespace DatasetReviewer
             Button b = (Button)sender;
             if ((string)b.Content == "Next")
             {
-                BDFLoc p = bdf.LocationFactory.New().FromSecs(currentDisplayOffsetInSecs + SearchSiteOffset * currentDisplayWidthInSecs);
+                BDFEDFFileStream.BDFLoc p = bdf.LocationFactory.New().FromSecs(currentDisplayOffsetInSecs + SearchSiteOffset * currentDisplayWidthInSecs);
                 GrayCode lastGC = new GrayCode(head.Status);
                 lastGC.Value = (uint)bdf.getStatusSample(p++) & head.Mask;
                 GrayCode nextGC = new GrayCode(head.Status);
@@ -855,7 +856,7 @@ namespace DatasetReviewer
             }
             else //Prev
             {
-                BDFLoc p = bdf.LocationFactory.New().FromSecs(currentDisplayOffsetInSecs + SearchSiteOffset * currentDisplayWidthInSecs);
+                BDFEDFFileStream.BDFLoc p = bdf.LocationFactory.New().FromSecs(currentDisplayOffsetInSecs + SearchSiteOffset * currentDisplayWidthInSecs);
                 GrayCode lastGC = new GrayCode(head.Status);
                 lastGC.Value = (uint)bdf.getStatusSample(--p) & head.Mask;
                 GrayCode nextGC = new GrayCode(head.Status);
@@ -1093,7 +1094,7 @@ namespace DatasetReviewer
         internal double overallMax;
         internal double overallMin;
 
-        internal static BDFEDFFileReader bdf;
+        internal static BDFEDFFileStream.BDFEDFFileReader bdf;
         internal static int decimateOld = 0;
         internal static int decimateNew;
         private static double _canvasHeight = 0;
@@ -1150,7 +1151,7 @@ namespace DatasetReviewer
         //the next decimateNew points and saves those values in the FilePoint; it also updates the
         //current maximum and minimum points in the currently displayed segment, so that the plot can
         //be appropriately scaled
-        internal FilePoint createFilePoint(BDFLoc index)
+        internal FilePoint createFilePoint(BDFEDFFileStream.BDFLoc index)
         {
             int sample;
             int max = 0; //assign to fool compiler
@@ -1159,7 +1160,7 @@ namespace DatasetReviewer
             double minVal;
             int imax = 0;
             int imin = 0;
-            BDFLoc temp = index;
+            BDFEDFFileStream.BDFLoc temp = index;
             if (MainWindow.dType == DecimationType.MinMax)
             {
                 max = int.MinValue;
@@ -1242,7 +1243,7 @@ namespace DatasetReviewer
 
     internal struct FilePoint
     {
-        public BDFLoc fileLocation;
+        public BDFEDFFileStream.BDFLoc fileLocation;
         public Point first;
         public Point second;
         public bool SecondValid;
