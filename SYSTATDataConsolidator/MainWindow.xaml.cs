@@ -23,7 +23,7 @@ namespace SYSTATDataConsolidator
     /// </summary>
     public partial class MainWindow : Window
     {
-        const int SYSTATMaxPoints = 8192; //maximum number of data points allowed by SYSTAT
+        const int SYSTATMaxPoints = int.MaxValue; //maximum number of data points allowed by SYSTAT
 
         BackgroundWorker bw;
 
@@ -227,7 +227,7 @@ namespace SYSTATDataConsolidator
                 {
                     for (int i = 0; i < fr.NumberOfFiles; i++)
                         Log.writeToLog("     " + fr[i].path);
-                    if (fr.GetType() == typeof(FMFileListItem))
+                    if (fr.GetType() == typeof(FMFileListItem)) //process FILMAN file
                     {
                         for (int i = 0; i < fr.NumberOfFiles; i++)
                         {
@@ -281,7 +281,7 @@ namespace SYSTATDataConsolidator
                             }
                         }
                     }
-                    else //get CSV variables
+                    else //process CSV variables
                         foreach (CSV.Variable v in ((CSVFileRecord)fr[0]).stream.CSVVariables)
                             if (v.IsSel)
                             {
@@ -309,15 +309,15 @@ namespace SYSTATDataConsolidator
                             {
                                 FMFileListItem ffr = (FMFileListItem)fr;
                                 FMRec = ((FILMANFileRecord)ffr[rowFile]).stream.read(recNum, 0); //read first channel to get GV values
-                                foreach (GroupVar gv in ffr.GroupVars)
+                                foreach (GroupVar gv in ffr.GroupVars) //include GV values first
                                 {
-                                    if (gv.IsSel)
+                                    if (gv.IsSel) //is it selected?
                                     {
-                                        int GVValue = FMRec.GV[gv.Index];
+                                        int GVValue = FMRec.GV[gv.Index]; //GV integer value
                                         if (gv.GVE == null || gv.Format == NSEnum.Number || gv.Format == NSEnum.String)
                                             systat.SetVariableValue(pointNumber++, GVValue);
                                         else //GVE != null & Format == NSEnum.MappingString
-                                            systat.SetVariableValue(pointNumber++, gv.GVE.ConvertGVValueIntegerToString(GVValue));
+                                            systat.SetVariableValue(pointNumber++, gv.GVE.ConvertGVValueIntegerToString(GVValue)); //look up dictionary entry, if any
                                     }
                                 }
                                 foreach (PointGroup pg in ffr.PointGroups)

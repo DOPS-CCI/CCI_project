@@ -26,6 +26,7 @@ namespace SYSTATDataConsolidator
         static int fileUID = 0;
         public int FileUID { get; private set; }
 
+        const int maxHDRSearchLevels = 2;
         PointGroupsClass _PointGroups = new PointGroupsClass();
         public PointGroupsClass PointGroups { get { return _PointGroups; } }
 
@@ -131,9 +132,9 @@ namespace SYSTATDataConsolidator
             {
                 GroupVar gv = new GroupVar();
                 gv.FM_GVName = fis.GVNames(i).Trim();
-                gv.GVName = fis.GVNames(i);
+                gv.GVName = gv.FM_GVName.Substring(0, Math.Min(gv.FM_GVName.Length, 11)); //Make default a legal SYSTAT name
                 gv.Format = NSEnum.String;
-                gv.namingConvention = GVNameParser.Parse(fis.GVNames(i));
+                gv.namingConvention = GVNameParser.Parse(gv.GVName);
                 gv.Index = i;
                 GVEntry gve = null;
                 if (ffr.GVDictionary != null && ffr.GVDictionary.TryGetValue(gv.FM_GVName, out gve)) //see if there is a GV string mapping
@@ -283,14 +284,20 @@ namespace SYSTATDataConsolidator
             ffr.stream = fmTemp;
             ffr.path = ofd.FileName;
             //Now check to see if there is a Header file available
-            string directory = Path.GetDirectoryName(ffr.path);
-            IEnumerable<string> hdrFiles = Directory.EnumerateFiles(directory, "*.hdr");
-            if (hdrFiles.Count() > 0) //there's a candidate Header file in this directory
+            string directory = ffr.path;
+            IEnumerable<string> hdrFiles;
+            int searchLevels = maxHDRSearchLevels; //Number of directory levels to search
+            while (searchLevels-- > 0 && (directory = Path.GetDirectoryName(directory)) != null) //loop through enclosing directory levels
             {
-                HeaderFileReader headerFile = new HeaderFileReader
-                    (new FileStream(hdrFiles.First(), FileMode.Open, FileAccess.Read));
-                ffr.GVDictionary = headerFile.read().GroupVars; //save the GroupVar dictionary
-                headerFile.Dispose(); //closes file
+                hdrFiles = Directory.EnumerateFiles(directory, "*.hdr");
+                if (hdrFiles.Count() > 0) //there's a candidate Header file in the directory which contains the FILMAN file
+                {
+                    HeaderFileReader headerFile = new HeaderFileReader
+                        (new FileStream(hdrFiles.First(), FileMode.Open, FileAccess.Read)); //Use the first one found: we hope there's only one!
+                    ffr.GVDictionary = headerFile.read().GroupVars; //save the GroupVar dictionary
+                    headerFile.Dispose(); //closes file
+                    break;
+                }
             }
             return ffr;
         }

@@ -40,7 +40,7 @@
                             </Style>
                         </StackPanel.Resources>
                         <Button Click="AddFMFile_Click">Add FM variables</Button>
-                        <Button Click="AddCVSFile_Click">Add CVS variables</Button>
+                        <Button Click="AddCVSFile_Click">Add CSV variables</Button>
                         <Button Name="RemoveFile" IsEnabled="False" Click="RemoveFile_Click">Remove variables</Button>
                     </StackPanel>
                     <Grid Name="FileConfigErrorMess" Width="Auto" Height="Auto" HorizontalAlignment="Right" VerticalAlignment="Center" Visibility="Hidden">
