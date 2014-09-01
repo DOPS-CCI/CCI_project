@@ -16,7 +16,7 @@ using CCIUtilities;
 namespace DatasetReviewer
 {
     /// <summary>
-    /// Interaction logic for Window2.xaml
+    /// Window for displaying and added notes to dataset
     /// </summary>
     public partial class Window2 : Window
     {
