@@ -714,7 +714,7 @@ namespace FileConverter
 
         private void radioButton_Changed(object sender, RoutedEventArgs e)
         {
-                checkError();
+            checkError();
         }
 
         private void createConverterBase(Converter conv)
@@ -767,6 +767,11 @@ namespace FileConverter
                 conv.referenceChannels = null;
             }
             conv.BDF = bdf;
+        }
+
+        private void refChans_Click(object sender, RoutedEventArgs e)
+        {
+            RefChan.Text = SelChan.Text;
         }
     }
 }
