@@ -524,7 +524,7 @@ namespace ASCtoFMConverter
 
         private void radioButton_Changed(object sender, RoutedEventArgs e)
         {
-                checkError();
+            checkError();
         }
 
         private void createASCConverter(ASCConverter conv)
@@ -623,6 +623,11 @@ namespace ASCtoFMConverter
         private void Cancel_Click(object sender, RoutedEventArgs e)
         {
             bw.CancelAsync();
+        }
+
+        private void RefChans_Click(object sender, RoutedEventArgs e)
+        {
+            RefChan.Text = SelChan.Text;
         }
 
     }

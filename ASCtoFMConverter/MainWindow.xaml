@@ -128,7 +128,7 @@
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
                 <StackPanel Grid.Row="0" Orientation="Horizontal">
-                    <RadioButton Grid.Column="0" GroupName="Ref" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="8,5,18,5" Name="radioButton2" Width="Auto" Content="Selected channel(s)->" Checked="radioButton_Changed">
+                    <RadioButton Grid.Column="0" GroupName="Ref" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="8,5,18,5" Name="radioButton2" Width="Auto" Content="Selected channel(s)->" Checked="radioButton_Changed" Click="RefChans_Click">
                         <RadioButton.ToolTip>Enter list of channels to be used as reference for all channels</RadioButton.ToolTip>
                     </RadioButton>
                     <TextBox Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,5,0,5" Name="RefChan" Width="328" VerticalContentAlignment="Center" 
