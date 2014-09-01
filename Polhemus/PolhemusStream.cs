@@ -94,9 +94,10 @@ namespace Polhemus
         public override int Read(byte[] buffer, int offset, int count)
         {
             int length;
-            errorCode = PolhemusReader.Read(buffer, offset, count, generalReadTimeout, out length);
+/*            errorCode = PolhemusReader.Read(buffer, offset, count, generalReadTimeout, out length);
             if (errorCode != ErrorCode.None)
-                throw new Exception("In PolhemusStream.Read error: " + errorCode.ToString());
+                throw new Exception("In PolhemusStream.Read error: " + errorCode.ToString()); */
+            PolhemusReader.Read(buffer, offset, count, generalReadTimeout, out length);
             return length;
         }
 

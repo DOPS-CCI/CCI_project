@@ -4,8 +4,8 @@ using System.Drawing;
 using System.IO;
 using System.IO.Ports;
 using System.Linq;
+using System.Media;
 using System.Resources;
-//using System.Speech.Recognition;
 using System.Speech.Synthesis;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -49,6 +49,7 @@ namespace Polhemus
 
         Projection projection;
 
+        const string networkFolder = @"X:\ElectrodePositionFiles";
         const string templatesFolder = @"Templates"; //location of template files
         const double screenDPI = 120D; //modify to make window fit to screen
         const int smooth = 50; //smoothing factor for moving average distance
@@ -57,16 +58,42 @@ namespace Polhemus
 
         public MainWindow()
         {
-            Window1 w = new Window1();
-            foreach (string s in Directory.EnumerateFiles(templatesFolder))
+            bool standAlone = Environment.GetCommandLineArgs().Length < 3;
+            Window1 w;
+            string templateFileName;
+            string ETRFileName;
+            bool useMonitor;
+            if (standAlone)
             {
-                string f = System.IO.Path.GetFileNameWithoutExtension(s);
-                w.Templates.Items.Add(f);
+                w = new Window1();
+                foreach (string s in Directory.EnumerateFiles(networkFolder + System.IO.Path.DirectorySeparatorChar + templatesFolder))
+                {
+                    string f = System.IO.Path.GetFileNameWithoutExtension(s);
+                    w.Templates.Items.Add(f);
+                }
+                w.Templates.SelectedIndex = 0;
+                w.WindowStartupLocation = WindowStartupLocation.CenterScreen;
+                if (!(bool)w.ShowDialog()) Environment.Exit(0);
+                mode = w._mode;
+                if (mode == 0) samples = w._sampCount1;
+                else if (mode == 1) samples = w._sampCount2;
+                else if (mode == 3) threshold = w._SDThresh;
+                voice = (bool)w.Voice.IsChecked;
+                hemisphere = w.Hemisphere.SelectedIndex;
+                templateFileName = (string)w.Templates.SelectedValue;
+                ETRFileName = System.IO.Path.GetFileNameWithoutExtension(w._etrFileName);
+                useMonitor = (bool)w.Monitor.IsChecked;
             }
-            w.Templates.SelectedIndex = 0;
-            w.WindowStartupLocation = WindowStartupLocation.CenterScreen;
-            if (!(bool)w.ShowDialog()) Environment.Exit(0);
-            mode = w._mode;
+            else
+            {
+                mode = 0; //always single click
+                samples = 1; //single sample only
+                voice = true;
+                hemisphere = 0; //X+
+                templateFileName = Environment.GetCommandLineArgs()[1];
+                ETRFileName = networkFolder + System.IO.Path.DirectorySeparatorChar + Environment.GetCommandLineArgs()[2];
+                useMonitor = true;
+            }
 
             //Read in electrode array template
             XmlReaderSettings settings = new XmlReaderSettings();
@@ -74,8 +101,8 @@ namespace Polhemus
             settings.IgnoreComments = true;
             settings.IgnoreProcessingInstructions = true;
             settings.CloseInput = true;
-            XmlReader templateReader = XmlReader.Create(templatesFolder + System.IO.Path.DirectorySeparatorChar +
-                w.Templates.SelectedValue + ".xml", settings);
+            XmlReader templateReader = XmlReader.Create(networkFolder + System.IO.Path.DirectorySeparatorChar +
+                templatesFolder + System.IO.Path.DirectorySeparatorChar + templateFileName + ".xml", settings); //templates are always on network drive
             templateReader.MoveToContent();
             templateReader.MoveToAttribute("N");
             numberOfElectrodes = templateReader.ReadContentAsInt(); //number of items
@@ -112,14 +139,11 @@ namespace Polhemus
 
             //Open electrode position file
             efs = new ElectrodeOutputFileStream(
-                new FileStream(w._etrFileName, FileMode.Create, FileAccess.Write), typeof(XYZRecord));
+                new FileStream(ETRFileName + "." + numberOfElectrodes.ToString("000") + ".etr", FileMode.Create, FileAccess.Write),
+                typeof(XYZRecord));
             electrodeLocations = new List<XYZRecord>(numberOfElectrodes); //set up temporary location list, so changes can be made
 
-            voice = (bool)w.Voice.IsChecked;
-            hemisphere = w.Hemisphere.SelectedIndex;
-            if (mode == 0) samples = w._sampCount1;
-            else if (mode == 1) samples = w._sampCount2;
-            else if (mode == 3) threshold = w._SDThresh;
+            
             projection = new Projection(eyeDistance);
 
             InitializeComponent();
@@ -148,9 +172,9 @@ namespace Polhemus
                 Type[] df2 = { typeof(CartesianCoordinates), typeof(DirectionCosineMatrix) }; //coordinates and direction cosines for reference sensor
                 p.OutputDataList(2, df2);
                 StylusAcquisition.Monitor c = null;
-                if ((bool)w.Monitor.IsChecked)
+                if (useMonitor)
                     c = Monitor;
-                w = null; //free resources
+                w = null; //free resources, if any
                 if (mode == 0)
                 {
                     StylusAcquisition.SingleShot sm = SinglePoint;
@@ -163,6 +187,13 @@ namespace Polhemus
                 }
                 AcquisitionFinished += new PointAcquisitionFinishedEventHandler(AcquisitionLoop);
                 electrodeNumber = -3; //Fiducial points are first
+                if(!standAlone)
+                {
+                    Window2 w2 = new Window2();
+                    w2.ElecTemplate.Text = Environment.GetCommandLineArgs()[1];
+                    w2.Output.Text = Environment.GetCommandLineArgs()[2];
+                    if (!(bool)w2.ShowDialog()) Environment.Exit(0);
+                }
                 AcquisitionLoop(sa, null); //Prime the pump!
             }
             catch (Exception e)
@@ -319,6 +350,7 @@ namespace Polhemus
 #endif
             if (!executeSkip)
             {
+                SystemSounds.Beep.Play();
                 if (electrodeNumber >= 0)
                 {
                     if (!e.Retry)
