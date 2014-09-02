@@ -57,7 +57,7 @@ namespace EEGArtifactEditor
         internal Window2 notes;
         internal string noteFilePath;
 
-        internal double[,,] BDFData;
+        internal double[,] BDFData;
 
         public MainWindow()
         {
@@ -171,13 +171,18 @@ namespace EEGArtifactEditor
             noteFilePath = System.IO.Path.Combine(directory,System.IO.Path.ChangeExtension(head.BDFFile,".notes.txt"));
 
             BDFEDFRecord record;
-            BDFData = new double[bdf.NumberOfRecords, bdf.NumberOfChannels, bdf.NumberOfSamples(0)];
-            for (int i = 0; i < bdf.NumberOfRecords; i++)
+            int ns = bdf.NumberOfSamples(0);
+            BDFData = new double[bdf.NumberOfChannels, bdf.NumberOfRecords * ns];
+            int ptNum = 0;
+            for (int recNum = 0; recNum < bdf.NumberOfRecords; recNum++)
             {
-                record = bdf.read(i);
-                for (int j = 0; j < bdf.NumberOfChannels; j++)
-                    for (int k = 0; k < bdf.NumberOfSamples(j); k++)
-                        BDFData[i, j, k] = record.getConvertedPoint(j, k);
+                record = bdf.read(recNum);
+                for (int sampNum = 0; sampNum < ns; sampNum++)
+                {
+                    for (int chanNum = 0; chanNum < bdf.NumberOfChannels; chanNum++)
+                        BDFData[chanNum, ptNum] = record.getConvertedPoint(chanNum, sampNum);
+                    ptNum++;
+                }
             }
 
             //from here on the program is GUI-event driven
