@@ -41,12 +41,19 @@ namespace ASCtoFMConverter
             Event1.Items.Add("Any Event");
             Event2.Items.Add("Same Event");
             Event2.Items.Add("Next Event");
+            Event3.Items.Add("None");
+            Event4.Items.Add("Same Event");
             foreach (EventDictionary.EventDictionaryEntry ev in events.Values){
                 Event1.Items.Add(ev);
                 Event2.Items.Add(ev);
+                Event3.Items.Add(ev);
+                Event4.Items.Add(ev);
             }
             Event1.SelectedIndex = 0;
             Event2.SelectedIndex = 0;
+            Event3.SelectedIndex = 0;
+            Event4.SelectedIndex = 0;
+            Event4.IsEnabled = false;
             Comp1.Items.Add("=");
             Comp1.Items.Add("!=");
             Comp2.Items.Add("=");
@@ -295,6 +302,30 @@ namespace ASCtoFMConverter
             else GVValue2TB.BorderBrush = Brushes.MediumBlue;
 
             return valid;
+        }
+
+        private void Event3_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            Object o = Event3.SelectedItem;
+            if (o.GetType().Name == "String")
+            {
+                if ((string)o == "None")
+                {
+                    Event4.IsEnabled = false;
+                    return;
+                }
+            }
+            else
+            {
+                Event4.SelectedIndex = 0;
+                Event4.IsEnabled = true;
+            }
+            validate();
+        }
+
+        private void Event4_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+
         }
 
     }

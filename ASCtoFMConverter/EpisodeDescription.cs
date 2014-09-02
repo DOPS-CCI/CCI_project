@@ -6,6 +6,7 @@ using System.Windows.Controls;
 using EventDictionary;
 using Event;
 using GroupVarDictionary;
+using CCILibrary;
 
 namespace ASCtoFMConverter
 {
@@ -14,6 +15,7 @@ namespace ASCtoFMConverter
         internal int GVValue;
         internal EpisodeMark Start = new EpisodeMark();
         internal EpisodeMark End = new EpisodeMark();
+        internal ExclusionDescription Exclude = null;
 
         public override string ToString()
         {
@@ -21,6 +23,8 @@ namespace ASCtoFMConverter
             if (GVValue != 0) sb.Append("GV " + ((int)GVValue).ToString("0") + ": ");
             else sb.Append("NoVal: ");
             sb.Append("From " + Start.ToString() + " to " + End.ToString());
+            if (Exclude != null)
+                sb.Append(" excluding " + Exclude.ToString());
             return sb.ToString();
         }
     }
@@ -99,6 +103,45 @@ namespace ASCtoFMConverter
             if (_comp == Comp.lessthan) return "<";
             if (_comp == Comp.greaterthan) return ">";
             return " ";
+        }
+    }
+
+    public class ExclusionDescription
+    {
+        internal EventDictionaryEntry startEvent;
+        internal object endEvent;
+        internal List<BDFPoint> From;
+        internal List<BDFPoint> To;
+
+        /// <summary>
+        /// Determine if two sements between start1 and end1 and
+        /// start2 and end2 overlap
+        /// </summary>
+        /// <param name="start1"></param>
+        /// <param name="end1"></param>
+        /// <param name="start2"></param>
+        /// <param name="end2"></param>
+        /// <returns>true if overlap present, otherwise false</returns>
+        static bool Overlap(BDFPoint start1, BDFPoint end1, BDFPoint start2, BDFPoint end2)
+        {
+            if (start2.lessThan(start1) && end2.lessThan(start1)) return false;
+            if (start2.greaterThanOrEqual(end1) && end2.greaterThanOrEqual(end1)) return false;
+            return true;
+        }
+
+        public bool IsExcluded(BDFPoint start, BDFPoint end)
+        {
+            for (int i = 0; i < From.Count; i++)
+                if (Overlap(From[i], To[i], start, end)) return true;
+            return false;
+        }
+
+        public override string ToString()
+        {
+            StringBuilder sb = new StringBuilder(startEvent.Name);
+            if (endEvent.GetType() == typeof(EventDictionaryEntry))
+                sb.Append(" to " + ((EventDictionaryEntry)endEvent).Name);
+            return sb.ToString();
         }
     }
 

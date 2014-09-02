@@ -532,7 +532,7 @@ namespace ASCtoFMConverter
             conv.specs = new EpisodeDescription[this.EpisodeEntries.Items.Count];
             for (int i = 0; i < this.EpisodeEntries.Items.Count; i++)
             {
-                conv.specs[i] = getEpisode((EpisodeDescriptionEntry)this.EpisodeEntries.Items.GetItemAt(i));
+                conv.specs[i] = getEpisode((EpisodeDescriptionEntry)this.EpisodeEntries.Items[i]);
             }
 
             conv.channels = this.channels;
@@ -611,6 +611,16 @@ namespace ASCtoFMConverter
                 epi.End._GVVal = epi.End._GV.ConvertGVValueStringToInteger((string)ede.GVValue2CB.SelectedItem);
             epi.Start._offset = Convert.ToDouble(ede.Offset1.Text);
             epi.End._offset = Convert.ToDouble(ede.Offset2.Text);
+
+            o = ede.Event3.SelectedItem;
+            if (o.GetType() == typeof(EventDictionaryEntry))
+            {
+                epi.Exclude = new ExclusionDescription();
+                epi.Exclude.startEvent = (EventDictionaryEntry)o;
+                object o1 = ede.Event4.SelectedItem;
+                if (o1.GetType() == typeof(EventDictionaryEntry) && o != o1)
+                    epi.Exclude.endEvent = (EventDictionaryEntry)o1;
+            }
             return epi;
         }
 

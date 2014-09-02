@@ -71,7 +71,7 @@ namespace ASCtoFMConverter
                 return;
             }
             int newRecordLength = Convert.ToInt32(Math.Ceiling(FMRecLength * samplingRate / (double)decimation));
-            int BDFRecordLength = Convert.ToInt32(FMRecLength * samplingRate);
+            int FMRecordLengthInBDF = Convert.ToInt32(FMRecLength * samplingRate);
 
             FMStream = new FILMANOutputStream(
                 File.Open(dlg.FileName, FileMode.Create, FileAccess.ReadWrite),
@@ -158,17 +158,58 @@ namespace ASCtoFMConverter
 
             int epiNo = 0; //found episode counter
 
-            for (int i = 0; i < specs.Length; i++) //loop through episode specifications
+            //Loop through each episode specification,
+            // then through the Event file to find any regions satisfying the specification,
+            // then create FILMAN records for each of these regions
+
+ //******** Episode specification loop
+            for (int i = 0; i < specs.Length; i++)
             {
+                IEnumerator<InputEvent> EFREnum;
                 EpisodeDescription currentEpisode = specs[i];
-                FMStream.record.GV[2] = currentEpisode.GVValue;
-                IEnumerator<InputEvent> EFREnum = (new EventFileReader(
+                FMStream.record.GV[2] = currentEpisode.GVValue; //set epispec GV value
+                if (currentEpisode.Exclude != null)
+                {
+                    ExclusionDescription ed = currentEpisode.Exclude;
+                    EFREnum = (new EventFileReader(
+                        new FileStream(System.IO.Path.Combine(directory, head.EventFile),
+                        FileMode.Open, FileAccess.Read))).GetEnumerator();
+                    EventDictionaryEntry startEDE = ed.startEvent;
+                    bool t = ed.endEvent.GetType()==typeof(EventDictionaryEntry);
+                    EventDictionaryEntry endEDE = null;
+                    if(t)
+                        endEDE = (EventDictionaryEntry)ed.endEvent;
+                    while(EFREnum.MoveNext())
+                    {
+                        InputEvent ev = EFREnum.Current;
+                        if (ev.Name == startEDE.Name)
+                        {
+                            BDFPoint b = new BDFPoint(bdf);
+                            b.FromSecs(ev.Time - bdf.zeroTime);
+                            ed.From.Add(b);
+                            if (t)
+                                while (EFREnum.MoveNext())
+                                {
+                                    ev = EFREnum.Current;
+                                    if (ev.Name == endEDE.Name)
+                                    {
+                                        b.FromSecs(ev.Time - bdf.zeroTime);
+                                        break;
+                                    }
+                                }
+                            ed.To.Add(b);
+                        }
+                    }
+                }
+
+                EFREnum = (new EventFileReader(
                     new FileStream(System.IO.Path.Combine(directory, head.EventFile),
                     FileMode.Open, FileAccess.Read))).GetEnumerator();
 
                 bool more = EFREnum.MoveNext(); //move to first Event
                 if (i == 0 && more) // and use it to calculate indexTime via call to zeroTime
                 {
+                    //zeroTime is the time, according to the Event file clock, of the first point in BDF file
                     if (ignoreStatus) //cannot use Status markers to synchronize clocks, so
                         if (offsetToFirstEvent < 0) //use raw Event clock times
                             bdf.setZeroTime(0D);
@@ -182,7 +223,9 @@ namespace ASCtoFMConverter
                 // current startEvent in spec[i]; from that point a matching endEvent is sought;
                 // episode is then processed; note that this implies that overlapping episodes are not
                 // generally permitted (in a give specification) except when caused by offsets.
-                while (more) //loop through end of Event file
+
+//************* Event file loop
+                while (more)
                 {
                     EpisodeMark em = currentEpisode.Start;
                     InputEvent startEvent = null;
@@ -244,16 +287,18 @@ namespace ASCtoFMConverter
                     // then the episode is complete. If more is false, then end-of-file has been reached and
                     // endEvent will be null. In this case, if startEvent is not null, one could use the end-of-file as the end
                     // of the episode **************NOT IMPLEMENTED
+
+//***************** FILMAN record loop
                     if (endEvent != null) //process found complete episode, up to offset running off end-of-file!
                     {
                         double startTime = startEvent.Time + currentEpisode.Start._offset - bdf.zeroTime;
                         double endTime = endEvent.Time + currentEpisode.End._offset - bdf.zeroTime;
                         bw.ReportProgress(0, "Found episode " + (++epiNo).ToString("0") + " from " + startTime.ToString("0.000") + " to " + endTime.ToString("0.000"));
-                        int numberOfFMRecs = (int)Math.Floor((endTime - startTime) / FMRecLength);
+                        int maxNumberOfFMRecs = (int)Math.Floor((endTime - startTime) / FMRecLength);
+
                         BDFPoint startBDFPoint = new BDFPoint(bdf);
                         startBDFPoint.FromSecs(startTime);
                         BDFPoint endBDFPoint=new BDFPoint(startBDFPoint);
-                        log.openFoundEpisode(epiNo, startTime, endTime, numberOfFMRecs);
 
                         /***** Get group variables for this record *****/
                         FMStream.record.GV[3] = epiNo;
@@ -265,14 +310,19 @@ namespace ASCtoFMConverter
                         }
 
                         /***** Process each FILMAN record *****/
-                        for (int rec = 1; rec <= numberOfFMRecs; rec++)
+                        int numberOfFMRecs = 0;
+                        for (int rec = 1; rec <= maxNumberOfFMRecs; rec++)
                         {
-                            FMStream.record.GV[4] = rec; //Record number in this episode
-                            FMStream.record.GV[5] = Convert.ToInt32(Math.Ceiling(startBDFPoint.ToSecs())); //Approximate seconds since start of BDF file
-                            endBDFPoint += BDFRecordLength;
-                            createFILMANRecord(startBDFPoint, endBDFPoint, startEvent);
-                            startBDFPoint = endBDFPoint;
+                            endBDFPoint += FMRecordLengthInBDF; //update end point
+                            if (currentEpisode.Exclude == null || !currentEpisode.Exclude.IsExcluded(startBDFPoint, endBDFPoint))
+                            {
+                                FMStream.record.GV[4] = ++numberOfFMRecs; //Record number in this episode
+                                FMStream.record.GV[5] = Convert.ToInt32(Math.Ceiling(startBDFPoint.ToSecs())); //Approximate seconds since start of BDF file
+                                createFILMANRecord(startBDFPoint, endBDFPoint);
+                            }
+                            startBDFPoint = endBDFPoint; //move start point forward
                         }
+                        log.openFoundEpisode(epiNo, startTime, endTime, maxNumberOfFMRecs, numberOfFMRecs);
                         log.closeFoundEpisode();
                     }
                 }
@@ -285,11 +335,11 @@ namespace ASCtoFMConverter
             Log.writeToLog("Completed ASC conversion with " + FMStream.NR.ToString("0") + " FM records created");
         }
 
-        private void createFILMANRecord(BDFPoint startingPt, BDFPoint endPt, InputEvent evt)
+        private bool createFILMANRecord(BDFPoint startingPt, BDFPoint endPt)
         {
-            if (startingPt.Rec < 0) return; //start of record outside of file coverage; so skip it
-            if (endPt.Rec >= bdf.NumberOfRecords) return; //end of record outside of file coverage
-
+            if (startingPt.Rec < 0) return false; //start of record outside of file coverage; so skip it
+            if (endPt.Rec >= bdf.NumberOfRecords) return false; //end of record outside of file coverage
+            
             /***** Read correct portion of BDF file and decimate *****/
             int pt = 0;
             int j = 0; //set to avoid compiler complaining about uninitialized variable!
@@ -344,6 +394,7 @@ namespace ASCtoFMConverter
                     FMStream.record[i] = bigBuff[channel, i] - (ave + beta * ((double)i - t));
                 FMStream.write(); //Channel number group variable taken care of here
             }
+            return true;
         }
 
         private void calculateReferencedData()
