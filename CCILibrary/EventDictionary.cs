@@ -30,8 +30,9 @@ namespace EventDictionary
         public string Name { get { return m_name; } }
         private string m_description;
         public string Description { get { return m_description; } set { m_description = value; } } //need for binding
-        public bool intrinsic = true; //specifies the Event type: intrinsic (true) are computer generated; extrinsic are external (nonsynchonous)
-        public string IE { get { return intrinsic ? "I" : "E"; } }
+        public bool? intrinsic = true; //specifies the Event type: 
+            // intrinsic (true) are computer generated; extrinsic are external (nonsynchronous); use null for intrinsic Events with no Status marker
+        public string IE { get { return intrinsic != null ? (bool)intrinsic ? "I" : "E" : "*"; } }
         public string channelName;
         public int channel = -1; //specifies channel number that contains the extrinsic Event data (AIB)
         public bool rise = false; //specifies for extrinsic Event whether event is nominally on rising (true) or falling edge of signal

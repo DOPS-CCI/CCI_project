@@ -126,20 +126,30 @@ namespace CCILibrary
             return this;
         }
 
+        public bool equal(BDFPoint pt)
+        {
+            return this._rec == pt._rec && this._pt == pt._pt;
+        }
+
         public bool lessThan(BDFPoint pt)
         {
-            if (this._rec < pt._rec) return true;
-            if (this._rec == pt._rec && this._pt < pt._pt) return true;
-            return false;
+            return this._rec < pt._rec || this._rec == pt._rec && this._pt < pt._pt;
         }
 
         public bool greaterThan(BDFPoint pt)
         {
-            if (this._rec > pt._rec) return true;
-            if (this._rec == pt._rec && this._pt > pt._pt) return true;
-            return false;
+            return this._rec > pt._rec ||  this._rec == pt._rec && this._pt > pt._pt;
         }
 
+        public bool lessThanOrEqual(BDFPoint pt)
+        {
+            return this._rec < pt._rec || this._rec == pt._rec && this._pt <= pt._pt;
+        }
+
+        public bool greaterThanOrEqual(BDFPoint pt)
+        {
+            return this._rec > pt._rec || this._rec == pt._rec && this._pt >= pt._pt;
+        }
         /// <summary>
         /// Convert a BDFPoint to seconds of length
         /// </summary>

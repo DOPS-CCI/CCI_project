@@ -120,7 +120,16 @@ namespace HeaderFileStream
                     header.Events = new EventDictionary.EventDictionary(header.Status);
                     do {
                         EventDictionaryEntry ede = new EventDictionaryEntry();
-                        ede.intrinsic = (xr.MoveToAttribute("Type") ? (xr.ReadContentAsString() != "extrinsic") : true); //intrinsic by default
+                        if (xr.MoveToAttribute("Type"))
+                        {
+                            string s = xr.ReadContentAsString();
+                            if (s == "*")
+                                ede.intrinsic = null;
+                            else
+                                ede.intrinsic = s != "extrinsic";
+                        }
+                        else
+                            ede.intrinsic = true;
                         xr.ReadStartElement(/* Event */);
                         xr.ReadStartElement("Name", nameSpace);
                         string name = xr.ReadContentAsString();
@@ -128,7 +137,7 @@ namespace HeaderFileStream
                         xr.ReadStartElement("Description", nameSpace);
                         ede.Description = xr.ReadContentAsString();
                         xr.ReadEndElement(/* Description */);
-                        if (!ede.intrinsic)
+                        if (ede.intrinsic != null && !(bool)ede.intrinsic)
                         {
                             xr.ReadStartElement("Channel", nameSpace);
                             ede.channelName = xr.ReadContentAsString();
@@ -285,10 +294,10 @@ namespace HeaderFileStream
                 foreach (KeyValuePair<string, EventDictionaryEntry> ede in head.Events)
                 {
                     xw.WriteStartElement("Event");
-                    xw.WriteAttributeString("Type", ede.Value.intrinsic ? "intrinsic" : "extrinsic");
+                    xw.WriteAttributeString("Type", ede.Value.intrinsic != null ? (bool)ede.Value.intrinsic ? "intrinsic" : "extrinsic" : "*");
                     xw.WriteElementString("Name", ede.Key);
                     xw.WriteElementString("Description", ede.Value.Description);
-                    if (!ede.Value.intrinsic)
+                    if (ede.Value.intrinsic != null && !(bool)ede.Value.intrinsic)
                     {
                         xw.WriteElementString("Channel", ede.Value.channelName);
                         xw.WriteElementString("Edge", ede.Value.rise ? "rising" : "falling");

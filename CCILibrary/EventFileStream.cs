@@ -194,16 +194,16 @@ namespace EventFile
         /// General constructor for writing an Event file:
         ///     positions file to write first record
         /// </summary>
-        /// <param name="str">Stream to write OutputEvents to</param>
-        public EventFileWriter(Stream str)
+        /// <param name="stream">Stream to write OutputEvents to</param>
+        public EventFileWriter(Stream stream)
         {
             try
             {
-                if (!str.CanWrite) throw new IOException("Unable to write to stream");
+                if (!stream.CanWrite) throw new IOException("Unable to write to stream");
                 XmlWriterSettings settings = new XmlWriterSettings();
                 settings.Indent = true;
                 settings.Encoding = System.Text.Encoding.UTF8;
-                xw = XmlWriter.Create(str, settings);
+                xw = XmlWriter.Create(stream, settings);
                 xw.WriteStartDocument();
                 xw.WriteStartElement("Events");
             }
