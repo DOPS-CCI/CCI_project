@@ -127,6 +127,9 @@ namespace ElectrodeFileStream
             //Note: to obtain a simple "phi,theta" output use projectPhiTheta().ToString(format)
 
         protected const double radius = 10D; //standard "head radius" in centimeters
+        internal const double ToRad = Math.PI / 180D;
+        internal const double ToDeg = 180D / Math.PI;
+
         protected static double angleDiff(double phi1, double theta1, double phi2, double theta2)
         {
             double DTheta = theta1 - theta2;
@@ -152,8 +155,8 @@ namespace ElectrodeFileStream
         public PhiThetaRecord(string name, double phi, double theta)
             : base(name)
         {
-            Phi = phi;
-            Theta = theta;
+            Phi = phi * ToRad;
+            Theta = theta * ToRad;
         }
 
         public PhiThetaRecord(string name, PhiTheta pt)
@@ -229,8 +232,6 @@ namespace ElectrodeFileStream
             return (Phi * ToDeg).ToString(format) + "," + (Theta * ToDeg).ToString(format);
         }
 
-        const double ToRad = Math.PI / 180D;
-        const double ToDeg = 180D / Math.PI;
     }
 
     /// <summary>
@@ -434,7 +435,7 @@ namespace ElectrodeFileStream
 
         public string ToString(string format)
         {
-            return Math.Round(Phi).ToString(format) + "," + Math.Round(Theta).ToString(format);
+            return Math.Round(Phi * 180D / Math.PI).ToString(format) + "," + Math.Round(Theta * 180D / Math.PI).ToString(format);
         }
     }
 }
