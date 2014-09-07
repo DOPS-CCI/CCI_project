@@ -234,7 +234,7 @@ namespace ASCtoFMConverter
                     {
                         if (bw.CancellationPending)
                         {
-                            bw.ReportProgress(0, "Conversion cancelled with " + FMStream.NR.ToString("0") + 
+                            bw.ReportProgress(0, "Conversion canceled with " + FMStream.NR.ToString("0") + 
                                 " records in " + (FMStream.NR / FMStream.NC).ToString("0") + " recordsets generated.");
                             EFREnum.Dispose();
                             FMStream.Close();

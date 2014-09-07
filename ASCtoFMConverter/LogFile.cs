@@ -115,7 +115,7 @@ namespace ASCtoFMConverter
             logStream.WriteAttributeString("EndTime", endTime.ToString("0.000"));
             logStream.WriteAttributeString("NominalFMRecs", nRecs.ToString("0"));
             logStream.WriteAttributeString("ActualFMRecs", mRecs.ToString("0"));
-            gatherStats(nRecs);
+            gatherStats(mRecs);
         }
 
         public void closeFoundEpisode()
