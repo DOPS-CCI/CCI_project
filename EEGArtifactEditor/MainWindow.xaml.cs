@@ -9,6 +9,7 @@ using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
+using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -35,23 +36,22 @@ namespace EEGArtifactEditor
     {
         const double ScrollBarSize = 17D;
         public double BDFLength;
-        public double VScale;
+//        public double ChannelYScale;
         public static double XScaleSecsToInches;
         public double currentDisplayWidthInSecs = 10D;
         public double currentDisplayOffsetInSecs = 0D;
         public double oldDisplayWidthInSecs = 10D;
         public double oldDisplayOffsetInSecs = -10D;
         public BDFEDFFileReader bdf;
-        Header.Header head;
+        Header.Header header;
         internal string directory;
-        internal static DecimationType dType = DecimationType.MinMax;
         Popup channelPopup = new Popup();
         TextBlock popupTB = new TextBlock();
 
-        internal List<int> candidateChannelList = new List<int>(0);
-        internal List<int> currentChannelList = new List<int>(0); //list of currently displayed channels
+        internal List<ChannelCanvas> candidateChannelList = new List<ChannelCanvas>(0);
+        internal List<ChannelCanvas> currentChannelList = new List<ChannelCanvas>(0); //list of currently displayed channels
         internal EventDictionary.EventDictionary ED;
-        internal Dictionary<int, Event.InputEvent> events = new Dictionary<int, Event.InputEvent>();
+        internal Dictionary<int, InputEvent> events = new Dictionary<int, Event.InputEvent>();
         internal Dictionary<string, ElectrodeRecord> electrodes;
 
         internal Window2 notes;
@@ -73,10 +73,10 @@ namespace EEGArtifactEditor
 
                 directory = System.IO.Path.GetDirectoryName(dlg.FileName); //will use to find other files in dataset
 
-                head = (new HeaderFileReader(dlg.OpenFile())).read();
-                ED = head.Events;
+                header = (new HeaderFileReader(dlg.OpenFile())).read();
+                ED = header.Events;
 
-                bdf = new BDFEDFFileReader(new FileStream(System.IO.Path.Combine(directory, head.BDFFile),
+                bdf = new BDFEDFFileReader(new FileStream(System.IO.Path.Combine(directory, header.BDFFile),
                         FileMode.Open, FileAccess.Read));
                 int samplingRate = bdf.NSamp / bdf.RecordDuration;
                 BDFLength = (double)bdf.NumberOfRecords * bdf.RecordDuration;
@@ -85,31 +85,34 @@ namespace EEGArtifactEditor
 
             } while (r == false);
 
-            string trans = bdf.transducer(0); //here we assumne that channel 0 is an EEG channel
-            for (int i = 0; i < bdf.NumberOfChannels - 1; i++)
-                if (bdf.transducer(i) == trans)
-                    candidateChannelList.Add(i); //include only EEG channels
-
-            currentChannelList.AddRange(candidateChannelList); //start with all the remaining channels
-
             InitializeComponent();
 
             Log.writeToLog("Starting EEGArtifactEditor " + Assembly.GetExecutingAssembly().GetName().Version.ToString() +
                 " on dataset " + directory);
+            ViewerGrid.Width = BDFLength;
+            //Initialize marker canvas
+//            MarkerCanvas = new MarkerCanvasClass(ViewerGrid);
 
-            //initialize the individual channel graphs
-            foreach (int i in currentChannelList)
-            {
-                ChannelGraph pg = new ChannelGraph(this, i);
-                GraphCanvas.Children.Add(pg);
-            }
+            //initialize the individual channel canvases
+
+            string trans = bdf.transducer(0); //here we assumne that channel 0 is an EEG channel
+            for (int i = 0; i < bdf.NumberOfChannels - 1; i++)
+                if (bdf.transducer(i) == trans) //include only EEG channels
+                {
+                    ChannelCanvas cc = new ChannelCanvas(this, i);
+                    cc.AddToCanvas();
+                    ViewerCanvas.Children.Add(cc);
+                    candidateChannelList.Add(cc);
+                }
+
+            currentChannelList.AddRange(candidateChannelList); //start with all the remaining channels
 
             Title = System.IO.Path.GetFileName(directory); //set window title
             BDFFileInfo.Content = bdf.ToString();
-            HDRFileInfo.Content = head.ToString();
-            Event.EventFactory.Instance(head.Events); // set up the factory
+            HDRFileInfo.Content = header.ToString();
+            Event.EventFactory.Instance(header.Events); // set up the factory
             EventFileReader efr = new EventFileReader(
-                new FileStream(System.IO.Path.Combine(directory, head.EventFile),
+                new FileStream(System.IO.Path.Combine(directory, header.EventFile),
                     FileMode.Open, FileAccess.Read)); // open Event file
 
             foreach (Event.InputEvent ie in efr)// read in all Events into dictionary
@@ -120,11 +123,11 @@ namespace EEGArtifactEditor
             efr.Close(); //now events is Dictionary of Events in the dataset; lookup by GC
 
             ElectrodeInputFileStream eif = new ElectrodeInputFileStream(
-                new FileStream(System.IO.Path.Combine(directory, head.ElectrodeFile),
+                new FileStream(System.IO.Path.Combine(directory, header.ElectrodeFile),
                     FileMode.Open, FileAccess.Read)); //open Electrode file
             electrodes = eif.etrPositions;
 
-            //initialize gridline array; never more than 18
+            //initialize vertical gridline array; never more than 18
             for (int i = 0; i < 18; i++)
             {
                 Line l = new Line();
@@ -168,9 +171,9 @@ namespace EEGArtifactEditor
             FOV.Value = 1D;
             FOVMax.Text = BDFLength.ToString("0");
 
-            noteFilePath = System.IO.Path.Combine(directory,System.IO.Path.ChangeExtension(head.BDFFile,".notes.txt"));
+            noteFilePath = System.IO.Path.Combine(directory,System.IO.Path.ChangeExtension(header.BDFFile,".notes.txt"));
 
-            BDFEDFRecord record;
+/*            BDFEDFRecord record;
             int ns = bdf.NumberOfSamples(0);
             BDFData = new double[bdf.NumberOfChannels, bdf.NumberOfRecords * ns];
             int ptNum = 0;
@@ -184,12 +187,12 @@ namespace EEGArtifactEditor
                     ptNum++;
                 }
             }
-
+*/
             //from here on the program is GUI-event driven
         }
 
         //----> ScrollViewer change routines are here: lead to redraws of window
-        private void ScrollViewer_SizeChanged(object sender, SizeChangedEventArgs e)
+        private void Viewer_SizeChanged(object sender, SizeChangedEventArgs e)
         {
             if (e.HeightChanged || e.WidthChanged)
             {
@@ -199,7 +202,7 @@ namespace EEGArtifactEditor
                 //rescale axes, so that X-scale units remain seconds
                 Transform t = new ScaleTransform(XScaleSecsToInches, XScaleSecsToInches);
                 t.Freeze();
-                GraphCanvas.LayoutTransform = t;
+                ViewerGrid.LayoutTransform = t;
                 Viewer.ScrollToHorizontalOffset(currentDisplayOffsetInSecs * XScaleSecsToInches); //this will signal the redraw
             }
         }
@@ -211,19 +214,19 @@ namespace EEGArtifactEditor
                 double loc = e.HorizontalOffset;
                 oldDisplayOffsetInSecs = currentDisplayOffsetInSecs;
                 currentDisplayOffsetInSecs = loc / XScaleSecsToInches;
+                ChannelCanvas.nominalCanvasHeight = ViewerGrid.ActualHeight / currentChannelList.Count; //
 
                 //change Event/location information in bottom panel
                 double midPoint = currentDisplayOffsetInSecs + currentDisplayWidthInSecs / 2D;
                 Loc.Text = midPoint.ToString("0.000");
-            }
+                reDrawGrid();            }
             if (e.ViewportHeightChange != 0D)
             {
-                double height = (e.ViewportHeight - ScrollBarSize) / GraphCanvas.Children.Count;
-                ChannelGraph.CanvasHeight = height;
+                double height = ViewerGrid.ActualHeight / currentChannelList.Count;
+                ChannelCanvas.nominalCanvasHeight = height;
                 reDrawChannelLabels();
             }
             reDrawChannels();
-            reDrawGrid();
         }
 
 //----> Here are the routines for handling the dragging of the display window
@@ -233,10 +236,10 @@ namespace EEGArtifactEditor
         Point currentDragLocation;
         double startDragScrollLocation;
         int graphNumber;
-        private void Viewer_MouseDown(object sender, MouseButtonEventArgs e)
+        private void ViewerGrid_MouseDown(object sender, MouseButtonEventArgs e)
         {
-            Point pt = e.GetPosition(Viewer);
-            if (Viewer.ActualHeight - pt.Y < ScrollBarSize) return; //ignore scrollbar and event hits
+            Console.WriteLine("In ViewerGrid_MouseDown with Left=" + e.LeftButton.ToString() + ", Right=" + e.RightButton.ToString() +
+                ", InDrag=" + InDrag + ", Src=" + e.OriginalSource);
             if (e.LeftButton == MouseButtonState.Pressed)
             {
                 if ((Keyboard.Modifiers & ModifierKeys.Control) > 0)
@@ -245,14 +248,15 @@ namespace EEGArtifactEditor
                     {
                         DatasetInfoPanel.Visibility = Visibility.Visible;
                         DatasetInfoPanel.Focus();
+                        e.Handled = true;
                         return;
                     }
                     else
                     {
                         //display popup channel info window
-                        graphNumber = (int)(pt.Y / ChannelGraph.CanvasHeight);
+                        graphNumber = (int)(e.GetPosition(ViewerGrid).Y / ChannelCanvas.nominalCanvasHeight);
                         if (graphNumber >= currentChannelList.Count) return;
-                        int channel = currentChannelList[graphNumber];
+                        int channel = currentChannelList[graphNumber]._channel;
                         //get electrode location string for this channel number
                         ElectrodeRecord er;
                         string st;
@@ -260,61 +264,74 @@ namespace EEGArtifactEditor
                             st = er.ToString();
                         else
                             st = "None recorded";
-                        ChannelGraph cg = (ChannelGraph)GraphCanvas.Children[graphNumber];
+                        ChannelCanvas cc = currentChannelList[graphNumber];
                         popupTB.Text = bdf.ToString(channel) +
                             "Location: " + st + "\nMin,Max(diff): " +
-                            (cg.overallMin * bdf.Header.Gain(channel) + bdf.Header.Offset(channel)).ToString("G4") + "," +
-                            (cg.overallMax * bdf.Header.Gain(channel) + bdf.Header.Offset(channel)).ToString("G4") +
-                            "(" + ((cg.overallMax - cg.overallMin) * bdf.Header.Gain(channel)).ToString("G3") + ")";
+                            cc.overallMin.ToString("G4") + "," + cc.overallMax.ToString("G4") +
+                            "(" + (cc.overallMax - cc.overallMin).ToString("G3") + ")";
                         channelPopup.IsOpen = true;
                     }
                 }
                 else //start dragging operation
                 {
                     InDrag = true;
-                    startDragMouseLocation = currentDragLocation = pt;
+                    startDragMouseLocation = currentDragLocation = e.GetPosition(Viewer);
                     startDragScrollLocation = Viewer.ContentHorizontalOffset;
-                    //                e.Handled = true;
                     timerCount = 0D;
                     timer.Start();
                 }
-                Viewer.CaptureMouse();
+                ViewerGrid.CaptureMouse();
+                e.Handled = true;
             }
+            else
+                e.Handled = false;
         }
 
-        private void Viewer_MouseUp(object sender, MouseButtonEventArgs e)
+        private void ViewerGrid_MouseUp(object sender, MouseButtonEventArgs e)
         {
+            Console.WriteLine("In ViewerGrid_MouseUp with Changed=" + e.ChangedButton + ", PopUpOpen=" + channelPopup.IsOpen +
+                ", InDrag=" + InDrag + ", Src=" + e.OriginalSource);
+
             if (e.ChangedButton == MouseButton.Left)
             {
                 if (channelPopup.IsOpen)
                 {
                     channelPopup.IsOpen = false;
-                    Viewer.ReleaseMouseCapture();
+                    ViewerGrid.ReleaseMouseCapture();
                 }
                 else if (InDrag)
                 {
                     timer.Stop();
                     InDrag = false;
                     Point loc = e.GetPosition(Viewer);
-                    Viewer.ReleaseMouseCapture();
+                    ViewerGrid.ReleaseMouseCapture();
                     if (Math.Abs(loc.X - currentDragLocation.X) > 0D)
-                        Viewer.ScrollToHorizontalOffset(startDragScrollLocation - loc.X + startDragMouseLocation.X);
+                        Viewer.ScrollToHorizontalOffset(startDragScrollLocation + startDragMouseLocation.X - loc.X);
                 }
+                else
+                {
+                    e.Handled = false;
+                    return;
+                }
+                e.Handled = true;
             }
+            else
+                e.Handled = false;
         }
 
         const double TDThreshold = 5D;
-        private void Viewer_MouseMove(object sender, MouseEventArgs e)
+        private void ViewerGrid_MouseMove(object sender, MouseEventArgs e)
         {
-            if (!InDrag) return;
+            if (!InDrag) { e.Handled = false; return; }
             Point loc = e.GetPosition(Viewer);
             double distance = Math.Abs(loc.X - currentDragLocation.X);
-            if (timerCount * distance > TDThreshold) //wait until mouse has moved more than a few pixels
+//            if (timerCount * distance > TDThreshold) //wait until mouse has moved more than a few pixels
             {
                 currentDragLocation = loc;
                 timerCount = 0D;
-                Viewer.ScrollToHorizontalOffset(startDragScrollLocation - loc.X + startDragMouseLocation.X);
+                Viewer.ScrollToHorizontalOffset(startDragScrollLocation + startDragMouseLocation.X - loc.X);
             }
+            e.Handled = true;
         }
 
         static double timerCount = 0;
@@ -377,13 +394,15 @@ namespace EEGArtifactEditor
 
         private void reDrawChannelLabels()
         {
-            double incr = ChannelGraph.CanvasHeight;
-            double location = incr / 2D - 10D;
+            double incr = ChannelCanvas.nominalCanvasHeight * XScaleSecsToInches;
+            double location = incr / 2D;
             ChannelLabels.Children.Clear();
-            foreach (ChannelGraph cg in GraphCanvas.Children)
+            foreach (ChannelCanvas cc in currentChannelList)
             {
-                Canvas.SetTop(cg._channelLabel, location);
-                ChannelLabels.Children.Add(cg._channelLabel);
+                Canvas.SetTop(cc._channelLabel, location - 10D);
+                Canvas.SetTop(cc.baseline, location);
+                ChannelLabels.Children.Add(cc.baseline);
+                ChannelLabels.Children.Add(cc._channelLabel);
                 location += incr;
             }
         }
@@ -392,7 +411,7 @@ namespace EEGArtifactEditor
         public void reDrawChannels()
         {
             this.Cursor = Cursors.Wait;
-            UIElementCollection chans = GraphCanvas.Children;
+            List<ChannelCanvas> chans = currentChannelList;
 
             double lowSecs = currentDisplayOffsetInSecs;
             double highSecs = lowSecs + currentDisplayWidthInSecs;
@@ -400,230 +419,200 @@ namespace EEGArtifactEditor
             BDFEDFFileStream.BDFLoc highBDFP = bdf.LocationFactory.New().FromSecs(highSecs);
 
             //determine if overlap of new display with old
-            bool overlap = false;
-            if (lowSecs >= oldDisplayOffsetInSecs && lowSecs < oldDisplayOffsetInSecs + oldDisplayWidthInSecs) overlap = true;
-            if (highSecs > oldDisplayOffsetInSecs && highSecs <= oldDisplayOffsetInSecs + oldDisplayWidthInSecs) overlap = true;
+            bool overlap = lowSecs >= oldDisplayOffsetInSecs && lowSecs < oldDisplayOffsetInSecs + oldDisplayWidthInSecs ||
+                highSecs > oldDisplayOffsetInSecs && highSecs <= oldDisplayOffsetInSecs + oldDisplayWidthInSecs;
             oldDisplayWidthInSecs = currentDisplayWidthInSecs;
-            DW.Text = currentDisplayWidthInSecs.ToString("0.000");
+            DW.Text = currentDisplayWidthInSecs.ToString("0.000"); //update current display width text
 
             //calculate new decimation, depending on seconds displayed and viewer width
-                ChannelGraph.decimateNew = Convert.ToInt32(Math.Ceiling(2.5D * (highBDFP - lowBDFP) / Viewer.ActualWidth));
-                if (ChannelGraph.decimateNew == 2 && dType == DecimationType.MinMax) ChannelGraph.decimateNew = 1; //No advantage to decimating by 2
-            bool completeRedraw = ChannelGraph.decimateNew != ChannelGraph.decimateOld || !overlap; //complete redraw of all channels if ...
+            ChannelCanvas.decimateNew = Convert.ToInt32(Math.Ceiling(2.5D * (highBDFP - lowBDFP) / Viewer.ActualWidth));
+            if (ChannelCanvas.decimateNew == 2) ChannelCanvas.decimateNew = 1; //No advantage to decimating by 2
+
+            bool completeRedraw = ChannelCanvas.decimateNew != ChannelCanvas.decimateOld || !overlap; //complete redraw of all channels if ...
             // change in decimation or if completely new screen (no overlap of old and new)
-            ChannelGraph.decimateOld = ChannelGraph.decimateNew;
+            ChannelCanvas.decimateOld = ChannelCanvas.decimateNew;
 
             //calculate number of points to remove above and below current point set
             int removeLow = 0;
             int removeHigh = 0;
-            List<FilePoint> s = ((ChannelGraph)chans[0]).FilePointList;
-            if (s.Count > 0)
+            List<FilePoint> s = chans[0].FilePointList; //displayed points are tracked by FilePointList
+            //Use this information to determine bounds of current display and to caluculate size of
+            //non-overlap lower and higher than current display
+            if (overlap && s.Count > 0)
             {
-                removeLow = (int)((lowBDFP - s[0].fileLocation) / ChannelGraph.decimateNew);
-                removeHigh = (int)((s.Last().fileLocation - highBDFP) / ChannelGraph.decimateNew);
+                removeLow = (int)((lowBDFP - s[0].fileLocation) / ChannelCanvas.decimateNew);
+                removeHigh = (int)((s.Last().fileLocation - highBDFP) / ChannelCanvas.decimateNew);
             }
 
             //now loop through each channel graph to remove unneeded points and find new max and min
-            foreach (ChannelGraph cg in chans)
+            foreach (ChannelCanvas cc in chans)
             {
-                cg.overallMin = double.PositiveInfinity;
-                cg.overallMax = double.NegativeInfinity;
-                cg.needsRedraw = false;
+                cc.overallMin = double.PositiveInfinity;
+                cc.overallMax = double.NegativeInfinity;
+                cc.needsRedraw = false;
 
                 if (completeRedraw) //shortcut, if complete redraw
                 {
-                    cg.FilePointList.Clear();
-                    cg.needsRedraw = true;
+                    cc.FilePointList.Clear();
+                    cc.needsRedraw = true;
                 }
                 else //then this channel may require partial redraw:
                 {
                     if (removeLow > 0) //then must remove removed below
                     {
-                        cg.FilePointList.RemoveRange(0, removeLow);
-                        cg.needsRedraw = true;
+                        cc.FilePointList.RemoveRange(0, removeLow);
+                        cc.needsRedraw = true;
                     }
 
                     if (removeHigh > 0) //then must remove points above
                     {
-                        cg.FilePointList.RemoveRange(cg.FilePointList.Count - removeHigh, removeHigh);
-                        cg.needsRedraw = true;
+                        cc.FilePointList.RemoveRange(cc.FilePointList.Count - removeHigh, removeHigh);
+                        cc.needsRedraw = true;
                     }
-                    completeRedraw = completeRedraw || cg.FilePointList.Count == 0;
+                    completeRedraw = completeRedraw || cc.FilePointList.Count == 0;
 
                     //find overallMax/overallMin in any remaining points
-                    foreach (FilePoint fp in cg.FilePointList)
+                    foreach (FilePoint fp in cc.FilePointList)
                     {
-                        if (fp.first.Y > cg.overallMax) cg.overallMax = fp.first.Y;
-                        if (fp.first.Y < cg.overallMin) cg.overallMin = fp.first.Y;
+                        if (fp.first.Y > cc.overallMax) cc.overallMax = fp.first.Y;
+                        if (fp.first.Y < cc.overallMin) cc.overallMin = fp.first.Y;
                         if (fp.SecondValid)
                         {
-                            if (fp.second.Y > cg.overallMax) cg.overallMax = fp.second.Y;
-                            if (fp.second.Y < cg.overallMin) cg.overallMin = fp.second.Y;
+                            if (fp.second.Y > cc.overallMax) cc.overallMax = fp.second.Y;
+                            if (fp.second.Y < cc.overallMin) cc.overallMin = fp.second.Y;
                         }
                     }
                 }
             }
 
-            //now, update the fields as required:
+//********* now, update the point list as required; there are three choices:
             if (completeRedraw)
-            //1. Redraw everything
-            {
-                for (BDFEDFFileStream.BDFLoc i = lowBDFP; i.lessThan(highBDFP); i.Increment(ChannelGraph.decimateNew))
+            //**** 1. Redraw everything
+                for (BDFEDFFileStream.BDFLoc i = lowBDFP; i.lessThan(highBDFP); i.Increment(ChannelCanvas.decimateNew))
                 {
                     if (i.IsInFile)
-                    {
-                        foreach (ChannelGraph cg in chans)
+                        foreach (ChannelCanvas cc in chans)
                         {
-                            FilePoint fp = cg.createFilePoint(i);
-                            cg.FilePointList.Add(fp);
+                            FilePoint fp = cc.createFilePoint(i); //note: also updates overallmin and overallmax
+                            cc.FilePointList.Add(fp);
                         }
-                    }
                 }
-            }
-            else
-            {
-                if (removeHigh > 0)
-                //2. Add points below current point list
+            else if (removeHigh > 0)
+                //**** 2. Add points below current point list
+                for (BDFEDFFileStream.BDFLoc i = chans[0].FilePointList[0].fileLocation - ChannelCanvas.decimateNew;
+                    lowBDFP.lessThan(i); i.Decrement(ChannelCanvas.decimateNew)) //start at first point below current range
+                    // and work down to lowBDFP
                 {
-                    for (BDFEDFFileStream.BDFLoc i = ((ChannelGraph)chans[0]).FilePointList[0].fileLocation - ChannelGraph.decimateNew;
-                        lowBDFP.lessThan(i); i.Decrement(ChannelGraph.decimateNew))
-                    {
-                        if (i.IsInFile)
-                        {
-                            foreach (ChannelGraph cg in chans)
+                    if (i.IsInFile)
+                        foreach (ChannelCanvas cc in chans)
+                            if (cc.needsRedraw)
                             {
-                                if (cg.needsRedraw)
-                                {
-                                    FilePoint fp = cg.createFilePoint(i);
-                                    cg.FilePointList.Insert(0, fp); //add to beginning of list
-                                }
+                                FilePoint fp = cc.createFilePoint(i); //note: also updates overallmin and overallmax
+                                cc.FilePointList.Insert(0, fp); //add to beginning of list
                             }
-                        }
-                    }
                 }
-                if (removeLow > 0)
-                //3. Add points above current point list
-                {
-                    for (BDFEDFFileStream.BDFLoc i = ((ChannelGraph)chans[0]).FilePointList.Last().fileLocation + ChannelGraph.decimateNew;
-                        i.lessThan(highBDFP); i.Increment(ChannelGraph.decimateNew))
-                    {
-                        if (i.IsInFile)
-                        {
-                            foreach (ChannelGraph cg in chans)
+            else if (removeLow > 0)
+                //**** 3. Add points above current point list
+                for (BDFEDFFileStream.BDFLoc i = chans[0].FilePointList.Last().fileLocation + ChannelCanvas.decimateNew;
+                    i.lessThan(highBDFP); i.Increment(ChannelCanvas.decimateNew)) //start at first point above current range
+                    // and work up to hightBDFP
+                    if (i.IsInFile)
+                        foreach (ChannelCanvas cc in chans)
+                            if (cc.needsRedraw)
                             {
-                                if (cg.needsRedraw)
-                                {
-                                    FilePoint fp = cg.createFilePoint(i);
-                                    cg.FilePointList.Add(fp); //add to end of list
-                                }
+                                FilePoint fp = cc.createFilePoint(i); //note: also updates overallmin and overallmax
+                                cc.FilePointList.Add(fp); //add to end of list
                             }
-                        }
-                    }
-                }
-            }
 
-            //Now, we've got the data we need to plot each of the channels
-            foreach (ChannelGraph cg in chans)
+            //Now, we've got the points we need to plot each of the channels
+            for (int graphNumber = 0; graphNumber < chans.Count;graphNumber++ )
             {
+                ChannelCanvas cc = chans[graphNumber];
                 //calculate new scale and offset
-                cg.newOffset = (cg.overallMax + cg.overallMin) / 2D;
-                cg.newScale = cg.overallMin == cg.overallMax ? 0D : 1D / (cg.overallMin - cg.overallMax);
+                cc.newOffset = (cc.overallMax + cc.overallMin) / 2D;
+                cc.newScale = Math.Max(1D, (cc.overallMax - cc.overallMin) / ChannelCanvas.ChannelYScale);
                 //calculate and set appropriate stroke thickness
-                cg.path.StrokeThickness = currentDisplayWidthInSecs * 0.0006D;
+                cc.path.StrokeThickness = currentDisplayWidthInSecs * 0.0006D;
 
                 //determine if "rescale" needs to be done: significant change in scale or offset?
-                bool rescale = Math.Abs((cg.newScale - cg.currentScale) / cg.currentScale) > scaleDelta &&
-                    Math.Abs((cg.overallMax - cg.overallMin) * (cg.newScale - cg.currentScale)) > 1D || //if scale changes sufficiently or...
-                    Math.Abs((cg.newOffset - cg.currentOffset) / (cg.overallMax - cg.overallMin)) > scaleDelta &&
-                    Math.Abs((cg.newOffset - cg.currentOffset) * cg.newScale) > 1D || //if offset changes sufficiently or...
-                    Math.Abs(ChannelGraph.CanvasHeight - cg.Height * XScaleSecsToInches) > 0.05; //if there has been a change in CanvasHeight
+                bool rescale = Math.Abs((cc.newScale - cc.currentScale) / cc.currentScale) > scaleDelta &&
+                    Math.Abs((cc.overallMax - cc.overallMin) * (cc.newScale - cc.currentScale)) > 1D || //if scale changes sufficiently or...
+                    Math.Abs((cc.newOffset - cc.currentOffset) / (cc.overallMax - cc.overallMin)) > scaleDelta &&
+                    Math.Abs((cc.newOffset - cc.currentOffset) * cc.newScale) > 1D || //if offset changes sufficiently or...
+                    Math.Abs(ChannelCanvas.nominalCanvasHeight - cc.Height * XScaleSecsToInches) > 0.05; //if there has been a change in CanvasHeight
 
                 //only redraw if Y-scale has changed sufficiently, decimation changed, points have been removed, or there's no overlap
-                if (rescale || cg.needsRedraw)
+                if (rescale || cc.needsRedraw)
                 {
                     //update scale and offset
-                    cg.currentScale = cg.newScale;
-                    cg.currentOffset = cg.newOffset;
-                    cg.rescalePoints(); //create new pointList
+                    cc.currentScale = cc.newScale;
+                    cc.currentOffset = cc.newOffset;
+                    cc.rescalePoints(); //create new pointList
                     //and install it in window
-                    ChannelGraph.OldCanvasHeight = ChannelGraph.CanvasHeight; //reset
-                    StreamGeometryContext ctx = cg.geometry.Open();
-                    ctx.BeginFigure(cg.pointList[0], false, false);
-                    ctx.PolyLineTo(cg.pointList, true, true);
+                    ChannelCanvas.OldCanvasHeight = ChannelCanvas.nominalCanvasHeight; //reset
+                    StreamGeometryContext ctx = cc.geometry.Open();
+                    ctx.BeginFigure(cc.pointList[0], false, false);
+                    ctx.PolyLineTo(cc.pointList, true, true);
                     ctx.Close();
-                    //draw new baseline location for this graph, if visible
-                    double t = 0.5 - cg.currentOffset * cg.currentScale;
-                    if (t < 0D || t > 1D)
-                        cg.baseline.Visibility = Visibility.Hidden;
-                    else
-                    {
-                        int i = currentChannelList.FindIndex(n => n == cg._channel);
-                        cg.baseline.Y1 = cg.baseline.Y2 = ChannelGraph.CanvasHeight * (t + i);
-                        cg.baseline.X2 = MainFrame.ActualWidth;
-                        cg.baseline.Visibility = Visibility.Visible;
-                        cg.baseline.StrokeThickness = 1D;
-                    }
-                }
-                cg.Height = ChannelGraph.CanvasHeight / XScaleSecsToInches; //set Height so they stack in StackPanel correctly
+               }
+                cc.Height = cc.currentScale * ChannelCanvas.nominalCanvasHeight / XScaleSecsToInches;
+                Canvas.SetTop(cc, ((double)graphNumber - cc.currentScale + 1D) * ChannelCanvas.nominalCanvasHeight);
             }
             this.Cursor = Cursors.Arrow;
         }
 
 //----> Handle Viewer context menu clicks
         Point rightMouseClickLoc;
-        private void ViewerContextMenu_Opened(object sender, RoutedEventArgs e)
+        private void ViewerGridContextMenu_Opened(object sender, RoutedEventArgs e)
         {
-            rightMouseClickLoc = Mouse.GetPosition(Viewer);
-            graphNumber = (int)(rightMouseClickLoc.Y / ChannelGraph.CanvasHeight);
-            Console.WriteLine("In ViewerContextMenu_Opened with " + graphNumber.ToString("0"));
+            rightMouseClickLoc = Mouse.GetPosition(ViewerGrid);
+            graphNumber = (int)(rightMouseClickLoc.Y / ChannelCanvas.nominalCanvasHeight);
+            Console.WriteLine("In ViewerContextMenu_Opened with graph " + graphNumber.ToString("0") + " and X " + rightMouseClickLoc.X);
             if (graphNumber < currentChannelList.Count)
             {
                 //set up context menu about to be displayed
-                string channelName = bdf.channelLabel(currentChannelList[graphNumber]);
-                ((MenuItem)(Viewer.ContextMenu.Items[0])).Header = "Add new channel before " + channelName;
-                ((MenuItem)(Viewer.ContextMenu.Items[1])).Header = "Add new channel after " + channelName;
-                ((MenuItem)(Viewer.ContextMenu.Items[2])).Header = "Remove channel " + channelName;
+                string channelName = bdf.channelLabel(currentChannelList[graphNumber]._channel);
+                ((MenuItem)(ViewerGrid.ContextMenu.Items[1])).Header = "Remove channel " + channelName;
                 if (currentChannelList.Count <= 1)
-                    ((MenuItem)(Viewer.ContextMenu.Items[2])).IsEnabled = false;
+                    ((MenuItem)(ViewerGrid.ContextMenu.Items[1])).IsEnabled = false;
                 else
-                    ((MenuItem)(Viewer.ContextMenu.Items[2])).IsEnabled = true;
-                Viewer.ContextMenu.Visibility = Visibility.Visible;
-                AddBefore.Items.Clear();
-                AddAfter.Items.Clear();
+                    ((MenuItem)(ViewerGrid.ContextMenu.Items[1])).IsEnabled = true;
+                ViewerGrid.ContextMenu.Visibility = Visibility.Visible;
+                AddChannel.Items.Clear();
                 if (currentChannelList.Count < candidateChannelList.Count)
                 {
-                    ((MenuItem)Viewer.ContextMenu.Items[0]).IsEnabled = true;
-                    ((MenuItem)Viewer.ContextMenu.Items[1]).IsEnabled = true;
-                    for (int i = 0; i < candidateChannelList.Count; i++)
+                    ((MenuItem)ViewerGrid.ContextMenu.Items[0]).IsEnabled = true;
+                    foreach (ChannelCanvas cc in candidateChannelList)
                     {
-                        if (currentChannelList.Contains(i)) continue;
-                        MenuItem mi1 = new MenuItem();
-                        MenuItem mi2 = new MenuItem();
-                        mi1.Header = mi2.Header = bdf.channelLabel(i);
-                        mi1.Click += new RoutedEventHandler(MenuItemAdd_Click);
-                        mi2.Click += new RoutedEventHandler(MenuItemAdd_Click);
-                        AddBefore.Items.Add(mi1);
-                        AddAfter.Items.Add(mi2);
+                        if (currentChannelList.Contains(cc)) continue;
+                        MenuItem mi = new MenuItem();
+                        mi.Header = bdf.channelLabel(cc._channel);
+                        mi.Click += new RoutedEventHandler(MenuItemAdd_Click);
+                        AddChannel.Items.Add(mi);
                     }
                 }
                 else
                 {
-                    ((MenuItem)Viewer.ContextMenu.Items[0]).IsEnabled = false;
-                    ((MenuItem)Viewer.ContextMenu.Items[1]).IsEnabled = false;
+                    ((MenuItem)ViewerGrid.ContextMenu.Items[0]).IsEnabled = false;
                 }
+                RemoveSeg.IsEnabled = MarkerCanvas.NumberOfRegions > 0 &&
+                    MarkerCanvas.FindRegion(rightMouseClickLoc.X) != null;
             }
             else
-                Viewer.ContextMenu.Visibility = Visibility.Collapsed;
+                ViewerGrid.ContextMenu.Visibility = Visibility.Collapsed;
         }
 
         private void MenuItemAdd_Click(object sender, RoutedEventArgs e)
         {
-            int offset = ((Control)sender).Parent == AddBefore ? 0 : 1;
             int chan = bdf.ChannelNumberFromLabel((string)((MenuItem)sender).Header);
-            currentChannelList.Insert(graphNumber + offset, chan);
-            GraphCanvas.Children.Insert(graphNumber + offset, new ChannelGraph(this, chan));
-            ChannelGraph.CanvasHeight = (Viewer.ViewportHeight - ScrollBarSize) / currentChannelList.Count;
-            ChannelGraph.decimateOld = -1;
+            ChannelCanvas cc = candidateChannelList.Find(c => c._channel == chan);
+            int index;
+            for (index = 0; index < currentChannelList.Count; index++)
+                if (currentChannelList[index]._channel > chan) break;
+            currentChannelList.Insert(index, cc);
+            ViewerCanvas.Children.Insert(index, cc);
+            ChannelCanvas.nominalCanvasHeight = ViewerGrid.ActualHeight / currentChannelList.Count;
+            ChannelCanvas.decimateOld = -1;
             reDrawChannelLabels();
             reDrawChannels();
         }
@@ -632,11 +621,10 @@ namespace EEGArtifactEditor
         {
             if (graphNumber < currentChannelList.Count && currentChannelList.Count > 1)
             {
-                currentChannelList.RemoveAt(graphNumber);
-                ChannelGraph cg = (ChannelGraph)GraphCanvas.Children[graphNumber];
-                cg.baseline.Visibility = Visibility.Hidden;
-                GraphCanvas.Children.Remove(cg);
-                ChannelGraph.CanvasHeight = (Viewer.ViewportHeight - ScrollBarSize) / currentChannelList.Count;
+                ChannelCanvas cc = currentChannelList[graphNumber];             
+                currentChannelList.Remove(cc);
+                ViewerCanvas.Children.Remove(cc);
+                ChannelCanvas.nominalCanvasHeight = ViewerGrid.ActualHeight / currentChannelList.Count;
                 reDrawChannelLabels();
                 reDrawChannels();
             }
@@ -645,7 +633,7 @@ namespace EEGArtifactEditor
         private void MenuItemMakeNote_Click(object sender, RoutedEventArgs e)
         {
             if (graphNumber < currentChannelList.Count)
-                Clipboard.SetText(bdf.channelLabel(currentChannelList[graphNumber])); //copy channel name to clipboard
+                Clipboard.SetText(bdf.channelLabel(currentChannelList[graphNumber]._channel)); //copy channel name to clipboard
             else
                 Clipboard.SetText("");
             if (notes == null) //has it been closed?
@@ -653,7 +641,18 @@ namespace EEGArtifactEditor
                 notes = new Window2(this); //reopen
                 notes.Show();
             }
-            notes.MakeNewEntry(currentDisplayOffsetInSecs + rightMouseClickLoc.X / XScaleSecsToInches);
+            notes.MakeNewEntry(rightMouseClickLoc.X);
+        }
+
+        private void MenuItemBeginMark_Click(object sender, RoutedEventArgs e)
+        {
+            MarkerCanvas.beginMarkRegion(rightMouseClickLoc.X);
+        }
+
+        private void MenuItemRemoveMark_Click(object sender, RoutedEventArgs e)
+        {
+            MarkerRectangle mr = MarkerCanvas.FindRegion(rightMouseClickLoc.X);
+            if (mr != null) MarkerCanvas.Remove(mr);
         }
 
         private void MenuItemPrint_Click(object sender, RoutedEventArgs e)
@@ -715,7 +714,7 @@ namespace EEGArtifactEditor
             XScaleSecsToInches = Viewer.ViewportWidth / currentDisplayWidthInSecs;
             Transform t = new ScaleTransform(XScaleSecsToInches, XScaleSecsToInches, Viewer.ContentHorizontalOffset + Viewer.ViewportWidth / 2, 0D);
             t.Freeze();
-            GraphCanvas.LayoutTransform = t; //new transform: keep scale seconds
+            ViewerGrid.LayoutTransform = t; //new transform: keep scale seconds
             //NB: must also scale vertically (and correct later) to keep drawing pen circular!
             //Now change horizontal scroll to make inflation/deflation around center point;
             Viewer.ScrollToHorizontalOffset(XScaleSecsToInches * (currentDisplayOffsetInSecs + (oldDisplayWidthInSecs - currentDisplayWidthInSecs) / 2D));
@@ -732,7 +731,7 @@ namespace EEGArtifactEditor
                 notes.Close();
             Log.writeToLog("EEGArtifactEditor ending");
         }
-
+/*
         private void Window_KeyDown(object sender, KeyEventArgs e)
         {
             switch (e.Key)
@@ -743,10 +742,14 @@ namespace EEGArtifactEditor
             }
             e.Handled = false;
         }
-
+*/
         private void VerticalScale_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            VScale = Convert.ToDouble(((ComboBox)sender).Tag);
+            ComboBox cb = (ComboBox)sender;
+            ComboBoxItem cbi = (ComboBoxItem)cb.SelectedItem;
+            if (cbi.Tag == null) return;
+            ChannelCanvas.ChannelYScale = Convert.ToDouble(cbi.Tag);
+            reDrawChannels();
         }
 
         private void Finish_Click(object sender, RoutedEventArgs e)
@@ -760,7 +763,7 @@ namespace EEGArtifactEditor
         }
     }
 
-    internal class ChannelGraph : Canvas
+    internal class ChannelCanvas : Canvas
     {
         internal int _channel;
         internal TextBlock _channelLabel;
@@ -776,37 +779,37 @@ namespace EEGArtifactEditor
         internal bool needsRedraw = true;
         internal double overallMax;
         internal double overallMin;
-
         internal static BDFEDFFileStream.BDFEDFFileReader bdf;
         internal static int decimateOld = 0;
         internal static int decimateNew;
-        private static double _canvasHeight = 0;
+        private static double _nominalCanvasHeight = 0;
         private static double _oldCanvasHeight;
-        internal static double CanvasHeight
+        internal static double nominalCanvasHeight
         {
             get
             {
-                return _canvasHeight;
+                return _nominalCanvasHeight;
             }
             set
             {
-                _oldCanvasHeight = _canvasHeight;
-                _canvasHeight = value;
+                _oldCanvasHeight = _nominalCanvasHeight;
+                _nominalCanvasHeight = value;
             }
         }
         internal static double OldCanvasHeight
         {
             get { return _oldCanvasHeight; }
             set {
-                if (value != _canvasHeight)
+                if (value != _nominalCanvasHeight)
                     throw new Exception("Only set OldCanvasHeight to CanvasHeight!");
-                _oldCanvasHeight = _canvasHeight;
+                _oldCanvasHeight = _nominalCanvasHeight;
             }
         }
 
         internal Line baseline = new Line();
+        public static double ChannelYScale = 50D;
 
-        public ChannelGraph(MainWindow containingWindow, int channelNumber)
+        public ChannelCanvas(MainWindow containingWindow, int channelNumber)
             : base()
         {
             _channel = channelNumber;
@@ -814,19 +817,17 @@ namespace EEGArtifactEditor
             bdf = containingWindow.bdf;
             _channelLabel = new TextBlock(new Run(bdf.channelLabel(_channel)));
             this.VerticalAlignment = VerticalAlignment.Top;
+            this.HorizontalAlignment = HorizontalAlignment.Stretch;
             path.Stroke = Brushes.Black;
             path.StrokeLineJoin = PenLineJoin.Round;
             path.Data = geometry;
+            Panel.SetZIndex(path, 0);
             this.Children.Add(path);
             baseline.X1 = 0;
-            baseline.HorizontalAlignment = HorizontalAlignment.Left;
-            baseline.VerticalAlignment = VerticalAlignment.Top;
+            baseline.X2 = bdf.RecordDurationDouble * bdf.NumberOfRecords;
+            baseline.VerticalAlignment = VerticalAlignment.Center;
             baseline.Stroke = Brushes.LightBlue;
-            Grid.SetColumn(baseline, 0);
-            Grid.SetRow(baseline, 0);
-            Grid.SetColumnSpan(baseline, 2);
             Panel.SetZIndex(baseline, int.MinValue);
-            containingWindow.MainFrame.Children.Add(baseline);
         }
         
         //This routine creates a new entry in the list of plotted points (FilePointList) based on data
@@ -836,50 +837,23 @@ namespace EEGArtifactEditor
         //be appropriately scaled
         internal FilePoint createFilePoint(BDFEDFFileStream.BDFLoc index)
         {
-            int sample;
-            int max = 0; //assign to fool compiler
-            int min = 0;
-            double maxVal;
-            double minVal;
+            double sample;
+            double max = double.MinValue;
+            double min = double.MaxValue;
             int imax = 0;
             int imin = 0;
             BDFEDFFileStream.BDFLoc temp = index;
-            if (MainWindow.dType == DecimationType.MinMax)
+            for (int j = 0; j < decimateNew; j++)
             {
-                max = int.MinValue;
-                min = int.MaxValue;
-                for (int j = 0; j < decimateNew; j++)
-                {
-                    if(temp.IsInFile)
-                        sample = bdf.getRawSample(_channel, temp++);
-                    else
-                        break;
-                    if (sample > max) { max = sample; imax = j; } //OK if NaN; neither > or < any number
-                    if (sample < min) { min = sample; imin = j; }
-                }
-                maxVal = (double)max;
-                minVal = (double)min;
+                if(temp.IsInFile)
+                    sample = bdf.getSample(_channel, temp++); // we use scaled valued (in uV)
+                else
+                    break;
+                if (sample > max) { max = sample; imax = j; } //OK if NaN; neither > or < any number
+                if (sample < min) { min = sample; imin = j; }
             }
-            else if (MainWindow.dType == DecimationType.Average)
-            {
-                int ave = 0;
-                int n = 0;
-                for (int j = 0; j < decimateNew; j++)
-                {
-                    if (temp.IsInFile)
-                        sample = bdf.getRawSample(_channel, temp++);
-                    else
-                        break;
-                    ave += sample;
-                    n++;
-                }
-                maxVal = minVal = (double)ave / n;
-                imax = imin = n >> 1;
-            }
-            else //MainWindow.dType == decimationType.FirstPoint
-                maxVal = minVal = bdf.getRawSample(_channel, temp);
-            if (maxVal > overallMax) overallMax = maxVal;
-            if (minVal < overallMin) overallMin = minVal;
+            if (max > overallMax) overallMax = max;
+            if (min < overallMin) overallMin = min;
             FilePoint fp = new FilePoint();
             fp.fileLocation = index;
             double secs = index.ToSecs();
@@ -887,23 +861,23 @@ namespace EEGArtifactEditor
             if (imax < imin)
             {
                 fp.first.X = secs + imax * st;
-                fp.first.Y = maxVal;
+                fp.first.Y = max;
                 fp.second.X = secs + imin * st;
-                fp.second.Y = minVal;
+                fp.second.Y = min;
                 fp.SecondValid = true;
             }
             else if (imax > imin)
             {
                 fp.first.X = secs + imin * st;
-                fp.first.Y = minVal;
+                fp.first.Y = min;
                 fp.second.X = secs + imax * st;
-                fp.second.Y = maxVal;
+                fp.second.Y = max;
                 fp.SecondValid = true;
             }
             else //imax == imin
             {
                 fp.first.X = secs + imax * st;
-                fp.first.Y = maxVal;
+                fp.first.Y = max;
                 fp.SecondValid = false;
             }
             return fp;
@@ -911,16 +885,182 @@ namespace EEGArtifactEditor
 
         internal void rescalePoints()
         {
-            double c2 = CanvasHeight / MainWindow.XScaleSecsToInches;
-            double c1 = c2 * currentScale;
-            c2 = c1 * currentOffset - c2 / 2D;
+            double c1 = nominalCanvasHeight / ChannelYScale; // nominalCanvasHeight is alread scaled by XScaleSecsToInches
             pointList.Clear();
             foreach(FilePoint fp in FilePointList)
             {
-                pointList.Add(new Point(fp.first.X, c1 * fp.first.Y - c2));
+                pointList.Add(new Point(fp.first.X, c1 * (overallMax - fp.first.Y)));
                 if (fp.SecondValid)
-                    pointList.Add(new Point(fp.second.X, c1 * fp.second.Y - c2));
+                    pointList.Add(new Point(fp.second.X, c1 * (overallMax - fp.second.Y)));
             }
+        }
+
+        internal void AddToCanvas()
+        {
+            
+        }
+    }
+
+    public class MarkerCanvasClass : Canvas
+    {
+        bool InMarkRegion = false;
+        double _startLocation;
+        Rectangle r;
+        List<MarkerRectangle> markedRegions = new List<MarkerRectangle>();
+
+        public MarkerCanvasClass()
+            : base()
+        {
+            MouseMove += new MouseEventHandler(MarkerCanvasClass_MouseMove);
+            MouseUp += new MouseButtonEventHandler(MarkerCanvasClass_MouseButtonEvent);
+        }
+
+/*        public MarkerCanvasClass(Panel viewGrid)
+            : base()
+        {
+            HorizontalAlignment = HorizontalAlignment.Stretch;
+            VerticalAlignment = VerticalAlignment.Stretch;
+            Canvas.SetTop(this, 0);
+            Canvas.SetLeft(this, 0);
+            _viewGrid = viewGrid;
+            viewGrid.Children.Add(this);
+
+        }
+*/
+        public void beginMarkRegion(double startLocation)
+        {
+            InMarkRegion = true;
+            r = new Rectangle();
+            r.Fill = Brushes.Red;
+            Binding b = new Binding("ActualHeight");
+            b.Source = Parent;
+            r.SetBinding(Rectangle.HeightProperty, b);
+            r.Width = 0;
+            r.Opacity = 0.4;
+            Canvas.SetTop(r, 0);
+            Canvas.SetLeft(r, startLocation);
+            Children.Add(r);
+            _startLocation = startLocation;
+            this.CaptureMouse();
+        }
+
+        void MarkerCanvasClass_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (InMarkRegion)
+            {
+                Point p = e.MouseDevice.GetPosition(this);
+                double newWidth = p.X - _startLocation;
+                if (newWidth >= 0)
+                {
+                    Canvas.SetLeft(r, _startLocation);
+                    r.Width = newWidth;
+                }
+                else
+                {
+                    Canvas.SetLeft(r, _startLocation + newWidth);
+                    r.Width = -newWidth;
+                }
+                e.Handled = true;
+            }
+            else
+                e.Handled = false;
+        }
+
+        void MarkerCanvasClass_MouseButtonEvent(object sender, MouseButtonEventArgs e)
+        {
+            if (!InMarkRegion || e.ChangedButton != MouseButton.Right) { e.Handled = false; return; }
+            InMarkRegion = false;
+            this.ReleaseMouseCapture();
+            double left = Canvas.GetLeft(r); //left and right track the location of the marked region, ...
+            double right = left + r.Width; // increased in size as needed to account for overlaps with exisiting regions
+
+            bool c;
+            MarkerRectangle current = null; //this references the current region fow which we are looking for overlaps
+
+            //The initial null value indicates that we're looking at the just-marked region, for which there is no MarkerRectangle yet.
+            //If we find an overlap, we adjust the existing region and forget about the one we just marked.
+            //However, we need to loop back through and ascertain that the newly increased region doesn't overlap some other one!
+            do
+            {
+                c = false;
+                foreach (MarkerRectangle mr in markedRegions)
+                {
+                    if (mr == current) continue;
+                    if (mr.Contains(left) || mr.Contains(right) || mr.IsWithin(left, right)) //then we have an overlap
+                    {
+                        c = true;
+                        left = Math.Min(left, mr.leftEdge);
+                        right = Math.Max(right, mr.rightEdge);
+                        if (current != null) //remove old region
+                            Remove(current);
+                        else //we can get rid of the marker rectangle, which is about to be subsumed into another region
+                        {
+                            this.Children.Remove(r);
+                            r = null;
+                        }
+                        current = mr; //update current region
+                        break;
+                    }
+                }
+            } while (c == true); //keep going until there are no more overlaps
+            if (current == null) //then this is a distinct, new region -- no overlaps found
+            { //Make a new region/marker
+                r.Fill = Brushes.Blue;
+                current = new MarkerRectangle();
+                current.rect = r;
+                current.leftEdge = left;
+                current.rightEdge = right;
+                markedRegions.Add(current);
+            }
+            else
+            { //Othwise update overlapped region
+                current.leftEdge = left;
+                current.rightEdge = right;
+                current.rect.Width = right - left;
+                Canvas.SetLeft(current.rect, left);
+            }
+            e.Handled = true;
+        }
+
+        internal MarkerRectangle FindRegion(double v)
+        {
+            foreach (MarkerRectangle mr in markedRegions)
+            {
+                if (mr.Contains(v)) return mr;
+            }
+            return null; //indicates none found
+        }
+
+        internal void Remove(MarkerRectangle mr)
+        {
+            markedRegions.Remove(mr);
+            this.Children.Remove(mr.rect);
+            mr.rect = null;
+        }
+
+        internal double NumberOfRegions
+        {
+            get
+            {
+                return markedRegions.Count();
+            }
+        }
+    }
+
+    public class MarkerRectangle
+    {
+        internal Rectangle rect;
+        internal double leftEdge;
+        internal double rightEdge;
+
+        public bool Contains(double v)
+        {
+            return v >= leftEdge && v <= rightEdge;
+        }
+        
+        public bool IsWithin(double left, double right)
+        {
+            return leftEdge >= left && leftEdge <= right || rightEdge >= left && rightEdge <= right;
         }
     }
 
@@ -932,5 +1072,4 @@ namespace EEGArtifactEditor
         public bool SecondValid;
     }
 
-    internal enum DecimationType {Fixed, MinMax, Average, FirstPoint}
 }
