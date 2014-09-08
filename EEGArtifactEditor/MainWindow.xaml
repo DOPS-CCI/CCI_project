@@ -3,16 +3,12 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
             xmlns:local="clr-namespace:EEGArtifactEditor"
         Height="700" Width="1000" MinWidth="750" MinHeight="250" Closing="MainWindow_Closing">
-    <Grid Name="MainFrame">
+    <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="100"/>
-            <ColumnDefinition Width="*"/>
-        </Grid.ColumnDefinitions>
-        <Grid Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="0" Panel.ZIndex="3" Name="DatasetInfoPanel" Background="White" Visibility="Collapsed" Opacity="0.9">
+        <Grid Grid.Column="0" Grid.Row="0" Panel.ZIndex="3" Name="DatasetInfoPanel" Background="White" Visibility="Collapsed" Opacity="0.9">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="*"/>
@@ -33,43 +29,48 @@
             </GroupBox>
             <Button Grid.Column="1" Grid.Row="1" IsDefault="True" Height="28" Width="80" HorizontalAlignment="Right" Margin="8" Click="DatasetInfoButton_Click">OK</Button>
         </Grid>
-        <Line Name="IndexLine" Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" X2="0" Y1="0" Y2="0" Panel.ZIndex="1" HorizontalAlignment="Center" VerticalAlignment="Stretch"
+        <Grid Name="MainFrame" Grid.Row="0" Grid.Column="0" MouseUp="MainFrame_MouseUp" MouseDown="MainFrame_MouseDown"
+                      MouseMove="MainFrame_MouseMove" Background="White">
+            <Grid Name="VerticalGrid" IsHitTestVisible="False" />
+            <Canvas Name="GridLabels" VerticalAlignment="Bottom" HorizontalAlignment="Center" Height="33" IsHitTestVisible="False" />
+            <Canvas Name="HorizontalGrid" IsHitTestVisible="False" />
+            <ScrollViewer Name="Viewer" HorizontalScrollBarVisibility="Visible" ScrollChanged="Viewer_ScrollChanged"
+                          SizeChanged="Viewer_SizeChanged" VerticalScrollBarVisibility="Disabled">
+                <Grid Name="ViewerGrid" HorizontalAlignment="Left" VerticalAlignment="Stretch">
+                    <Grid.ContextMenu>
+                        <ContextMenu Opened="ViewerGridContextMenu_Opened">
+                            <MenuItem Name="AddChannel" Header="Add channel"/>
+                            <MenuItem Header="Remove channel " Click="MenuItemRemove_Click" />
+                            <Separator/>
+                            <MenuItem Header="Create entry note" Click="MenuItemMakeNote_Click"/>
+                            <Separator/>
+                            <MenuItem Header="Begin marking segment" Click="MenuItemBeginMark_Click"/>
+                            <MenuItem Name="RemoveSeg" Header="Remove marked segment" Click="MenuItemRemoveMark_Click"/>
+                            <Separator/>
+                            <MenuItem Header="Print window" Click="MenuItemPrint_Click" />
+                        </ContextMenu>
+                    </Grid.ContextMenu>
+                    <Canvas Name="ViewerCanvas">
+                        <local:MarkerCanvasClass x:Name="MarkerCanvas" Panel.ZIndex="100"/>
+<!--                    <Line Fill="Red" Stroke="Black" Canvas.Top="100" Canvas.Left="100" X1="0" X2="100" Y1="100" Y2="-100" ClipToBounds="False" />--> 
+                    </Canvas>
+                </Grid>
+           </ScrollViewer>
+            <Line Name="IndexLine" X2="0" Y1="0" Y2="0" Panel.ZIndex="1" HorizontalAlignment="Center" VerticalAlignment="Stretch"
               IsHitTestVisible="False" Stroke="Red" StrokeDashArray="3,2" />
-        <Canvas Name="GridLabels" Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" VerticalAlignment="Bottom" HorizontalAlignment="Center" Height="33"/>
-        <TextBlock Name="Loc" Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" FontSize="14" Padding="0,0,0,16" TextAlignment="Center" HorizontalAlignment="Center" VerticalAlignment="Bottom" Foreground="Red">0.000</TextBlock>
-        <Canvas Name="ChannelLabels" Grid.Row="0" Grid.Column="0" >
-            <Canvas.Resources>
-                <Style TargetType="TextBlock">
-                    <Setter Property="FontSize" Value="14"/>
-                    <Setter Property="FontWeight" Value="ExtraBold"/>
-                    <Setter Property="Foreground" Value="Tomato"/>
-                    <Setter Property="Padding" Value="5,0,0,0"/>
-                </Style>
-            </Canvas.Resources>
-        </Canvas>
-        <ScrollViewer Name="Viewer" Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" HorizontalScrollBarVisibility="Visible" ScrollChanged="Viewer_ScrollChanged"
-                     SizeChanged="Viewer_SizeChanged" VerticalScrollBarVisibility="Disabled">
-            <Grid Name="ViewerGrid" HorizontalAlignment="Left" VerticalAlignment="Stretch" MouseUp="ViewerGrid_MouseUp" MouseDown="ViewerGrid_MouseDown" MouseMove="ViewerGrid_MouseMove">
-                <Grid.ContextMenu>
-                    <ContextMenu Opened="ViewerGridContextMenu_Opened">
-                        <MenuItem Name="AddChannel" Header="Add channel"/>
-                        <MenuItem Header="Remove channel " Click="MenuItemRemove_Click" />
-                        <Separator/>
-                        <MenuItem Header="Create entry note" Click="MenuItemMakeNote_Click"/>
-                        <Separator/>
-                        <MenuItem Header="Begin marking segment" Click="MenuItemBeginMark_Click"/>
-                        <MenuItem Name="RemoveSeg" Header="Remove marked segment" Click="MenuItemRemoveMark_Click"/>
-                        <Separator/>
-                        <MenuItem Header="Print window" Click="MenuItemPrint_Click" />
-                    </ContextMenu>
-                </Grid.ContextMenu>
-                <Canvas Name="ViewerCanvas">
-                    <local:MarkerCanvasClass x:Name="MarkerCanvas" Panel.ZIndex="100"/>
-<!--                    <Line Fill="Red" Stroke="Black" Canvas.Top="100" Canvas.Left="100" X1="0" X2="100" Y1="-100" Y2="200" ClipToBounds="False" />-->
-                </Canvas>
-            </Grid>
-       </ScrollViewer>
-        <Grid Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" HorizontalAlignment="Stretch">
+            <TextBlock Name="Loc" FontSize="14" Padding="0,0,0,16" TextAlignment="Center" HorizontalAlignment="Center" VerticalAlignment="Bottom" Foreground="Red" IsHitTestVisible="False" >0.000</TextBlock>
+            <Canvas Name="ChannelLabels" IsHitTestVisible="False" >
+                <Canvas.Resources>
+                    <Style TargetType="TextBlock">
+                        <Setter Property="FontSize" Value="14"/>
+                        <Setter Property="FontWeight" Value="ExtraBold"/>
+                        <Setter Property="Foreground" Value="Tomato"/>
+                        <Setter Property="Padding" Value="5,0,0,0"/>
+                    </Style>
+                </Canvas.Resources>
+            </Canvas>
+        </Grid> <!--End of MainFrame-->
+        <Grid Grid.Row="1" Grid.Column="0" HorizontalAlignment="Stretch"> <!--Begin control region-->
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>

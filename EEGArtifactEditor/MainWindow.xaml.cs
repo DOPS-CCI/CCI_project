@@ -133,15 +133,14 @@ namespace EEGArtifactEditor
                 Line l = new Line();
                 Grid.SetRow(l, 0);
                 Grid.SetColumn(l, 0);
-                Grid.SetColumnSpan(l, 2);
                 l.Y1 = 0D;
                 l.HorizontalAlignment = HorizontalAlignment.Left;
                 l.VerticalAlignment = VerticalAlignment.Stretch;
                 l.IsHitTestVisible = false;
                 l.Stroke = Brushes.LightBlue;
                 l.Visibility = Visibility.Hidden;
-                Panel.SetZIndex(l, int.MinValue);
-                MainFrame.Children.Add(l);
+                Panel.SetZIndex(l, int.MaxValue);
+                VerticalGrid.Children.Add(l);
                 gridlines[i] = l;
             }
 
@@ -236,7 +235,7 @@ namespace EEGArtifactEditor
         Point currentDragLocation;
         double startDragScrollLocation;
         int graphNumber;
-        private void ViewerGrid_MouseDown(object sender, MouseButtonEventArgs e)
+        private void MainFrame_MouseDown(object sender, MouseButtonEventArgs e)
         {
             Console.WriteLine("In ViewerGrid_MouseDown with Left=" + e.LeftButton.ToString() + ", Right=" + e.RightButton.ToString() +
                 ", InDrag=" + InDrag + ", Src=" + e.OriginalSource);
@@ -251,9 +250,8 @@ namespace EEGArtifactEditor
                         e.Handled = true;
                         return;
                     }
-                    else
+                    else //display popup channel info window
                     {
-                        //display popup channel info window
                         graphNumber = (int)(e.GetPosition(ViewerGrid).Y / ChannelCanvas.nominalCanvasHeight);
                         if (graphNumber >= currentChannelList.Count) return;
                         int channel = currentChannelList[graphNumber]._channel;
@@ -283,11 +281,11 @@ namespace EEGArtifactEditor
                 ViewerGrid.CaptureMouse();
                 e.Handled = true;
             }
-            else
+            else //must be a right mouse button press; pass it on
                 e.Handled = false;
         }
 
-        private void ViewerGrid_MouseUp(object sender, MouseButtonEventArgs e)
+        private void MainFrame_MouseUp(object sender, MouseButtonEventArgs e)
         {
             Console.WriteLine("In ViewerGrid_MouseUp with Changed=" + e.ChangedButton + ", PopUpOpen=" + channelPopup.IsOpen +
                 ", InDrag=" + InDrag + ", Src=" + e.OriginalSource);
@@ -297,14 +295,12 @@ namespace EEGArtifactEditor
                 if (channelPopup.IsOpen)
                 {
                     channelPopup.IsOpen = false;
-                    ViewerGrid.ReleaseMouseCapture();
                 }
                 else if (InDrag)
                 {
                     timer.Stop();
                     InDrag = false;
                     Point loc = e.GetPosition(Viewer);
-                    ViewerGrid.ReleaseMouseCapture();
                     if (Math.Abs(loc.X - currentDragLocation.X) > 0D)
                         Viewer.ScrollToHorizontalOffset(startDragScrollLocation + startDragMouseLocation.X - loc.X);
                 }
@@ -313,6 +309,7 @@ namespace EEGArtifactEditor
                     e.Handled = false;
                     return;
                 }
+                Mouse.Capture(null);
                 e.Handled = true;
             }
             else
@@ -320,7 +317,7 @@ namespace EEGArtifactEditor
         }
 
         const double TDThreshold = 5D;
-        private void ViewerGrid_MouseMove(object sender, MouseEventArgs e)
+        private void MainFrame_MouseMove(object sender, MouseEventArgs e)
         {
             if (!InDrag) { e.Handled = false; return; }
             Point loc = e.GetPosition(Viewer);
@@ -397,11 +394,12 @@ namespace EEGArtifactEditor
             double incr = ChannelCanvas.nominalCanvasHeight * XScaleSecsToInches;
             double location = incr / 2D;
             ChannelLabels.Children.Clear();
+            HorizontalGrid.Children.Clear();
             foreach (ChannelCanvas cc in currentChannelList)
             {
                 Canvas.SetTop(cc._channelLabel, location - 10D);
                 Canvas.SetTop(cc.baseline, location);
-                ChannelLabels.Children.Add(cc.baseline);
+                HorizontalGrid.Children.Add(cc.baseline);
                 ChannelLabels.Children.Add(cc._channelLabel);
                 location += incr;
             }
@@ -539,8 +537,9 @@ namespace EEGArtifactEditor
                     Math.Abs((cc.overallMax - cc.overallMin) * (cc.newScale - cc.currentScale)) > 1D || //if scale changes sufficiently or...
                     Math.Abs((cc.newOffset - cc.currentOffset) / (cc.overallMax - cc.overallMin)) > scaleDelta &&
                     Math.Abs((cc.newOffset - cc.currentOffset) * cc.newScale) > 1D || //if offset changes sufficiently or...
-                    Math.Abs(ChannelCanvas.nominalCanvasHeight - cc.Height * XScaleSecsToInches) > 0.05; //if there has been a change in CanvasHeight
+                    Math.Abs(ChannelCanvas.nominalCanvasHeight - cc.ActualHeight / XScaleSecsToInches)/ChannelCanvas.nominalCanvasHeight > 0.05; //if there has been a change in CanvasHeight
 
+//                bool rescale = cc.newScale != cc.currentOffset || cc.newOffset != cc.currentOffset; //simple criteria
                 //only redraw if Y-scale has changed sufficiently, decimation changed, points have been removed, or there's no overlap
                 if (rescale || cc.needsRedraw)
                 {
@@ -556,7 +555,7 @@ namespace EEGArtifactEditor
                     ctx.Close();
                }
                 cc.Height = cc.currentScale * ChannelCanvas.nominalCanvasHeight / XScaleSecsToInches;
-                Canvas.SetTop(cc, ((double)graphNumber - cc.currentScale + 1D) * ChannelCanvas.nominalCanvasHeight);
+                Canvas.SetTop(cc, ((double)graphNumber - (cc.currentScale - 1D) / 2) * ChannelCanvas.nominalCanvasHeight);
             }
             this.Cursor = Cursors.Arrow;
         }
@@ -662,19 +661,19 @@ namespace EEGArtifactEditor
             if (xpsdw != null)
             {
                 PrintTicket pt = new PrintTicket();
-                ScrollViewer MainFrame = Viewer; //temporary
-                pt.PageOrientation = MainFrame.ActualHeight < MainFrame.ActualWidth ?
+                Grid PrintedRegion = MainFrame; //temporary
+                pt.PageOrientation = PrintedRegion.ActualHeight < PrintedRegion.ActualWidth ?
                     PageOrientation.Landscape : PageOrientation.Portrait; //choose orientation to maximize size
 
-                double scale = Math.Max(area.ExtentHeight, area.ExtentWidth) / Math.Max(MainFrame.ActualHeight, MainFrame.ActualWidth); //scale to fit orientation
-                scale = Math.Min(Math.Min(area.ExtentHeight, area.ExtentWidth) / Math.Min(MainFrame.ActualHeight, MainFrame.ActualWidth), scale);
-                MainFrame.RenderTransform = new MatrixTransform(scale, 0D, 0D, scale, area.OriginWidth, area.OriginHeight);
-                MainFrame.UpdateLayout();
+                double scale = Math.Max(area.ExtentHeight, area.ExtentWidth) / Math.Max(PrintedRegion.ActualHeight, PrintedRegion.ActualWidth); //scale to fit orientation
+                scale = Math.Min(Math.Min(area.ExtentHeight, area.ExtentWidth) / Math.Min(PrintedRegion.ActualHeight, PrintedRegion.ActualWidth), scale);
+                PrintedRegion.RenderTransform = new MatrixTransform(scale, 0D, 0D, scale, area.OriginWidth, area.OriginHeight);
+                PrintedRegion.UpdateLayout();
 
-                xpsdw.Write(MainFrame, pt);
+                xpsdw.Write(PrintedRegion, pt);
 
-                MainFrame.RenderTransform = Transform.Identity; //return to normal size
-                MainFrame.UpdateLayout();
+                PrintedRegion.RenderTransform = Transform.Identity; //return to normal size
+                PrintedRegion.UpdateLayout();
             }
         }
 
@@ -761,6 +760,7 @@ namespace EEGArtifactEditor
         {
             Environment.Exit(0);
         }
+
     }
 
     internal class ChannelCanvas : Canvas
@@ -824,10 +824,9 @@ namespace EEGArtifactEditor
             Panel.SetZIndex(path, 0);
             this.Children.Add(path);
             baseline.X1 = 0;
-            baseline.X2 = bdf.RecordDurationDouble * bdf.NumberOfRecords;
+            baseline.X2 = 3000; //should be plenty long enough!!!
             baseline.VerticalAlignment = VerticalAlignment.Center;
             baseline.Stroke = Brushes.LightBlue;
-            Panel.SetZIndex(baseline, int.MinValue);
         }
         
         //This routine creates a new entry in the list of plotted points (FilePointList) based on data
@@ -886,12 +885,13 @@ namespace EEGArtifactEditor
         internal void rescalePoints()
         {
             double c1 = nominalCanvasHeight / ChannelYScale; // nominalCanvasHeight is alread scaled by XScaleSecsToInches
+            double c2 = nominalCanvasHeight / 2 + c1 * currentOffset;
             pointList.Clear();
             foreach(FilePoint fp in FilePointList)
             {
-                pointList.Add(new Point(fp.first.X, c1 * (overallMax - fp.first.Y)));
+                pointList.Add(new Point(fp.first.X, c2 - c1 * fp.first.Y));
                 if (fp.SecondValid)
-                    pointList.Add(new Point(fp.second.X, c1 * (overallMax - fp.second.Y)));
+                    pointList.Add(new Point(fp.second.X, c2 - c1 * fp.second.Y));
             }
         }
 
@@ -941,6 +941,7 @@ namespace EEGArtifactEditor
             Canvas.SetLeft(r, startLocation);
             Children.Add(r);
             _startLocation = startLocation;
+
             this.CaptureMouse();
         }
 
@@ -970,7 +971,7 @@ namespace EEGArtifactEditor
         {
             if (!InMarkRegion || e.ChangedButton != MouseButton.Right) { e.Handled = false; return; }
             InMarkRegion = false;
-            this.ReleaseMouseCapture();
+            Mouse.Capture(null);
             double left = Canvas.GetLeft(r); //left and right track the location of the marked region, ...
             double right = left + r.Width; // increased in size as needed to account for overlaps with exisiting regions
 
