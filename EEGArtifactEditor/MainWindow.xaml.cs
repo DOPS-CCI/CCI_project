@@ -36,7 +36,6 @@ namespace EEGArtifactEditor
     {
         const double ScrollBarSize = 17D;
         public double BDFLength;
-//        public double ChannelYScale;
         public static double XScaleSecsToInches;
         public double currentDisplayWidthInSecs = 10D;
         public double currentDisplayOffsetInSecs = 0D;
@@ -56,8 +55,6 @@ namespace EEGArtifactEditor
 
         internal Window2 notes;
         internal string noteFilePath;
-
-        internal double[,] BDFData;
 
         public MainWindow()
         {
@@ -90,8 +87,6 @@ namespace EEGArtifactEditor
             Log.writeToLog("Starting EEGArtifactEditor " + Assembly.GetExecutingAssembly().GetName().Version.ToString() +
                 " on dataset " + directory);
             ViewerGrid.Width = BDFLength;
-            //Initialize marker canvas
-//            MarkerCanvas = new MarkerCanvasClass(ViewerGrid);
 
             //initialize the individual channel canvases
 
@@ -172,21 +167,6 @@ namespace EEGArtifactEditor
 
             noteFilePath = System.IO.Path.Combine(directory,System.IO.Path.ChangeExtension(header.BDFFile,".notes.txt"));
 
-/*            BDFEDFRecord record;
-            int ns = bdf.NumberOfSamples(0);
-            BDFData = new double[bdf.NumberOfChannels, bdf.NumberOfRecords * ns];
-            int ptNum = 0;
-            for (int recNum = 0; recNum < bdf.NumberOfRecords; recNum++)
-            {
-                record = bdf.read(recNum);
-                for (int sampNum = 0; sampNum < ns; sampNum++)
-                {
-                    for (int chanNum = 0; chanNum < bdf.NumberOfChannels; chanNum++)
-                        BDFData[chanNum, ptNum] = record.getConvertedPoint(chanNum, sampNum);
-                    ptNum++;
-                }
-            }
-*/
             //from here on the program is GUI-event driven
         }
 
@@ -235,10 +215,14 @@ namespace EEGArtifactEditor
         Point currentDragLocation;
         double startDragScrollLocation;
         int graphNumber;
-        private void MainFrame_MouseDown(object sender, MouseButtonEventArgs e)
+        ContextMenu savedCM;
+        private void MainFrame_PreviewMouseDown(object sender, MouseButtonEventArgs e)
         {
-            Console.WriteLine("In ViewerGrid_MouseDown with Left=" + e.LeftButton.ToString() + ", Right=" + e.RightButton.ToString() +
-                ", InDrag=" + InDrag + ", Src=" + e.OriginalSource);
+#if DEBUG
+            Console.WriteLine("In MainFrame_PreviewMouseDown with Left=" + e.LeftButton.ToString() + ", Right=" + e.RightButton.ToString() +
+                ", InDrag=" + InDrag + ", Src=" + e.OriginalSource + ", Marker=" + MarkerCanvas.InMarkRegion);
+#endif
+            if (MainFrame.ActualHeight - ScrollBarSize <= e.GetPosition(MainFrame).Y) { e.Handled = false; return; } //pass on clicks on scrollbar
             if (e.LeftButton == MouseButtonState.Pressed)
             {
                 if ((Keyboard.Modifiers & ModifierKeys.Control) > 0)
@@ -247,8 +231,6 @@ namespace EEGArtifactEditor
                     {
                         DatasetInfoPanel.Visibility = Visibility.Visible;
                         DatasetInfoPanel.Focus();
-                        e.Handled = true;
-                        return;
                     }
                     else //display popup channel info window
                     {
@@ -272,23 +254,41 @@ namespace EEGArtifactEditor
                 }
                 else //start dragging operation
                 {
-                    InDrag = true;
-                    startDragMouseLocation = currentDragLocation = e.GetPosition(Viewer);
-                    startDragScrollLocation = Viewer.ContentHorizontalOffset;
-                    timerCount = 0D;
-                    timer.Start();
+                    if (InDrag) //shouldn't happen, but this will reset
+                    {
+                        InDrag = false;
+                        Mouse.Capture(null);
+#if DEBUG
+                        Console.WriteLine("*****End drag: BAD CLICK");
+#endif
+                    }
+                    else
+                    {
+                        Mouse.Capture(Viewer);
+                        startDragMouseLocation = currentDragLocation = e.GetPosition(Viewer);
+                        startDragScrollLocation = Viewer.ContentHorizontalOffset;
+#if DEBUG
+                        Console.WriteLine("*****Start drag: Scroll=" + startDragScrollLocation + ", Mouse=" + startDragMouseLocation.X);
+#endif
+                        timerCount = 0D;
+                        timer.Start();
+                        InDrag = true;
+                    }
                 }
-                ViewerGrid.CaptureMouse();
                 e.Handled = true;
             }
             else //must be a right mouse button press; pass it on
+            {
                 e.Handled = false;
+            }
         }
 
-        private void MainFrame_MouseUp(object sender, MouseButtonEventArgs e)
+        private void MainFrame_PreviewMouseUp(object sender, MouseButtonEventArgs e)
         {
-            Console.WriteLine("In ViewerGrid_MouseUp with Changed=" + e.ChangedButton + ", PopUpOpen=" + channelPopup.IsOpen +
-                ", InDrag=" + InDrag + ", Src=" + e.OriginalSource);
+#if DEBUG
+            Console.WriteLine("In MainFrame_PreviewMouseUp with Changed=" + e.ChangedButton + ", PopUpOpen=" + channelPopup.IsOpen +
+                ", InDrag=" + InDrag + ", Marking=" + MarkerCanvas.InMarkRegion);
+#endif
 
             if (e.ChangedButton == MouseButton.Left)
             {
@@ -298,37 +298,80 @@ namespace EEGArtifactEditor
                 }
                 else if (InDrag)
                 {
-                    timer.Stop();
                     InDrag = false;
+                    timer.Stop();
+                    Mouse.Capture(null);
                     Point loc = e.GetPosition(Viewer);
                     if (Math.Abs(loc.X - currentDragLocation.X) > 0D)
                         Viewer.ScrollToHorizontalOffset(startDragScrollLocation + startDragMouseLocation.X - loc.X);
+#if DEBUG
+                    Console.WriteLine("*****End drag: Mouse=" + loc.X);
+#endif
                 }
                 else
                 {
                     e.Handled = false;
                     return;
                 }
-                Mouse.Capture(null);
+                e.Handled = true;
+            }
+            else //must be right button up
+            {
+                e.Handled = false;
+            }
+        }
+
+        private void MainFrame_MouseUp(object sender, MouseButtonEventArgs e)
+        {
+#if DEBUG
+            Console.WriteLine("In MainFrame_MouseUp with Button=" + e.ChangedButton + ", Marker=" + MarkerCanvas.InMarkRegion);
+#endif
+            if (e.ChangedButton == MouseButton.Right && MarkerCanvas.InMarkRegion) 
+            { //coming out of marking region
+                MarkerCanvas.DoPreviewMouseUp(sender, e);
+                MarkerCanvas.InMarkRegion = false;
+                ViewerGrid.ContextMenu = savedCM; //this has to be done in non-Preview: restore context menu 
                 e.Handled = true;
             }
             else
                 e.Handled = false;
         }
 
+#if DEBUG
+        long count = 0;
+#endif
         const double TDThreshold = 5D;
-        private void MainFrame_MouseMove(object sender, MouseEventArgs e)
+        private void MainFrame_PreviewMouseMove(object sender, MouseEventArgs e)
         {
-            if (!InDrag) { e.Handled = false; return; }
-            Point loc = e.GetPosition(Viewer);
-            double distance = Math.Abs(loc.X - currentDragLocation.X);
-//            if (timerCount * distance > TDThreshold) //wait until mouse has moved more than a few pixels
+#if DEBUG
+            if (count++ % 100 == 0)
+                Console.WriteLine("In MainFrame_PreviewMouseMove with InDrag=" + InDrag + ", Mark=" + MarkerCanvas.InMarkRegion);
+#endif
+            if (InDrag)
             {
-                currentDragLocation = loc;
-                timerCount = 0D;
-                Viewer.ScrollToHorizontalOffset(startDragScrollLocation + startDragMouseLocation.X - loc.X);
+                Point loc = e.GetPosition(Viewer);
+                double distance = Math.Abs(loc.X - currentDragLocation.X);
+                if (timerCount * distance > TDThreshold) //wait until mouse has moved more than a few pixels
+                {
+                    timerCount = 0D;
+                    currentDragLocation = loc;
+                    Viewer.ScrollToHorizontalOffset(startDragScrollLocation + startDragMouseLocation.X - loc.X);
+#if DEBUG
+                    Console.WriteLine("*****In drag: Mouse=" + loc.X);
+#endif
+                }
+                e.Handled = true;
             }
-            e.Handled = true;
+            else //InDrag == false
+            {
+                if (MarkerCanvas.InMarkRegion)
+                { //not in drag and in marking region
+                    MarkerCanvas.DoMouseMove(sender, e);
+                    e.Handled = true;
+                }
+                else
+                    e.Handled = false;
+            }
         }
 
         static double timerCount = 0;
@@ -523,7 +566,7 @@ namespace EEGArtifactEditor
                             }
 
             //Now, we've got the points we need to plot each of the channels
-            for (int graphNumber = 0; graphNumber < chans.Count;graphNumber++ )
+            for (int graphNumber = 0; graphNumber < chans.Count ;graphNumber++ )
             {
                 ChannelCanvas cc = chans[graphNumber];
                 //calculate new scale and offset
@@ -645,6 +688,9 @@ namespace EEGArtifactEditor
 
         private void MenuItemBeginMark_Click(object sender, RoutedEventArgs e)
         {
+            savedCM = ViewerGrid.ContextMenu;
+            ViewerGrid.ContextMenu = null;
+            MarkerCanvas.InMarkRegion = true; //do it here to pair with disabling context menu
             MarkerCanvas.beginMarkRegion(rightMouseClickLoc.X);
         }
 
@@ -903,7 +949,12 @@ namespace EEGArtifactEditor
 
     public class MarkerCanvasClass : Canvas
     {
-        bool InMarkRegion = false;
+        bool _InMarkRegion;
+        public bool InMarkRegion
+        {
+            get { return _InMarkRegion; }
+            set { _InMarkRegion = value; }
+        }
         double _startLocation;
         Rectangle r;
         List<MarkerRectangle> markedRegions = new List<MarkerRectangle>();
@@ -911,25 +962,15 @@ namespace EEGArtifactEditor
         public MarkerCanvasClass()
             : base()
         {
-            MouseMove += new MouseEventHandler(MarkerCanvasClass_MouseMove);
-            MouseUp += new MouseButtonEventHandler(MarkerCanvasClass_MouseButtonEvent);
+//            MouseMove += MarkerCanvasClass_MouseMove;
+//            PreviewMouseUp += MarkerCanvasClass_PreviewMouseUp;
         }
 
-/*        public MarkerCanvasClass(Panel viewGrid)
-            : base()
-        {
-            HorizontalAlignment = HorizontalAlignment.Stretch;
-            VerticalAlignment = VerticalAlignment.Stretch;
-            Canvas.SetTop(this, 0);
-            Canvas.SetLeft(this, 0);
-            _viewGrid = viewGrid;
-            viewGrid.Children.Add(this);
-
-        }
-*/
         public void beginMarkRegion(double startLocation)
         {
-            InMarkRegion = true;
+#if DEBUG
+            Console.WriteLine("In beginMarkRegion");
+#endif
             r = new Rectangle();
             r.Fill = Brushes.Red;
             Binding b = new Binding("ActualHeight");
@@ -941,37 +982,26 @@ namespace EEGArtifactEditor
             Canvas.SetLeft(r, startLocation);
             Children.Add(r);
             _startLocation = startLocation;
-
-            this.CaptureMouse();
         }
 
-        void MarkerCanvasClass_MouseMove(object sender, MouseEventArgs e)
+        internal void DoMouseMove(object sender, MouseEventArgs e)
         {
-            if (InMarkRegion)
+            Point p = e.MouseDevice.GetPosition(this);
+            double newWidth = p.X - _startLocation;
+            if (newWidth >= 0)
             {
-                Point p = e.MouseDevice.GetPosition(this);
-                double newWidth = p.X - _startLocation;
-                if (newWidth >= 0)
-                {
-                    Canvas.SetLeft(r, _startLocation);
-                    r.Width = newWidth;
-                }
-                else
-                {
-                    Canvas.SetLeft(r, _startLocation + newWidth);
-                    r.Width = -newWidth;
-                }
-                e.Handled = true;
+                Canvas.SetLeft(r, _startLocation);
+                r.Width = newWidth;
             }
             else
-                e.Handled = false;
+            {
+                Canvas.SetLeft(r, _startLocation + newWidth);
+                r.Width = -newWidth;
+            }
         }
 
-        void MarkerCanvasClass_MouseButtonEvent(object sender, MouseButtonEventArgs e)
+        internal void DoPreviewMouseUp(object sender, MouseButtonEventArgs e)
         {
-            if (!InMarkRegion || e.ChangedButton != MouseButton.Right) { e.Handled = false; return; }
-            InMarkRegion = false;
-            Mouse.Capture(null);
             double left = Canvas.GetLeft(r); //left and right track the location of the marked region, ...
             double right = left + r.Width; // increased in size as needed to account for overlaps with exisiting regions
 
@@ -1020,7 +1050,6 @@ namespace EEGArtifactEditor
                 current.rect.Width = right - left;
                 Canvas.SetLeft(current.rect, left);
             }
-            e.Handled = true;
         }
 
         internal MarkerRectangle FindRegion(double v)

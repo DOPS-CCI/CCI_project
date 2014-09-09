@@ -29,14 +29,14 @@
             </GroupBox>
             <Button Grid.Column="1" Grid.Row="1" IsDefault="True" Height="28" Width="80" HorizontalAlignment="Right" Margin="8" Click="DatasetInfoButton_Click">OK</Button>
         </Grid>
-        <Grid Name="MainFrame" Grid.Row="0" Grid.Column="0" MouseUp="MainFrame_MouseUp" MouseDown="MainFrame_MouseDown"
-                      MouseMove="MainFrame_MouseMove" Background="White">
+        <Grid Name="MainFrame" Grid.Row="0" Grid.Column="0" PreviewMouseDown="MainFrame_PreviewMouseDown" PreviewMouseUp="MainFrame_PreviewMouseUp"
+                      PreviewMouseMove="MainFrame_PreviewMouseMove" Background="White" MouseUp="MainFrame_MouseUp">
             <Grid Name="VerticalGrid" IsHitTestVisible="False" />
             <Canvas Name="GridLabels" VerticalAlignment="Bottom" HorizontalAlignment="Center" Height="33" IsHitTestVisible="False" />
             <Canvas Name="HorizontalGrid" IsHitTestVisible="False" />
             <ScrollViewer Name="Viewer" HorizontalScrollBarVisibility="Visible" ScrollChanged="Viewer_ScrollChanged"
                           SizeChanged="Viewer_SizeChanged" VerticalScrollBarVisibility="Disabled">
-                <Grid Name="ViewerGrid" HorizontalAlignment="Left" VerticalAlignment="Stretch">
+                <Grid Name="ViewerGrid" HorizontalAlignment="Left" VerticalAlignment="Stretch" Background="#00000000">
                     <Grid.ContextMenu>
                         <ContextMenu Opened="ViewerGridContextMenu_Opened">
                             <MenuItem Name="AddChannel" Header="Add channel"/>
@@ -51,12 +51,12 @@
                         </ContextMenu>
                     </Grid.ContextMenu>
                     <Canvas Name="ViewerCanvas">
-                        <local:MarkerCanvasClass x:Name="MarkerCanvas" Panel.ZIndex="100"/>
+                        <local:MarkerCanvasClass x:Name="MarkerCanvas"/>
 <!--                    <Line Fill="Red" Stroke="Black" Canvas.Top="100" Canvas.Left="100" X1="0" X2="100" Y1="100" Y2="-100" ClipToBounds="False" />--> 
                     </Canvas>
                 </Grid>
            </ScrollViewer>
-            <Line Name="IndexLine" X2="0" Y1="0" Y2="0" Panel.ZIndex="1" HorizontalAlignment="Center" VerticalAlignment="Stretch"
+            <Line Name="IndexLine" X2="0" Y1="0" Y2="0" HorizontalAlignment="Center" VerticalAlignment="Stretch"
               IsHitTestVisible="False" Stroke="Red" StrokeDashArray="3,2" />
             <TextBlock Name="Loc" FontSize="14" Padding="0,0,0,16" TextAlignment="Center" HorizontalAlignment="Center" VerticalAlignment="Bottom" Foreground="Red" IsHitTestVisible="False" >0.000</TextBlock>
             <Canvas Name="ChannelLabels" IsHitTestVisible="False" >
