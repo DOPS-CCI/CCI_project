@@ -97,6 +97,7 @@ namespace EEGArtifactEditor
                     ChannelCanvas cc = new ChannelCanvas(this, i);
                     cc.AddToCanvas();
                     ViewerCanvas.Children.Add(cc);
+                    ViewerCanvas.Children.Add(cc.markedRegions);
                     candidateChannelList.Add(cc);
                 }
 
@@ -598,12 +599,79 @@ namespace EEGArtifactEditor
                     ctx.Close();
                }
                 cc.Height = cc.currentScale * ChannelCanvas.nominalCanvasHeight / XScaleSecsToInches;
-                Canvas.SetTop(cc, ((double)graphNumber - (cc.currentScale - 1D) / 2) * ChannelCanvas.nominalCanvasHeight);
+                Canvas.SetTop(cc, ((double)graphNumber - (cc.currentScale - 1D) / 4) * ChannelCanvas.nominalCanvasHeight);
+                markChannelRegions(cc, ChannelCanvas.ChannelYScale / 2D);
             }
             this.Cursor = Cursors.Arrow;
+        } //End redrawChannels
+
+        void markChannelRegions(ChannelCanvas cc, double threshold)
+        {
+            cc.markedRegions.Children.Clear();
+            cc.markedRegions.Height = ChannelCanvas.nominalCanvasHeight;
+
+            double upperThr = cc.currentOffset + threshold;
+            double lowerThr = cc.currentOffset - threshold;
+            bool InBadRegion = false;
+            double rectLeft = 0;
+            double rectRight = 0;
+            foreach (FilePoint fp in cc.FilePointList)
+            {
+                if (fp.first.Y > upperThr || fp.first.Y < lowerThr)
+                {
+                    if (InBadRegion)
+                        rectRight = fp.SecondValid ? fp.second.X : fp.first.X;
+                    else
+                    {
+                        InBadRegion = true;
+                        rectLeft = fp.first.X;
+                        rectRight = fp.SecondValid ? fp.second.X : fp.first.X;
+                    }
+                    continue;
+                }
+                else
+                    if (InBadRegion)
+                    {
+                        addNewCCRect(cc, rectLeft, rectRight);
+                        InBadRegion = false;
+                    }
+                if (fp.SecondValid)
+                    if (fp.second.Y > upperThr || fp.second.Y < lowerThr)
+                    {
+                        if (InBadRegion)
+                            rectRight = fp.second.X;
+                        else
+                        {
+                            InBadRegion = true;
+                            rectLeft = fp.first.X;
+                            rectRight = fp.second.X;
+                        }
+                    }
+                    else
+                        if (InBadRegion)
+                        {
+                            addNewCCRect(cc, rectLeft, rectRight);
+                            InBadRegion = false;
+                        }
+            }
+
+            Canvas.SetTop(cc.markedRegions, currentChannelLocation(cc._channel) * ChannelCanvas.nominalCanvasHeight);
         }
 
-//----> Handle Viewer context menu clicks
+        void addNewCCRect(ChannelCanvas cc, double left, double right)
+        {
+            if (left == right) return; //can't mark single value -- unlikely to occur
+            Rectangle r = new Rectangle();
+            r.Opacity = 0.4;
+            r.Fill = Brushes.Green;
+            r.Width = right - left;
+            r.Height = ChannelCanvas.nominalCanvasHeight;
+            Canvas.SetTop(r, 0);
+            Canvas.SetLeft(r, left);
+            cc.markedRegions.Children.Add(r);
+        }
+
+        //----> Handle Viewer context menu clicks
         Point rightMouseClickLoc;
         private void ViewerGridContextMenu_Opened(object sender, RoutedEventArgs e)
         {
@@ -652,7 +720,8 @@ namespace EEGArtifactEditor
             for (index = 0; index < currentChannelList.Count; index++)
                 if (currentChannelList[index]._channel > chan) break;
             currentChannelList.Insert(index, cc);
-            ViewerCanvas.Children.Insert(index, cc);
+            ViewerCanvas.Children.Add(cc); //order doesn't make a difference
+            ViewerCanvas.Children.Add(cc.markedRegions);
             ChannelCanvas.nominalCanvasHeight = ViewerGrid.ActualHeight / currentChannelList.Count;
             ChannelCanvas.decimateOld = -1;
             reDrawChannelLabels();
@@ -666,6 +735,7 @@ namespace EEGArtifactEditor
                 ChannelCanvas cc = currentChannelList[graphNumber];             
                 currentChannelList.Remove(cc);
                 ViewerCanvas.Children.Remove(cc);
+                ViewerCanvas.Children.Remove(cc.markedRegions);
                 ChannelCanvas.nominalCanvasHeight = ViewerGrid.ActualHeight / currentChannelList.Count;
                 reDrawChannelLabels();
                 reDrawChannels();
@@ -807,6 +877,10 @@ namespace EEGArtifactEditor
             Environment.Exit(0);
         }
 
+        internal int currentChannelLocation(int channelNumber)
+        {
+            return currentChannelList.FindIndex(c => c._channel == channelNumber);
+        }
     }
 
     internal class ChannelCanvas : Canvas
@@ -814,7 +888,9 @@ namespace EEGArtifactEditor
         internal int _channel;
         internal TextBlock _channelLabel;
         internal StreamGeometry geometry = new StreamGeometry();
+        internal Canvas markedRegions = new Canvas();
         internal System.Windows.Shapes.Path path = new System.Windows.Shapes.Path();
+        internal Line baseline = new Line();
 
         internal List<FilePoint> FilePointList = new List<FilePoint>(4096);
         internal List<Point> pointList = new List<Point>(4096);
@@ -852,7 +928,6 @@ namespace EEGArtifactEditor
             }
         }
 
-        internal Line baseline = new Line();
         public static double ChannelYScale = 50D;
 
         public ChannelCanvas(MainWindow containingWindow, int channelNumber)
@@ -860,6 +935,7 @@ namespace EEGArtifactEditor
         {
             _channel = channelNumber;
             this.Width = containingWindow.BDFLength; //NOTE: x-scale in seconds
+            markedRegions.Width = containingWindow.BDFLength;
             bdf = containingWindow.bdf;
             _channelLabel = new TextBlock(new Run(bdf.channelLabel(_channel)));
             this.VerticalAlignment = VerticalAlignment.Top;

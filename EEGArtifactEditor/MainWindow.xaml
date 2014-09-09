@@ -102,10 +102,17 @@
                 <TextBlock Text="Vertical scale: " FontWeight="Bold" FontSize="12" VerticalAlignment="Center"/>
                 <ComboBox Name="VerticalScale" FontWeight="Bold" FontSize="12" SelectionChanged="VerticalScale_SelectionChanged" Height="28" VerticalContentAlignment="Center">
                     <ComboBoxItem Tag="5">5uV</ComboBoxItem>
+                    <ComboBoxItem Tag="7.5">7.5uV</ComboBoxItem>
                     <ComboBoxItem Tag="10">10uV</ComboBoxItem>
+                    <ComboBoxItem Tag="15">15uV</ComboBoxItem>
                     <ComboBoxItem Tag="20">20uV</ComboBoxItem>
+                    <ComboBoxItem Tag="30">30uV</ComboBoxItem>
+                    <ComboBoxItem Tag="40">40uV</ComboBoxItem>
                     <ComboBoxItem IsSelected="True" Tag="50">50uV</ComboBoxItem>
+                    <ComboBoxItem Tag="60">60uV</ComboBoxItem>
+                    <ComboBoxItem Tag="75">75uV</ComboBoxItem>
                     <ComboBoxItem Tag="100">100uV</ComboBoxItem>
+                    <ComboBoxItem Tag="150">150uV</ComboBoxItem>
                     <ComboBoxItem Tag="200">200uV</ComboBoxItem>
                 </ComboBox>
             </StackPanel>
