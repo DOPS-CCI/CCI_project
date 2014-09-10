@@ -49,8 +49,6 @@ namespace EEGArtifactEditor
 
         internal List<ChannelCanvas> candidateChannelList = new List<ChannelCanvas>(0);
         internal List<ChannelCanvas> currentChannelList = new List<ChannelCanvas>(0); //list of currently displayed channels
-        internal EventDictionary.EventDictionary ED;
-        internal Dictionary<int, InputEvent> events = new Dictionary<int, Event.InputEvent>();
         internal Dictionary<string, ElectrodeRecord> electrodes;
 
         internal Window2 notes;
@@ -71,11 +69,9 @@ namespace EEGArtifactEditor
                 directory = System.IO.Path.GetDirectoryName(dlg.FileName); //will use to find other files in dataset
 
                 header = (new HeaderFileReader(dlg.OpenFile())).read();
-                ED = header.Events;
 
                 bdf = new BDFEDFFileReader(new FileStream(System.IO.Path.Combine(directory, header.BDFFile),
                         FileMode.Open, FileAccess.Read));
-                int samplingRate = bdf.NSamp / bdf.RecordDuration;
                 BDFLength = (double)bdf.NumberOfRecords * bdf.RecordDuration;
                 Window1 w = new Window1(this);
                 r = (bool)w.ShowDialog();
@@ -106,17 +102,6 @@ namespace EEGArtifactEditor
             Title = System.IO.Path.GetFileName(directory); //set window title
             BDFFileInfo.Content = bdf.ToString();
             HDRFileInfo.Content = header.ToString();
-            Event.EventFactory.Instance(header.Events); // set up the factory
-            EventFileReader efr = new EventFileReader(
-                new FileStream(System.IO.Path.Combine(directory, header.EventFile),
-                    FileMode.Open, FileAccess.Read)); // open Event file
-
-            foreach (Event.InputEvent ie in efr)// read in all Events into dictionary
-            {
-                if (!events.ContainsKey(ie.GC)) //quietly skip duplicates
-                    events.Add(ie.GC, ie);
-            }
-            efr.Close(); //now events is Dictionary of Events in the dataset; lookup by GC
 
             ElectrodeInputFileStream eif = new ElectrodeInputFileStream(
                 new FileStream(System.IO.Path.Combine(directory, header.ElectrodeFile),
@@ -869,7 +854,61 @@ namespace EEGArtifactEditor
 
         private void Finish_Click(object sender, RoutedEventArgs e)
         {
+            if (MarkerCanvas.markedRegions.Count != 0)
+            {
+                List<OutputEvent> events = new List<OutputEvent>();
+                Event.EventFactory.Instance(header.Events); // set up the factory, based on this Event dictionary
+                //and read them in
+                EventFileReader efr = new EventFileReader(
+                    new FileStream(System.IO.Path.Combine(directory, header.EventFile),
+                        FileMode.Open, FileAccess.Read)); // open Event file
 
+                foreach (InputEvent ie in efr)// read in all Events into dictionary
+                    events.Add(new OutputEvent(ie));
+                efr.Close(); //now events is Dictionary of Events in the dataset; lookup by GC
+
+                //Update header
+                EventDictionaryEntry ede1 = new EventDictionaryEntry();
+                ede1.intrinsic = null;
+                ede1.Description = "Beginning of artifact region";
+                EventDictionaryEntry ede2 = new EventDictionaryEntry();
+                ede2.intrinsic = null;
+                ede2.Description = "End of artifact region";
+                header.Events.Add("**ArtifactBegin", ede1);
+                header.Events.Add("**ArtifactEnd", ede2);
+                string newFileName = System.IO.Path.GetFileNameWithoutExtension(header.BDFFile) + @"_artifact"; //create new filename
+                header.EventFile = newFileName + ".evt";
+                //and write new header out
+                FileStream fs = new FileStream(System.IO.Path.Combine(directory, newFileName + ".hdr"), FileMode.OpenOrCreate, FileAccess.Write);
+                new HeaderFileWriter(fs, header); //write out new header
+
+                //set zeroTime for this BDF file, after finding an appropriate Event
+                foreach (OutputEvent ev in events)
+                    if (header.Events[ev.Name].intrinsic != null)
+                    {
+                        bdf.setZeroTime(ev);
+                        break;
+                    }
+
+                foreach (MarkerRectangle mr in MarkerCanvas.markedRegions)
+                {
+                    double eventTime = mr.leftEdge + bdf.zeroTime;
+                    int index = events.FindIndex(ev => ev.Time > eventTime);
+                    OutputEvent newOE = new OutputEvent(ede1, new DateTime((long)(eventTime * 1E7)), 0);
+                    events.Insert(index, newOE);
+                    eventTime = mr.rightEdge + bdf.zeroTime;
+                    index = events.FindIndex(ev => ev.Time > eventTime);
+                    newOE = new OutputEvent(ede2, new DateTime((long)(eventTime * 1E7)), 0);
+                    events.Insert(index, newOE);
+                }
+
+                EventFileWriter efw = new EventFileWriter(
+                    new FileStream(System.IO.Path.Combine(directory, newFileName + ".evt"), FileMode.Create, FileAccess.Write));
+                foreach (OutputEvent ev in events)
+                    efw.writeRecord(ev);
+                efw.Close();
+            }
+            Environment.Exit(0);
         }
 
         private void Cancel_Click(object sender, RoutedEventArgs e)
@@ -1033,7 +1072,7 @@ namespace EEGArtifactEditor
         }
         double _startLocation;
         Rectangle r;
-        List<MarkerRectangle> markedRegions = new List<MarkerRectangle>();
+        internal List<MarkerRectangle> markedRegions = new List<MarkerRectangle>();
 
         public MarkerCanvasClass()
             : base()
