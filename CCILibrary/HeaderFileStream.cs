@@ -286,8 +286,10 @@ namespace HeaderFileStream
                     if(gve.GVValueDictionary != null) // will be null if integer values just stand for themselves
                         foreach (KeyValuePair<string, int> i in gve.GVValueDictionary)
                         {
-                            xw.WriteElementString("GV", i.Value.ToString("0"));
+                            xw.WriteStartElement("GV");
                             xw.WriteAttributeString("Desc", i.Key);
+                            xw.WriteString(i.Value.ToString("0"));
+                            xw.WriteEndElement(/* GV */);
                         }
                     xw.WriteEndElement(/* GroupVar */);
                 }
@@ -309,12 +311,13 @@ namespace HeaderFileStream
                     }
                     if (ede.Value.ancillarySize != 0)
                         xw.WriteElementString("Ancillary", ede.Value.ancillarySize.ToString("0"));
-                    foreach (GVEntry gv in ede.Value.GroupVars)
-                    {
-                        xw.WriteStartElement("GroupVar", "");
-                        xw.WriteAttributeString("Name", gv.Name);
-                        xw.WriteEndElement(/* GroupVar */);
-                    }
+                    if(ede.Value.GroupVars!=null)
+                        foreach (GVEntry gv in ede.Value.GroupVars)
+                        {
+                            xw.WriteStartElement("GroupVar", "");
+                            xw.WriteAttributeString("Name", gv.Name);
+                            xw.WriteEndElement(/* GroupVar */);
+                        }
                     xw.WriteEndElement(/* Event */);
                 }
                 xw.WriteEndElement(/* ExperimentDescription */);

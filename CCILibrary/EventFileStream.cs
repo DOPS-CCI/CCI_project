@@ -227,6 +227,7 @@ namespace EventFile
                 xw.WriteElementString("GrayCode", ev.GC.ToString("0"));
                 xw.WriteElementString("ClockTime", ev.Time.ToString("00000000000.0000000"));
                 DateTime t = new DateTime((long)(ev.Time * 1E7));
+                if (t.Year < 500) t = t.AddYears(1600); //convert to 0 year basis from 1600 basis
                 xw.WriteElementString("EventTime", t.ToString("d MMM yyyy HH:mm:ss.fffFF"));
                 xw.WriteStartElement("GroupVars");
                 if (ev.GVValue != null)

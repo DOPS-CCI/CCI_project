@@ -54,10 +54,10 @@ namespace Event
             if (!ed.TryGetValue(name, out ede))
                 throw new Exception("No entry in EventDictionary for \"" + name + "\"");
             OutputEvent e = new OutputEvent(ede);
-            e.m_index = nextIndex();
-            e.m_gc = grayCode(e.m_index);
-            markBDFstatus(e.m_gc);
-            e.m_name = name;
+            e.Index = (int)nextIndex();
+            e.GC = (int)grayCode((uint)e.Index);
+            markBDFstatus((uint)e.GC);
+            e.Name = name;
             return e;
         }
 
@@ -67,7 +67,7 @@ namespace Event
             if (name == null || !ed.TryGetValue(name, out ede))
                 throw new Exception("No entry in EventDictionary for \"" + name + "\"");
             InputEvent e = new InputEvent(ede);
-            e.name = name;
+            e.Name = name;
             return e;
         }
 
@@ -124,6 +124,14 @@ namespace Event
     //********** Abstract class: Event **********
     public abstract class Event
     {
+        protected string m_name;
+        public string Name { get { return m_name; } }
+        protected double m_time;
+        public double Time { get { return m_time; } }
+        protected uint m_index;
+        public double Index { get { return m_index; } }
+        protected uint m_gc;
+        public uint GC { get { return m_gc; } }
         protected EventDictionaryEntry ede;
         public byte[] ancillary;
 
@@ -164,16 +172,24 @@ namespace Event
     //********** Class: OutputEvent **********
     public class OutputEvent : Event
     {
-        internal string m_name;
-        internal double m_time;
-        internal uint m_index;
-        internal uint m_gc;
         public string[] GVValue;
 
-        public string Name { get { return m_name; } }
-        public double Time { get { return m_time; } } //<ClockTime> -- only provides resolution to 10 microseconds
-        public int Index { get { return (int)m_index; } }
-        public int GC { get { return (int)m_gc; } }
+        public new string Name
+        {
+            get { return m_name; }
+            internal set { m_name = value; }
+        }
+        public new double Time { get { return m_time; } } //<ClockTime> -- only provides resolution to 10 microseconds
+        public new int Index
+        {
+            get { return (int)m_index; }
+            internal set { m_index = (uint)value; }
+        }
+        public new int GC
+        {
+            get { return (int)m_gc; }
+            internal set { m_gc = (uint)value; }
+        }
 
         internal OutputEvent(EventDictionaryEntry entry): base(entry)
         {
@@ -192,12 +208,35 @@ namespace Event
         public OutputEvent(EventDictionaryEntry entry, DateTime time, int index)
             : base(entry)
         {
+            ede = entry;
             m_name = entry.Name;
             m_time = (double)(time.Ticks) / 1E7;
             m_index = (uint)index;
             m_gc = EventFactory.grayCode(m_index);
             GVValue = null;
         }
+        /// <summary>
+        /// Copy constructor from an InputEvent to permit allow copying of Event file entries
+        /// to create new Event files
+        /// </summary>
+        /// <param name="ie">InputEvent to be copied</param>
+        public OutputEvent(InputEvent ie)
+        {
+            m_name = ie.Name;
+            m_time = ie.Time;
+            m_index = (uint)ie.Index;
+            m_gc = (uint)ie.GC;
+            if (ie.GVValue != null)
+            {//do a full copy to protect values
+                GVValue = new string[ie.GVValue.Length];
+                int i = 0;
+                foreach (string v in ie.GVValue)
+                     GVValue[i++] = v;
+            }
+            else
+                GVValue = null;
+        }
+
         public override string GetGVName(int j)
         {
             if (ede != null) return base.GetGVName(j);
@@ -208,12 +247,27 @@ namespace Event
     //********** Class: InputEvent **********
     public class InputEvent: Event
     {
-        internal string name;
-        public string Name { get { return name; } }
-        public double Time; //<ClockTime> -- only provides resolution to 10 microseconds
+        public new string Name
+        {
+            get { return m_name; }
+            internal set { m_name = value; }
+        }
+        public new double Time //<ClockTime> -- only provides resolution to 10 microseconds
+        {
+            get { return m_time; }
+            set { m_time = value; }
+        }
         public string EventTime; //optional; string translation of Time
-        public int Index;
-        public int GC;
+        public new int Index
+        {
+            get { return (int)m_index; }
+            set { m_index = (uint)value; }
+        }
+        public new int GC
+        {
+            get { return (int)m_gc; }
+            set { m_gc = (uint)value; }
+        }
         public string[] GVValue;
 
         public InputEvent(EventDictionaryEntry entry): base(entry)
@@ -230,7 +284,7 @@ namespace Event
         public override string ToString()
         {
             string nl = Environment.NewLine;
-            StringBuilder str = new StringBuilder("Event name: " + name + nl);
+            StringBuilder str = new StringBuilder("Event name: " + m_name + nl);
             str.Append("Index: " + Index.ToString("0") + nl);
             str.Append("GrayCode: " + GC.ToString("0") + nl);
             if (EventTime != null && EventTime != "")

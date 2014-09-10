@@ -577,7 +577,7 @@ namespace BDFEDFFileStream
         /// </summary>
         /// <param name="IE">InputEvent to use as index</param>
         /// <returns>True if GC found, false if not</returns>
-        public bool setZeroTime(InputEvent IE)
+        public bool setZeroTime(Event.Event IE)
         {
             int[] statusBuffer = new int[NSamp];
             int rec = 0;
