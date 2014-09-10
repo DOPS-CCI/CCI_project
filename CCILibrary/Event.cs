@@ -9,6 +9,15 @@ namespace Event
     /// <summary>
     /// Class EventFactory: Creates Events
     ///      needed so that all created events conform to the EventDictionary
+    ///      
+    /// The classes in this namespace attempt to protect the integrity of the Events created,
+    /// confirming that they conform to the EventDictionary in the Header; this implies the
+    /// need for a factory approach in general. Every Event (either OutputEvent or InputEvent)
+    /// has to have an EventDictionaryEntry; if it is created via the factory, the EDE must be in
+    /// the EventDictionary. Input and Output Events may be directly created, but must be based on an
+    /// EDE; the Name property of the Event is always taken from the EDE. All public properties of
+    /// the Event (either Input or Output) are read-only, but generally there is internal access
+    /// for writing within CCILibrary (the "assembly").
     /// </summary>
     public class EventFactory
     {
@@ -20,6 +29,13 @@ namespace Event
         public int statusBits
         {
             get { return nBits; }
+        }
+
+        private EventFactory(EventDictionary.EventDictionary newED)
+        {
+            nBits = newED.Bits;
+            indexMax = (1 << nBits) - 2; //loops from 1 to Event.Index; = 2^n - 2 to avoid double bit change at loopback
+            EventFactory.ed = newED;
         }
 
         /// <summary>
@@ -51,13 +67,12 @@ namespace Event
         public OutputEvent CreateOutputEvent(string name)
         {
             EventDictionaryEntry ede;
-            if (!ed.TryGetValue(name, out ede))
+            if (!ed.TryGetValue(name, out ede)) //check to make sure there is an EventDictionaryEntry for this name
                 throw new Exception("No entry in EventDictionary for \"" + name + "\"");
             OutputEvent e = new OutputEvent(ede);
-            e.Index = (int)nextIndex();
-            e.GC = (int)grayCode((uint)e.Index);
-            markBDFstatus((uint)e.GC);
-            e.Name = name;
+            e.m_index = nextIndex();
+            e.m_gc = grayCode((uint)e.Index);
+//            markBDFstatus((uint)e.GC); //***** this is needed only if used for real-time application this BIOSEMI
             return e;
         }
 
@@ -67,15 +82,7 @@ namespace Event
             if (name == null || !ed.TryGetValue(name, out ede))
                 throw new Exception("No entry in EventDictionary for \"" + name + "\"");
             InputEvent e = new InputEvent(ede);
-            e.Name = name;
             return e;
-        }
-
-        private EventFactory(EventDictionary.EventDictionary newED)
-        {
-            nBits = newED.Bits;
-            indexMax = (1 << nBits) - 2; //loops from 1 to Event.Index; = 2^n - 2 to avoid double bit change at loopback
-            EventFactory.ed = newED;
         }
 
         //
@@ -124,27 +131,27 @@ namespace Event
     //********** Abstract class: Event **********
     public abstract class Event
     {
-        protected string m_name;
+        private string m_name;
         public string Name { get { return m_name; } }
-        protected double m_time;
-        public double Time { get { return m_time; } }
-        protected uint m_index;
-        public double Index { get { return m_index; } }
-        protected uint m_gc;
+        internal double m_time;
+        public virtual double Time { get { return m_time; } }
+        internal uint m_index;
+        public virtual double Index { get { return m_index; } }
+        internal uint m_gc;
         public uint GC { get { return m_gc; } }
         protected EventDictionaryEntry ede;
+        public EventDictionaryEntry EDE { get { return ede; } }
         public byte[] ancillary;
 
         protected Event(EventDictionaryEntry entry)
         {
             ede = entry;
+            m_name = entry.Name;
             //Lookup and allocate space for ancillary data, if needed
             if (entry.ancillarySize > 0) ancillary = new byte[entry.ancillarySize];
             else ancillary = null;
         }
 
-        protected Event() { }
-        
         public virtual string GetGVName(int gv)
         {
             if (gv < 0 || gv >= ede.GroupVars.Count)
@@ -174,23 +181,6 @@ namespace Event
     {
         public string[] GVValue;
 
-        public new string Name
-        {
-            get { return m_name; }
-            internal set { m_name = value; }
-        }
-        public new double Time { get { return m_time; } } //<ClockTime> -- only provides resolution to 10 microseconds
-        public new int Index
-        {
-            get { return (int)m_index; }
-            internal set { m_index = (uint)value; }
-        }
-        public new int GC
-        {
-            get { return (int)m_gc; }
-            internal set { m_gc = (uint)value; }
-        }
-
         internal OutputEvent(EventDictionaryEntry entry): base(entry)
         {
             m_time = (double)(DateTime.Now.Ticks) / 1E7; // Get time immediately
@@ -199,8 +189,7 @@ namespace Event
             else GVValue = null;
         }
         /// <summary>
-        /// Stand-alone constructor for use creating simulated events (not real-time); no checking is 
-        /// performed and GVValue and ancillary are not preallocated
+        /// Stand-alone constructor for use creating simulated events (not real-time); no checking is performed
         /// </summary>
         /// <param name="entry">EventDictionaryEntry describing the Event</param>
         /// <param name="time">time of Event</param>
@@ -209,7 +198,6 @@ namespace Event
             : base(entry)
         {
             ede = entry;
-            m_name = entry.Name;
             m_time = (double)(time.Ticks) / 1E7;
             m_index = (uint)index;
             m_gc = EventFactory.grayCode(m_index);
@@ -220,12 +208,11 @@ namespace Event
         /// to create new Event files
         /// </summary>
         /// <param name="ie">InputEvent to be copied</param>
-        public OutputEvent(InputEvent ie)
+        public OutputEvent(InputEvent ie) : base(ie.EDE)
         {
-            m_name = ie.Name;
             m_time = ie.Time;
-            m_index = (uint)ie.Index;
-            m_gc = (uint)ie.GC;
+            m_index = ie.m_index;
+            m_gc = ie.m_gc;
             if (ie.GVValue != null)
             {//do a full copy to protect values
                 GVValue = new string[ie.GVValue.Length];
@@ -236,38 +223,12 @@ namespace Event
             else
                 GVValue = null;
         }
-
-        public override string GetGVName(int j)
-        {
-            if (ede != null) return base.GetGVName(j);
-            return "GV " + (j + 1).ToString("0");
-        }
     }
 
     //********** Class: InputEvent **********
     public class InputEvent: Event
     {
-        public new string Name
-        {
-            get { return m_name; }
-            internal set { m_name = value; }
-        }
-        public new double Time //<ClockTime> -- only provides resolution to 10 microseconds
-        {
-            get { return m_time; }
-            set { m_time = value; }
-        }
         public string EventTime; //optional; string translation of Time
-        public new int Index
-        {
-            get { return (int)m_index; }
-            set { m_index = (uint)value; }
-        }
-        public new int GC
-        {
-            get { return (int)m_gc; }
-            set { m_gc = (uint)value; }
-        }
         public string[] GVValue;
 
         public InputEvent(EventDictionaryEntry entry): base(entry)
@@ -284,7 +245,7 @@ namespace Event
         public override string ToString()
         {
             string nl = Environment.NewLine;
-            StringBuilder str = new StringBuilder("Event name: " + m_name + nl);
+            StringBuilder str = new StringBuilder("Event name: " + this.Name + nl);
             str.Append("Index: " + Index.ToString("0") + nl);
             str.Append("GrayCode: " + GC.ToString("0") + nl);
             if (EventTime != null && EventTime != "")

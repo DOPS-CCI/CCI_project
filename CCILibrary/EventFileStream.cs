@@ -55,21 +55,21 @@ namespace EventFile
                 InputEvent ev = EventFactory.Instance().CreateInputEvent(xr["Name", nameSpace]);
                 xr.ReadStartElement("Event");
                 xr.ReadStartElement("Index", nameSpace);
-                ev.Index = xr.ReadContentAsInt();
+                ev.m_index = (uint)xr.ReadContentAsInt();
                 xr.ReadEndElement(/* Index */);
                 xr.ReadStartElement("GrayCode", nameSpace);
-                ev.GC = xr.ReadContentAsInt();
+                ev.m_gc = (uint)xr.ReadContentAsInt();
                 xr.ReadEndElement(/* GrayCode */);
                 if (xr.Name == "ClockTime")
                 {
                     xr.ReadStartElement(/* ClockTime */);
                     string t = xr.ReadContentAsString();
                     if (t.Contains("."))
-                        ev.Time = Convert.ToDouble(t);
+                        ev.m_time = Convert.ToDouble(t);
                     else
                     {
                         int l = t.Length - 7; //count in 100nsec intervals
-                        ev.Time = Convert.ToDouble(t.Substring(0, l) + "." + t.Substring(l));
+                        ev.m_time = Convert.ToDouble(t.Substring(0, l) + "." + t.Substring(l));
                     }
                     xr.ReadEndElement(/* ClockTime */);
                     xr.ReadStartElement("EventTime", nameSpace);
@@ -81,9 +81,9 @@ namespace EventFile
                     xr.ReadStartElement("Time", nameSpace);
                     string t = xr.ReadContentAsString();
                     if (t.Contains(".")) //new style
-                        ev.Time = System.Convert.ToDouble(t);
+                        ev.m_time = System.Convert.ToDouble(t);
                     else //old style -- very deprecated!
-                        ev.Time = System.Convert.ToDouble(t.Substring(0, 11) + "." + t.Substring(11));
+                        ev.m_time = System.Convert.ToDouble(t.Substring(0, 11) + "." + t.Substring(11));
                     xr.ReadEndElement(/* Time */);
                 }
                 bool isEmpty = xr.IsEmptyElement; // Use this to handle <GroupVars /> construct

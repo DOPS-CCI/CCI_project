@@ -576,7 +576,7 @@ namespace BDFEDFFileStream
         /// After this, value may be accessed via property <code>zeroTime</code>
         /// </summary>
         /// <param name="IE">InputEvent to use as index</param>
-        /// <returns>True if GC found, false if not</returns>
+        /// <returns>True if GC found in Status channel, false if not</returns>
         public bool setZeroTime(Event.Event IE)
         {
             int[] statusBuffer = new int[NSamp];
