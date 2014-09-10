@@ -12,7 +12,7 @@ namespace ASCtoFMConverter
 {
     public class EpisodeDescription
     {
-        internal int GVValue;
+        internal int GVValue; //GV value for this episode description
         internal EpisodeMark Start = new EpisodeMark();
         internal EpisodeMark End = new EpisodeMark();
         internal ExclusionDescription Exclude = null;
@@ -110,8 +110,8 @@ namespace ASCtoFMConverter
     {
         internal EventDictionaryEntry startEvent;
         internal object endEvent;
-        internal List<BDFPoint> From;
-        internal List<BDFPoint> To;
+        internal List<BDFPoint> From = new List<BDFPoint>(0);
+        internal List<BDFPoint> To = new List<BDFPoint>(0);
 
         /// <summary>
         /// Determine if two sements between start1 and end1 and

@@ -158,6 +158,38 @@ namespace ASCtoFMConverter
 
             int epiNo = 0; //found episode counter
 
+            IEnumerator<InputEvent> EFREnum; //Enumerator for stepping through Event file
+            bool more;
+
+            //Need to synchronize clocks by setting the BDF.zeroTime value
+            //zeroTime is the time, according to the Event file clock, of the first Status mark in BDF file
+            if (ignoreStatus && offsetToFirstEvent < 0) //cannot use Status markers to synchronize clocks, so
+                //use raw Event clock times as actual offsets from beginning of BDF file
+                bdf.setZeroTime(0D);
+            else 
+            { //Need to find an intrisic or extrinsic Event to use as an indicial Event
+                bool found = false;
+                EFREnum = (new EventFileReader(
+                    new FileStream(System.IO.Path.Combine(directory, head.EventFile),
+                    FileMode.Open, FileAccess.Read))).GetEnumerator();
+                while (EFREnum.MoveNext())
+                {
+                    if (EFREnum.Current.EDE.intrinsic != null) //have we found an intrinsic or extrinsic Event?
+                    {
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found)
+                    throw (new Exception("No valid synchronizing Event found; use manual synchronization"));
+                if (ignoreStatus)
+                    bdf.setZeroTime(EFREnum.Current.Time - offsetToFirstEvent);
+                else
+                    if (!bdf.setZeroTime(EFREnum.Current))
+                        throw (new Exception("No Status channel marker found for first intrinsic/extrinsic Event; use manual synchronization"));
+                EFREnum.Dispose();
+            }
+
             //Loop through each episode specification,
             // then through the Event file to find any regions satisfying the specification,
             // then create FILMAN records for each of these regions
@@ -165,11 +197,13 @@ namespace ASCtoFMConverter
  //******** Episode specification loop
             for (int i = 0; i < specs.Length; i++)
             {
-                IEnumerator<InputEvent> EFREnum;
                 EpisodeDescription currentEpisode = specs[i];
                 FMStream.record.GV[2] = currentEpisode.GVValue; //set epispec GV value
+
                 if (currentEpisode.Exclude != null)
-                {
+                {//Here we complete the ExclusionDescription for the given Episode specification
+                    //by finding all the segemnts that must be excluded and 
+                    //calculating their From to To BDFPoints
                     ExclusionDescription ed = currentEpisode.Exclude;
                     EFREnum = (new EventFileReader(
                         new FileStream(System.IO.Path.Combine(directory, head.EventFile),
@@ -184,8 +218,7 @@ namespace ASCtoFMConverter
                         InputEvent ev = EFREnum.Current;
                         if (ev.Name == startEDE.Name)
                         {
-                            BDFPoint b = new BDFPoint(bdf);
-                            b.FromSecs(ev.Time - bdf.zeroTime);
+                            BDFPoint b = new BDFPoint(bdf).FromSecs(ev.Time - bdf.zeroTime);
                             ed.From.Add(b);
                             if (t)
                                 while (EFREnum.MoveNext())
@@ -193,30 +226,15 @@ namespace ASCtoFMConverter
                                     ev = EFREnum.Current;
                                     if (ev.Name == endEDE.Name)
                                     {
-                                        b.FromSecs(ev.Time - bdf.zeroTime);
+                                        ed.To.Add(new BDFPoint(bdf).FromSecs(ev.Time - bdf.zeroTime));
                                         break;
                                     }
                                 }
-                            ed.To.Add(b);
+                            else
+                                ed.To.Add(b);
                         }
                     }
-                }
-
-                EFREnum = (new EventFileReader(
-                    new FileStream(System.IO.Path.Combine(directory, head.EventFile),
-                    FileMode.Open, FileAccess.Read))).GetEnumerator();
-
-                bool more = EFREnum.MoveNext(); //move to first Event
-                if (i == 0 && more) // and use it to calculate indexTime via call to zeroTime
-                {
-                    //zeroTime is the time, according to the Event file clock, of the first point in BDF file
-                    if (ignoreStatus) //cannot use Status markers to synchronize clocks, so
-                        if (offsetToFirstEvent < 0) //use raw Event clock times
-                            bdf.setZeroTime(0D);
-                        else //or use a give offset to first Event
-                            bdf.setZeroTime(EFREnum.Current.Time - offsetToFirstEvent);
-                    else
-                        bdf.setZeroTime(EFREnum.Current);
+                    EFREnum.Dispose();
                 }
 
                 // Technique is to loop through Event file until an Event is found that matches the
@@ -225,11 +243,16 @@ namespace ASCtoFMConverter
                 // generally permitted (in a give specification) except when caused by offsets.
 
 //************* Event file loop
+                EFREnum = (new EventFileReader(
+                    new FileStream(System.IO.Path.Combine(directory, head.EventFile),
+                    FileMode.Open, FileAccess.Read))).GetEnumerator();
+                more = EFREnum.MoveNext();
                 while (more)
                 {
                     EpisodeMark em = currentEpisode.Start;
                     InputEvent startEvent = null;
                     InputEvent endEvent = null;
+
                     do //find all Events/Episodes that match spec
                     {
                         if (bw.CancellationPending)
@@ -252,8 +275,13 @@ namespace ASCtoFMConverter
                                     em = currentEpisode.End; //now move on to match End Mark Event
                                     // but don't advance to next Event, so "Same Event" works
                                 }
-                                else endEvent = ev; //matches the endEvent for this spec
-                                // but don't advance; have to check against startEvent of next episode!
+                                else
+                                {
+                                    if(ev==startEvent && em._offset <= currentEpisode.Start._offset)//same Event, make sure offsets work
+                                        more = EFREnum.MoveNext(); // these two don't work, move on to next
+                                    else // different events or correctly ordered offsets
+                                        endEvent = ev; //matches the endEvent for this spec
+                               }
                             }
                             else more = EFREnum.MoveNext();
                         else // special cases
@@ -325,8 +353,8 @@ namespace ASCtoFMConverter
                         log.openFoundEpisode(epiNo, startTime, endTime, maxNumberOfFMRecs, numberOfFMRecs);
                         log.closeFoundEpisode();
                     }
-                }
-                EFREnum.Dispose(); //reset file
+                } //next Event
+                EFREnum.Dispose();
             }  //next spec
 
             e.Result = new int[] { FMStream.NR, FMStream.NR / FMStream.NC };
