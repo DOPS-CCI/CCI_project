@@ -136,9 +136,9 @@ namespace Event
         internal double m_time;
         public virtual double Time { get { return m_time; } }
         internal uint m_index;
-        public virtual double Index { get { return m_index; } }
+        public virtual int Index { get { return (int)m_index; } }
         internal uint m_gc;
-        public uint GC { get { return m_gc; } }
+        public int GC { get { return (int)m_gc; } }
         protected EventDictionaryEntry ede;
         public EventDictionaryEntry EDE { get { return ede; } }
         public byte[] ancillary;
@@ -246,8 +246,11 @@ namespace Event
         {
             string nl = Environment.NewLine;
             StringBuilder str = new StringBuilder("Event name: " + this.Name + nl);
-            str.Append("Index: " + Index.ToString("0") + nl);
-            str.Append("GrayCode: " + GC.ToString("0") + nl);
+            if (EDE.intrinsic != null) //these are meaningless if naked Event
+            {
+                str.Append("Index: " + Index.ToString("0") + nl);
+                str.Append("GrayCode: " + GC.ToString("0") + nl);
+            }
             if (EventTime != null && EventTime != "")
             {
                 str.Append("ClockTime: " + Time.ToString("00000000000.0000000" + nl));
