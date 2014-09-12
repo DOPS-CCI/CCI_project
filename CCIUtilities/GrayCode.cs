@@ -10,7 +10,7 @@ namespace CCIUtilities
     /// special meaning at the start of the BDF file, before the first Event, and is never used to
     /// encode an Event
     /// </summary>
-    public class GrayCode:IComparable<GrayCode>
+    public class GrayCode : IComparable<GrayCode>
     {
         uint _GC;
         public uint Value
@@ -76,7 +76,7 @@ namespace CCIUtilities
         /// Decode GC: uses more efficient algorithm than the one in Utilities,
         /// taking into account the number of Status bits in use
         /// </summary>
-        /// <returns>Dncoded Gray code</returns>
+        /// <returns>Decoded Gray code</returns>
         public uint Decode()
         {
             uint n = _GC;
@@ -138,6 +138,17 @@ namespace CCIUtilities
             if (gc._status != this._status)
                 throw new ArgumentException("Incompatable comparison: number of Status bits not equal");
             return Utilities.modComp(this.Decode(), gc.Decode(), _status);
+        }
+
+        /// <summary>
+        /// Compare Gray codes
+        /// </summary>
+        /// <param name="gc">integer GrayCode to compare to; assumed to have same number of Status bits</param>
+        /// <returns>-1 for less than; 1 for greater than; 0 for equal</returns>
+        /// <exception cref="ArgumentException">Throws if number of Status bits not equal</exception>
+        public int CompareTo(int gc)
+        {
+            return Utilities.modComp(this.Decode(), Utilities.GC2uint((uint)gc), _status);
         }
 
         public override string ToString()
