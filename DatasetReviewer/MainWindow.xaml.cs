@@ -54,7 +54,7 @@ namespace DatasetReviewer
 
         internal List<int> channelList; //list of currently displayed channels
         internal EventDictionary.EventDictionary ED;
-        internal Dictionary<int, Event.InputEvent> events = new Dictionary<int, Event.InputEvent>();
+        internal List<Event.InputEvent> events = new List<Event.InputEvent>();
         internal Dictionary<string, ElectrodeRecord> electrodes;
 
         internal Window2 notes;
@@ -94,7 +94,7 @@ namespace DatasetReviewer
                 {
                     foreach (EventDictionaryEntry ede in ED.Values) // add ANA channels that are referenced by extrinsic Events
                     {
-                        if (!ede.intrinsic)
+                        if (ede.intrinsic != null && !(bool)ede.intrinsic)
                         {
                             int chan = bdf.ChannelNumberFromLabel(ede.channelName);
                             if (!channelList.Contains(chan)) //don't enter duplicate
@@ -124,17 +124,24 @@ namespace DatasetReviewer
                 new FileStream(System.IO.Path.Combine(directory, head.EventFile),
                     FileMode.Open, FileAccess.Read)); // open Event file
 
+            bool z = false;
             foreach (Event.InputEvent ie in efr)// read in all Events into dictionary
             {
-                if (!events.ContainsKey(ie.GC)) //quietly skip duplicates
-                    events.Add(ie.GC, ie);
+                if (ie.EDE.intrinsic == null)
+                    events.Add(ie);
+                else if (events.Count(e => e.GC == ie.GC) == 0) //quietly skip duplicates
+                {
+                    if (!z)
+                        z = bdf.setZeroTime(ie);
+                    events.Add(ie);
+                }
             }
             efr.Close(); //now events is Dictionary of Events in the dataset; lookup by GC
 
             ElectrodeInputFileStream eif = new ElectrodeInputFileStream(
                 new FileStream(System.IO.Path.Combine(directory, head.ElectrodeFile),
                     FileMode.Open, FileAccess.Read)); //open Electrode file
-            electrodes = eif.etrPositions;
+            electrodes = eif.etrPositions; //read 'em in
 
             EventMarkers.Width = BDFLength;
             eventTB = new TextBlock(new Run("Events"));
@@ -357,25 +364,36 @@ namespace DatasetReviewer
         private void reDrawEvents()
         {
             EventMarkers.Children.Clear();
+            double EMAH = EventMarkers.ActualHeight; //use to scale marker/button
             BDFEDFFileStream.BDFLoc start = bdf.LocationFactory.New().FromSecs(currentDisplayOffsetInSecs);
             BDFEDFFileStream.BDFLoc end = bdf.LocationFactory.New().FromSecs(currentDisplayOffsetInSecs + currentDisplayWidthInSecs);
             GrayCode sample = new GrayCode(head.Status);
             GrayCode lastSample = new GrayCode(sample);
             lastSample.Value = 0;
             if ((--start).IsInFile)
-                lastSample.Value = (uint)bdf.getStatusSample(start++) & head.Mask; //get sample before start of segment
+                lastSample.Value = (uint)bdf.getStatusSample(start++) & head.Mask; //get sample before start of segment to find "edge"
             else
                 start++;
-            for (BDFEDFFileStream.BDFLoc p = start; p.lessThan(end); p++)
+            for (BDFEDFFileStream.BDFLoc p = start; p.lessThan(end); p++) //search through displayed BDF points
             {
+                double s = p.ToSecs(); //center marker at s
                 sample.Value = (uint)bdf.getStatusSample(p) & head.Mask;
+
+                //now make a list of Events that occur at this "instant"
+                //first naked Events
+                List<InputEvent> foundEvents = events.Where(e => e.EDE.intrinsic == null &&
+                    Math.Abs(e.Time - bdf.zeroTime - s) < bdf.SampTime / 2).ToList(); //make list of naked Events at this time
+                int nNaked = foundEvents.Count;
+                //then instrinsic/extrinsic Events (marked Events)
                 if (sample.Value != lastSample.Value)
+                    foundEvents.AddRange(events.Where(e => lastSample.CompareTo(e.GC) < 0 &&
+                        sample.CompareTo(e.GC) >= 0).ToList()); //and add marked Events
+
+                if (sample.Value != lastSample.Value || foundEvents.Count > 0) //found or should have found Events at this time
                 {
-                    double s = p.ToSecs(); //center marker at s
-                    double EMAH = EventMarkers.ActualHeight; //use to scale marker/button
-                    int n = sample - lastSample; //number of "simultaneous" Events
-                    bool AllEFEntriesValid = n > 0;
-                    bool multiEvent = n > 1; //indicator for multiple "simultaneous" Events
+                    int n = foundEvents.Count - nNaked; //number of "simultaneous" marked Events
+                    bool AllEFEntriesValid = n == sample - lastSample;
+                    bool multiEvent = foundEvents.Count > 1; //indicator for multiple "simultaneous" Events
                     InputEvent evFound = null; //found at least one valid Event
 
                     Button evbutt = (Button)EventMarkers.FindResource("EventButton"); //create and place button over Event marker
@@ -390,22 +408,31 @@ namespace DatasetReviewer
                     else
                     {
                         StringBuilder sb = new StringBuilder();
+                        GrayCode gc = lastSample;
                         int i = 0;
-                        for (GrayCode gc = new GrayCode(++lastSample); gc.CompareTo(sample) <= 0; gc++)
+                        foreach(InputEvent ev in foundEvents)
                         {
-                            InputEvent ev;
                             if (multiEvent)
                                 sb.Append("Event number " + (++i).ToString("0") + ":" + Environment.NewLine);
-                            if (events.TryGetValue((int)gc.Value, out ev))
+                            if (foundEvents.Count(e => e.GC == (int)(++gc).Value) == 1) //there should be exactly one found Event with GC of each value
                             {
                                 evFound = ev; //remember last valid entry
-                                sb.Append(ev.ToString() + Environment.NewLine);
+                                sb.Append(ev.ToString());
+                                sb.Append("Offset=" + ((ev.Time - bdf.zeroTime - s) * 1000D).ToString("+0.0 msec;0.0 msec;None") + Environment.NewLine);
                             }
                             else
                             {
-                                AllEFEntriesValid = false; //there's at least one invalid Event file entry
-                                sb.Append("No Event file entry for Event" + Environment.NewLine + "     with GC = "
-                                    + gc.ToString() + Environment.NewLine);
+                                if (ev.EDE.intrinsic == null)
+                                {
+                                    evFound = ev;
+                                    sb.Append(ev.ToString());
+                                }
+                                else
+                                {
+                                    AllEFEntriesValid = false; //there's at least one invalid Event file entry
+                                    sb.Append("No Event file entry for Event" + Environment.NewLine + "     with GC = "
+                                        + gc.ToString() + Environment.NewLine);
+                                }
                             }
                         }
                         evbutt.Tag = sb.ToString().Trim();
@@ -420,8 +447,9 @@ namespace DatasetReviewer
                     Canvas.SetLeft(r, s - r.Width / 2D);
                     Canvas.SetTop(r, 0D);
                     r.StrokeThickness = currentDisplayWidthInSecs * 0.0008;
+                    r.Stroke = Brushes.Black; //black by default
 
-                    //encode intrinsic/extrinsic in green/blue colors; incorrect Event name encoded in red
+                    //encode intrinsic/extrinsic/naked in green/blue colors/black; incorrect Event name encoded in red
                     TextBlock tb = null; //explicit assignment to fool compiler
                     EventDictionaryEntry EDE;
                     if (multiEvent)
@@ -436,12 +464,11 @@ namespace DatasetReviewer
                             Canvas.SetTop(tb, -0.1 * EMAH);
                             EventMarkers.Children.Add(tb);
                         }
-                        r.Stroke = Brushes.Black; //black by default
                     }
-                    if (AllEFEntriesValid && ED.TryGetValue(evFound.Name, out EDE))
+                    if (AllEFEntriesValid && (EDE = evFound.EDE) != null)
                     {
-                        if (!multiEvent) //if multi-Event, don't mark by type
-                            if (EDE.intrinsic) //single Event intrinsic
+                        if (!multiEvent && EDE.intrinsic != null) //if multi-Event or naked, don't mark by type and leave black
+                            if ((bool)EDE.intrinsic) //single Event intrinsic
                             {
                                 Ellipse e = new Ellipse();
                                 e.Height = e.Width = 0.6 * EMAH;
@@ -484,8 +511,8 @@ namespace DatasetReviewer
                     }
                     EventMarkers.Children.Add(r);
                     lastSample.Value = sample.Value;
-                }
-            }
+                } //Event mark based on Status mark
+            } //end for each displayed point
         }
 
         double[] menu = { 0.1, 0.2, 0.25, 0.25, 0.5, 0.5, 0.5, 0.5, 1.0 };
@@ -839,19 +866,26 @@ namespace DatasetReviewer
                 for (; p.IsInFile; p++)
                 {
                     nextGC.Value = (uint)bdf.getStatusSample(p) & head.Mask;
-                    if (nextGC.Value != lastGC.Value) //then one (or more) Events occur at this point
+                    double s = p.ToSecs(); //center marker at s
+
+                    //now make a list of Events that occur at this "instant"
+                    //first naked Events
+                    List<InputEvent> foundEvents = events.Where(ev => ev.EDE.intrinsic == null &&
+                        Math.Abs(ev.Time - bdf.zeroTime - s) < bdf.SampTime / 2).ToList(); //make list of naked Events at this time
+                    //then instrinsic/extrinsic Events (marked Events)
+                    if (nextGC.Value != lastGC.Value)
+                        foundEvents.AddRange(events.Where(ev => lastGC.CompareTo(ev.GC) < 0 &&
+                            nextGC.CompareTo(ev.GC) >= 0).ToList()); //and add marked Events
+
+                    foreach (InputEvent ie in foundEvents) //then one (or more) Events occur at this point
                     {
-                        InputEvent ie;
-                        do
-                        { //see if any of them match our target
-                            if (events.TryGetValue((int)(++lastGC).Value, out ie)) //then there is an existing record in Event file
-                                if (ie.Name == currentSearchEvent) //we have a winner!
-                                {
-                                    Viewer.ScrollToHorizontalOffset((p.ToSecs() - SearchSiteOffset * currentDisplayWidthInSecs) * XScaleSecsToInches);
-                                    return;
-                                }
-                        } while (lastGC.CompareTo(nextGC) < 0);
+                        if (ie.Name == currentSearchEvent) //we have a winner!
+                        {
+                            Viewer.ScrollToHorizontalOffset((p.ToSecs() - SearchSiteOffset * currentDisplayWidthInSecs) * XScaleSecsToInches);
+                            return;
+                        }
                     }
+                    lastGC.Value = nextGC.Value;
                 }
             }
             else //Prev
@@ -863,20 +897,27 @@ namespace DatasetReviewer
                 for (; p.IsInFile; p--)
                 {
                     nextGC.Value = (uint)bdf.getStatusSample(p) & head.Mask;
-                    if (nextGC.Value != lastGC.Value) //then at least one Event occured here
+                    double s = p.ToSecs(); //center marker at s
+
+                    //now make a list of Events that occur at this "instant"
+                    //first naked Events
+                    List<InputEvent> foundEvents = events.Where(ev => ev.EDE.intrinsic == null &&
+                        Math.Abs(ev.Time - bdf.zeroTime - s) < bdf.SampTime / 2).ToList(); //make list of naked Events at this time
+                    //then instrinsic/extrinsic Events (marked Events)
+                    if (nextGC.Value != lastGC.Value)
+                        foundEvents.AddRange(events.Where(ev => lastGC.CompareTo(ev.GC) >= 0 &&
+                            nextGC.CompareTo(ev.GC) < 0).ToList()); //and add marked Events
+
+                    foreach(InputEvent ie in foundEvents) //then at least one Event occured here
                     {
-                        InputEvent ie;
-                        do
-                        { //see if any of them match the target
-                            if (events.TryGetValue((int)lastGC.Value, out ie))
-                                if (ie.Name == currentSearchEvent) //we have a winner!
-                                {
-                                    Viewer.ScrollToHorizontalOffset(((++p).ToSecs() - SearchSiteOffset * currentDisplayWidthInSecs) * XScaleSecsToInches);
-                                    return;
-                                }
-                            lastGC--;
-                        } while (lastGC.CompareTo(nextGC) > 0);
+                        //see if any of them match the target
+                        if (ie.Name == currentSearchEvent) //we have a winner!
+                        {
+                            Viewer.ScrollToHorizontalOffset(((++p).ToSecs() - SearchSiteOffset * currentDisplayWidthInSecs) * XScaleSecsToInches);
+                            return;
+                        }
                     }
+                    lastGC.Value = nextGC.Value;
                 }
             }
         }
