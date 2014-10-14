@@ -482,46 +482,44 @@ namespace EEGArtifactEditor
                 {
                     if (scrollingRight)
                     {
-                        removeHigh = s.Count - Math.Max(s.FindIndex(p => p.X >= currentHighSecs), 0); //where to start removing from high end of data points
-                        if (ChannelCanvas.decimateOld != 1)
-                            removeHigh = (removeHigh / 2) * 2 + 2;
+                        removeHigh = -s.FindIndex(p => p.X >= currentHighSecs); //where to start removing from high end of data points
+                        if (removeHigh <= 0)
+                        {
+                            removeHigh += s.Count;
+                            if (ChannelCanvas.decimateOld != 1)
+                                removeHigh = (removeHigh / 2) * 2 + 2;
+                        }
+                        else
+                            removeHigh = 0;                       
                     }
+
                     if (scrollingLeft)
                     {
                         removeLow = s.FindIndex(p => p.X >= currentLowSecs); //how many to remove from low end of data points
-                        if (ChannelCanvas.decimateOld != 1)
-                            removeLow = (removeLow / 2) * 2;
+                        if (removeLow >= 0)
+                        {
+                            if (ChannelCanvas.decimateOld != 1)
+                                removeLow = (removeLow / 2) * 2;
+                        }
+                        else
+                            removeLow = s.Count;
                     }
                 }
-                Console.WriteLine("Low=" + removeLow + " High=" + removeHigh + " Count=" + s.Count);
+                Console.WriteLine("Low=" + removeLow + " High=" + removeHigh + " Count=" + s.Count + " Dec=" + ChannelCanvas.decimateOld);
                 completeRedraw = (removeHigh + removeLow) >= s.Count;
             }
             ChannelCanvas.decimateOld = ChannelCanvas.decimateNew;
 
             foreach (ChannelCanvas cc in chans) //now use this information to reprocess channels
             {
-                cc.overallMin = double.PositiveInfinity;
-                cc.overallMax = double.NegativeInfinity;
-                cc.needsRedraw = false;
-
                 if (completeRedraw) //shortcut, if complete redraw
-                {
                     cc.PointList.Clear();
-                    cc.needsRedraw = true;
-                }
                 else //then this channel may only require partial redraw:
                 {
                     if (removeLow > 0) //then must remove removed below; same as scrollLeft
-                    {
                         cc.PointList.RemoveRange(0, removeLow);
-                        cc.needsRedraw = true;
-                    }
-
                     if (removeHigh > 0) //then must remove points above
-                    {
                         cc.PointList.RemoveRange(cc.PointList.Count - removeHigh, removeHigh);
-                        cc.needsRedraw = true;
-                    }
                     completeRedraw = completeRedraw || cc.PointList.Count == 0; //update completeRedraw, just in case!
                 }
             }
@@ -540,27 +538,25 @@ namespace EEGArtifactEditor
             }
             else
             {
-                lastBDFLocLow = lastBDFLocLow + (removeLow / 2) * ChannelCanvas.decimateOld;
-                lastBDFLocHigh = lastBDFLocHigh - (removeHigh / 2) * ChannelCanvas.decimateOld;
+                lastBDFLocLow = lastBDFLocLow + (ChannelCanvas.decimateOld == 1 ? removeLow : (removeLow / 2) * ChannelCanvas.decimateOld);
+                lastBDFLocHigh = lastBDFLocHigh - (ChannelCanvas.decimateOld == 1 ? removeHigh : (removeHigh / 2) * ChannelCanvas.decimateOld);
                 //**** 2. Add points as needed below current point list
                 BDFEDFFileStream.BDFLoc i;
                 for (i = lastBDFLocLow - ChannelCanvas.decimateNew;
                     lowBDFP.lessThan(i) && i.IsInFile; i.Decrement(ChannelCanvas.decimateNew)) //start at first point below current range
                 {
                     foreach (ChannelCanvas cc in chans)
-                        if (cc.needsRedraw)
-                            cc.createMinMaxPoints(i, false);
+                        cc.createMinMaxPoints(i, false);
                     lastBDFLocLow = i;
                 }
                
                 //**** 3. Add points as needed above current point list
                 for (i = lastBDFLocHigh + ChannelCanvas.decimateNew;
                                 i.lessThan(highBDFP) && i.IsInFile; i.Increment(ChannelCanvas.decimateNew)) //start at first point above current range
-                // and work up to hightBDFP
+                // and work up to highBDFP
                 {
                     foreach (ChannelCanvas cc in chans)
-                        if (cc.needsRedraw)
-                            cc.createMinMaxPoints(i, true);
+                        cc.createMinMaxPoints(i, true);
                     lastBDFLocHigh = i;
                 }
             }
@@ -614,8 +610,6 @@ namespace EEGArtifactEditor
                 //determine if "rescale" needs to be done: significant change in scale?
                 bool rescale = Math.Abs(ChannelCanvas.nominalCanvasHeight - cc.ActualHeight / XScaleSecsToInches) / ChannelCanvas.nominalCanvasHeight > 0.05; //if there has been a change in CanvasHeight
 
-                if (rescale || cc.needsRedraw)
-                {
                     cc.rescalePoints(); //create new pointList
                     //and install it in window
                     ChannelCanvas.OldCanvasHeight = ChannelCanvas.nominalCanvasHeight; //reset
@@ -623,7 +617,6 @@ namespace EEGArtifactEditor
                     ctx.BeginFigure(cc.pointList[0], false, false);
                     ctx.PolyLineTo(cc.pointList, true, true);
                     ctx.Close();
-                }
                 cc.Height = ChannelCanvas.nominalCanvasHeight / XScaleSecsToInches;
                 Canvas.SetTop(cc, (double)graphNumber * ChannelCanvas.nominalCanvasHeight);
                 markChannelRegions(cc);
@@ -957,7 +950,7 @@ namespace EEGArtifactEditor
 
         internal List<PointListPoint> PointList = new List<PointListPoint>(4096); //Points with Y-scale of uV: original and de-trended
         internal List<Point> pointList = new List<Point>(4096); //Final Points for creating the PolyLine on the Canvas
-        internal bool needsRedraw = true;
+//        internal bool needsRedraw = true;
         internal double overallMax; //detrended maximal value
         internal double overallMin; //detrended minimal value
         internal double A; //offset of trend
