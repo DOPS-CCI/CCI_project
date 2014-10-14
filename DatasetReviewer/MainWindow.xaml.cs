@@ -418,7 +418,7 @@ namespace DatasetReviewer
                             {
                                 evFound = ev; //remember last valid entry
                                 sb.Append(ev.ToString());
-                                sb.Append("Offset=" + ((ev.Time - bdf.zeroTime - s) * 1000D).ToString("+0.0 msec;0.0 msec;None") + Environment.NewLine);
+                                sb.Append("Offset=" + ((ev.Time - bdf.zeroTime - s) * 1000D).ToString("+0.0 msec;-0.0 msec;None") + Environment.NewLine);
                             }
                             else
                             {
