@@ -6,6 +6,7 @@ using System.Text;
 using System.Timers;
 using System.Printing;
 using System.Reflection;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -37,10 +38,12 @@ namespace EEGArtifactEditor
         const double ScrollBarSize = 17D;
         public double BDFLength;
         public static double XScaleSecsToInches;
-        public double currentDisplayWidthInSecs = 10D;
-        public double currentDisplayOffsetInSecs = 0D;
+        public double newDisplayWidthInSecs = 10D;
+        public double newDisplayOffsetInSecs = 0D;
         public double oldDisplayWidthInSecs = 10D;
         public double oldDisplayOffsetInSecs = -10D;
+        public BDFLoc lastBDFLocLow;
+        public BDFLoc lastBDFLocHigh;
         public BDFEDFFileReader bdf;
         Header.Header header;
         internal string directory;
@@ -162,13 +165,14 @@ namespace EEGArtifactEditor
             if (e.HeightChanged || e.WidthChanged)
             {
                 IndexLine.Y2 = e.NewSize.Height - ScrollBarSize;
+//                reDrawGrid(e.NewSize.Height - ScrollBarSize);
                 double w = e.NewSize.Width;
-                XScaleSecsToInches = w / currentDisplayWidthInSecs;
+                XScaleSecsToInches = w / newDisplayWidthInSecs;
                 //rescale axes, so that X-scale units remain seconds
                 Transform t = new ScaleTransform(XScaleSecsToInches, XScaleSecsToInches);
                 t.Freeze();
                 ViewerGrid.LayoutTransform = t;
-                Viewer.ScrollToHorizontalOffset(currentDisplayOffsetInSecs * XScaleSecsToInches); //this will signal the redraw
+                Viewer.ScrollToHorizontalOffset(newDisplayOffsetInSecs * XScaleSecsToInches); //this will signal the redraw
             }
         }
 
@@ -177,14 +181,14 @@ namespace EEGArtifactEditor
             if (e.HorizontalChange != 0D || e.ExtentWidthChange != 0D)
             {
                 double loc = e.HorizontalOffset;
-                oldDisplayOffsetInSecs = currentDisplayOffsetInSecs;
-                currentDisplayOffsetInSecs = loc / XScaleSecsToInches;
+                oldDisplayOffsetInSecs = newDisplayOffsetInSecs;
+                newDisplayOffsetInSecs = loc / XScaleSecsToInches;
                 ChannelCanvas.nominalCanvasHeight = ViewerGrid.ActualHeight / currentChannelList.Count; //
 
                 //change Event/location information in bottom panel
-                double midPoint = currentDisplayOffsetInSecs + currentDisplayWidthInSecs / 2D;
+                double midPoint = newDisplayOffsetInSecs + newDisplayWidthInSecs / 2D;
                 Loc.Text = midPoint.ToString("0.000");
-                reDrawGrid();            }
+            }
             if (e.ViewportHeightChange != 0D)
             {
                 double height = ViewerGrid.ActualHeight / currentChannelList.Count;
@@ -372,13 +376,14 @@ namespace EEGArtifactEditor
         Line[] gridlines = new Line[18];
         int numberOfGridlines = 0;
 
-        private void reDrawGrid()
+        private void reDrawGrid(double h)
         {
+            if (VerticalGrid == null || VerticalGrid.Children.Count == 0) return; //not yet initialized
             for (int i = 0; i < numberOfGridlines; i++)
                 gridlines[i].Visibility = Visibility.Hidden; //erase previous grid; should we redraw only if new number?
             numberOfGridlines = 0;
             int log10 = 0;
-            double r = currentDisplayWidthInSecs;
+            double r = newDisplayWidthInSecs;
             if (r >= 10D)
                 do
                 {
@@ -392,8 +397,7 @@ namespace EEGArtifactEditor
                     log10--;
                 } while (r < 1D);
             double incr = menu[(int)r - 1] * Math.Pow(10D, log10);
-            double h = Viewer.ActualHeight - ScrollBarSize;
-            r = currentDisplayWidthInSecs / 2D;
+            r = newDisplayWidthInSecs / 2D;
             GridLabels.Children.Clear();
             TextBlock tb;
             for (double s = incr; s < r; s += incr)
@@ -440,39 +444,61 @@ namespace EEGArtifactEditor
             this.Cursor = Cursors.Wait;
             List<ChannelCanvas> chans = currentChannelList;
 
-            double lowSecs = currentDisplayOffsetInSecs;
-            double highSecs = lowSecs + currentDisplayWidthInSecs;
-            BDFEDFFileStream.BDFLoc lowBDFP = bdf.LocationFactory.New().FromSecs(lowSecs);
-            BDFEDFFileStream.BDFLoc highBDFP = bdf.LocationFactory.New().FromSecs(highSecs);
+            double currentLowSecs = newDisplayOffsetInSecs;
+            double currentHighSecs = currentLowSecs + newDisplayWidthInSecs;
+            double oldLowSecs = oldDisplayOffsetInSecs;
+            double oldHighSecs = oldDisplayOffsetInSecs + oldDisplayWidthInSecs;
+            oldDisplayWidthInSecs = newDisplayWidthInSecs;
 
-            //determine if overlap of new display with old
-            bool overlap = lowSecs >= oldDisplayOffsetInSecs && lowSecs < oldDisplayOffsetInSecs + oldDisplayWidthInSecs ||
-                highSecs > oldDisplayOffsetInSecs && highSecs <= oldDisplayOffsetInSecs + oldDisplayWidthInSecs;
-            oldDisplayWidthInSecs = currentDisplayWidthInSecs;
-            DW.Text = currentDisplayWidthInSecs.ToString("0.000"); //update current display width text
+            DW.Text = newDisplayWidthInSecs.ToString("0.000"); //update current display width text
+
+            BDFEDFFileStream.BDFLoc lowBDFP = bdf.LocationFactory.New().FromSecs(currentLowSecs); //where we'll find the points for new display in BDF
+            BDFEDFFileStream.BDFLoc highBDFP = bdf.LocationFactory.New().FromSecs(currentHighSecs);
 
             //calculate new decimation, depending on seconds displayed and viewer width
-            ChannelCanvas.decimateNew = Convert.ToInt32(Math.Ceiling(2.5D * (highBDFP - lowBDFP) / Viewer.ActualWidth));
+
+            double numberOfBDFPointsToRepresent = (double)(highBDFP - lowBDFP);
+            ChannelCanvas.decimateNew = Convert.ToInt32(Math.Ceiling(2.5D * numberOfBDFPointsToRepresent / Viewer.ActualWidth)); //undersampling a bit for min/max approach
             if (ChannelCanvas.decimateNew == 2) ChannelCanvas.decimateNew = 1; //No advantage to decimating by 2
 
-            bool completeRedraw = ChannelCanvas.decimateNew != ChannelCanvas.decimateOld || !overlap; //complete redraw of all channels if ...
+            bool completeRedraw = ChannelCanvas.decimateNew != ChannelCanvas.decimateOld; //complete redraw of all channels if ...
             // change in decimation or if completely new screen (no overlap of old and new)
-            ChannelCanvas.decimateOld = ChannelCanvas.decimateNew;
 
-            //calculate number of points to remove above and below current point set
+            //determine if overlap of new display with old and direction of scroll to determine trimming
+            bool scrollingRight = currentHighSecs > oldLowSecs && currentHighSecs < oldHighSecs; //implies scrolling to right; will add points on left (low end), remove from right (high end)
+            bool scrollingLeft = currentLowSecs > oldLowSecs && currentLowSecs < oldHighSecs; //implies scrolling to left; will add points on right (high end), remove from left (low end)
+            completeRedraw = completeRedraw || !(scrollingLeft || scrollingRight); //redraw if no overlap
+
             int removeLow = 0;
             int removeHigh = 0;
-            List<FilePoint> s = chans[0].FilePointList; //displayed points are tracked by FilePointList
-            //Use this information to determine bounds of current display and to caluculate size of
-            //non-overlap lower and higher than current display
-            if (overlap && s.Count > 0)
+            if (!completeRedraw)
             {
-                removeLow = (int)((lowBDFP - s[0].fileLocation) / ChannelCanvas.decimateNew);
-                removeHigh = (int)((s.Last().fileLocation - highBDFP) / ChannelCanvas.decimateNew);
+                //calculate number of points to remove above and below current point set
+                List<PointListPoint> s = chans[0].PointList; //finding cut points works in any channel PointList
+                //now loop through each channel graph to remove unneeded points
+                //Use this information to determine bounds of current display and to caluculate size of
+                //non-overlap lower and higher than current display
+                if (s.Count > 0)
+                {
+                    if (scrollingRight)
+                    {
+                        removeHigh = s.Count - Math.Max(s.FindIndex(p => p.X >= currentHighSecs), 0); //where to start removing from high end of data points
+                        if (ChannelCanvas.decimateOld != 1)
+                            removeHigh = (removeHigh / 2) * 2 + 2;
+                    }
+                    if (scrollingLeft)
+                    {
+                        removeLow = s.FindIndex(p => p.X >= currentLowSecs); //how many to remove from low end of data points
+                        if (ChannelCanvas.decimateOld != 1)
+                            removeLow = (removeLow / 2) * 2;
+                    }
+                }
+                Console.WriteLine("Low=" + removeLow + " High=" + removeHigh + " Count=" + s.Count);
+                completeRedraw = (removeHigh + removeLow) >= s.Count;
             }
+            ChannelCanvas.decimateOld = ChannelCanvas.decimateNew;
 
-            //now loop through each channel graph to remove unneeded points and find new max and min
-            foreach (ChannelCanvas cc in chans)
+            foreach (ChannelCanvas cc in chans) //now use this information to reprocess channels
             {
                 cc.overallMin = double.PositiveInfinity;
                 cc.overallMax = double.NegativeInfinity;
@@ -480,101 +506,116 @@ namespace EEGArtifactEditor
 
                 if (completeRedraw) //shortcut, if complete redraw
                 {
-                    cc.FilePointList.Clear();
+                    cc.PointList.Clear();
                     cc.needsRedraw = true;
                 }
-                else //then this channel may require partial redraw:
+                else //then this channel may only require partial redraw:
                 {
-                    if (removeLow > 0) //then must remove removed below
+                    if (removeLow > 0) //then must remove removed below; same as scrollLeft
                     {
-                        cc.FilePointList.RemoveRange(0, removeLow);
+                        cc.PointList.RemoveRange(0, removeLow);
                         cc.needsRedraw = true;
                     }
 
                     if (removeHigh > 0) //then must remove points above
                     {
-                        cc.FilePointList.RemoveRange(cc.FilePointList.Count - removeHigh, removeHigh);
+                        cc.PointList.RemoveRange(cc.PointList.Count - removeHigh, removeHigh);
                         cc.needsRedraw = true;
                     }
-                    completeRedraw = completeRedraw || cc.FilePointList.Count == 0;
-
-                    //find overallMax/overallMin in any remaining points
-                    foreach (FilePoint fp in cc.FilePointList)
-                    {
-                        if (fp.first.Y > cc.overallMax) cc.overallMax = fp.first.Y;
-                        if (fp.first.Y < cc.overallMin) cc.overallMin = fp.first.Y;
-                        if (fp.SecondValid)
-                        {
-                            if (fp.second.Y > cc.overallMax) cc.overallMax = fp.second.Y;
-                            if (fp.second.Y < cc.overallMin) cc.overallMin = fp.second.Y;
-                        }
-                    }
+                    completeRedraw = completeRedraw || cc.PointList.Count == 0; //update completeRedraw, just in case!
                 }
             }
 
 //********* now, update the point list as required; there are three choices:
+            //NB: using parallel computation makes little difference and causes some other difficulties, probably due to disk contention
+            //NB: we process by point, then channel to reduce amount of disk seeking; most channels will be in buffer after first seek
             if (completeRedraw)
-            //**** 1. Redraw everything
-                for (BDFEDFFileStream.BDFLoc i = lowBDFP; i.lessThan(highBDFP); i.Increment(ChannelCanvas.decimateNew))
+            {
+                //**** 1. Redraw everything
+                for (BDFEDFFileStream.BDFLoc i = lowBDFP; i.lessThan(highBDFP) && i.IsInFile; i.Increment(ChannelCanvas.decimateNew))
+                    foreach (ChannelCanvas cc in chans)
+                        cc.createMinMaxPoints(i, true);
+                lastBDFLocLow = lowBDFP;
+                lastBDFLocHigh = highBDFP;
+            }
+            else
+            {
+                lastBDFLocLow = lastBDFLocLow + (removeLow / 2) * ChannelCanvas.decimateOld;
+                lastBDFLocHigh = lastBDFLocHigh - (removeHigh / 2) * ChannelCanvas.decimateOld;
+                //**** 2. Add points as needed below current point list
+                BDFEDFFileStream.BDFLoc i;
+                for (i = lastBDFLocLow - ChannelCanvas.decimateNew;
+                    lowBDFP.lessThan(i) && i.IsInFile; i.Decrement(ChannelCanvas.decimateNew)) //start at first point below current range
                 {
-                    if (i.IsInFile)
-                        foreach (ChannelCanvas cc in chans)
-                        {
-                            FilePoint fp = cc.createFilePoint(i); //note: also updates overallmin and overallmax
-                            cc.FilePointList.Add(fp);
-                        }
+                    foreach (ChannelCanvas cc in chans)
+                        if (cc.needsRedraw)
+                            cc.createMinMaxPoints(i, false);
+                    lastBDFLocLow = i;
                 }
-            else if (removeHigh > 0)
-                //**** 2. Add points below current point list
-                for (BDFEDFFileStream.BDFLoc i = chans[0].FilePointList[0].fileLocation - ChannelCanvas.decimateNew;
-                    lowBDFP.lessThan(i); i.Decrement(ChannelCanvas.decimateNew)) //start at first point below current range
-                    // and work down to lowBDFP
+               
+                //**** 3. Add points as needed above current point list
+                for (i = lastBDFLocHigh + ChannelCanvas.decimateNew;
+                                i.lessThan(highBDFP) && i.IsInFile; i.Increment(ChannelCanvas.decimateNew)) //start at first point above current range
+                // and work up to hightBDFP
                 {
-                    if (i.IsInFile)
-                        foreach (ChannelCanvas cc in chans)
-                            if (cc.needsRedraw)
-                            {
-                                FilePoint fp = cc.createFilePoint(i); //note: also updates overallmin and overallmax
-                                cc.FilePointList.Insert(0, fp); //add to beginning of list
-                            }
+                    foreach (ChannelCanvas cc in chans)
+                        if (cc.needsRedraw)
+                            cc.createMinMaxPoints(i, true);
+                    lastBDFLocHigh = i;
                 }
-            else if (removeLow > 0)
-                //**** 3. Add points above current point list
-                for (BDFEDFFileStream.BDFLoc i = chans[0].FilePointList.Last().fileLocation + ChannelCanvas.decimateNew;
-                    i.lessThan(highBDFP); i.Increment(ChannelCanvas.decimateNew)) //start at first point above current range
-                    // and work up to hightBDFP
-                    if (i.IsInFile)
-                        foreach (ChannelCanvas cc in chans)
-                            if (cc.needsRedraw)
-                            {
-                                FilePoint fp = cc.createFilePoint(i); //note: also updates overallmin and overallmax
-                                cc.FilePointList.Add(fp); //add to end of list
-                            }
+            }
 
+            foreach(ChannelCanvas cc in currentChannelList)
+            {
+                double my = 0D;
+                double mx = 0D;
+                foreach (PointListPoint p in cc.PointList)
+                {
+                    my += p.rawY;
+                    mx += p.X;
+                }
+                mx /= cc.PointList.Count;
+                my /= cc.PointList.Count;
+                double sxy = 0D;
+                double sx2 = 0D;
+                foreach (PointListPoint p in cc.PointList)
+                {
+                    sxy += (p.X - mx) * (p.rawY - my);
+                    sx2 += Math.Pow(p.X - mx, 2);
+                }
+                cc.B = sxy/sx2;
+                cc.A = my - cc.B * mx;
+                cc.overallMax = double.MinValue;
+                cc.overallMin = double.MaxValue;
+                for (int i = 0; i < cc.PointList.Count; i++)
+                {
+                    PointListPoint p = cc.PointList[i];
+                    p.Y = p.rawY - cc.A - cc.B * p.X;
+                    cc.overallMax = Math.Max(p.Y, cc.overallMax);
+                    cc.overallMin = Math.Min(p.Y, cc.overallMin);
+                    cc.PointList[i] = p;
+                }
+            }
             //Now, we've got the points we need to plot each of the channels
-            for (int graphNumber = 0; graphNumber < chans.Count ;graphNumber++ )
+            //Here is where we have to remove offset and trends
+            //Keep track of:
+            //  1. If any points are added or removed, must recalculate trend and offset
+            //  2. If not #1, if vertical rescale multiply slope by scale change
+            //  3. If not #1, if horizontal resizing, leave slope the same (assume added points from change in decimation won't make a difference
+            //Also keep track of new min and max values for each
+
+
+            for (int graphNumber = 0; graphNumber < chans.Count;  graphNumber++)
             {
                 ChannelCanvas cc = chans[graphNumber];
-                //calculate new scale and offset
-                cc.newOffset = (cc.overallMax + cc.overallMin) / 2D;
-                cc.newScale = Math.Max(1D, (cc.overallMax - cc.overallMin) / ChannelCanvas.ChannelYScale);
                 //calculate and set appropriate stroke thickness
-                cc.path.StrokeThickness = currentDisplayWidthInSecs * 0.0006D;
+                cc.path.StrokeThickness = newDisplayWidthInSecs * 0.0006D;
 
-                //determine if "rescale" needs to be done: significant change in scale or offset?
-                bool rescale = Math.Abs((cc.newScale - cc.currentScale) / cc.currentScale) > scaleDelta &&
-                    Math.Abs((cc.overallMax - cc.overallMin) * (cc.newScale - cc.currentScale)) > 1D || //if scale changes sufficiently or...
-                    Math.Abs((cc.newOffset - cc.currentOffset) / (cc.overallMax - cc.overallMin)) > scaleDelta &&
-                    Math.Abs((cc.newOffset - cc.currentOffset) * cc.newScale) > 1D || //if offset changes sufficiently or...
-                    Math.Abs(ChannelCanvas.nominalCanvasHeight - cc.ActualHeight / XScaleSecsToInches)/ChannelCanvas.nominalCanvasHeight > 0.05; //if there has been a change in CanvasHeight
+                //determine if "rescale" needs to be done: significant change in scale?
+                bool rescale = Math.Abs(ChannelCanvas.nominalCanvasHeight - cc.ActualHeight / XScaleSecsToInches) / ChannelCanvas.nominalCanvasHeight > 0.05; //if there has been a change in CanvasHeight
 
-//                bool rescale = cc.newScale != cc.currentOffset || cc.newOffset != cc.currentOffset; //simple criteria
-                //only redraw if Y-scale has changed sufficiently, decimation changed, points have been removed, or there's no overlap
                 if (rescale || cc.needsRedraw)
                 {
-                    //update scale and offset
-                    cc.currentScale = cc.newScale;
-                    cc.currentOffset = cc.newOffset;
                     cc.rescalePoints(); //create new pointList
                     //and install it in window
                     ChannelCanvas.OldCanvasHeight = ChannelCanvas.nominalCanvasHeight; //reset
@@ -582,62 +623,39 @@ namespace EEGArtifactEditor
                     ctx.BeginFigure(cc.pointList[0], false, false);
                     ctx.PolyLineTo(cc.pointList, true, true);
                     ctx.Close();
-               }
-                cc.Height = cc.currentScale * ChannelCanvas.nominalCanvasHeight / XScaleSecsToInches;
-                Canvas.SetTop(cc, ((double)graphNumber - (cc.currentScale - 1D) / 4) * ChannelCanvas.nominalCanvasHeight);
-                markChannelRegions(cc, ChannelCanvas.ChannelYScale / 2D);
+                }
+                cc.Height = ChannelCanvas.nominalCanvasHeight / XScaleSecsToInches;
+                Canvas.SetTop(cc, (double)graphNumber * ChannelCanvas.nominalCanvasHeight);
+                markChannelRegions(cc);
             }
             this.Cursor = Cursors.Arrow;
         } //End redrawChannels
 
-        void markChannelRegions(ChannelCanvas cc, double threshold)
+        void markChannelRegions(ChannelCanvas cc)
         {
             cc.markedRegions.Children.Clear();
             cc.markedRegions.Height = ChannelCanvas.nominalCanvasHeight;
 
-            double upperThr = cc.currentOffset + threshold;
-            double lowerThr = cc.currentOffset - threshold;
+            double upperThr = ChannelCanvas.ChannelYScale / 2D;
+            double lowerThr = -upperThr;
             bool InBadRegion = false;
             double rectLeft = 0;
-            double rectRight = 0;
-            foreach (FilePoint fp in cc.FilePointList)
+            foreach (PointListPoint pt in cc.PointList)
             {
-                if (fp.first.Y > upperThr || fp.first.Y < lowerThr)
+                if (pt.Y > upperThr || pt.Y < lowerThr)
                 {
-                    if (InBadRegion)
-                        rectRight = fp.SecondValid ? fp.second.X : fp.first.X;
-                    else
+                    if (!InBadRegion) //start new region
                     {
                         InBadRegion = true;
-                        rectLeft = fp.first.X;
-                        rectRight = fp.SecondValid ? fp.second.X : fp.first.X;
+                        rectLeft = pt.X;
                     }
-                    continue;
                 }
                 else
-                    if (InBadRegion)
+                    if (InBadRegion) //end current region
                     {
-                        addNewCCRect(cc, rectLeft, rectRight);
+                        addNewCCRect(cc, rectLeft, pt.X);
                         InBadRegion = false;
                     }
-                if (fp.SecondValid)
-                    if (fp.second.Y > upperThr || fp.second.Y < lowerThr)
-                    {
-                        if (InBadRegion)
-                            rectRight = fp.second.X;
-                        else
-                        {
-                            InBadRegion = true;
-                            rectLeft = fp.first.X;
-                            rectRight = fp.second.X;
-                        }
-                    }
-                    else
-                        if (InBadRegion)
-                        {
-                            addNewCCRect(cc, rectLeft, rectRight);
-                            InBadRegion = false;
-                        }
             }
 
             Canvas.SetTop(cc.markedRegions, currentChannelLocation(cc._channel) * ChannelCanvas.nominalCanvasHeight);
@@ -645,7 +663,7 @@ namespace EEGArtifactEditor
 
         void addNewCCRect(ChannelCanvas cc, double left, double right)
         {
-            if (left == right) return; //can't mark single value -- unlikely to occur
+            if (left >= right) return; //can't mark single value -- unlikely to occur
             Rectangle r = new Rectangle();
             r.Opacity = 0.4;
             r.Fill = Brushes.Green;
@@ -795,7 +813,7 @@ namespace EEGArtifactEditor
             {
                 return; //no chnage if invalid entry
             }
-            if (dw == currentDisplayWidthInSecs || dw <= 0D) return; //don't change FOV
+            if (dw == newDisplayWidthInSecs || dw <= 0D) return; //don't change FOV
             //here we change FOV slider setting, which in turn updates display
             if (dw < 0.1) FOV.Value = -1D; //set FOV to minimum 0.1
             else
@@ -805,19 +823,20 @@ namespace EEGArtifactEditor
         private void FOV_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
             ChangeDisplayWidth(Math.Min(Math.Pow(10D, e.NewValue), BDFLength));
+            reDrawGrid(VerticalGrid.ActualHeight - ScrollBarSize);
         }
 
         private void ChangeDisplayWidth(double newDisplayWidth)
         {
-            oldDisplayWidthInSecs = currentDisplayWidthInSecs;
-            currentDisplayWidthInSecs = newDisplayWidth;
-            XScaleSecsToInches = Viewer.ViewportWidth / currentDisplayWidthInSecs;
+            oldDisplayWidthInSecs = newDisplayWidthInSecs;
+            newDisplayWidthInSecs = newDisplayWidth;
+            XScaleSecsToInches = Viewer.ViewportWidth / newDisplayWidthInSecs;
             Transform t = new ScaleTransform(XScaleSecsToInches, XScaleSecsToInches, Viewer.ContentHorizontalOffset + Viewer.ViewportWidth / 2, 0D);
             t.Freeze();
             ViewerGrid.LayoutTransform = t; //new transform: keep scale seconds
             //NB: must also scale vertically (and correct later) to keep drawing pen circular!
             //Now change horizontal scroll to make inflation/deflation around center point;
-            Viewer.ScrollToHorizontalOffset(XScaleSecsToInches * (currentDisplayOffsetInSecs + (oldDisplayWidthInSecs - currentDisplayWidthInSecs) / 2D));
+            Viewer.ScrollToHorizontalOffset(XScaleSecsToInches * (newDisplayOffsetInSecs + (oldDisplayWidthInSecs - newDisplayWidthInSecs) / 2D));
         }
 
         private void DatasetInfoButton_Click(object sender, RoutedEventArgs e)
@@ -920,6 +939,11 @@ namespace EEGArtifactEditor
         {
             return currentChannelList.FindIndex(c => c._channel == channelNumber);
         }
+
+        private void VerticalGrid_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            reDrawGrid(e.NewSize.Height - ScrollBarSize);
+        }
     }
 
     internal class ChannelCanvas : Canvas
@@ -931,15 +955,13 @@ namespace EEGArtifactEditor
         internal System.Windows.Shapes.Path path = new System.Windows.Shapes.Path();
         internal Line baseline = new Line();
 
-        internal List<FilePoint> FilePointList = new List<FilePoint>(4096);
-        internal List<Point> pointList = new List<Point>(4096);
-        internal double currentScale;
-        internal double currentOffset;
-        internal double newScale;
-        internal double newOffset;
+        internal List<PointListPoint> PointList = new List<PointListPoint>(4096); //Points with Y-scale of uV: original and de-trended
+        internal List<Point> pointList = new List<Point>(4096); //Final Points for creating the PolyLine on the Canvas
         internal bool needsRedraw = true;
-        internal double overallMax;
-        internal double overallMin;
+        internal double overallMax; //detrended maximal value
+        internal double overallMin; //detrended minimal value
+        internal double A; //offset of trend
+        internal double B; //slope of trend
         internal static BDFEDFFileStream.BDFEDFFileReader bdf;
         internal static int decimateOld = 0;
         internal static int decimateNew;
@@ -990,18 +1012,26 @@ namespace EEGArtifactEditor
             baseline.Stroke = Brushes.LightBlue;
         }
         
-        //This routine creates a new entry in the list of plotted points (FilePointList) based on data
+        //This routine creates a new entries in the list of plotted points (FilePointList) based on data
         //at the given location (index) in the BDF/EDF file; it finds the minimum and maximum values in
-        //the next decimateNew points and saves those values in the FilePoint; it also updates the
-        //current maximum and minimum points in the currently displayed segment, so that the plot can
-        //be appropriately scaled
-        internal FilePoint createFilePoint(BDFEDFFileStream.BDFLoc index)
+        //the next decimateNew points and saves those values in FilePoint, placing the new Points above
+        //or below the existing points
+        internal void createMinMaxPoints(BDFEDFFileStream.BDFLoc index, bool addAbove)
         {
+            double secs = index.ToSecs();
+            if (decimateNew == 1) //only time we generate single point
+            {
+                if (addAbove)
+                    this.PointList.Add(new PointListPoint(secs,bdf.getSample(_channel,index)));
+                else
+                    this.PointList.Insert(0, new PointListPoint(secs,bdf.getSample(_channel,index)));
+                return;
+            }
             double sample;
-            double max = double.MinValue;
-            double min = double.MaxValue;
-            int imax = 0;
-            int imin = 0;
+            double max = double.MinValue; //max value in this decimate
+            double min = double.MaxValue; //min value in this decimate
+            int imax = 0; //location of max value in this decimate
+            int imin = 0; //location of min value in this decimate
             BDFEDFFileStream.BDFLoc temp = index;
             for (int j = 0; j < decimateNew; j++)
             {
@@ -1009,50 +1039,48 @@ namespace EEGArtifactEditor
                     sample = bdf.getSample(_channel, temp++); // we use scaled valued (in uV)
                 else
                     break;
-                if (sample > max) { max = sample; imax = j; } //OK if NaN; neither > or < any number
-                if (sample < min) { min = sample; imin = j; }
-            }
-            if (max > overallMax) overallMax = max;
-            if (min < overallMin) overallMin = min;
-            FilePoint fp = new FilePoint();
-            fp.fileLocation = index;
-            double secs = index.ToSecs();
+                if (sample > max) { max = sample; imax = j; } //if all values in the decimate are the same, we still create two separate
+                if (sample <= min) { min = sample; imin = j; } //points: the first and last in the decimate by using the <= for
+            }                                                   //the min! We have to have two points for each, unles decimation = 1
             double st = bdf.SampTime;
-            if (imax < imin)
+
+            PointListPoint pt1 = new PointListPoint();
+            PointListPoint pt2 = new PointListPoint();
+            if (imax < imin) //if maximum to the "left" of minimum; NB: imin cannot equal imax,
+            //because there are always at least two points in the decimate
             {
-                fp.first.X = secs + imax * st;
-                fp.first.Y = max;
-                fp.second.X = secs + imin * st;
-                fp.second.Y = min;
-                fp.SecondValid = true;
+                pt1.X = secs + imax * st;
+                pt1.rawY = max;
+                pt2.X = secs + imin * st;
+                pt2.rawY = min;
             }
-            else if (imax > imin)
+            else
             {
-                fp.first.X = secs + imin * st;
-                fp.first.Y = min;
-                fp.second.X = secs + imax * st;
-                fp.second.Y = max;
-                fp.SecondValid = true;
+                pt1.X = secs + imin * st;
+                pt1.rawY = min;
+                pt2.X = secs + imax * st;
+                pt2.rawY = max;
             }
-            else //imax == imin
+            if (addAbove)
             {
-                fp.first.X = secs + imax * st;
-                fp.first.Y = max;
-                fp.SecondValid = false;
+                this.PointList.Add(pt1);
+                this.PointList.Add(pt2);
             }
-            return fp;
+            else
+            {
+                this.PointList.Insert(0, pt2);
+                this.PointList.Insert(0, pt1);
+            }
         }
 
         internal void rescalePoints()
         {
-            double c1 = nominalCanvasHeight / ChannelYScale; // nominalCanvasHeight is alread scaled by XScaleSecsToInches
-            double c2 = nominalCanvasHeight / 2 + c1 * currentOffset;
+            double c1 = nominalCanvasHeight / ChannelYScale; // nominalCanvasHeight is already scaled by XScaleSecsToInches
+            double c2 = nominalCanvasHeight / 2;
             pointList.Clear();
-            foreach(FilePoint fp in FilePointList)
+            foreach(PointListPoint pt in PointList)
             {
-                pointList.Add(new Point(fp.first.X, c2 - c1 * fp.first.Y));
-                if (fp.SecondValid)
-                    pointList.Add(new Point(fp.second.X, c2 - c1 * fp.second.Y));
+                pointList.Add(new Point(pt.X, c2 - c1 * pt.Y));
             }
         }
 
@@ -1209,12 +1237,17 @@ namespace EEGArtifactEditor
         }
     }
 
-    internal struct FilePoint
+    internal struct PointListPoint
     {
-        public BDFEDFFileStream.BDFLoc fileLocation;
-        public Point first;
-        public Point second;
-        public bool SecondValid;
-    }
+        public double rawY;
+        public double X;
+        public double Y;
 
+        internal PointListPoint(double x, double y)
+        {
+            rawY = y;
+            X = x;
+            Y = 0;
+        }
+    }
 }

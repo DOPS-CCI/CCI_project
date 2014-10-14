@@ -37,8 +37,8 @@ namespace EEGArtifactEditor
         internal void MakeNewEntry(double location)
         {
             string time = DateTime.Now.ToString("d MMM yyyy HH:mm:ss");
-            string start = main.currentDisplayOffsetInSecs.ToString("0.000");
-            string end = (main.currentDisplayOffsetInSecs + main.currentDisplayWidthInSecs).ToString("0.000");
+            string start = main.newDisplayOffsetInSecs.ToString("0.000");
+            string end = (main.newDisplayOffsetInSecs + main.newDisplayWidthInSecs).ToString("0.000");
             StringBuilder sb = new StringBuilder();
             if (Notes.Text != "") sb.Append(Environment.NewLine + Environment.NewLine);
             sb.Append("+++++> " + time + " " + Environment.MachineName + "(" + Environment.UserName + ") at location " + location.ToString("0.000"));
