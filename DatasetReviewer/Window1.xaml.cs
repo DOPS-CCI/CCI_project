@@ -26,7 +26,7 @@ namespace DatasetReviewer
 
             InitializeComponent();
 
-            Title = "Select channels from dataset " + System.IO.Path.GetFileName(main.directory);
+            Title = "Select channels from dataset " + main.headerFileName;
             FileInfo.Text = main.bdf.ToString().Trim();
             SelChan.Text = "1-" + main.bdf.NumberOfChannels.ToString("0"); //initialize channel selection string
 

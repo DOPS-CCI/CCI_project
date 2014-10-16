@@ -44,6 +44,7 @@ namespace DatasetReviewer
 //        public BDFEDFFileReader bdf;
         Header.Header head;
         internal string directory;
+        internal string headerFileName;
         internal bool includeANAs = true;
         internal static DecimationType dType = DecimationType.MinMax;
         internal TextBlock eventTB;
@@ -72,9 +73,10 @@ namespace DatasetReviewer
                     dlg.DefaultExt = ".hdr"; // Default file extension
                     dlg.Filter = "HDR Files (.hdr)|*.hdr"; // Filter files by extension
                     Nullable<bool> result = dlg.ShowDialog();
-                    if (result == null || result == false) { this.Close(); Environment.Exit(0); }
+                    if (result == null || result == false) Environment.Exit(0);
 
                     directory = System.IO.Path.GetDirectoryName(dlg.FileName); //will use to find other files in dataset
+                    headerFileName = System.IO.Path.GetFileNameWithoutExtension(dlg.FileName);
 
                     head = (new HeaderFileReader(dlg.OpenFile())).read();
                     ED = head.Events;
@@ -107,7 +109,7 @@ namespace DatasetReviewer
             InitializeComponent();
 
             Log.writeToLog("Starting DatasetReviewer " + Assembly.GetExecutingAssembly().GetName().Version.ToString() +
-                " on dataset " + directory);
+                " on dataset " + headerFileName);
 
             //initialize the individual channel graphs
             foreach (int i in channelList)
@@ -116,7 +118,7 @@ namespace DatasetReviewer
                 GraphCanvas.Children.Add(pg);
             }
 
-            Title = System.IO.Path.GetFileName(directory); //set window title
+            Title = headerFileName; //set window title
             BDFFileInfo.Content = bdf.ToString();
             HDRFileInfo.Content = head.ToString();
             Event.EventFactory.Instance(head.Events); // set up the factory
