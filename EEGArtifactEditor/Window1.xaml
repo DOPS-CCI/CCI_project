@@ -1,7 +1,7 @@
 ﻿<Window x:Class="EEGArtifactEditor.Window1"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Height="Auto" MinHeight="336" MaxWidth="660" ResizeMode="NoResize" MinWidth="660" WindowStartupLocation="CenterScreen" Topmost="True">
+        Width="660" ResizeMode="NoResize" WindowStartupLocation="CenterScreen" Topmost="True" SizeToContent="Height">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="*"/>

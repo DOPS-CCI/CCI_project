@@ -1,15 +1,15 @@
 ﻿<Window x:Class="EEGArtifactEditor.Window3"
             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        ResizeMode="CanResizeWithGrip" Width="500" Height="Auto" Closing="Window_Closing" WindowStartupLocation="CenterScreen" Topmost="True"
-        WindowStyle="ToolWindow" Title="Replace or create?">
+        ResizeMode="NoResize" Width="500" Closing="Window_Closing" WindowStartupLocation="CenterScreen" Topmost="True"
+        WindowStyle="ToolWindow" Title="Replace or create?" SizeToContent="Height">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
-            <RowDefinition/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
         <TextBlock TextWrapping="Wrap" FontSize="18">You have modified an existing dataset which has previously had artifacts removed. Do you want to replace the existing files
-            or create a new file? This affects only the HDR or EVT files in the original dataset.</TextBlock>
+            or create a new file? This affects only the HDR and EVT files in the original dataset.</TextBlock>
         <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right">
             <StackPanel.Resources>
                 <Style TargetType="Button">

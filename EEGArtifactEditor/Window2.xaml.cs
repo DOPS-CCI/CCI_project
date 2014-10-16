@@ -28,7 +28,7 @@ namespace EEGArtifactEditor
 
             InitializeComponent();
 
-            Title = "Notes on " + System.IO.Path.GetFileName(main.directory);
+            Title = "Notes on " + main.headerFileName;
             StreamReader noteFile = new StreamReader(new FileStream(main.noteFilePath, FileMode.OpenOrCreate, FileAccess.Read), Encoding.ASCII);
             Notes.Text = noteFile.ReadToEnd();
             noteFile.Close();

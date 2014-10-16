@@ -48,6 +48,7 @@ namespace EEGArtifactEditor
         public BDFEDFFileReader bdf;
         Header.Header header;
         internal string directory;
+        internal string headerFileName;
         Popup channelPopup = new Popup();
         TextBlock popupTB = new TextBlock();
 
@@ -71,9 +72,10 @@ namespace EEGArtifactEditor
                 dlg.DefaultExt = ".hdr"; // Default file extension
                 dlg.Filter = "HDR Files (.hdr)|*.hdr"; // Filter files by extension
                 Nullable<bool> result = dlg.ShowDialog();
-                if (result == null || result == false) { this.Close(); Environment.Exit(0); }
+                if (result == null || result == false) Environment.Exit(0); 
 
                 directory = System.IO.Path.GetDirectoryName(dlg.FileName); //will use to find other files in dataset
+                headerFileName = System.IO.Path.GetFileNameWithoutExtension(dlg.FileName);
 
                 header = (new HeaderFileReader(dlg.OpenFile())).read();
                 updateFlag = header.Events.ContainsKey("**ArtifactBegin"); //indicates that we are editing a dataset that has already been edited for artifacts
@@ -89,7 +91,7 @@ namespace EEGArtifactEditor
             InitializeComponent();
 
             Log.writeToLog("Starting EEGArtifactEditor " + Assembly.GetExecutingAssembly().GetName().Version.ToString() +
-                " on dataset " + directory);
+                " on dataset " + headerFileName);
             ViewerGrid.Width = BDFLength;
 
             //process Events in current dataset; we have to do this now in case this is an update situation, but don't have to when we finish
@@ -117,19 +119,20 @@ namespace EEGArtifactEditor
                 //and read them in
                 OutputEvent ev;
                 int i = 0;
+                double left;
                 while (i < events.Count)
                 {
                     ev = events[i];
                     if (ev.Name == "**ArtifactBegin")
                     {
-                        MarkerCanvas.beginMarkRegion(ev.Time - bdf.zeroTime);
+                        left = ev.Time - bdf.zeroTime;
                         events.Remove(ev);
                         while (i < events.Count)
                         {
                             ev = events[i];
                             if (ev.Name == "**ArtifactEnd")
                             {
-                                MarkerCanvas.endMarkRegion(ev.Time - bdf.zeroTime);
+                                MarkerCanvas.createMarkRegion(left, ev.Time - bdf.zeroTime);
                                 events.Remove(ev);
                                 break;
                             }
@@ -150,15 +153,14 @@ namespace EEGArtifactEditor
                 if (bdf.transducer(i) == trans) //include only EEG channels; i.e. those that use the same transducer as channel 0
                 {
                     ChannelCanvas cc = new ChannelCanvas(this, i);
-                    cc.AddToCanvas();
                     ViewerCanvas.Children.Add(cc);
-                    ViewerCanvas.Children.Add(cc.markedRegions);
+                    ViewerCanvas.Children.Add(cc.offScaleRegions);
                     candidateChannelList.Add(cc);
                 }
 
             currentChannelList.AddRange(candidateChannelList); //start with all the remaining channels
 
-            Title = System.IO.Path.GetFileName(directory); //set window title
+            Title = headerFileName; //set window title
             BDFFileInfo.Content = bdf.ToString();
             HDRFileInfo.Content = header.ToString();
 
@@ -210,7 +212,7 @@ namespace EEGArtifactEditor
             FOV.Value = 1D;
             FOVMax.Text = BDFLength.ToString("0");
 
-            noteFilePath = System.IO.Path.Combine(directory,System.IO.Path.ChangeExtension(header.BDFFile,".notes.txt"));
+            noteFilePath = System.IO.Path.Combine(directory, headerFileName + ".notes.txt");
 
             //from here on the program is GUI-event driven
         }
@@ -682,8 +684,8 @@ namespace EEGArtifactEditor
 
         void markChannelRegions(ChannelCanvas cc)
         {
-            cc.markedRegions.Children.Clear();
-            cc.markedRegions.Height = ChannelCanvas.nominalCanvasHeight;
+            cc.offScaleRegions.Children.Clear();
+            cc.offScaleRegions.Height = ChannelCanvas.nominalCanvasHeight;
 
             double upperThr = ChannelCanvas.ChannelYScale / 2D;
             double lowerThr = -upperThr;
@@ -707,7 +709,7 @@ namespace EEGArtifactEditor
                     }
             }
 
-            Canvas.SetTop(cc.markedRegions, currentChannelLocation(cc._channel) * ChannelCanvas.nominalCanvasHeight);
+            Canvas.SetTop(cc.offScaleRegions, currentChannelLocation(cc._channel) * ChannelCanvas.nominalCanvasHeight);
         }
 
         void addNewCCRect(ChannelCanvas cc, double left, double right)
@@ -720,7 +722,7 @@ namespace EEGArtifactEditor
             r.Height = ChannelCanvas.nominalCanvasHeight;
             Canvas.SetTop(r, 0);
             Canvas.SetLeft(r, left);
-            cc.markedRegions.Children.Add(r);
+            cc.offScaleRegions.Children.Add(r);
         }
 
         //----> Handle Viewer context menu clicks
@@ -734,16 +736,16 @@ namespace EEGArtifactEditor
             {
                 //set up context menu about to be displayed
                 string channelName = bdf.channelLabel(currentChannelList[graphNumber]._channel);
-                ((MenuItem)(ViewerGrid.ContextMenu.Items[1])).Header = "Remove channel " + channelName;
+                ((MenuItem)(ViewerGrid.ContextMenu.Items[6])).Header = "Remove channel " + channelName;
                 if (currentChannelList.Count <= 1)
-                    ((MenuItem)(ViewerGrid.ContextMenu.Items[1])).IsEnabled = false;
+                    ((MenuItem)(ViewerGrid.ContextMenu.Items[6])).IsEnabled = false;
                 else
-                    ((MenuItem)(ViewerGrid.ContextMenu.Items[1])).IsEnabled = true;
+                    ((MenuItem)(ViewerGrid.ContextMenu.Items[6])).IsEnabled = true;
                 ViewerGrid.ContextMenu.Visibility = Visibility.Visible;
                 AddChannel.Items.Clear();
                 if (currentChannelList.Count < candidateChannelList.Count)
                 {
-                    ((MenuItem)ViewerGrid.ContextMenu.Items[0]).IsEnabled = true;
+                    ((MenuItem)ViewerGrid.ContextMenu.Items[5]).IsEnabled = true;
                     foreach (ChannelCanvas cc in candidateChannelList)
                     {
                         if (currentChannelList.Contains(cc)) continue;
@@ -755,7 +757,7 @@ namespace EEGArtifactEditor
                 }
                 else
                 {
-                    ((MenuItem)ViewerGrid.ContextMenu.Items[0]).IsEnabled = false;
+                    ((MenuItem)ViewerGrid.ContextMenu.Items[5]).IsEnabled = false;
                 }
                 RemoveSeg.IsEnabled = MarkerCanvas.NumberOfRegions > 0 &&
                     MarkerCanvas.FindRegion(rightMouseClickLoc.X) != null;
@@ -773,7 +775,7 @@ namespace EEGArtifactEditor
                 if (currentChannelList[index]._channel > chan) break;
             currentChannelList.Insert(index, cc);
             ViewerCanvas.Children.Add(cc); //order doesn't make a difference
-            ViewerCanvas.Children.Add(cc.markedRegions);
+            ViewerCanvas.Children.Add(cc.offScaleRegions);
             ChannelCanvas.nominalCanvasHeight = ViewerGrid.ActualHeight / currentChannelList.Count;
             ChannelCanvas.decimateOld = -1;
             reDrawChannelLabels();
@@ -787,7 +789,7 @@ namespace EEGArtifactEditor
                 ChannelCanvas cc = currentChannelList[graphNumber];             
                 currentChannelList.Remove(cc);
                 ViewerCanvas.Children.Remove(cc);
-                ViewerCanvas.Children.Remove(cc.markedRegions);
+                ViewerCanvas.Children.Remove(cc.offScaleRegions);
                 ChannelCanvas.nominalCanvasHeight = ViewerGrid.ActualHeight / currentChannelList.Count;
                 reDrawChannelLabels();
                 reDrawChannels();
@@ -926,8 +928,18 @@ namespace EEGArtifactEditor
             {
                 EventDictionaryEntry ede1;
                 EventDictionaryEntry ede2;
+
+                //Determine how many artifact files in existence to create unique name
+                string[] files = Directory.GetFiles(directory, "*_artifact*.hdr", SearchOption.TopDirectoryOnly);
+                int maxFileIndex = -1;
+                for (int i = 0; i < files.Length; i++)
+                {
+                    Match m = Regex.Match(files[i], @"^.+_artifact(-\d+)*-(?<number>\d+)\.[hH][dD][rR]$");
+                    maxFileIndex = Math.Max(maxFileIndex, Convert.ToInt32(m.Groups["number"].Value));
+                }
+
                 string newFileName;
-                if (updateFlag) //then, need to find out if this is an update of current file only, or if a new amended file is to be created
+                if (updateFlag) //then, this dataset is based on another one; need to find out if this is an update of current dataset only, or if a new file is to be created
                 {
                     header.Events.TryGetValue("**ArtifactBegin", out ede1);
                     header.Events.TryGetValue("**ArtifactEnd", out ede2);
@@ -935,20 +947,15 @@ namespace EEGArtifactEditor
                     bool replace = (bool)w.ShowDialog();
                     if (!replace)
                     {
-                        string[] files = Directory.GetFiles(directory, "*_artifact*.hdr", SearchOption.TopDirectoryOnly);
-                        int max = -1;
-                        for (int i = 0; i < files.Length; i++)
-                        {
-                            Match m = Regex.Match(files[i], @"^.+_artifact(-\d+)*-(?<number>\d+)\.[hH][dD][rR]$");
-                            max = Math.Max(max, Convert.ToInt32(m.Groups["number"]));
-                        }
-                        newFileName = System.IO.Path.GetFileNameWithoutExtension(header.EventFile) + "-" + (max + 1).ToString("0");
+                        newFileName = System.IO.Path.GetFileNameWithoutExtension(header.EventFile) + "-" + (maxFileIndex + 1).ToString("0");
                         header.EventFile = newFileName + ".evt";
                         FileStream fs = new FileStream(System.IO.Path.Combine(directory, newFileName + ".hdr"), FileMode.OpenOrCreate, FileAccess.Write);
                         new HeaderFileWriter(fs, header); //write out new header
                     }
+                    else
+                        newFileName = System.IO.Path.GetFileNameWithoutExtension(header.EventFile); //Use old name; no reason to rewrite HDR file
                 }
-                else
+                else //this is based on a previously unmarked dataset
                 {
                     //Create new header with new "naked" Events and file names
                     ede1 = new EventDictionaryEntry();
@@ -959,7 +966,7 @@ namespace EEGArtifactEditor
                     ede2.Description = "End of artifact region";
                     header.Events.Add("**ArtifactBegin", ede1);
                     header.Events.Add("**ArtifactEnd", ede2);
-                    newFileName = System.IO.Path.GetFileNameWithoutExtension(header.BDFFile) + @"_artifact-0"; //create new filename
+                    newFileName = System.IO.Path.GetFileNameWithoutExtension(header.BDFFile) + @"_artifact-" + (maxFileIndex + 1).ToString("0"); ; //create new filename
                     header.EventFile = newFileName + ".evt";
                     //and write new header out
                     FileStream fs = new FileStream(System.IO.Path.Combine(directory, newFileName + ".hdr"), FileMode.OpenOrCreate, FileAccess.Write);
@@ -989,13 +996,14 @@ namespace EEGArtifactEditor
                 foreach (OutputEvent ev in events)
                     efw.writeRecord(ev);
                 efw.Close();
+                Log.writeToLog("    Created/updated to dataset " + newFileName);
             }
-            Environment.Exit(0);
+            this.Close();
         }
 
         private void Cancel_Click(object sender, RoutedEventArgs e)
         {
-            Environment.Exit(0);
+            this.Close();
         }
 
         internal int currentChannelLocation(int channelNumber)
@@ -1014,7 +1022,7 @@ namespace EEGArtifactEditor
         internal int _channel;
         internal TextBlock _channelLabel;
         internal StreamGeometry geometry = new StreamGeometry();
-        internal Canvas markedRegions = new Canvas();
+        internal Canvas offScaleRegions = new Canvas(); //this contains the indicators for off-scale points in the channel
         internal System.Windows.Shapes.Path path = new System.Windows.Shapes.Path();
         internal Line baseline = new Line();
 
@@ -1059,7 +1067,7 @@ namespace EEGArtifactEditor
         {
             _channel = channelNumber;
             this.Width = containingWindow.BDFLength; //NOTE: x-scale in seconds
-            markedRegions.Width = containingWindow.BDFLength;
+            offScaleRegions.Width = containingWindow.BDFLength;
             bdf = containingWindow.bdf;
             _channelLabel = new TextBlock(new Run(bdf.channelLabel(_channel)));
             this.VerticalAlignment = VerticalAlignment.Top;
@@ -1146,11 +1154,6 @@ namespace EEGArtifactEditor
                 pointList.Add(new Point(pt.X, c2 - c1 * pt.Y));
             }
         }
-
-        internal void AddToCanvas()
-        {
-            
-        }
     }
 
     public class MarkerCanvasClass : Canvas
@@ -1162,35 +1165,41 @@ namespace EEGArtifactEditor
             set { _InMarkRegion = value; }
         }
         double _startLocation;
-        Rectangle r;
+        Rectangle activeRect;
         internal List<MarkerRectangle> markedRegions = new List<MarkerRectangle>();
 
         public void beginMarkRegion(double startLocation)
         {
-#if DEBUG
-            Console.WriteLine("In beginMarkRegion");
-#endif
-            r = new Rectangle();
-            r.Fill = Brushes.Red;
-            r.Width = 0;
-            r.Opacity = 0.4;
+            activeRect = new Rectangle();
+            activeRect.Fill = Brushes.Red;
+            activeRect.Width = 0;
+            activeRect.Opacity = 0.4;
             Binding b = new Binding("ActualHeight");
             b.Source = this.Parent;
-            r.SetBinding(Rectangle.HeightProperty, b);
-            Canvas.SetTop(r, 0);
-            Canvas.SetLeft(r, startLocation);
-            Children.Add(r);
+            activeRect.SetBinding(Rectangle.HeightProperty, b);
+            Canvas.SetTop(activeRect, 0);
+            Canvas.SetLeft(activeRect, startLocation);
+            Children.Add(activeRect);
             _startLocation = startLocation;
         }
 
-        public void endMarkRegion(double endLocation)
+        //create new marker rectangle from scratch
+        public void createMarkRegion(double left, double right)
         {
-            r.Fill = Brushes.Blue;
-            r.Width = Math.Abs(endLocation - _startLocation);
-            MarkerRectangle current = new MarkerRectangle();
-            current.rect = r;
-            current.leftEdge = Canvas.GetLeft(r);
-            current.rightEdge = endLocation;
+            activeRect = new Rectangle();
+            activeRect.Opacity = 0.4;
+            activeRect.Fill = Brushes.Blue;
+            activeRect.Width = right - left;
+            Binding b = new Binding("ActualHeight"); //create finding to panel height
+            b.Source = this.Parent;
+            activeRect.SetBinding(Rectangle.HeightProperty, b); //to control rectangle height
+            Canvas.SetTop(activeRect, 0);
+            Canvas.SetLeft(activeRect, left);
+            Children.Add(activeRect); //add it to canvas
+            MarkerRectangle current = new MarkerRectangle(); //now log it into marked regions
+            current.rect = activeRect;
+            current.leftEdge = left;
+            current.rightEdge = right;
             markedRegions.Add(current);
         }
 
@@ -1198,22 +1207,22 @@ namespace EEGArtifactEditor
         {
             Point p = e.MouseDevice.GetPosition(this);
             double newWidth = p.X - _startLocation;
-            if (newWidth >= 0)
+            if (newWidth >= 0) //then, selected region extends to the right
             {
-                Canvas.SetLeft(r, _startLocation);
-                r.Width = newWidth;
+                Canvas.SetLeft(activeRect, _startLocation);
+                activeRect.Width = newWidth;
             }
-            else
+            else //selected region extends to the left
             {
-                Canvas.SetLeft(r, _startLocation + newWidth);
-                r.Width = -newWidth;
+                Canvas.SetLeft(activeRect, _startLocation + newWidth);
+                activeRect.Width = -newWidth;
             }
         }
 
         internal void DoPreviewMouseUp(object sender, MouseButtonEventArgs e)
         {
-            double left = Canvas.GetLeft(r); //left and right track the location of the marked region, ...
-            double right = left + r.Width; // increased in size as needed to account for overlaps with exisiting regions
+            double left = Canvas.GetLeft(activeRect); //left and right track the location of the marked region, ...
+            double right = left + activeRect.Width; // this is increased in size as needed to account for overlaps with exisiting regions
 
             bool c;
             MarkerRectangle current = null; //this references the current region fow which we are looking for overlaps
@@ -1223,7 +1232,7 @@ namespace EEGArtifactEditor
             //However, we need to loop back through and ascertain that the newly increased region doesn't overlap some other one!
             do
             {
-                c = false;
+                c = false; //tracks if there is an overlap found
                 foreach (MarkerRectangle mr in markedRegions)
                 {
                     if (mr == current) continue;
@@ -1236,25 +1245,29 @@ namespace EEGArtifactEditor
                             Remove(current);
                         else //we can get rid of the marker rectangle, which is about to be subsumed into another region
                         {
-                            this.Children.Remove(r);
-                            r = null;
+                            this.Children.Remove(activeRect);
+                            activeRect = null;
                         }
                         current = mr; //update current region
                         break;
                     }
                 }
             } while (c == true); //keep going until there are no more overlaps
+
             if (current == null) //then this is a distinct, new region -- no overlaps found
             { //Make a new region/marker
-                endMarkRegion(right);
+                current = new MarkerRectangle();
+                activeRect.Fill = Brushes.Blue;
+                current.rect = activeRect;
+                markedRegions.Add(current);
             }
             else
             { //Othwise update overlapped region
-                current.leftEdge = left;
-                current.rightEdge = right;
-                current.rect.Width = right - left;
                 Canvas.SetLeft(current.rect, left);
             }
+            current.rect.Width = right - left;
+            current.leftEdge = left;
+            current.rightEdge = right;
         }
 
         internal MarkerRectangle FindRegion(double v)
