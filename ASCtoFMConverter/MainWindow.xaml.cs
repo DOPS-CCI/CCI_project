@@ -31,6 +31,7 @@ namespace ASCtoFMConverter
         BDFEDFFileReader bdf;
         List<GVEntry> _GVList;
         string directory;
+        string headerFileName;
         int samplingRate;
         double markerOffset;
         ASCtoFMConverter.ASCConverter asc = null;
@@ -70,9 +71,10 @@ namespace ASCtoFMConverter
             dlg.DefaultExt = ".hdr"; // Default file extension
             dlg.Filter = "HDR Files (.hdr)|*.hdr"; // Filter files by extension
             Nullable<bool> result = dlg.ShowDialog();
-            if (result == null || result == false) { this.Close(); Environment.Exit(0); }
+            if (result == null || result == false) Environment.Exit(0);
 
             directory = System.IO.Path.GetDirectoryName(dlg.FileName);
+            headerFileName = System.IO.Path.GetFileNameWithoutExtension(dlg.FileName);
 
             head = (new HeaderFileReader(dlg.OpenFile())).read();
             ED = head.Events;
@@ -87,7 +89,7 @@ namespace ASCtoFMConverter
             this.MinHeight = SystemInformation.WorkingArea.Height - 240;
             this.EpisodeEntries.Items.Add(new EpisodeDescriptionEntry(head, checkError)); //include initial episode description
 
-            this.Title = "Convert " + System.IO.Path.GetFileNameWithoutExtension(dlg.FileName);
+            this.Title = "Convert " + headerFileName;
             this.TitleLine.Text = head.Title + " - " + head.Date + " " + head.Time + " S=" + head.Subject.ToString("0000");
 
             if (head.GroupVars != null)
@@ -455,7 +457,7 @@ namespace ASCtoFMConverter
             checkError();
         }
 
-        private void Window_Closed(object sender, EventArgs e)
+        private void Window_Closing(object sender, EventArgs e)
         {
             CCIUtilities.Log.writeToLog("ASCtoFMConverter ending");
             bdf.Close();
@@ -537,6 +539,7 @@ namespace ASCtoFMConverter
 
             conv.channels = this.channels;
             conv.directory = this.directory;
+            conv.headerFileName = this.headerFileName;
             conv.GV = listView2.SelectedItems.Cast<GVEntry>().ToList<GVEntry>();
             conv.head = this.head;
             conv.decimation = _decimation;
@@ -627,7 +630,6 @@ namespace ASCtoFMConverter
         private void Done_Click(object sender, RoutedEventArgs e)
         {
             this.Close();
-            Environment.Exit(0);
         }
 
         private void Cancel_Click(object sender, RoutedEventArgs e)

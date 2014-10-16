@@ -20,6 +20,7 @@ namespace ASCtoFMConverter
     class ASCConverter
     {
         public string directory;
+        public string headerFileName;
         public Header.Header head;
         public EventDictionary.EventDictionary ED;
         public int decimation;
@@ -50,7 +51,7 @@ namespace ASCtoFMConverter
             bw = (BackgroundWorker)sender;
 
             bw.ReportProgress(0, "Starting ASC conversion");
-            CCIUtilities.Log.writeToLog("Started ASC conversion on records in " + directory);
+            CCIUtilities.Log.writeToLog("Started ASC conversion on records in " + headerFileName);
 
             /***** Read electrode file *****/
             ElectrodeInputFileStream etrFile = new ElectrodeInputFileStream(
@@ -62,7 +63,7 @@ namespace ASCtoFMConverter
             dlg.AddExtension = true;
             dlg.DefaultExt = ".fmn"; // Default file extension
             dlg.Filter = "FILMAN Files (.fmn)|*.fmn"; // Filter files by extension
-            dlg.FileName = System.IO.Path.GetFileNameWithoutExtension(head.BDFFile);
+            dlg.FileName = headerFileName;
             Nullable<bool> result = dlg.ShowDialog();
             if (result == null || !(bool)result)
             {
