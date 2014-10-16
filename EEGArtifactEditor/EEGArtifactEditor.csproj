@@ -103,6 +103,9 @@
     <Compile Include="Window2.xaml.cs" />
     <Compile Include="MainWindow.xaml.cs" />
     <Compile Include="Window1.xaml.cs" />
+    <Compile Include="Window3.xaml.cs">
+      <DependentUpon>Window3.xaml</DependentUpon>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
     <Reference Include="CCILibrary">
@@ -134,6 +137,10 @@
     <Page Include="Window1.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Window3.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
     </Page>
   </ItemGroup>
   <ItemGroup>

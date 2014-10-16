@@ -26,8 +26,8 @@ namespace EEGArtifactEditor
             InitializeComponent();
 
             Title = "BDF file information" + System.IO.Path.GetFileName(main.directory);
-            FileInfo.Text = main.bdf.ToString().Trim();
-            
+            FileInfo.Text = (main.updateFlag ? "***** This dataset has already been edited for artifacts *****" : "") +
+                Environment.NewLine + main.bdf.ToString().Trim();
         }
 
         private void OK_Click(object sender, RoutedEventArgs e)
