@@ -19,7 +19,7 @@ namespace EEGArtifactEditor
     /// </summary>
     public partial class Window3 : Window
     {
-        bool? dr = null;
+        int dr = 1;
         public Window3()
         {
             InitializeComponent();
@@ -27,13 +27,12 @@ namespace EEGArtifactEditor
 
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
-            if (dr == null) dr = true;
-            DialogResult = dr;
+            ((MainWindow)this.Owner).dialogReturn = dr;
         }
 
         private void Replace_Click(object sender, RoutedEventArgs e)
         {
-            dr = (Button)sender == Replace;
+            dr = Convert.ToInt32((string)((Button)sender).Tag);
             this.Close();
         }
     }

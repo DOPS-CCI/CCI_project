@@ -61,6 +61,7 @@ namespace EEGArtifactEditor
         internal string noteFilePath;
 
         internal bool updateFlag = false;
+        internal int dialogReturn;
 
         public MainWindow()
         {
@@ -106,12 +107,22 @@ namespace EEGArtifactEditor
             efr.Close(); //now events is list of Events in the dataset
 
             //now set zeroTime for this BDF file, after finding an appropriate (non-"naked") Event
+            bool ok = false;
             foreach (OutputEvent ev in events)
                 if (header.Events[ev.Name].intrinsic != null)
                 {
                     bdf.setZeroTime(ev);
+                    ok = true;
                     break;
                 }
+            if (!ok)
+            {
+                ErrorWindow ew = new ErrorWindow();
+                ew.Message = "Unable to find a covered Event in this dataset on which to synchronize clocks. Exiting.";
+                ew.ShowDialog();
+                Log.writeToLog("Unable to synchronize clocks.");
+                this.Close();
+            }
 
             if (updateFlag)
             {
@@ -665,19 +676,17 @@ namespace EEGArtifactEditor
                 //calculate and set appropriate stroke thickness
                 cc.path.StrokeThickness = newDisplayWidthInSecs * 0.0006D;
 
-                //determine if "rescale" needs to be done: significant change in scale?
-                bool rescale = Math.Abs(ChannelCanvas.nominalCanvasHeight - cc.ActualHeight / XScaleSecsToInches) / ChannelCanvas.nominalCanvasHeight > 0.05; //if there has been a change in CanvasHeight
-
-                    cc.rescalePoints(); //create new pointList
-                    //and install it in window
-                    ChannelCanvas.OldCanvasHeight = ChannelCanvas.nominalCanvasHeight; //reset
-                    StreamGeometryContext ctx = cc.geometry.Open();
-                    ctx.BeginFigure(cc.pointList[0], false, false);
-                    ctx.PolyLineTo(cc.pointList, true, true);
-                    ctx.Close();
+                cc.rescalePoints(); //create new pointList
+                //and install it in window
+                ChannelCanvas.OldCanvasHeight = ChannelCanvas.nominalCanvasHeight; //reset
+                StreamGeometryContext ctx = cc.geometry.Open();
+                ctx.BeginFigure(cc.pointList[0], false, false);
+                ctx.PolyLineTo(cc.pointList, true, true);
+                ctx.Close();
                 cc.Height = ChannelCanvas.nominalCanvasHeight / XScaleSecsToInches;
                 Canvas.SetTop(cc, (double)graphNumber * ChannelCanvas.nominalCanvasHeight);
-                markChannelRegions(cc);
+                if(showOOSMarks)
+                    markChannelRegions(cc);
             }
             this.Cursor = Cursors.Arrow;
         } //End redrawChannels
@@ -710,6 +719,7 @@ namespace EEGArtifactEditor
             }
 
             Canvas.SetTop(cc.offScaleRegions, currentChannelLocation(cc._channel) * ChannelCanvas.nominalCanvasHeight);
+            cc.offScaleRegions.Visibility = Visibility.Visible;
         }
 
         void addNewCCRect(ChannelCanvas cc, double left, double right)
@@ -944,16 +954,18 @@ namespace EEGArtifactEditor
                     header.Events.TryGetValue("**ArtifactBegin", out ede1);
                     header.Events.TryGetValue("**ArtifactEnd", out ede2);
                     Window3 w = new Window3();
-                    bool replace = (bool)w.ShowDialog();
-                    if (!replace)
+                    w.Owner = this;
+                    w.ShowDialog();
+                    if (dialogReturn == 1) return;
+                    if (dialogReturn == 2)
+                        newFileName = System.IO.Path.GetFileNameWithoutExtension(header.EventFile); //Use old name; no reason to rewrite HDR file
+                    else
                     {
                         newFileName = System.IO.Path.GetFileNameWithoutExtension(header.EventFile) + "-" + (maxFileIndex + 1).ToString("0");
                         header.EventFile = newFileName + ".evt";
                         FileStream fs = new FileStream(System.IO.Path.Combine(directory, newFileName + ".hdr"), FileMode.OpenOrCreate, FileAccess.Write);
                         new HeaderFileWriter(fs, header); //write out new header
                     }
-                    else
-                        newFileName = System.IO.Path.GetFileNameWithoutExtension(header.EventFile); //Use old name; no reason to rewrite HDR file
                 }
                 else //this is based on a previously unmarked dataset
                 {
@@ -1014,6 +1026,18 @@ namespace EEGArtifactEditor
         private void VerticalGrid_SizeChanged(object sender, SizeChangedEventArgs e)
         {
             reDrawGrid(e.NewSize.Height - ScrollBarSize);
+        }
+
+        bool showOOSMarks = true;
+        private void OOSMark_Clicked(object sender, RoutedEventArgs e)
+        {
+            showOOSMarks = (bool)((CheckBox)sender).IsChecked;
+            if (showOOSMarks)
+                foreach (ChannelCanvas cc in currentChannelList)
+                    markChannelRegions(cc);
+            else
+                foreach (ChannelCanvas cc in candidateChannelList)
+                    cc.offScaleRegions.Visibility = Visibility.Hidden;
         }
     }
 
@@ -1086,7 +1110,7 @@ namespace EEGArtifactEditor
         //This routine creates a new entries in the list of plotted points (FilePointList) based on data
         //at the given location (index) in the BDF/EDF file; it finds the minimum and maximum values in
         //the next decimateNew points and saves those values in FilePoint, placing the new Points above
-        //or below the existing points
+        //or below the Points already in FilePoint
         internal void createMinMaxPoints(BDFEDFFileStream.BDFLoc index, bool addAbove)
         {
             double secs = index.ToSecs();

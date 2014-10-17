@@ -18,10 +18,10 @@
                     <Setter Property="Width" Value="100"/>
                     <Setter Property="Margin" Value="8"/>
                 </Style>
-
             </StackPanel.Resources>
-            <Button Name="Replace" Click="Replace_Click" IsDefault="True">Replace</Button>
-            <Button Click="Replace_Click">Create new</Button>
+            <Button Tag="1" Click="Replace_Click" IsCancel="True">Cancel</Button>
+            <Button Tag="2" Click="Replace_Click">Replace</Button>
+            <Button Tag="3" Click="Replace_Click" IsDefault="True">Create new</Button>
         </StackPanel>
     </Grid>
 </Window>
