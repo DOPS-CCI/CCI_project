@@ -46,7 +46,7 @@ namespace EEGArtifactEditor
         public BDFLoc lastBDFLocLow;
         public BDFLoc lastBDFLocHigh;
         public BDFEDFFileReader bdf;
-        Header.Header header;
+        internal Header.Header header;
         internal string directory;
         internal string headerFileName;
         Popup channelPopup = new Popup();
@@ -223,7 +223,9 @@ namespace EEGArtifactEditor
             FOV.Value = 1D;
             FOVMax.Text = BDFLength.ToString("0");
 
-            noteFilePath = System.IO.Path.Combine(directory, headerFileName + ".notes.txt");
+            //Note file always uses the "main" orginal dataset name, which should be the BDFFile name; this keeps notes from all levels of
+            //processing in the same place
+            noteFilePath = System.IO.Path.Combine(directory, System.IO.Path.GetFileNameWithoutExtension(header.BDFFile) + ".notes.txt");
 
             //from here on the program is GUI-event driven
         }
@@ -945,7 +947,8 @@ namespace EEGArtifactEditor
                 for (int i = 0; i < files.Length; i++)
                 {
                     Match m = Regex.Match(files[i], @"^.+_artifact(-\d+)*-(?<number>\d+)\.[hH][dD][rR]$");
-                    maxFileIndex = Math.Max(maxFileIndex, Convert.ToInt32(m.Groups["number"].Value));
+                    if(m.Success) //has to match naming convention
+                        maxFileIndex = Math.Max(maxFileIndex, Convert.ToInt32(m.Groups["number"].Value));
                 }
 
                 string newFileName;
