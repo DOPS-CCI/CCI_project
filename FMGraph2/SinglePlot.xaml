@@ -5,7 +5,7 @@
     xmlns:local="clr-namespace:FMGraph2"
     Height="Auto" Width="Auto" FontSize="14" Unloaded="Tab_Unloaded" Padding="12,2,0,2">
     <TabItem.Resources>
-        <local:LimitDouble x:Key="converter" />
+        <local:LimitDouble x:Key="conv" />
     </TabItem.Resources>
     <TabItem.Header>
         <StackPanel Orientation="Horizontal">
@@ -32,20 +32,20 @@
 
             </Canvas>
         </Viewbox>
-        <StackPanel Name="Info" Grid.Column="1" Grid.Row="0" Orientation="Vertical" Width="200" HorizontalAlignment="Right" Background="#C0F0F8FF">
+        <StackPanel Name="Info" Grid.Column="1" Grid.Row="0" Orientation="Vertical" Width="200" HorizontalAlignment="Right" Background="#C0F0F8FF" Height="60" VerticalAlignment="Top">
             <TextBlock Margin="5,2,0,0" FontSize="13">
                 <Run>Y maximum = </Run>
-                <Run Text="{Binding Path=graphletMax, Mode=OneWay, Converter={StaticResource converter}}"/>
+                <Run Text="{Binding Path=graphletMax, Mode=OneWay, Converter={StaticResource conv}}"/>
             </TextBlock>
             <TextBlock Margin="5,2,0,0" FontSize="13">
                 <Run>Y minimum = </Run>
-                <Run Text="{Binding Path=graphletMin, Mode=OneWay, Converter={StaticResource converter}}"/>
+                <Run Text="{Binding Path=graphletMin, Mode=OneWay, Converter={StaticResource conv}}"/>
             </TextBlock>
             <TextBlock Name="loc" Margin="5,2,0,0" FontSize="13">
                 <Run>Point = (</Run>
-                <Run Text="{Binding Path=xCoord, Mode=OneWay, Converter={StaticResource converter}}" />
+                <Run Text="{Binding Path=xCoord, Mode=OneWay, Converter={StaticResource conv}}" />
                 <Run>,</Run>
-                <Run Text="{Binding Path=yCoord, Mode=OneWay, Converter={StaticResource converter}}" />
+                <Run Text="{Binding Path=yCoord, Mode=OneWay, Converter={StaticResource conv}}" />
                 <Run>)</Run>
             </TextBlock>
         </StackPanel>
