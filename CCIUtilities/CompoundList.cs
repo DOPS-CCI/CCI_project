@@ -46,10 +46,10 @@ namespace CCIUtilities
                     {
                         List<int> set = CCIUtilities.Utilities.parseChannelList(str.Substring(1, str.Length - 2), minimum, maximum, true);
                         if (set.Count == 1)
+                        {
                             if (!list.Contains(set[0])) //check for singleton not included in singleton list
                                 list.Add(set[0]);
-                            else ;
-
+                        }
                         else
                             sets.Add(set);
                     }
