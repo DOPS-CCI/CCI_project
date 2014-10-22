@@ -1,4 +1,5 @@
-﻿using System;
+﻿#undef DEBUG
+using System;
 using System.Windows;
 using CCIUtilities;
 
@@ -20,8 +21,11 @@ namespace EEGArtifactEditor
             catch (Exception e)
             {
                 ErrorWindow ew = new ErrorWindow();
-                ew.Message = "In " + e.TargetSite + ": " + e.Message +
-                    ";\r\n" + e.StackTrace;
+                if (e.StackTrace != null)
+                    ew.Message = "In " + e.TargetSite + ": " + e.Message +
+                        ";\r\n" + e.StackTrace;
+                else
+                    ew.Message = "In EEGArtifactEditor: " + e.Message;
                 ew.ShowDialog();
             }
 #else

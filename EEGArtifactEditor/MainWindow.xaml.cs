@@ -1,13 +1,11 @@
-﻿using System;
+﻿#undef DEBUG
+using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
 using System.Text.RegularExpressions;
 using System.Timers;
 using System.Printing;
 using System.Reflection;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -95,137 +93,147 @@ namespace EEGArtifactEditor
                 " on dataset " + headerFileName);
             ViewerGrid.Width = BDFLength;
 
-            //process Events in current dataset; we have to do this now in case this is an update situation, but don't have to when we finish
-            Event.EventFactory.Instance(header.Events); // set up the factory, based on this Event dictionary
-            //and read them in
-            EventFileReader efr = new EventFileReader(
-                new FileStream(System.IO.Path.Combine(directory, header.EventFile),
-                    FileMode.Open, FileAccess.Read)); // open Event file
-
-            foreach (InputEvent ie in efr)// read in all Events into list
-                events.Add(new OutputEvent(ie));
-            efr.Close(); //now events is list of Events in the dataset
-
-            //now set zeroTime for this BDF file, after finding an appropriate (non-"naked") Event
-            bool ok = false;
-            foreach (OutputEvent ev in events)
-                if (header.Events[ev.Name].intrinsic != null)
-                {
-                    bdf.setZeroTime(ev);
-                    ok = true;
-                    break;
-                }
-            if (!ok)
+            try
             {
-                ErrorWindow ew = new ErrorWindow();
-                ew.Message = "Unable to find a covered Event in this dataset on which to synchronize clocks. Exiting.";
-                ew.ShowDialog();
-                Log.writeToLog("Unable to synchronize clocks.");
-                this.Close();
-            }
-
-            if (updateFlag)
-            {
+                //process Events in current dataset; we have to do this now in case this is an update situation, but don't have to when we finish
                 Event.EventFactory.Instance(header.Events); // set up the factory, based on this Event dictionary
                 //and read them in
-                OutputEvent ev;
-                int i = 0;
-                double left;
-                while (i < events.Count)
-                {
-                    ev = events[i];
-                    if (ev.Name == "**ArtifactBegin")
+                EventFileReader efr = new EventFileReader(
+                    new FileStream(System.IO.Path.Combine(directory, header.EventFile),
+                        FileMode.Open, FileAccess.Read)); // open Event file
+
+                foreach (InputEvent ie in efr)// read in all Events into list
+                    events.Add(new OutputEvent(ie));
+                efr.Close(); //now events is list of Events in the dataset
+
+                //now set zeroTime for this BDF file, after finding an appropriate (non-"naked") Event
+                bool ok = false;
+                foreach (OutputEvent ev in events)
+                    if (header.Events[ev.Name].intrinsic != null)
                     {
-                        left = ev.Time - bdf.zeroTime;
-                        events.Remove(ev);
-                        while (i < events.Count)
-                        {
-                            ev = events[i];
-                            if (ev.Name == "**ArtifactEnd")
-                            {
-                                MarkerCanvas.createMarkRegion(left, ev.Time - bdf.zeroTime);
-                                events.Remove(ev);
-                                break;
-                            }
-                            if (ev.Name == "**ArtifactBegin")
-                                throw (new Exception("Unmatched artifact Event in Event file " +
-                                    System.IO.Path.Combine(directory, header.EventFile)));
-                            i++;
-                        }
+                        bdf.setZeroTime(ev);
+                        ok = true;
+                        break;
                     }
-                    else
-                        i++;
-                }
-            }
-            //initialize the individual channel canvases
-
-            string trans = bdf.transducer(0); //here we assumne that channel 0 is an EEG channel
-            for (int i = 0; i < bdf.NumberOfChannels - 1; i++)
-                if (bdf.transducer(i) == trans) //include only EEG channels; i.e. those that use the same transducer as channel 0
+                if (!ok)
                 {
-                    ChannelCanvas cc = new ChannelCanvas(this, i);
-                    ViewerCanvas.Children.Add(cc);
-                    ViewerCanvas.Children.Add(cc.offScaleRegions);
-                    candidateChannelList.Add(cc);
+                    ErrorWindow ew = new ErrorWindow();
+                    ew.Message = "Unable to find a covered Event in this dataset on which to synchronize clocks. Exiting.";
+                    ew.ShowDialog();
+                    Log.writeToLog("Unable to synchronize clocks.");
+                    this.Close();
                 }
 
-            currentChannelList.AddRange(candidateChannelList); //start with all the remaining channels
+                if (updateFlag)
+                {
+                    Event.EventFactory.Instance(header.Events); // set up the factory, based on this Event dictionary
+                    //and read them in
+                    OutputEvent ev;
+                    int i = 0;
+                    double left;
+                    while (i < events.Count)
+                    {
+                        ev = events[i];
+                        if (ev.Name == "**ArtifactBegin")
+                        {
+                            left = ev.Time - bdf.zeroTime;
+                            events.Remove(ev);
+                            while (i < events.Count)
+                            {
+                                ev = events[i];
+                                if (ev.Name == "**ArtifactEnd")
+                                {
+                                    MarkerCanvas.createMarkRegion(left, ev.Time - bdf.zeroTime);
+                                    events.Remove(ev);
+                                    break;
+                                }
+                                if (ev.Name == "**ArtifactBegin")
+                                    throw (new Exception("Unmatched artifact Event in Event file " +
+                                        System.IO.Path.Combine(directory, header.EventFile)));
+                                i++;
+                            }
+                        }
+                        else
+                            i++;
+                    }
+                }
+                //initialize the individual channel canvases
 
-            Title = headerFileName; //set window title
-            BDFFileInfo.Content = bdf.ToString();
-            HDRFileInfo.Content = header.ToString();
+                string trans = bdf.transducer(0); //here we assumne that channel 0 is an EEG channel
+                for (int i = 0; i < bdf.NumberOfChannels - 1; i++)
+                    if (bdf.transducer(i) == trans) //include only EEG channels; i.e. those that use the same transducer as channel 0
+                    {
+                        ChannelCanvas cc = new ChannelCanvas(this, i);
+                        ViewerCanvas.Children.Add(cc);
+                        ViewerCanvas.Children.Add(cc.offScaleRegions);
+                        candidateChannelList.Add(cc);
+                    }
 
-            ElectrodeInputFileStream eif = new ElectrodeInputFileStream(
-                new FileStream(System.IO.Path.Combine(directory, header.ElectrodeFile),
-                    FileMode.Open, FileAccess.Read)); //open Electrode file
-            electrodes = eif.etrPositions;
+                currentChannelList.AddRange(candidateChannelList); //start with all the remaining channels
 
-            //initialize vertical gridline array; never more than 18
-            for (int i = 0; i < 18; i++)
-            {
-                Line l = new Line();
-                Grid.SetRow(l, 0);
-                Grid.SetColumn(l, 0);
-                l.Y1 = 0D;
-                l.HorizontalAlignment = HorizontalAlignment.Left;
-                l.VerticalAlignment = VerticalAlignment.Stretch;
-                l.IsHitTestVisible = false;
-                l.Stroke = Brushes.LightBlue;
-                l.Visibility = Visibility.Hidden;
-                Panel.SetZIndex(l, int.MaxValue);
-                VerticalGrid.Children.Add(l);
-                gridlines[i] = l;
+                Title = headerFileName; //set window title
+                BDFFileInfo.Content = bdf.ToString();
+                HDRFileInfo.Content = header.ToString();
+
+                ElectrodeInputFileStream eif = new ElectrodeInputFileStream(
+                    new FileStream(System.IO.Path.Combine(directory, header.ElectrodeFile),
+                        FileMode.Open, FileAccess.Read)); //open Electrode file
+                electrodes = eif.etrPositions;
+
+                //initialize vertical gridline array; never more than 18
+                for (int i = 0; i < 18; i++)
+                {
+                    Line l = new Line();
+                    Grid.SetRow(l, 0);
+                    Grid.SetColumn(l, 0);
+                    l.Y1 = 0D;
+                    l.HorizontalAlignment = HorizontalAlignment.Left;
+                    l.VerticalAlignment = VerticalAlignment.Stretch;
+                    l.IsHitTestVisible = false;
+                    l.Stroke = Brushes.LightBlue;
+                    l.Visibility = Visibility.Hidden;
+                    Panel.SetZIndex(l, int.MaxValue);
+                    VerticalGrid.Children.Add(l);
+                    gridlines[i] = l;
+                }
+
+                //Initialize timer
+                timer.AutoReset = true;
+                timer.Elapsed += new ElapsedEventHandler(timer_Elapsed);
+
+                //Initialize channel information popup
+                Color c1 = Color.FromArgb(0xFF, 0xF8, 0xF8, 0xF8);
+                Color c2 = Color.FromArgb(0xFF, 0xC8, 0xC8, 0xC8);
+                popupTB.Background = new LinearGradientBrush(c1, c2, 45D);
+                popupTB.Foreground = Brushes.Black;
+                popupTB.Padding = new Thickness(4D);
+                Border b = new Border();
+                b.BorderThickness = new Thickness(1);
+                b.CornerRadius = new CornerRadius(4);
+                b.BorderBrush = Brushes.Tomato;
+                b.Margin = new Thickness(0, 0, 24, 24); //allows drop shadow to show up
+                b.Effect = new DropShadowEffect();
+                b.Child = popupTB;
+                channelPopup.Placement = PlacementMode.MousePoint;
+                channelPopup.AllowsTransparency = true;
+                channelPopup.Child = b;
+
+                //Initialize FOV slider
+                FOV.Maximum = Math.Log10(BDFLength);
+                FOV.Value = 1D;
+                FOVMax.Text = BDFLength.ToString("0");
+
+                //Note file always uses the "main" orginal dataset name, which should be the BDFFile name; this keeps notes from all levels of
+                //processing in the same place
+                noteFilePath = System.IO.Path.Combine(directory, System.IO.Path.GetFileNameWithoutExtension(header.BDFFile) + ".notes.txt");
             }
-
-            //Initialize timer
-            timer.AutoReset = true;
-            timer.Elapsed += new ElapsedEventHandler(timer_Elapsed);
-
-            //Initialize channel information popup
-            Color c1 = Color.FromArgb(0xFF, 0xF8, 0xF8, 0xF8);
-            Color c2 = Color.FromArgb(0xFF, 0xC8, 0xC8, 0xC8);
-            popupTB.Background = new LinearGradientBrush(c1, c2, 45D);
-            popupTB.Foreground = Brushes.Black;
-            popupTB.Padding = new Thickness(4D);
-            Border b = new Border();
-            b.BorderThickness = new Thickness(1);
-            b.CornerRadius = new CornerRadius(4);
-            b.BorderBrush = Brushes.Tomato;
-            b.Margin = new Thickness(0, 0, 24, 24); //allows drop shadow to show up
-            b.Effect = new DropShadowEffect();
-            b.Child = popupTB;
-            channelPopup.Placement = PlacementMode.MousePoint;
-            channelPopup.AllowsTransparency = true;
-            channelPopup.Child = b;
-
-            //Initialize FOV slider
-            FOV.Maximum = Math.Log10(BDFLength);
-            FOV.Value = 1D;
-            FOVMax.Text = BDFLength.ToString("0");
-
-            //Note file always uses the "main" orginal dataset name, which should be the BDFFile name; this keeps notes from all levels of
-            //processing in the same place
-            noteFilePath = System.IO.Path.Combine(directory, System.IO.Path.GetFileNameWithoutExtension(header.BDFFile) + ".notes.txt");
+            catch (Exception ex)
+            {
+                ErrorWindow ew = new ErrorWindow();
+                ew.Message = "Error in EEGArtifactEditor initialization" + ex.Message;
+                ew.ShowDialog();
+                this.Close(); //exit
+            }
 
             //from here on the program is GUI-event driven
         }
@@ -576,7 +584,9 @@ namespace EEGArtifactEditor
                             removeLow = s.Count;
                     }
                 }
+#if DEBUG
                 Console.WriteLine("Low=" + removeLow + " High=" + removeHigh + " Count=" + s.Count + " Dec=" + ChannelCanvas.decimateOld);
+#endif
                 completeRedraw = (removeHigh + removeLow) >= s.Count;
             }
             ChannelCanvas.decimateOld = ChannelCanvas.decimateNew;
@@ -743,7 +753,9 @@ namespace EEGArtifactEditor
         {
             rightMouseClickLoc = Mouse.GetPosition(ViewerGrid);
             graphNumber = (int)(rightMouseClickLoc.Y / ChannelCanvas.nominalCanvasHeight);
+#if DEBUG
             Console.WriteLine("In ViewerContextMenu_Opened with graph " + graphNumber.ToString("0") + " and X " + rightMouseClickLoc.X);
+#endif
             if (graphNumber < currentChannelList.Count)
             {
                 //set up context menu about to be displayed
@@ -1317,7 +1329,7 @@ namespace EEGArtifactEditor
         {
             get
             {
-                return markedRegions.Count();
+                return markedRegions.Count;
             }
         }
     }
