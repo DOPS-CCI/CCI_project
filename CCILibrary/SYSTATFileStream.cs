@@ -192,7 +192,7 @@ namespace SYSTATFileStream
                 {
                     Type valueType = value.GetType();
                     if (this._Type == SVarType.Number) //this Variable is a numeric type
-                        //so, the stored value must be a single/float/int or there is an error
+                    {//so, the stored value must be a single/float/int or there is an error
                         if (valueType == typeof(double) || valueType == typeof(float))
                         {
                             this._Value = (double)value; //always save as a double
@@ -203,7 +203,7 @@ namespace SYSTATFileStream
                             this._Value = Convert.ToDouble((int)value);
                             return;
                         }
-                        else ;
+                    }
                     else //this._Type == SVarType.Str => this Variable is a string type
                         //so, the stored value must be a string or an integer or there is an error
                         if (valueType == typeof(string))
@@ -242,13 +242,14 @@ namespace SYSTATFileStream
                     int len = m.Groups["nameChars"].Length;
                     if (len > 0) // can match name of length zero
                         if (m.Groups["str"].Length == 0) // may be either String or Number
+                        {
                             if (len <= (type == SVarType.Number ? 12 : 11)) // valid value name
                             {
                                 _Type = type;
                                 _Name = m.Groups["nameChars"].Value;
                                 return;
                             }
-                            else ; //fall through to throw exception
+                        } // else fall through to throw exception
                         else // must be String type if ends in $
                             if (type == SVarType.String && len <= 11)
                             {
@@ -272,13 +273,14 @@ namespace SYSTATFileStream
                     int len = m.Groups["nameChars"].Length;
                     if (len > 0) // can match name of length zero
                         if (m.Groups["str"].Length == 0) // must be numeric type
+                        {
                             if (len <= 12) // valid value name
                             {
                                 _Type = SVarType.Number;
                                 _Name = m.Groups["nameChars"].Value;
                                 return;
                             }
-                            else ;
+                        }
                         else // must be string type because it ends in $
                             if (len <= 11)
                             {

@@ -90,18 +90,29 @@ namespace EventFile
                 xr.ReadStartElement("GroupVars", nameSpace);
                 if (!isEmpty)
                 {
+                    //the GVs in the EVT file should match the GVs defined in the HDR file in number, name, and order
                     int j = 0;
-                    while (xr.Name == "GV")
+                    foreach (GVEntry gve in ev.EDE.GroupVars)
                     {
-                        string GVName = xr["Name", nameSpace];
-                        xr.ReadStartElement(/* GV */);
-                        if (ev.GetGVName(j) != GVName)
-                            throw new Exception("GV named " + GVName + " does not match Event " + ev.Name + " definition");
-                        ev.GVValue[j] = xr.ReadContentAsString();
-                        j++;
-                        xr.ReadEndElement(/* GV */);
+                        if (xr.IsStartElement("GV"))
+                        {
+                            string GVName = xr["Name", nameSpace];
+                            if (GVName == null)
+                                throw new Exception("GV " + gve.Name + " not found in Event " + ev.Name);
+                            if (gve.Name != GVName)
+                                throw new Exception("Found GV named " + GVName + " in Event file which does not match Event " + ev.Name + " definition for GV " + gve.Name);
+                            xr.ReadStartElement(/* GV */);
+                            ev.GVValue[j++] = xr.ReadContentAsString();
+                            xr.ReadEndElement(/* GV */);
+                        }
+
                     }
                     xr.ReadEndElement(/* GroupVars */);
+                }
+                else
+                {
+                    if (ev.EDE.GroupVars != null && ev.EDE.GroupVars.Count != 0)
+                        throw new Exception("No GVs found for Event " + ev.Name + " which defines " + ev.EDE.GroupVars.Count.ToString("0") + " GVs in the Header file");
                 }
                 if (xr.Name == "Ancillary")
                 {
@@ -234,8 +245,12 @@ namespace EventFile
                     for (int j = 0; j < ev.GVValue.Length; j++)
                     {
                         xw.WriteStartElement("GV");
-                        xw.WriteAttributeString("Name", ev.GetGVName(j));
-                        xw.WriteValue(ev.GVValue[j]);
+                        xw.WriteAttributeString("Name", ev.EDE.GroupVars[j].Name); //assure it matches HDR entry
+                        string s = ev.GVValue[j];
+                        int v = ev.EDE.GroupVars[j].ConvertGVValueStringToInteger(s);
+                        if (v <= 0)
+                            throw new Exception("Attempt to write invalid value of \"" + s + "\" to GV " + ev.EDE.GroupVars[j].Name);
+                        xw.WriteValue(s);
                         xw.WriteEndElement(/* GV */);
                     }
                 xw.WriteEndElement(/* GroupVars */);

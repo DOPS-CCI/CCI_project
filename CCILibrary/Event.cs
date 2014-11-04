@@ -179,13 +179,13 @@ namespace Event
     //********** Class: OutputEvent **********
     public class OutputEvent : Event
     {
-        public string[] GVValue;
+        public string[] GVValue; //stored as strings
 
         internal OutputEvent(EventDictionaryEntry entry): base(entry)
         {
             m_time = (double)(DateTime.Now.Ticks) / 1E7; // Get time immediately
 
-            if (entry.GroupVars.Count > 0) GVValue = new string[entry.GroupVars.Count];
+            if (entry.GroupVars.Count > 0) GVValue = new string[entry.GroupVars.Count]; //allocate correct number of group variable value entries
             else GVValue = null;
         }
         /// <summary>
@@ -204,7 +204,7 @@ namespace Event
             GVValue = null;
         }
         /// <summary>
-        /// Copy constructor from an InputEvent to permit allow copying of Event file entries
+        /// Copy constructor from an InputEvent to permit copying of Event file entries
         /// to create new Event files
         /// </summary>
         /// <param name="ie">InputEvent to be copied</param>
@@ -215,7 +215,7 @@ namespace Event
             m_gc = ie.m_gc;
             if (ie.GVValue != null)
             {//do a full copy to protect values
-                GVValue = new string[ie.GVValue.Length];
+                GVValue = new string[ie.EDE.GroupVars.Count]; //go back to HDR definition
                 int i = 0;
                 foreach (string v in ie.GVValue)
                      GVValue[i++] = v;
@@ -260,13 +260,25 @@ namespace Event
             {
                 str.Append("Time: " + Time.ToString("00000000000.0000000") + nl);
             }
-            int j=0;
-            if (ede.GroupVars != null)
-                foreach (GVEntry gve in ede.GroupVars)
+            if (ede.GroupVars != null) //if there are GVs
+            {
+                int j = 0;
+                foreach (GVEntry gve in ede.GroupVars) //use the HDR definition for this Event
                 {
-                    str.Append("GV #" + (j + 1).ToString("0") + ": " + ede.GroupVars[j].Name + " = " + GVValue[j] + nl);
+                    str.Append("GV #" + (j + 1).ToString("0") + ": ");
+                    if (GVValue != null && j < GVValue.Length && GVValue[j] != null)
+                    {
+                        str.Append(gve.Name + " = ");
+                        if (GVValue[j] != "" && GVValue[j] != "0")
+                            str.Append(GVValue[j] + nl);
+                        else
+                            str.Append("**INVALID" + nl); //GV values may not be null or zero
+                    }
+                    else
+                        str.Append("**NO VALUE" + nl);
                     j++;
                 }
+            }
             return str.ToString();
         }
     }
