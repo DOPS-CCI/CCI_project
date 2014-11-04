@@ -151,8 +151,8 @@
             </Grid>
         </GroupBox>
         <StackPanel Grid.Row="6" Grid.Column="1" Orientation="Horizontal" Grid.ColumnSpan="2"  HorizontalAlignment="Left">
-                <CheckBox VerticalAlignment="Center" Margin="12,4,8,4" Height="24" Name="NoMarkers" Width="200" FontSize="14" Foreground="Red">Ignore BDF Event markers</CheckBox>
-            </StackPanel>
+            <CheckBox VerticalAlignment="Center" Margin="12,4,8,4" Name="NoMarkers" FontSize="14">Do not use BDF Status markers for clock synchronization</CheckBox>
+        </StackPanel>
         <StackPanel Grid.Row="6" Grid.Column="1" Orientation="Horizontal" Grid.ColumnSpan="2" FlowDirection="RightToLeft" HorizontalAlignment="Right">
             <Button VerticalAlignment="Center" Margin="12,4,8,4" Height="24" Name="ConvertFM" Width="80" FontSize="14" Click="ConvertFM_Click">Convert</Button>
             <Button VerticalAlignment="Center" Margin="8,4,8,4" Height="24" Name="Done" Width="80" FontSize="14" Click="Done_Click">Exit</Button>

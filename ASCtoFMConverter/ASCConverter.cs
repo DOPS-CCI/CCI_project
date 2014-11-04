@@ -162,32 +162,33 @@ namespace ASCtoFMConverter
             IEnumerator<InputEvent> EFREnum; //Enumerator for stepping through Event file
             bool more;
 
+ //******** Synchronize clocks
             //Need to synchronize clocks by setting the BDF.zeroTime value
-            //zeroTime is the time, according to the Event file clock, of the first Status mark in BDF file
+            //zeroTime is the time, according to the Event file clock, of the beginning of the BDF file (BioSemi clock)
             if (ignoreStatus && offsetToFirstEvent < 0) //cannot use Status markers to synchronize clocks, so
                 //use raw Event clock times as actual offsets from beginning of BDF file
                 bdf.setZeroTime(0D);
             else 
-            { //Need to find an intrisic or extrinsic Event to use as an indicial Event
+            { //Need to find a covered (intrisic or extrinsic) Event to use as an indicial Event
                 bool found = false;
                 EFREnum = (new EventFileReader(
                     new FileStream(System.IO.Path.Combine(directory, head.EventFile),
                     FileMode.Open, FileAccess.Read))).GetEnumerator();
-                while (EFREnum.MoveNext())
+                while (!found && EFREnum.MoveNext())
                 {
-                    if (EFREnum.Current.EDE.intrinsic != null) //have we found an intrinsic or extrinsic Event?
+                    if (EFREnum.Current.EDE.intrinsic != null) //have we found a covered Event?
                     {
-                        found = true;
-                        break;
+                        if (ignoreStatus)
+                        {
+                            bdf.setZeroTime(EFREnum.Current.Time - offsetToFirstEvent);
+                            found = true;
+                        }
+                        else
+                            found = bdf.setZeroTime(EFREnum.Current);
                     }
                 }
                 if (!found)
                     throw (new Exception("No valid synchronizing Event found; use manual synchronization"));
-                if (ignoreStatus)
-                    bdf.setZeroTime(EFREnum.Current.Time - offsetToFirstEvent);
-                else
-                    if (!bdf.setZeroTime(EFREnum.Current))
-                        throw (new Exception("No Status channel marker found for first intrinsic/extrinsic Event; use manual synchronization"));
                 EFREnum.Dispose();
             }
 
@@ -210,7 +211,7 @@ namespace ASCtoFMConverter
                         new FileStream(System.IO.Path.Combine(directory, head.EventFile),
                         FileMode.Open, FileAccess.Read))).GetEnumerator();
                     EventDictionaryEntry startEDE = ed.startEvent;
-                    bool t = ed.endEvent.GetType()==typeof(EventDictionaryEntry);
+                    bool t = ed.endEvent.GetType() == typeof(EventDictionaryEntry);
                     EventDictionaryEntry endEDE = null;
                     if(t)
                         endEDE = (EventDictionaryEntry)ed.endEvent;
@@ -250,13 +251,13 @@ namespace ASCtoFMConverter
                 more = EFREnum.MoveNext();
                 while (more)
                 {
-                    EpisodeMark em = currentEpisode.Start;
+                    EpisodeMark eventCriterium = currentEpisode.Start; //first look for a starting Event
                     InputEvent startEvent = null;
                     InputEvent endEvent = null;
 
-                    do //find all Events/Episodes that match spec
+                    do //see if next Event meets current criterium (either Start or Stop Event)
                     {
-                        if (bw.CancellationPending)
+                        if (bw.CancellationPending) //look for cancellation first
                         {
                             bw.ReportProgress(0, "Conversion canceled with " + FMStream.NR.ToString("0") + 
                                 " records in " + (FMStream.NR / FMStream.NC).ToString("0") + " recordsets generated.");
@@ -266,44 +267,45 @@ namespace ASCtoFMConverter
                             e.Cancel = true;
                             return;
                         }
-                        InputEvent ev = EFREnum.Current;
-                        if (em._Event.GetType().Name == "EventDictionaryEntry")
-                            if (em.Match(ev)) //found matching Event
+                        InputEvent currentEvent = EFREnum.Current;
+                        if (eventCriterium._Event.GetType().Name == "EventDictionaryEntry") //then this is a "named" event criterium
+                            if (eventCriterium.Match(currentEvent)) //found matching Event
                             {
-                                if (startEvent == null) //matches a startEvent
+                                if (startEvent == null) //then we're looking for a starting Event
                                 {
-                                    startEvent = ev; //found match for Start, remember it
-                                    em = currentEpisode.End; //now move on to match End Mark Event
+                                    startEvent = currentEvent; //found match for Start, remember it
+                                    eventCriterium = currentEpisode.End; //now switch to looking for End Event
                                     // but don't advance to next Event, so "Same Event" works
                                 }
-                                else
+                                else //this might be an end Event
                                 {
-                                    if(ev==startEvent && em._offset <= currentEpisode.Start._offset)//same Event, make sure offsets work
+                                    if(currentEvent==startEvent && eventCriterium._offset <= currentEpisode.Start._offset)//same Event, make sure offsets work
                                         more = EFREnum.MoveNext(); // these two don't work, move on to next
                                     else // different events or correctly ordered offsets
-                                        endEvent = ev; //matches the endEvent for this spec
+                                        endEvent = currentEvent; //matches the endEvent for this spec; don't advance: next Start could be same Event
                                }
                             }
-                            else more = EFREnum.MoveNext();
-                        else // special cases
+                            else more = EFREnum.MoveNext(); //move on to next Event
+                        else //check special cases
                         {
-                            str = (string)em._Event;
+                            str = (string)eventCriterium._Event;
                             if (str == "Same Event") //only occurs as endEvent
                             {
-                                endEvent = ev;
+                                endEvent = currentEvent;
                                 more = EFREnum.MoveNext(); //must advance to avoid endless loop!
                             }
-                            else if (str == "Next Event") //only occurs as endEvent
+                            else if (str.Substring(0,10) == "Next Event") //only occurs as endEvent
                             {
                                 more = EFREnum.MoveNext(); //in this case, advance, then test
-                                if (em.MatchGV(ev) && more) endEvent = EFREnum.Current;
+                                if (str.Substring(11) == "(all)" || currentEvent.EDE.intrinsic != null)
+                                    if (eventCriterium.MatchGV(currentEvent) && more) endEvent = EFREnum.Current;
                             }
                             else if (str == "Any Event") //only occurs as startEvent
                             {
-                                if (em.MatchGV(ev))
+                                if (eventCriterium.MatchGV(currentEvent))
                                 {
-                                    startEvent = ev;
-                                    em = currentEpisode.End;
+                                    startEvent = currentEvent;
+                                    eventCriterium = currentEpisode.End;
                                 }
                                 else more = EFREnum.MoveNext(); //no match, move to next Event
                             }

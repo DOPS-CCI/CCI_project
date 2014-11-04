@@ -115,7 +115,7 @@ namespace ASCtoFMConverter
 
         /// <summary>
         /// Determine if two sements between start1 and end1 and
-        /// start2 and end2 overlap
+        /// start2 and end2 overlap; we assume that start is less than end for both
         /// </summary>
         /// <param name="start1"></param>
         /// <param name="end1"></param>
@@ -124,9 +124,7 @@ namespace ASCtoFMConverter
         /// <returns>true if overlap present, otherwise false</returns>
         static bool Overlap(BDFPoint start1, BDFPoint end1, BDFPoint start2, BDFPoint end2)
         {
-            if (start2.lessThan(start1) && end2.lessThan(start1)) return false;
-            if (start2.greaterThanOrEqual(end1) && end2.greaterThanOrEqual(end1)) return false;
-            return true;
+            return end2.greaterThan(start1) && end1.greaterThan(start2);
         }
 
         public bool IsExcluded(BDFPoint start, BDFPoint end)

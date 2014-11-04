@@ -40,7 +40,8 @@ namespace ASCtoFMConverter
             EventDictionary.EventDictionary events = hdr.Events;
             Event1.Items.Add("Any Event");
             Event2.Items.Add("Same Event");
-            Event2.Items.Add("Next Event");
+            Event2.Items.Add("Next Event (any)");
+            Event2.Items.Add("Next Event (covered)");
             Event3.Items.Add("None");
             Event4.Items.Add("Same Event");
             foreach (EventDictionary.EventDictionaryEntry ev in events.Values){
