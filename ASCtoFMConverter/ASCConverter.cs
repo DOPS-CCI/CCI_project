@@ -415,10 +415,15 @@ namespace ASCtoFMConverter
                 }
                 double t = 0D;
                 if (removeTrends) //calculate linear trend for this channel; see Bloomfield p. 115
+                    //NOTE: this technique works only for "centered" data: if there are N points, covering NT seconds, it is assumed that
+                    // these points are located at (2i-N-1)T/2 seconds, for i = 1 to N; in other words, the samples are in the center of
+                    // each sample time and are symetrically distributed about a central zero time in the record. Then one can separately
+                    // calculate the mean and the slope and apply them together to remove a linear trend. This doesn't work for quadratic
+                    // or higher order trend removal however.
                 {
                     t = (fn - 1.0D) / 2.0D;
                     fn *= fn * fn - 1D;
-                    for (int i = 0; i < FMStream.ND; i++) beta += (bigBuff[channel, i] - ave) * ((double)i - t);
+                    for (int i = 0; i < FMStream.ND; i++) beta += bigBuff[channel, i] * ((double)i - t);
                     beta = 12.0D * beta / fn;
                 }
                 for (int i = 0; i < FMStream.ND; i++)
