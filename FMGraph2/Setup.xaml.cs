@@ -29,6 +29,7 @@ namespace FMGraph2
         internal int _pmin;
         internal int _pmax;
         internal int _dec;
+        internal int _decOffset;
         internal double _asp;
         internal double _Ymax;
 
@@ -98,6 +99,8 @@ namespace FMGraph2
             if (_asp == 0D) { Go.IsEnabled = false; return; }
 
             if ((bool)scaleToFixedMax.IsChecked && _Ymax == 0D) { Go.IsEnabled = false; return; }
+
+            if (_decOffset < 0) { Go.IsEnabled = false; return; }
 
             Go.IsEnabled = true;
         }
@@ -243,6 +246,8 @@ namespace FMGraph2
             Pmin.Text = "1";
             Pmax.Text = fm.ND.ToString("0");
             DecimationBox.Text = "1";
+            OffsetBox.Text = "0";
+            OffsetBox.IsEnabled = false;
             IncludeY.IsChecked = true;
             yAxis.Text = "Y-axis";
             scaleToRecsetMax.IsChecked = true;
@@ -309,8 +314,15 @@ namespace FMGraph2
                     if (_pmin >= _pmax || _pmax > fm.ND) throw new Exception();
                     p = _pmax - _pmin + 1;
                 }
-                if (_dec <= 0) throw new Exception();
-                p = (p - 1D) / ((double)_dec);
+                if (_dec == 1)
+                    OffsetBox.IsEnabled = false;
+                else
+                {
+                    if (_dec <= 0 || _dec <= _decOffset || _decOffset < 0 && OffsetBox.IsEnabled) throw new Exception();
+                    OffsetBox.IsEnabled = true;
+                }
+                p = _dec > 1 ? (p - _decOffset - 1D) / ((double)_dec) : p - 1D;
+                if (p < 1D) throw new Exception(); // must be at least 2 points
                 Points.Foreground = Brushes.Black;
                 Points.Text = ((int)p + 1).ToString("0");
             }
@@ -396,13 +408,30 @@ namespace FMGraph2
             try
             {
                 _dec = Convert.ToInt32(DecimationBox.Text);
-                if (_dec <= 0) throw new Exception();
+                if (_dec <= 0 || _dec >= fm.ND) throw new Exception();
                 DecimationBox.BorderBrush = Brushes.MediumBlue;
             }
             catch
             {
                 _dec = 0;
                 DecimationBox.BorderBrush = Brushes.Red;
+            }
+            calculatePoints();
+        }
+
+        private void OffsetBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (sender == null) return;
+            try
+            {
+                _decOffset = Convert.ToInt32(OffsetBox.Text);
+                if (_decOffset < 0) throw new Exception();
+                OffsetBox.BorderBrush = Brushes.MediumBlue;
+            }
+            catch
+            {
+                _decOffset = -1;
+                OffsetBox.BorderBrush = Brushes.Red;
             }
             calculatePoints();
         }

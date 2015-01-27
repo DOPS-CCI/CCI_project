@@ -52,6 +52,8 @@ namespace FMGraph2
         public double aspect;
         internal int _decimation;
         public int decimation { get { return _decimation; } }
+        internal int _decimationOffset;
+        public int decimationOffset { get { return _decimationOffset; } }
         public AxisType typeAxis;
         public XType typeXAxis;
         public string xLabel { get; set; }
@@ -141,6 +143,7 @@ namespace FMGraph2
             this.fixedYMaxValue = setup._Ymax;
             this.aspect = setup._asp;
             this._decimation = setup._dec;
+            this._decimationOffset = setup._decOffset;
             if ((bool)setup.PosNeg.IsChecked) typeAxis = AxisType.PosNeg;
             else typeAxis = AxisType.Pos;
             if ((bool)setup.T.IsChecked)//Time-based graphlets
@@ -494,7 +497,7 @@ namespace FMGraph2
                 int j = 0;
                 dc.max = double.NegativeInfinity;
                 dc.min = double.PositiveInfinity;
-                for (int i = 0; i < xStop - xStart; i += _decimation)
+                for (int i = _decimationOffset; i < xStop - xStart; i += _decimation)
                 {
                     v = pt(fmr[xStart + i]);
                     dc.buffer[j++] = v;

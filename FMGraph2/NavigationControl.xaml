@@ -63,9 +63,10 @@
         <GroupBox Header="Specifications" Grid.Row="5">
             <StackPanel Orientation="Vertical">
                 <TextBlock Margin="4,4,4,0"><Run>Decimation = </Run><Run Text="{Binding Path=decimation, Mode=OneWay}"/></TextBlock>
+                <TextBlock Margin="4,0,4,0"><Run>Dec offset = </Run><Run Text="{Binding Path=decimationOffset, Mode=OneWay}"/></TextBlock>
                 <TextBlock Name="specScale" Margin="4,0,4,0"/>
                 <TextBlock Name="specTransform" Margin="4,0,4,0"/>
-                <TextBlock Name="specPosition" Margin="4,0,4,0"/>
+                <TextBlock Name="specPosition" Margin="4,0,4,4"/>
             </StackPanel>
         </GroupBox>
     </Grid>

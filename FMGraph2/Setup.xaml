@@ -71,7 +71,9 @@
                 <StackPanel Orientation="Horizontal">
                     <Label Margin="8,4,4,0">Decimation factor =</Label>
                     <TextBox Name="DecimationBox" Height="20" Width="40" Padding="2,0,2,0" Margin="0,4,0,0" TextChanged="DecimationBox_TextChanged"/>
-                </StackPanel>
+                    <Label Margin="8,4,4,0">Initial offset =</Label>
+                    <TextBox Name="OffsetBox" Height="20" Width="40" Padding="2,0,2,0" Margin="0,4,0,0" TextChanged="OffsetBox_TextChanged"/>
+                    </StackPanel>
                 <StackPanel Orientation="Horizontal">
                     <Label Margin="8,4,4,0">Total points =</Label>
                     <TextBox Name="Points" Height="20" Width="60" Padding="2,0,2,0" Margin="0,4,0,0" IsReadOnly="True" HorizontalContentAlignment="Right" VerticalAlignment="Stretch" />
