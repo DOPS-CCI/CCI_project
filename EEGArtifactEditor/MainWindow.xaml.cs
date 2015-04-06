@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Timers;
 using System.Printing;
@@ -964,6 +965,10 @@ namespace EEGArtifactEditor
                 }
 
                 string newFileName;
+                StringBuilder sb = new StringBuilder(header.Comment); //Add comment to HDR file documenting artifact marking
+                if (sb.Length > 0) sb.Append(Environment.NewLine);
+                sb.Append("Artifacts marked on " + DateTime.Today.ToShortDateString() + " by " + Environment.UserName);
+                header.Comment = sb.ToString();
                 if (updateFlag) //then, this dataset is based on another one; need to find out if this is an update of current dataset only, or if a new file is to be created
                 {
                     header.Events.TryGetValue("**ArtifactBegin", out ede1);
@@ -972,19 +977,17 @@ namespace EEGArtifactEditor
                     w.Owner = this;
                     w.ShowDialog();
                     if (dialogReturn == 1) return;
-                    if (dialogReturn == 2)
-                        newFileName = System.IO.Path.GetFileNameWithoutExtension(header.EventFile); //Use old name; no reason to rewrite HDR file
-                    else
+                    if (dialogReturn == 2) //replace current files only
+                        newFileName = System.IO.Path.GetFileNameWithoutExtension(header.EventFile); //Use old name; only update Comment
+                    else //create new file set from old
                     {
                         newFileName = System.IO.Path.GetFileNameWithoutExtension(header.EventFile) + "-" + (maxFileIndex + 1).ToString("0");
                         header.EventFile = newFileName + ".evt";
-                        FileStream fs = new FileStream(System.IO.Path.Combine(directory, newFileName + ".hdr"), FileMode.OpenOrCreate, FileAccess.Write);
-                        new HeaderFileWriter(fs, header); //write out new header
                     }
                 }
-                else //this is based on a previously unmarked dataset
+                else //this is based on a previously unmarked dataset; add new Event types to HDR
                 {
-                    //Create new header with new "naked" Events and file names
+                    //Modify header with new "naked" Events and file names
                     ede1 = new EventDictionaryEntry();
                     ede1.intrinsic = null;
                     ede1.Description = "Beginning of artifact region";
@@ -993,19 +996,20 @@ namespace EEGArtifactEditor
                     ede2.Description = "End of artifact region";
                     header.Events.Add("**ArtifactBegin", ede1);
                     header.Events.Add("**ArtifactEnd", ede2);
-                    newFileName = System.IO.Path.GetFileNameWithoutExtension(header.BDFFile) + @"_artifact-" + (maxFileIndex + 1).ToString("0"); ; //create new filename
+                    newFileName = System.IO.Path.GetFileNameWithoutExtension(header.BDFFile) + @"_artifact-" +
+                        (maxFileIndex + 1).ToString("0"); ; //create new filename
                     header.EventFile = newFileName + ".evt";
                     //and write new header out
-                    FileStream fs = new FileStream(System.IO.Path.Combine(directory, newFileName + ".hdr"), FileMode.OpenOrCreate, FileAccess.Write);
-                    new HeaderFileWriter(fs, header); //write out new header
                 }
+                FileStream fs = new FileStream(System.IO.Path.Combine(directory, newFileName + ".hdr"), FileMode.OpenOrCreate, FileAccess.Write);
+                new HeaderFileWriter(fs, header); //write out new header
 
-                foreach (MarkerRectangle mr in MarkerCanvas.markedRegions)
+                foreach (MarkerRectangle mr in MarkerCanvas.markedRegions) //update Event file to include new artifact marks
                 {
                     double eventTime = mr.leftEdge + bdf.zeroTime;
                     OutputEvent newOE = new OutputEvent(ede1, new DateTime((long)(eventTime * 1E7)), 0);
                     int index = events.FindIndex(ev => ev.Time >= eventTime);
-                    if (index < 0)
+                    if (index < 0) //must be after last Event or no Events
                         events.Add(newOE);
                     else
                         events.Insert(index, newOE);
