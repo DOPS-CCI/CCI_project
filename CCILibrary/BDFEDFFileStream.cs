@@ -209,6 +209,9 @@ namespace BDFEDFFileStream
         /// </summary>
         public int NSamp { get { return header.numberSamples[0]; } }
 
+        /// <summary>
+        ///Returns channel number (0-based) give channel name; -1 if unknown
+        /// </summary>
         public int ChannelNumberFromLabel(string name)
         {
             if (header._isValid)
@@ -340,10 +343,47 @@ namespace BDFEDFFileStream
         }
 
         /// <summary>
-        /// Gets data from current reocrd in physical units: thus includes correction for gain and offset
+        /// Reads entire channel into an array for processing; values in physical units
+        /// </summary>
+        /// <remarks>Leaves stream pointer and current record number unchanged</remarks>
+        /// <param name="channel">Channel to be read (zero-based)</param>
+        /// <returns>Array containing entire channel data</returns>
+        public double[] readAllChannelData(int channel)
+        {
+            if (!reader.BaseStream.CanSeek) throw new IOException("File stream not able to perform Seek.");
+            long pos = reader.BaseStream.Position; //remember current file position
+            long increment = 0; //calculate BDF/EDF record size in bytes
+            foreach (int c in header.numberSamples) increment += c;
+            increment *= header._bytesPerSample;
+            int bufferSize = NumberOfSamples(channel) * header._bytesPerSample; //size of intermediate buffer for single channel
+            byte[] buffer = new byte[bufferSize]; //allocate intermediate buffer
+            double g = header.Gain(channel); //get gain and offset for this channel
+            double o = header.Offset(channel);
+            double[] data = new double[NumberOfRecords * NumberOfSamples(channel)]; //allocate final data array
+            long currentRecordPosition = (long)header.headerSize; //calculate initial file pointer position
+            for (int i = 0; i < channel; i++) currentRecordPosition += (long)NumberOfSamples(i) * header._bytesPerSample;
+            int currentDataPosition = 0; //keeps track of where we are in the data array
+
+            while (currentRecordPosition < reader.BaseStream.Length) //read entire file for this channel
+            {
+                reader.BaseStream.Seek(currentRecordPosition, SeekOrigin.Begin); //seek to next channel record location
+                currentRecordPosition += increment; //and increment to next record location
+                buffer = reader.ReadBytes(bufferSize); //read in raw data for this channel only
+                for (int i = 0; i < bufferSize; i += header._bytesPerSample) //convert and fill next positions in output array
+                    if (header._BDFFile)
+                        data[currentDataPosition++] = (double)BDFEDFRecord.convert34(buffer[i], buffer[i + 1], buffer[i + 2]) * g + o;
+                    else
+                        data[currentDataPosition++] = (double)BDFEDFRecord.convert24(buffer[i], buffer[i + 1]) * g + o;
+            }
+            reader.BaseStream.Seek(pos, SeekOrigin.Begin); //return reader to original location
+            return data;
+        }
+
+        /// <summary>
+        /// Gets data from current record in physical units: thus includes correction for gain and offset
         /// </summary>
         /// <param name="channel">Requested channel number; zero-based</param>
-        /// <returns>Array of samples from channel</returns>
+        /// <returns>Array of samples from channel for current record</returns>
         /// <exception cref="BDFEDFException">No record read or invalid input</exception>
         public double[] getChannel(int channel)
         {
@@ -777,8 +817,8 @@ namespace BDFEDFFileStream
     }
 
     /// <summary>
-    /// Class embodying the information included in the header record of a BDF or EDF file
-    /// Class created only by the creation of a BDFEDFFileReader or BDFEDFFileWriter
+    /// Class embodying the information included in the header record of a BDF or EDF file.
+    /// Class is instantiated only by the creation of a BDFEDFFileReader or BDFEDFFileWriter
     /// </summary>
     public class BDFEDFHeader : IDisposable
     {
@@ -804,6 +844,7 @@ namespace BDFEDFFileStream
         internal double[] offset;
         internal bool _BDFFile;
         internal bool _EDFPlusFile = false;
+        internal int _bytesPerSample; //= 3 for BIOSEMI, = 2 for EDF
         internal bool _isContinuous = true;
         internal bool _hasStatus = true;
         internal bool _hasAnnotations = false;
@@ -833,7 +874,7 @@ namespace BDFEDFFileStream
         /// </summary>
         /// <param name="file">Stream opened for writing this header</param>
         /// <param name="nChan">Number of channels in the BDF/EDF file</param>
-        /// <param name="duration">Duration of each record</param>
+        /// <param name="duration">Duration of each record in seconds</param>
         /// <param name="samplingRate">General sampling rate for this data stream. NB: currently permit only single 
         /// sampling rate for all channels.</param>
         internal BDFEDFHeader(int nChan, int duration, int samplingRate)
@@ -880,10 +921,11 @@ namespace BDFEDFFileStream
         }
 
         /// <summary>
-        /// Preferred constructor
+        /// Preferred constructor: assures exact integer number of samples in records; record duration may
+        /// be non-integer and calculated sampling rate may be approximate
         /// </summary>
         /// <param name="nChan">Number of channels in stream</param>
-        /// <param name="duration">Length of each record in seconds</param>
+        /// <param name="duration">Length of each record in seconds; written to three decimal places only</param>
         /// <param name="samplesPerRecord">Number of samples in each record</param>
         internal BDFEDFHeader(int nChan, double duration, int samplesPerRecord)
         { //Usual write constructor
@@ -970,10 +1012,12 @@ namespace BDFEDFFileStream
                 {
                     if (s1 != "BIOSEMI") throw new BDFEDFException("Invalid BDF format");
                     _BDFFile = true;
+                    _bytesPerSample = 3;
                 }
                 else if (b == 0x30) //EDF format
                 {
                     _BDFFile = false;
+                    _bytesPerSample = 2;
                 }
                 else
                     throw new BDFEDFException("Not valid BDF or EDF format");
@@ -1046,7 +1090,7 @@ namespace BDFEDFFileStream
                     channelLabels[i] = s2;
                 }
                 if (!_isContinuous && !_hasAnnotations)
-                    throw new BDFEDFException("No annotation channel for discontinuous EDF+ file");
+                    throw new BDFEDFException("Discontinuous EDF+ file must have annotation channel");
                 transducerTypes = new string[numberChannels];
                 for (int i = 0; i < numberChannels; i++)
                 {
@@ -1095,7 +1139,7 @@ namespace BDFEDFFileStream
                     nChar = reader.Read(cBuf, 0, 8);
                     numberSamples[i] = int.Parse(new string(cBuf, 0, 8));
                 }
-                if (hasAnnotations)
+                if (hasAnnotations) //calculate offset to annotation channel
                 {
                     AnnotationOffset = 0;
                     for (int i = 0; i < _AnnotationChannel; i++) AnnotationOffset += numberSamples[i] * 2; //has to be EDF+
@@ -1206,7 +1250,7 @@ namespace BDFEDFFileStream
                 channelData[i++] = new int[n];
                 recordLength += n;
             }
-            recordLength *= fs.header.isBDFFile ? 3 : 2; // calculate length in bytes
+            recordLength *= fs.header._bytesPerSample; // calculate length in bytes
             fs._recordBuffer = new byte[recordLength];
             header = fs.header;
         }
@@ -1326,6 +1370,10 @@ namespace BDFEDFFileStream
         internal double _st; //calculated sample time of underlying BDF/EDF file
         internal BDFEDFFileStream _bdf;
 
+        /// <summary>
+        /// Use a factory to create BDFLocs to assure all based on same file parameters
+        /// </summary>
+        /// <param name="bdf">BDF file stream on which to base BDFLocs</param>
         public BDFLocFactory(BDFEDFFileStream bdf)
         {
             if (bdf.Header.isValid)
@@ -1372,9 +1420,10 @@ namespace BDFEDFFileStream
         }
 
         /// <summary>
-        /// The key is the set property of Pt that assures that the record number and point within the record
-        /// remain valid values
+        /// Returns/sets the point within the Rec referred to by this BDFLoc
         /// </summary>
+        /// <remarks>The key is the set property of Pt that assures that the record number and point within the record
+        /// remain valid values</remarks>
         public int Pt
         {
             get { return _pt; }
