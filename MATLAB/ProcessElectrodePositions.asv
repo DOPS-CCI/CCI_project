@@ -32,8 +32,7 @@ for i=1:n
     e(i,9)=y(i)*z(i);
     e(i,10)=z(i)^2;
 end;
-kinv = inv(k);
-a=(e'*kinv)*e; %10 x 10 matrix
+a=(e'/k)*e; %10 x 10 matrix
 R=(a\e')/k; %10 x n matrix
 S=k\(eye(n)-e*R); %n x n matrix
 end
