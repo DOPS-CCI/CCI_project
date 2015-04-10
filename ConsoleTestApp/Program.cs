@@ -1,42 +1,50 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
+using System.Numerics;
 using System.Text;
 using BDFEDFFileStream;
+using LinearAlgebra;
 
 namespace ConsoleTestApp
 {
     class Program
     {
-        static void Main(string[] args)
+        const int filterN = 256;
+        const double threshold = 6D;
+        const int minimumLength = 64;
+
+        static void Main1(string[] args)
         {
             Console.Write("Degree of fit desired: ");
             int degree = Convert.ToInt32(Console.ReadLine());
+
             BDFEDFFileReader bdf = new BDFEDFFileReader(new FileStream(@"C:\\Users\Jim\Desktop\PK detector data\S9998-AP-20150210-1205_PKcubes.bdf", FileMode.Open, FileAccess.Read));
             Console.WriteLine("Opened BDF file");
             double[] d = bdf.readAllChannelData(5);
             int N = d.Length;
             double n = (double)N;
+
             Console.WriteLine(d[0].ToString() + " " + d[1].ToString() + " " + d[100].ToString());
+
             removeTrend(d, degree);
             Console.WriteLine(d[0].ToString() + " " + d[1].ToString() + " " + d[100].ToString());
 
-            int filterN = 256;
-            double threshold = 6D;
             double[] V = new double[filterN];
             double c1 = 12D / (double)(filterN * (filterN - 1) * (filterN + 1));
             double offset = ((double)filterN - 1D) / 2D;
             for (int i = 0; i < filterN; i++) V[i] = c1 * ((double)i - offset);
-            double[] filtered = new double[N];
+            List<double> filtered = new List<double>(64);
             byte[] marker = new byte[N];
             bool inEvent = false;
             int eventLength = 0;
             int eventCount = 0;
+            double sign;
             for (int i = 0; i < N; i++)
             {
                 double s = 0;
-                for (int j = 0; j < filterN; j++){
+                for (int j = 0; j < filterN; j++)
+                {
                     int index = i + j - filterN / 2;
                     if (index < 0)
                         s += V[j] * d[0];
@@ -45,26 +53,28 @@ namespace ConsoleTestApp
                     else
                         s += V[j] * d[index];
                 }
-                filtered[i] = s;
                 if (Math.Abs(s) > threshold)
                 {
+                    sign = s > 0D ? 1D : -1D;
                     if (!inEvent) //found beginning of new event
                     {
                         eventLength = 0;
                         inEvent = true;
                     }
+                    filtered.Add(s - sign * threshold);
                     eventLength++;
-                    marker[i] = (byte)Math.Sign(s);
-
                 }
                 else //below threshold
                     if (inEvent) //are we just exiting an event?
                     {
-                        if (eventLength > 64) //event counts only if longer than 64
+                        if (eventLength > minimumLength) //event counts only if longer than 64
                         {
-                            //Here we will process event
+                            int eventLoc = calculateEventSpecs(i - eventLength + 1, eventLength, d, filtered);
+                            createNewEvent(eventLoc);
+
                             eventCount++;
                         }
+                        filtered.Clear();
                         inEvent = false;
                     }
             }
@@ -72,7 +82,62 @@ namespace ConsoleTestApp
             ConsoleKeyInfo cki = Console.ReadKey();
         }
 
+        static void Main(string[] args)
+        {
+            NVector A = new NVector(new double[] { 1, 3, 5, -2, 0 });
+            NVector B = new NVector(new double[] { -1, -2, 3, 1, 2 });
+            NVector C = A + B;
+            double p = A.Dot(B);
+            NMMatrix E = A.Cross(B);
+            E[4, 0] = -2;
+            E[4, 1] = 3;
+            E[4, 2] = 12;
+            E[4, 3] = -5;
+            E[4, 4] = 7;
+            E[0, 0] = 0;
+            E[1, 3] = -19;
+            E[3, 4] = -3.5;
+            NMMatrix H = new NMMatrix(new double[,] { { 1, 2, 3 }, { 3, 2, 1 }, { 2, 1, 3 } });
+            NMMatrix K = H.Inverse();
+            NVector L = (new NVector(new Double[] { 12, 24, 36 })) / H;
+            NMMatrix M = H * K;
+            NVector F = C / E;
+            NMMatrix G = E.Inverse();
+            NMMatrix N = (G * E - NMMatrix.I(5)).Apply((LinearAlgebra.NMMatrix.F)Math.Abs);
+            double e = N.Max();
+            Console.WriteLine(e.ToString("0.00000000000000000000"));
+            Console.ReadKey();
+        }
+
+        static void createNewEvent(int eventLoc)
+        {
+            
+        }
+
+        static int calculateEventSpecs(int p, int eventLength, double[] d, List<double> filtered)
+        {
+            double[] coef = fitPolynomial(filtered.ToArray(), 4);
+            Complex[] roots = rootsOfCubicPolynomial(coef[1], 2D * coef[2], 3D * coef[3], 4D * coef[4]);
+            return 0;
+        }
+
         static void removeTrend(double[] data, int degree)
+        {
+            double[] coef = fitPolynomial(data, degree);
+            //apply the fit to the existing data
+            int N = data.Length;
+            double offset = ((double)N + 1D) / 2D;
+            for (int i = 1; i <= N; i++)
+            {
+                double v = (double)i - offset;
+                double c = coef[0];
+                for (int j = 1; j <= degree; j++)
+                    c += coef[j] * Math.Pow(v, j);
+                data[i - 1] -= c;
+            }
+        }
+
+        private static double[] fitPolynomial(double[] data, int degree)
         {
             int N = data.Length;
             double[,] x = getXMatrix(degree, N);
@@ -97,15 +162,7 @@ namespace ConsoleTestApp
                     c += x[i, j] * y[j];
                 coef[i] = c;
             }
-            //apply the fit to the existing data
-            for (int i = 1; i <= N; i++)
-            {
-                double v = (double)i - offset;
-                double c = coef[0];
-                for (int j = 1; j <= degree; j++)
-                    c += coef[j] * Math.Pow(v, j);
-                data[i - 1] -= c;
-            }
+            return coef;
         }
 
         static double[,] getXMatrix(int degree, int N)
@@ -233,6 +290,42 @@ namespace ConsoleTestApp
                     break;
             }
             return null;
+        }
+
+        static Complex[] rootsOfCubicPolynomial(double a, double b, double c, double d)
+        {
+            if (d != 0)
+            {
+                double d0 = c * c - 3D * b * d;
+                double d1 = 2D * c * c * c - 9D * b * c * d + 27D * a * d * d;
+                Complex C;
+                if (d0 != 0D)
+                    C = Complex.Pow((d1 + Complex.Sqrt(d1 * d1 - 4D * d0 * d0 * d0)) / 2D, 1D / 3D);
+                else
+                {
+                    if (d1 == 0)
+                    {
+                        C = new Complex(-c / (3D * d), 0);
+                        return new Complex[] { C, C, C };
+                    }
+                    C = Complex.Pow(d1, 1D / 3D);
+                }
+                Complex x1 = -(c + C + d0 / C) / (3D * d);
+                Complex u = new Complex(-0.5D, Math.Sqrt(3D) / 2D);
+                Complex x2 = -(c + u * C + d0 / (u * C)) / (3D * d);
+                u = Complex.Conjugate(u);
+                Complex x3 = -(c + u * C + d0 / (u * C)) / (3D * d);
+                return new Complex[] { x1, x2, x3 };
+            }
+            if (c != 0)
+            {
+                Complex u = Complex.Sqrt(b * b - 4D * a * c);
+                return new Complex[] { -(b + u) / (2D * c), (u - b) / (2D * c) };
+            }
+            if (b != 0)
+                return new Complex[] { new Complex(-a / b, 0) };
+            else
+                return new Complex[] { };
         }
     }
 }
