@@ -5,9 +5,10 @@ using System.Text;
 
 namespace LinearAlgebra
 {
+    public delegate double F(double e);
+
     public class NMMatrix
     {
-        public delegate double F(double e);
         double[,] _matrix;
         int _n;
         int _m;
@@ -264,6 +265,19 @@ namespace LinearAlgebra
                     A[i, j] = func(A[i, j]);
             return A;
         }
+
+        public string ToString(string format)
+        {
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < N; i++)
+            {
+                sb.Append(Environment.NewLine);
+                for (int j = 0; j < M; j++)
+                    sb.Append(" " + this[i, j].ToString(format));
+            }
+            return sb.ToString();
+        }
+
         private NMMatrix GaussJordanElimination()
         {
             double determinant = 1D;
@@ -279,24 +293,22 @@ namespace LinearAlgebra
                         max = Math.Abs(this[i, m]);
                     }
                 //exchange rows to move to pivot location
-                determinant = determinant * (r == m ? 1 : -1);
+                determinant = r == m ? determinant : -determinant;
                 ExchangeRow(r, m);
 
                 //Divide row m by pivot
                 double p = this[m, m];
                 if (p == 0D) throw new Exception("GaussJordan: poorly formed system, no unique solution");
+                determinant *= p;
                 for (int j = m; j < M; j++)
-                {
                     this[m, j] /= p;
-                }
                 for (int i = 0; i < N; i++)
                 {
                     if (i == m) continue;
-                    double c;
-                    c = this[i,m];
+                    p = this[i,m];
                     for (int j = m; j < M; j++)
-                        this[i, j] -= c * this[m, j];
-                    determinant *= c;
+                        this[i, j] -= p * this[m, j];
+                    determinant *= p;
                 }
             }
             return this;

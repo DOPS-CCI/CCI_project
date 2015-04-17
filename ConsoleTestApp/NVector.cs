@@ -192,8 +192,24 @@ namespace LinearAlgebra
         {
             NVector A = new NVector(this);
             for (int i = 0; i < _n; i++)
-                _vector[i] = Math.Abs(_vector[i]);
+                A._vector[i] = Math.Abs(_vector[i]);
             return A;
+        }
+
+        public NVector Apply(F func)
+        {
+            NVector A = new NVector(_n);
+            for (int i = 0; i < _n; i++)
+                A._vector[i] = func(_vector[i]);
+            return A;
+        }
+
+        public string ToString(string format)
+        {
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < _n; i++)
+                sb.Append(" " + _vector[i].ToString(format));
+            return sb.ToString();
         }
 
         internal void Exchange(int p, int q)

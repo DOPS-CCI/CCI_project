@@ -13,9 +13,30 @@ namespace ConsoleTestApp
         const int filterN = 256;
         const double threshold = 6D;
         const int minimumLength = 64;
+        const double SR = 512;
+        static LevenbergMarquardt LM = new LevenbergMarquardt(func, Jfunc,
+            new NVector(new double[] { -30000D, -60000D, -60000D, 0.25, 0.005, -0.1 }),
+            new NVector(new double[] { 30000D, 60000D, 60000D, 20, 0.1, 0.25 }), null,
+            new double[] { 0.0001, 0.00001, 0.00001, 0.01 },
+            LevenbergMarquardt.UpdateType.Marquardt);
 
-        static void Main1(string[] args)
+        internal class eventTime
         {
+            internal int time;
+            internal int length;
+            internal bool foundFit;
+            internal double A;
+            internal double B;
+            internal double C;
+            internal double a;
+            internal double b;
+            internal double sign;
+            internal List<double> filteredSignal;
+        }
+
+        static void Main(string[] args)
+        {
+            List<eventTime> eventList = new List<eventTime>();
             Console.Write("Degree of fit desired: ");
             int degree = Convert.ToInt32(Console.ReadLine());
 
@@ -38,26 +59,25 @@ namespace ConsoleTestApp
             byte[] marker = new byte[N];
             bool inEvent = false;
             int eventLength = 0;
-            int eventCount = 0;
-            double sign;
+            double sign = 1D;
             for (int i = 0; i < N; i++)
             {
                 double s = 0;
                 for (int j = 0; j < filterN; j++)
                 {
                     int index = i + j - filterN / 2;
-                    if (index < 0)
-                        s += V[j] * d[0];
-                    else if (index >= N)
-                        s += V[j] * d[N - 1];
-                    else
+                    if (index < 0) //handle start-up
+                        s += V[j] * d[0]; //repeat first value to its left
+                    else if (index >= N) //handle end
+                        s += V[j] * d[N - 1]; //repeat last value to its right
+                    else //usual case
                         s += V[j] * d[index];
                 }
-                if (Math.Abs(s) > threshold)
+                if (Math.Abs(s) > threshold) //above threshold?
                 {
-                    sign = s > 0D ? 1D : -1D;
                     if (!inEvent) //found beginning of new event
                     {
+                        sign = s > 0D ? 1D : -1D;
                         eventLength = 0;
                         inEvent = true;
                     }
@@ -67,45 +87,214 @@ namespace ConsoleTestApp
                 else //below threshold
                     if (inEvent) //are we just exiting an event?
                     {
-                        if (eventLength > minimumLength) //event counts only if longer than 64
+                        if (eventLength > minimumLength) //event counts only if longer than minimum length
                         {
-                            int eventLoc = calculateEventSpecs(i - eventLength + 1, eventLength, d, filtered);
-                            createNewEvent(eventLoc);
-
-                            eventCount++;
+                            eventTime e = new eventTime();
+                            e.time = i - eventLength;
+                            e.length = eventLength;
+                            e.sign = sign;
+                            e.filteredSignal = filtered;
+                            filtered = new List<double>(64); //need new filtered array
+                            eventList.Add(e);
                         }
-                        filtered.Clear();
+                        else
+                            filtered.Clear();
                         inEvent = false;
                     }
             }
-            Console.WriteLine("Total events found = " + eventCount.ToString("0"));
+            int dataLength;
+            double t;
+            eventTime et0;
+            eventTime et1;
+            double t0 = (double)filterN / (2D * SR);
+            for (int i = 0; i < eventList.Count - 1; i++)
+            {
+                et0 = eventList[i];
+                et1 = eventList[i + 1];
+                dataLength = Math.Min(et1.time - et0.time, 16000);
+                double max = double.MinValue;
+                for (int p = et0.time; p < et0.time + et0.length; p++) max = Math.Max(max, Math.Abs(d[p]));
+                et0.A = et0.sign * max; //correct sign of displacement; could be max sign*Abs(displacement)
+                et0.C = d[et0.time]; //estimate of initial offset
+                et0.B = et0.C; //current actual "baseline"
+                et0.a = 4D; //typical alpha
+                et0.b = 0.04; //typical beta
+                t = t0; //half filterN / SR
+                if (et0.foundFit = fitSignal(d, et0.time, dataLength, ref et0.A, ref et0.B, ref et0.C, ref et0.a, ref et0.b, ref t))
+                    et0.time += (int)(t * SR);
+                Console.WriteLine();
+                Console.WriteLine(et0.time.ToString("0") + " (" + LM.Result.ToString() + ", " + LM.Iterations.ToString("0") +
+                    ", " + LM.ChiSquare.ToString("0.0") + ", " + LM.normalizedStandardErrorOfFit.ToString("0.00") + "): ");
+                Console.WriteLine(et0.A.ToString("0.0") + " " + et0.B.ToString("0.0") + " " + et0.C.ToString("0.0") +
+                    " " + et0.a.ToString("0.000") + " " + et0.b.ToString("0.00000") + " " + t.ToString("0.000") + " ");
+                NVector Sp = LM.parameterStandardError;
+                Console.WriteLine(Sp[0].ToString("0.00") + " " + Sp[1].ToString("0.00") + " " + Sp[2].ToString("0.00") +
+                    " " + Sp[3].ToString("0.0000") + " " + Sp[4].ToString("0.000000") + " " + Sp[5].ToString("0.0000") + " ");
+            }
+            et0 = eventList[eventList.Count - 1];
+            dataLength = Math.Min(N - et0.time, 16000);
+            et0.A = et0.sign * 5000D; //correct sign of displacement; could be max sign*Abs(displacement)
+            et0.C = d[et0.time]; //estimate of initial offset
+            et0.B = et0.C;
+            et0.a = 4D;
+            et0.b = 0.05;
+            t = 0.25;
+            if (et0.foundFit = fitSignal(d, et0.time, dataLength, ref et0.A, ref et0.B, ref et0.C, ref et0.a, ref et0.b, ref t))
+                et0.time += (int)(t * SR);
+            Console.WriteLine(et0.time.ToString("0") + " (" + LM.Result.ToString() + ", " + LM.Iterations.ToString("0") +
+                ", " + LM.ChiSquare.ToString("0.0") + "): " + et0.A.ToString("0.0") + " " + et0.B.ToString("0.0") + " " + et0.C.ToString("0.0") +
+                " " + et0.a.ToString("0.000") + " " + et0.b.ToString("0.00000") + " " + t.ToString("0.000") + " ");
+
+            Console.WriteLine("Total events found = " + eventList.Count.ToString("0"));
             ConsoleKeyInfo cki = Console.ReadKey();
         }
 
-        static void Main(string[] args)
+        private static bool fitSignal(double[] d, int start, int dataLength,
+            ref double A, ref double B, ref double C, ref double a, ref double b, ref double tOffset)
+        {
+            NVector t = new NVector(dataLength);
+            for (int t0 = 0; t0 < dataLength; t0++) t[t0] = (double)t0 / SR;
+            NVector y = new NVector(dataLength);
+            for (int i = 0; i < dataLength; i++)
+                y[i] = d[start + i];
+            NVector p = LM.Calculate(new NVector(new double[] { A, B, C, a, b, tOffset }), t, y);
+            A = p[0];
+            B = p[1];
+            C = p[2];
+            a = p[3];
+            b = p[4];
+            tOffset = p[5];
+            return LM.Result > 0;
+        }
+
+        static void Main2(string[] args)
         {
             NVector A = new NVector(new double[] { 1, 3, 5, -2, 0 });
             NVector B = new NVector(new double[] { -1, -2, 3, 1, 2 });
             NVector C = A + B;
+            Console.WriteLine("A =" + A.ToString("0.000"));
+            Console.WriteLine("B =" + B.ToString("0.000"));
+            Console.WriteLine("A+B =" + C.ToString("0.000"));
             double p = A.Dot(B);
             NMMatrix E = A.Cross(B);
+            Console.WriteLine("A x B =" + E.ToString("0.000"));
             E[4, 0] = -2;
             E[4, 1] = 3;
-            E[4, 2] = 12;
+            E[4, 2] = 5;
             E[4, 3] = -5;
             E[4, 4] = 7;
-            E[0, 0] = 0;
-            E[1, 3] = -19;
+            E[0, 0] = -7;
+            E[1, 3] = -3;
             E[3, 4] = -3.5;
-            NMMatrix H = new NMMatrix(new double[,] { { 1, 2, 3 }, { 3, 2, 1 }, { 2, 1, 3 } });
-            NMMatrix K = H.Inverse();
-            NVector L = (new NVector(new Double[] { 12, 24, 36 })) / H;
-            NMMatrix M = H * K;
+            E[2, 4] = -2;
+            NMMatrix H = new NMMatrix(new double[,] { { 5, 3, -2 ,1}, { 0, 3, 2,-3 }, { 4, 2, 3,2 }, { -6, 2, 8,-5 } });
+            Console.WriteLine("H =" + H.ToString("0.000"));
+            NVector V = new NVector(new double[] { 1, -1, 3, -2 });
+            Console.WriteLine("V =" + V.ToString("0.000"));
+            Console.WriteLine(" V / H =" + (V / H).ToString("0.0000"));
+            NMMatrix HI = H.Inverse();
+            Console.WriteLine("Inverse H =" + HI.ToString("0.000"));
+            Console.WriteLine("H * HI " + (H * HI).ToString("0.00000"));
+            Console.ReadKey();
             NVector F = C / E;
             NMMatrix G = E.Inverse();
-            NMMatrix N = (G * E - NMMatrix.I(5)).Apply((LinearAlgebra.NMMatrix.F)Math.Abs);
+            NMMatrix N = (G * E - NMMatrix.I(5)).Apply((LinearAlgebra.F)Math.Abs);
             double e = N.Max();
-            Console.WriteLine(e.ToString("0.00000000000000000000"));
+            Console.WriteLine((e*1E15).ToString("0.00"));
+            Console.ReadKey();
+        }
+
+/* Five parameter fitting functions
+        static NVector func(NVector t, NVector p)
+        {
+            NVector y = new NVector(t.N);
+            for (int i = 0; i < t.N; i++)
+            {
+                double t0 = t[i] - p[3];
+                if (t0 > 0)
+                    y[i] = p[4] + p[0] * (1D - Math.Exp(-p[1] * t0)) * Math.Exp(-p[2] * t0);
+                else
+                    y[i] = p[4];
+            }
+            return y;
+        }
+
+        static NMMatrix Jfunc(NVector t, NVector p)
+        {
+            NMMatrix J = new NMMatrix(t.N, p.N);
+            for (int i = 0; i < t.N; i++)
+            {
+                J[i, 4] = 1D;
+                double t0 = t[i] - p[3];
+                if (t0 < 0D) continue;
+                J[i, 0] = (1D - Math.Exp(-p[1] * t0)) * Math.Exp(-p[2] * t0);
+                J[i, 1] = p[0] * t0 * Math.Exp(-(p[1] + p[2]) * t0);
+                J[i, 2] = -p[0] * t0 * (1D - Math.Exp(-p[1] * t0)) * Math.Exp(-p[2] * t0);
+                J[i, 3] = p[0] * (p[2] * (1D - Math.Exp(-p[1] * t0)) * Math.Exp(-p[2] * t0) - p[1] * Math.Exp(-(p[1] + p[2]) * t0));
+            }
+            return J;
+        }
+*/
+/* Six parameter fitting functions */
+        static NVector func(NVector t, NVector p)
+        {
+            //parameters: A, B, C, a, b, t0
+            NVector y = new NVector(t.N);
+            for (int i = 0; i < t.N; i++)
+            {
+                double t0 = t[i] - p[5];
+                if (t0 > 0)
+                {
+                    double ebt = Math.Exp(-p[4] * t0);
+                    y[i] = p[2] + p[0] * ebt * (1D - Math.Exp(-p[3] * t0)) + (p[1] - p[2]) * (1D - ebt);
+                }
+                else
+                    y[i] = p[2];
+            }
+            return y;
+        }
+
+        static NMMatrix Jfunc(NVector t, NVector p)
+        {
+            double eat;
+            double ebt;
+            NMMatrix J = new NMMatrix(t.N, p.N);
+            for (int i = 0; i < t.N; i++)
+            {
+                double t0 = t[i] - p[5];
+                if (t0 < 0D)
+                    J[i, 2] = 1D;
+                else
+                {
+                    eat = Math.Exp(-p[3] * t0);
+                    ebt = Math.Exp(-p[4] * t0);
+                    J[i, 0] = ebt * (1D - eat);
+                    J[i, 1] = 1D - ebt;
+                    J[i, 2] = ebt;
+                    J[i, 3] = p[0] * t0 * eat * ebt;
+                    J[i, 4] = -ebt * t0 * (p[0] * (1D - eat) + p[2] - p[1]);
+                    J[i, 5] = ebt * (p[0] * (p[4] * (1D - eat) - p[3] * eat) + (p[2] - p[1]) * p[4]);
+                }
+            }
+            return J;
+        }
+        static void Main3(string[] args)
+        {
+            NVector t = new NVector(16000);
+            for (int t0 = 0; t0 < 16000; t0++) t[t0] = (double)t0 / 512D;
+            NVector p_true = new NVector(new double[] { -5000D, 5000D, 3000D, 4D, 0.01D, 0.12 });
+            NVector y = new NVector(func(t, p_true));
+            Random rand = new Random();
+            for (int i = 0; i < 16000; i++)
+                y[i] += (2D * rand.NextDouble() - 1D) * 90D;
+            NVector p = LM.Calculate(new NVector(new double[] { -4000D, 0D, 2900D, 10D, 0.025, 0.25D }), t, y);
+            Console.WriteLine("Result = " + LM.Result.ToString());
+            Console.WriteLine("Iterations = " + LM.Iterations.ToString("0"));
+            Console.WriteLine("Chi square = " + LM.ChiSquare);
+            Console.WriteLine("SE of fit = " + LM.normalizedStandardErrorOfFit);
+            Console.WriteLine("Estimates");
+            Console.WriteLine(p.ToString("0.00000"));
+            Console.WriteLine(LM.parameterStandardError.ToString("0.0000"));
             Console.ReadKey();
         }
 
@@ -117,7 +306,7 @@ namespace ConsoleTestApp
         static int calculateEventSpecs(int p, int eventLength, double[] d, List<double> filtered)
         {
             double[] coef = fitPolynomial(filtered.ToArray(), 4);
-            Complex[] roots = rootsOfCubicPolynomial(coef[1], 2D * coef[2], 3D * coef[3], 4D * coef[4]);
+            Complex[] roots = rootsOfPolynomial(coef[1], 2D * coef[2], 3D * coef[3], 4D * coef[4]);
             return 0;
         }
 
@@ -292,7 +481,7 @@ namespace ConsoleTestApp
             return null;
         }
 
-        static Complex[] rootsOfCubicPolynomial(double a, double b, double c, double d)
+        static Complex[] rootsOfPolynomial(double a, double b = 0D, double c = 0D, double d = 0D)
         {
             if (d != 0)
             {
