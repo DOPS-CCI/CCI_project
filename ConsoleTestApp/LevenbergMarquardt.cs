@@ -6,14 +6,16 @@ using LinearAlgebra;
 
 namespace ConsoleTestApp
 {
-    public delegate NVector Function(NVector t, NVector p);
 
     public class LevenbergMarquardt
     {
+        public delegate NVector Function(NVector t, NVector p);
+        public delegate NMMatrix JFunc(NVector t, NVector p);
 
-        const double lambda_DN_fac = 9D;
-        const double lambda_UP_fac = 11D;
+        const double lambda_DN_fac = 2D;
+        const double lambda_UP_fac = 3D;
         Function func;
+        JFunc Jfunc;
         NVector p;
         NVector t;
         NVector y_dat;
@@ -27,12 +29,11 @@ namespace ConsoleTestApp
         int m;
 
         NMMatrix J;
-        NMMatrix JtWJ;
-        NVector JtWdy;
-        NVector weight_sq;
+        NMMatrix JtJ;
+        NVector Jtdy;
+        double DOF;
         double lambda;
         double X2;
-        double X2_old;
         double dX2;
         NVector p_old;
         NVector y_old;
@@ -42,23 +43,61 @@ namespace ConsoleTestApp
         int iteration;
 
         int _result = 0;
-        public int Result
+        public ResultType Result
         {
-            get { return _result; }
+            get { return (ResultType)_result; }
         }
 
-        public LevenbergMarquardt(Function func,
-            NVector dp, NVector p_min, NVector p_max, double[] eps, UpdateType updateType)
+        public int Iterations
         {
-            n = p_min.N;
-            MaxIter = 10 * n;
+            get { return iteration; }
+        }
+
+        public double ChiSquare
+        {
+            get { return X2 / DOF; }
+        }
+
+        public double normalizedStandardErrorOfFit
+        {
+            get
+            {
+                return (X2 / DOF - DOF) / Math.Sqrt(2 * DOF);
+            }
+        }
+
+        public NMMatrix parameterCovariance
+        {
+            get
+            {
+                NMMatrix Vp = NMMatrix.I(n) / JtJ;
+                return Vp;
+            }
+        }
+
+        public NVector parameterStandardError
+        {
+            get
+            {
+                NVector Sp = (DOF * (NMMatrix.I(n) / JtJ).Diag()).Apply((LinearAlgebra.F)Math.Sqrt);
+                return Sp;
+            }
+        }
+
+        public LevenbergMarquardt(Function func, JFunc Jfunc, NVector p_min, NVector p_max, NVector dp, double[] eps, UpdateType updateType)
+        {
             this.func = func;
-            if (dp.N != n) throw new Exception("LevenbergMarquardt: size mismatch dp");
-            this.dp = dp;
-            if (p_min.N != n) throw new Exception("LevenbergMarquardt: size mismatch p_min");
+            this.Jfunc = Jfunc;
+            n = p_min.N;
             this.p_min = p_min;
             if (p_max.N != n) throw new Exception("LevenbergMarquardt: size mismatch p_max");
             this.p_max = p_max;
+            if (Jfunc == null)
+            {
+                if (dp.N != n) throw new Exception("LevenbergMarquardt: size mismatch dp");
+                this.dp = dp;
+            }
+            MaxIter = 50 * n;
             this.eps = eps;
             this.updateType = updateType;
         }
@@ -73,58 +112,97 @@ namespace ConsoleTestApp
             if (y_dat.N != m) throw new Exception("LevenbergMarquardt.Calculate: size mismatch t-y");
             this.y_dat = y_dat;
 
-            weight_sq = NVector.Uniform((m - n + 1) / y_dat.Dot(y_dat), m);
+//            weight_sq = (m - n + 1) / y_dat.Dot(y_dat);
+            DOF = (double)(m - n + 1);
 
-            LM_matrix(); //initalize Jacobian and related matrices
+            //initalize Jacobian and related matrices
+            y_hat = func(t, p);
+            y_old = y_hat;
+            if (Jfunc == null)
+                J = Jacobian(p, y_hat);
+            else
+                J = Jfunc(t, p);
+            NVector delta_y = y_dat - y_hat;
+            X2 = delta_y.Dot(delta_y);
+            JtJ = J.Transpose() * J;
+            Jtdy = J.Transpose() * delta_y;
 
-            if (JtWdy.Abs().Max() < eps[0]) return p; //Good guess!!!
+            iteration = 0;
+
+            if (Jtdy.Abs().Max() < eps[0])
+            {
+                _result = 1;
+                return p; //Good guess!!!
+            }
             if (updateType == UpdateType.Marquardt)
                 lambda = 0.01D;
             else
-                lambda = 0.01D * JtWJ.Diag().Max();
+                lambda = 0.01D * JtJ.Diag().Max();
 
-            X2_old = double.MaxValue;
-
-            iteration = 0;
             bool stop = false;
 
             /************************** Begin Main loop ***********************/
+            // y_hat = vector of y estimates for current value of parameters
+            // y_try = vector of y estimates for current trial value of parameters
+            // y_dat = given dependent values (fixed)
+            // y_old = vector of y estimates for previous value of parameters (used in Broyden estimate of J)
+            // t = given independent values (fixed)
+            // p = current accepted estimate of parameters
+            // h = last calculated (trial) increment for the parameters
+            // p_try = current trial value for the parameters
+            // p_old = previous accepted value of parameters (used in Broyden estimate of J)
+            // X2 = chi^2 of last accepted estimate
+            // X2_try = chi^2 of current trial estimate
+            // J = current estimate of Jacobian at p
+
             while (!stop)
             {
                 iteration++;
 
                 NVector h;
                 if (updateType == UpdateType.Marquardt)
-                    h = JtWdy / (JtWJ + lambda * JtWJ.Diag().Diag());
+                    h = Jtdy / (JtJ + lambda * JtJ.Diag().Diag());
                 else
-                    h = JtWdy / (JtWJ + lambda * NMMatrix.I(n));
+                    h = Jtdy / (JtJ + lambda * NMMatrix.I(n));
 
                 NVector p_try = (p + h).Max(p_min).Min(p_max);
 
-                NVector delta_y = y_dat - func(t, p_try);
+                NVector y_try = func(t, p_try);
+                delta_y = y_dat - y_try;
 
-                double X2_try = (delta_y * weight_sq).Dot(delta_y);
+                double X2_try = delta_y.Dot(delta_y);
 
                 if (updateType == UpdateType.Quadratic)
                 {
-                    alpha = JtWdy.Dot(h) / ((X2_try - X2) / 2D + 2D * JtWdy.Dot(h));
+                    alpha = Jtdy.Dot(h) / ((X2_try - X2) / 2D + 2D * Jtdy.Dot(h));
                     h = h * alpha;
                     p_try = (p_try + h).Max(p_min).Min(p_max);
                     delta_y = y_dat - func(t, p_try);
-                    X2_try = (delta_y * weight_sq).Dot(delta_y);
+                    X2_try = delta_y .Dot(delta_y);
                 }
+                dX2 = X2_try - X2;
 
-                double rho = (X2 - X2_try) / (2D * (lambda * h + JtWdy).Dot(h));
+                double rho = -dX2 / (2D * (lambda * h + Jtdy).Dot(h));
 
-                if (rho > eps[3]) //found a better estimate
+                if (dX2 < 0D) //found a better estimate
                 {
-                    dX2 = X2 - X2_old;
-                    X2_old = X2;
+                    X2 = X2_try;
                     p_old = p;
-                    y_old = y_hat;
                     p = p_try;
+                    y_old = y_hat;
+                    y_hat = y_try;
 
-                    LM_matrix();
+                    if (iteration % (2 * n) == 0) //|| dX2 > 0 or is it rho > ep[3] ?
+                        if (Jfunc == null)
+                            J = Jacobian(p, y_hat);
+                        else
+                            J = Jfunc(t, p);
+                    else
+                        J = J + (y_hat - y_old - J * h).Cross(h) / h.Dot(h); //Broyden rank-1 update of J
+
+                    JtJ = J.Transpose() * J;
+                    Jtdy = J.Transpose() * delta_y;
+
                     switch (updateType)
                     {
                         case UpdateType.Marquardt:
@@ -139,7 +217,7 @@ namespace ConsoleTestApp
                             break;
                     }
 
-                    if (JtWdy.Abs().Max() < eps[0] && iteration > 2)
+                    if (Jtdy.Abs().Max() < eps[0] && iteration > 2)
                     {
                         _result = 1;
                         stop = true;
@@ -157,16 +235,23 @@ namespace ConsoleTestApp
                 }
                 else //Not a better estimate
                 {
-                    X2 = X2_old;
-                    if (iteration % (2 * n) == 0)
-                        LM_matrix();
+                    if (iteration % (2 * n) == 0) //update J every 2n th no matter what
+                    {
+                        if (Jfunc == null)
+                            J = Jacobian(p, y_hat);
+                        else
+                            J = Jfunc(t, p);
+                        JtJ = J.Transpose() * J;
+                        Jtdy = J.Transpose() * (y_dat - y_hat);
+                    }
+
                     switch (updateType)
                     {
                         case UpdateType.Marquardt:
                             lambda = Math.Min(lambda * lambda_UP_fac, 1E7);
                             break;
                         case UpdateType.Quadratic:
-                            lambda = lambda + Math.Abs((X2_try - X2) / 2D / alpha);
+                            lambda = lambda + Math.Abs(dX2 / (2D * alpha));
                             break;
                         case UpdateType.Nielsen:
                             lambda = lambda * nu;
@@ -178,7 +263,7 @@ namespace ConsoleTestApp
                 if (iteration > MaxIter && !stop)
                 {
                     _result = -1;
-                    stop = true;
+                    return p;
                 }
             }
             /************************** End Main loop ************************/
@@ -189,24 +274,22 @@ namespace ConsoleTestApp
         private NMMatrix Jacobian(NVector p, NVector y)
         {
             NVector ps = new NVector(p); //save a copy
-            NMMatrix J = new NMMatrix(m, n);
-            NVector del = new NVector(n);
+            NMMatrix J = new NMMatrix(m, n); //creating a new J from scratch
+            double del_p;
             for (int j = 0; j < n; j++)
             {
-                del[j] = dp[j] * (1 + Math.Abs(p[j]));
-                p[j] = ps[j] + del[j];
+                del_p = Math.Max(dp[j] * Math.Abs(p[j]), dp[j]);
+                p[j] = ps[j] + del_p;
                 NVector y1 = func(t, p);
                 if (dp[j] != 0D) //forward or backward difference
-                {
-                    J.ReplaceColumn(j, (y1 - y) / del[j]);
-                }
+                    J.ReplaceColumn(j, (y1 - y) / del_p);
                 else //central difference
                 {
-                    p[j] = ps[j] - del[j];
-                    J.ReplaceColumn(j, (y1 - func(t, p)) / (2D * del[j]));
+                    p[j] = ps[j] - del_p;
+                    J.ReplaceColumn(j, (y1 - func(t, p)) / (2D * del_p));
                 }
+                p[j] = ps[j]; //restore this value
             }
-            p = ps;
             return J;
         }
 
@@ -217,19 +300,8 @@ namespace ConsoleTestApp
             return J;
         }
 
-        private void LM_matrix()
-        {
-            JtWdy = new NVector(m);
-            JtWJ = new NMMatrix(n, n);
-
-            y_hat = func(t, p);
-
-            if (iteration % 2 * n == 0)
-                J = Jacobian(p, y_hat);
-            else
-                J = Broyden(p_old, y_old, J, p, y_hat);
-        }
-
         public enum UpdateType { Marquardt, Quadratic, Nielsen };
+
+        public enum ResultType { MaximumIterations = -1, NoResult = 0, Jacobian = 1, ParameterChange = 2, ChiSquare = 3 };
     }
 }
