@@ -70,8 +70,11 @@ namespace Event
             if (!ed.TryGetValue(name, out ede)) //check to make sure there is an EventDictionaryEntry for this name
                 throw new Exception("No entry in EventDictionary for \"" + name + "\"");
             OutputEvent e = new OutputEvent(ede);
-            e.m_index = nextIndex();
-            e.m_gc = grayCode((uint)e.Index);
+            if (ede.intrinsic != null)
+            {
+                e.m_index = nextIndex();
+                e.m_gc = grayCode((uint)e.Index);
+            }
 //            markBDFstatus((uint)e.GC); //***** this is needed only if used for real-time application this BIOSEMI
             return e;
         }
@@ -199,8 +202,29 @@ namespace Event
         {
             ede = entry;
             m_time = (double)(time.Ticks) / 1E7;
-            m_index = (uint)index;
-            m_gc = EventFactory.grayCode(m_index);
+            if (entry.intrinsic != null)
+            {
+                m_index = (uint)index;
+                m_gc = EventFactory.grayCode(m_index);
+            }
+            GVValue = null;
+        }
+        /// <summary>
+        /// Stand-alone constructor for use creating simulated events (not real-time); no checking is performed
+        /// </summary>
+        /// <param name="entry">EventDictionaryEntry describing the Event</param>
+        /// <param name="time">time of Event</param>
+        /// <param name="index">assigned index of Event</param>
+        public OutputEvent(EventDictionaryEntry entry, long time, int index)
+            : base(entry)
+        {
+            ede = entry;
+            m_time = (double)(time) / 1E7;
+            if (entry.intrinsic != null)
+            {
+                m_index = (uint)index;
+                m_gc = EventFactory.grayCode(m_index);
+            }
             GVValue = null;
         }
         /// <summary>
