@@ -1001,6 +1001,10 @@ namespace EEGArtifactEditor
                     header.EventFile = newFileName + ".evt";
                     //and write new header out
                 }
+
+                header.Comment += (header.Comment == "" ? "" : Environment.NewLine) +
+                    "Artefact Events marked on " + DateTime.Now.ToString("dd MMM yyyy HH:mm:ss") +
+                    " by " + Environment.UserName;
                 FileStream fs = new FileStream(System.IO.Path.Combine(directory, newFileName + ".hdr"), FileMode.OpenOrCreate, FileAccess.Write);
                 new HeaderFileWriter(fs, header); //write out new header
 
