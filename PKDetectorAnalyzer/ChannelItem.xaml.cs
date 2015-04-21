@@ -1,0 +1,119 @@
+﻿using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Data;
+using System.Windows.Documents;
+using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using System.Windows.Navigation;
+using System.Windows.Shapes;
+
+namespace PKDetectorAnalyzer
+{
+    /// <summary>
+    /// Interaction logic for ChannelItem.xaml
+    /// </summary>
+    public partial class ChannelItem : ListBoxItem
+    {
+        MainWindow mw;
+
+        string[] trends { get { return _trends; } }
+        static string[] _trends = new string[]
+        {
+            "None",
+            "Offset only",
+            "Linear",
+            "Quadratic",
+            "3rd degree",
+            "4th degree",
+            "5th degree",
+            "6th degree",
+            "7th degree",
+            "8th degree",
+            "9th degree",
+            "10th degree"
+        };
+        internal int _filterN;
+        internal int _minimumL;
+        internal double _threshold;
+
+        public ChannelItem(MainWindow mw)
+        {
+            this.mw = mw;
+            InitializeComponent();
+            foreach (MainWindow.channelOptions co in mw.channels)
+            {
+                ComboBoxItem cbi = new ComboBoxItem();
+                cbi.Content = co.name;
+                Channel.Items.Add(cbi);
+            }
+        }
+
+        private void Channel_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            mw.fixChannelEntries();
+        }
+
+        private void RemoveSpec_Click(object sender, RoutedEventArgs e)
+        {
+            mw.ChannelEntries.Items.Remove(this);
+            mw.fixChannelEntries();
+            mw.AddSpec.IsEnabled = true;
+            mw.checkError();
+        }
+
+        private void FilterSize_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            try
+            {
+                _filterN = System.Convert.ToInt32(FilterSize.Text);
+                if (_filterN <= 1) throw new Exception();
+                FilterSize.BorderBrush = System.Windows.Media.Brushes.MediumBlue;
+            }
+            catch (Exception)
+            {
+                _filterN = 0;
+                FilterSize.BorderBrush = System.Windows.Media.Brushes.Red;
+            }
+            mw.checkError();
+        }
+
+        private void Threshold_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            try
+            {
+                _threshold = System.Convert.ToDouble(Threshold.Text);
+                if (_threshold <= 0D) throw new Exception();
+                Threshold.BorderBrush = System.Windows.Media.Brushes.MediumBlue;
+            }
+            catch
+            {
+                _threshold = -1D;
+                Threshold.BorderBrush = System.Windows.Media.Brushes.Red;
+            }
+            mw.checkError();
+        }
+
+        private void MinimumLength_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            try
+            {
+                _minimumL = System.Convert.ToInt32(MinimumLength.Text);
+                if (_minimumL <= 0) throw new Exception();
+                MinimumLength.BorderBrush = System.Windows.Media.Brushes.MediumBlue;
+            }
+            catch (Exception)
+            {
+                _minimumL = 0;
+                MinimumLength.BorderBrush = System.Windows.Media.Brushes.Red;
+            }
+            mw.checkError();
+        }
+
+    }
+}

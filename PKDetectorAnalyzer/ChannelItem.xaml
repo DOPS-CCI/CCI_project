@@ -1,0 +1,65 @@
+﻿<ListBoxItem x:Class="PKDetectorAnalyzer.ChannelItem"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:PKDetectorAnalyzer"
+             xmlns:sys="clr-namespace:System;assembly=mscorlib"
+             mc:Ignorable="d" Height="Auto" Width="Auto" Padding="2">
+    <ListBoxItem.Resources>
+    </ListBoxItem.Resources>
+    <Border BorderThickness="1" BorderBrush="DarkBlue">
+    <StackPanel Orientation="Horizontal" Margin="2">
+        <StackPanel.Resources>
+            <Style TargetType="TextBlock">
+                <Setter Property="FontWeight" Value="Bold"/>
+                <Setter Property="Padding" Value="2"/>
+                <Setter Property="Height" Value="22"/>
+            </Style>
+            <Style TargetType="TextBox">
+                <Setter Property="TextAlignment" Value="Right"/>
+                <Setter Property="Height" Value="24"/>
+                <Setter Property="Width" Value="40"/>
+                <Setter Property="VerticalContentAlignment" Value="Center"/>
+            </Style>
+            <Style TargetType="ComboBox">
+                <Setter Property="Height" Value="24"/>
+                <Setter Property="Margin" Value="4"/>
+                <Setter Property="IsReadOnly" Value="True"/>
+            </Style>
+        </StackPanel.Resources>
+            <GroupBox Header="Channel data" BorderBrush="DarkBlue">
+                <StackPanel Orientation="Horizontal">
+                    <ComboBox Name="Channel" Width="120" SelectionChanged="Channel_SelectionChanged" />
+                    <TextBlock>Detrend--></TextBlock>
+                    <ComboBox Name="TrendDegree" Width="100" >
+                        <ComboBoxItem Selector.IsSelected="True">None</ComboBoxItem>
+                        <ComboBoxItem>Offset only</ComboBoxItem>
+                        <ComboBoxItem>Linear</ComboBoxItem>
+                        <ComboBoxItem>Quadratic</ComboBoxItem>
+                        <ComboBoxItem>3rd degree</ComboBoxItem>
+                        <ComboBoxItem>4th degree</ComboBoxItem>
+                        <ComboBoxItem>5th degree</ComboBoxItem>
+                        <ComboBoxItem>6th degree</ComboBoxItem>
+                        <ComboBoxItem>7th degree</ComboBoxItem>
+                        <ComboBoxItem>8th degree</ComboBoxItem>
+                        <ComboBoxItem>9th degree</ComboBoxItem>
+                        <ComboBoxItem>10th degree</ComboBoxItem>
+                    </ComboBox>
+                </StackPanel>
+            </GroupBox>
+            <GroupBox Header="Filter parameters" BorderBrush="DarkBlue">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock>Filter size--></TextBlock>
+                <TextBox Name="FilterSize" TextChanged="FilterSize_TextChanged">256</TextBox>
+                <TextBlock>Threshold--></TextBlock>
+                <TextBox Name="Threshold" TextChanged="Threshold_TextChanged">6.0</TextBox>
+                <TextBlock>Minimum length--></TextBlock>
+                <TextBox Name="MinimumLength" TextChanged="MinimumLength_TextChanged">64</TextBox>
+            </StackPanel>
+        </GroupBox>
+            <Button Height="24" Width="24" Margin="4" Click="RemoveSpec_Click">
+                <TextBlock FontWeight="Bold" FontSize="20" VerticalAlignment="Top" Margin="0,-18">-</TextBlock></Button>
+        </StackPanel>
+    </Border>
+</ListBoxItem>
