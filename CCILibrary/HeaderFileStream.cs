@@ -245,6 +245,10 @@ namespace HeaderFileStream
 
     }
 
+    /// <summary>
+    /// Creates new HeaderFileWriter, writes out the header to the stream and closes the stream.
+    /// There are no accessible methods, properties or fields.
+    /// </summary>
     public class HeaderFileWriter
     {
         XmlWriter xw;
