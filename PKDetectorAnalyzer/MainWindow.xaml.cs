@@ -28,8 +28,15 @@ namespace PKDetectorAnalyzer
     /// <summary>
     /// Interaction logic for MainWindow.xaml
     /// </summary>
-    public partial class MainWindow : Window
+    public partial class MainWindow : Window, INotifyPropertyChanged
     {
+        public event PropertyChangedEventHandler PropertyChanged;
+        public void OnPropertyChanged(PropertyChangedEventArgs e)
+        {
+            if (PropertyChanged != null)
+                PropertyChanged(this, e);
+        }
+
         string directory;
         string headerFileName;
         Header.Header head;
@@ -48,6 +55,16 @@ namespace PKDetectorAnalyzer
         int AnalogChannelCount;
 
         internal List<channelOptions> channels = new List<channelOptions>();
+        string _newFileName;
+        public string newFileName
+        {
+            get { return _newFileName; }
+            set
+            {
+                _newFileName = value;
+                OnPropertyChanged(new PropertyChangedEventArgs("newFileName"));
+            }
+        }
 
         static LevenbergMarquardt LM = new LevenbergMarquardt(func, Jfunc,
            new LinearAlgebra.NVector(new double[] { -30000D, -60000D, -60000D, 0.25, 0.005, -0.1 }),
@@ -69,6 +86,7 @@ namespace PKDetectorAnalyzer
             directory = System.IO.Path.GetDirectoryName(dlg.FileName);
             headerFileName = System.IO.Path.GetFileNameWithoutExtension(dlg.FileName);
 
+
             head = (new HeaderFileReader(dlg.OpenFile())).read();
 
             bdf = new BDFEDFFileReader(
@@ -80,6 +98,11 @@ namespace PKDetectorAnalyzer
             AnalogChannelCount = channels.Count;
 
             InitializeComponent();
+
+            Title = headerFileName;
+            FNExtension.Text = "PKDetection";
+            DataContext = this;
+
             ChannelItem ci = new ChannelItem(this);
             ChannelEntries.Items.Add(ci);
             ci.Channel.SelectedIndex = 0;
@@ -129,7 +152,7 @@ namespace PKDetectorAnalyzer
 
         internal void checkError()
         {
-            bool result = ChannelEntries.Items.Count > 0;
+            bool result = ChannelEntries.Items.Count > 0 && FNExtension.Text.Length > 0;
             foreach (ChannelItem ci in ChannelEntries.Items)
                 result &= ci._filterN > 0 && ci._minimumL > 0 && ci._threshold > 0D;
             Process.IsEnabled = result;
@@ -336,11 +359,13 @@ namespace PKDetectorAnalyzer
                     return;
                 }
                 ProcessEvents();
+                Status.Text = "Written files under " + System.IO.Path.Combine(directory, newFileName);
             }
+            else
+                Status.Text = "Setting up";
             Cancel.Visibility = Visibility.Collapsed;
             Quit.Visibility = Visibility.Visible;
             Process.IsEnabled = true;
-            Status.Text = "Setting up";
         }
 
         private void ProcessEvents()
@@ -349,7 +374,7 @@ namespace PKDetectorAnalyzer
             EventDictionary.EventDictionaryEntry ede = new EventDictionary.EventDictionaryEntry();
             ede.Description = "PK detector events from PKDetectorAnalyzer";
             ede.intrinsic = null; //naked Event
-            GroupVarDictionary.GroupVarDictionary gvd = new GroupVarDictionary.GroupVarDictionary();
+            ede.GroupVars = new List<GVEntry>(5);
             GVEntry gve;
 
             //GV 1
@@ -359,14 +384,16 @@ namespace PKDetectorAnalyzer
             foreach (ChannelItem ci in ChannelEntries.Items)
             {   //create GV Value entry for each channel name
                 channelOptions co = channels[ci.Channel.SelectedIndex];
-                gve.GVValueDictionary.Add(co.name, co.channel);
+                gve.GVValueDictionary.Add(co.name, co.channel + 1); //Use "external" (1-based) channel numbering
             }
-            gvd.Add("Source channel", gve); //Channel name
+            head.GroupVars.Add("Source channel", gve); //Channel name: add to GV list in HDR
+            ede.GroupVars.Add(gve); //include in GV list in new Event descriptor
 
             //GV 2
             gve = new GVEntry();
             gve.Description = "Estimate of the magnitude of the PK signal in scale of channel";
-            gvd.Add("Magnitude",gve); //Magnitude
+            head.GroupVars.Add("Magnitude", gve); //Magnitude
+            ede.GroupVars.Add(gve);
 
             //GV 3
             gve = new GVEntry();
@@ -374,27 +401,27 @@ namespace PKDetectorAnalyzer
             gve.Description = "Direction of PK signal";
             gve.GVValueDictionary.Add("Positive", 1);
             gve.GVValueDictionary.Add("Negative", 2);
-            gvd.Add("Direction", gve); //Direction
+            head.GroupVars.Add("Direction", gve); //Direction
+            ede.GroupVars.Add(gve); //include in GV list in new Event descriptor
 
             //GV 4
             gve = new GVEntry();
             gve.Description = "Estimate of the time constant (in millisecs) for the rising edge of the PK signal";
-            gvd.Add("Alpha time constant", gve); //Alpha time constant
+            head.GroupVars.Add("Alpha time constant", gve); //Alpha time constant
+            ede.GroupVars.Add(gve); //include in GV list in new Event descriptor
 
             //GV 5
             gve = new GVEntry();
             gve.Description = "Chi square estimate of goodness of fit to the PK signal";
-            gvd.Add("Chi square", gve); //Chi square
+            head.GroupVars.Add("Chi square", gve); //Chi square
+            ede.GroupVars.Add(gve); //include in GV list in new Event descriptor
 
-            ede.GroupVars = gvd.Values.ToList();
-            head.Events.Add("PK event", ede); //add this new Event to HDR description
+            head.Events.Add("PK detector event", ede);
 
             head.Comment += (head.Comment == "" ? "" : Environment.NewLine) +
-                "Added PK source Events on " + DateTime.Now.ToString("dd MMM yyyy HH:mm:ss");
-            head.EventFile = ""; //************* NEW EVENT FILE NAME
-            new HeaderFileWriter(new FileStream("", FileMode.Create, FileAccess.Write), head); //*************** NEW HEADER FILE NAME
+                "PK source Events added on " + DateTime.Now.ToString("dd MMM yyyy HH:mm:ss") + " by " + Environment.UserName;
 
-            //Now create new Event file including newly found PK Events
+            //Now read old Event file
             events = new List<Event.OutputEvent>();
             Event.EventFactory.Instance(head.Events); // set up Event factory, based on EventDictionary in HDR
             EventFileReader efr = new EventFileReader(
@@ -414,7 +441,11 @@ namespace PKDetectorAnalyzer
             
             efr.Close();
 
-            Event.EventFactory eFactory = Event.EventFactory.Instance(head.Events);
+            head.EventFile = newFileName + ".evt"; //now we can change Event file name and write out new HDR
+            FileStream fs = new FileStream(System.IO.Path.Combine(directory, newFileName + ".hdr"), FileMode.Create, FileAccess.Write);
+            new HeaderFileWriter(fs, head);
+
+//            Event.EventFactory eFactory = Event.EventFactory.Instance(head.Events);
             foreach (eventTime et in eventTimeList)
             {
                 DateTime time = new DateTime((long)((bdf.zeroTime + (double)et.time * bdf.SampleTime(et.channelNumber)) * 1E7));
@@ -429,9 +460,10 @@ namespace PKDetectorAnalyzer
                 events.Add(newEvent);
             }
 
-            events = (List<Event.OutputEvent>)events.OrderBy(ev => ev.Time); //sort into time order
+            events = events.OrderBy(ev => ev.Time).ToList(); //sort into time order
 
-            EventFileWriter efw = new EventFileWriter(new FileStream("", FileMode.Create, FileAccess.Write));
+            fs = new FileStream(System.IO.Path.Combine(directory,head.EventFile), FileMode.Create, FileAccess.Write);
+            EventFileWriter efw = new EventFileWriter(fs);
             foreach (Event.OutputEvent ev in events)
                 efw.writeRecord(ev);
             efw.Close();
@@ -520,5 +552,27 @@ namespace PKDetectorAnalyzer
             }
             return J;
         }
+
+        char[] badChars = new char[] { '\\', '/', ':', '*', '?', '<', '>', '|' }; //characters not permitted in file names
+        private void FNExtension_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            string ext = FNExtension.Text;
+            if (ext.IndexOfAny(badChars) != -1)
+            {
+                ICollection<TextChange> ch = e.Changes;
+                foreach (TextChange c in ch) //search entire collection, just in case added character isn't the first entry
+                {
+                    if (c.AddedLength > 0) //Always seems to be 1, but we assume may be more and assume all are bad
+                    {
+                        FNExtension.Text = ext.Substring(0, c.Offset + c.AddedLength - 1) + ext.Substring(c.Offset + c.AddedLength);
+                        FNExtension.Select(c.Offset, 0);
+                        return;
+                    }
+                }
+            }
+            newFileName = headerFileName + "_" + ext;
+            checkError();
+        }
+
     }
 }

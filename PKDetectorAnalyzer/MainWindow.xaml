@@ -17,18 +17,27 @@
                 <Button Name="AddSpec" Grid.Row="1" Width="24" Height="24" FontSize="13" FontWeight="Bold" HorizontalAlignment="Left" Margin="4" Click="AddSpec_Click">+</Button>
             </StackPanel>
         </GroupBox>
-        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right">
-            <StackPanel.Resources>
+        <Grid Grid.Row="2" HorizontalAlignment="Stretch" Margin="4">
+            <Grid.Resources>
                 <Style TargetType="Button">
                     <Setter Property="Width" Value="80"/>
                     <Setter Property="Margin" Value="8"/>
                     <Setter Property="FontWeight" Value="Bold"/>
                 </Style>
-            </StackPanel.Resources>
-            <Button Name="Quit" Click="Quit_Click">Quit</Button>
-            <Button Name="Cancel" Content="Cancel" Visibility="Collapsed" Click="Cancel_Click" />
-            <Button Name="Process" Click="ProcessChannels_Click">Process</Button>
-        </StackPanel>
+            </Grid.Resources>
+            <StackPanel Orientation="Horizontal" Margin="4" HorizontalAlignment="Left">
+                <TextBlock FontWeight="Bold" Text="Filename extension: " VerticalAlignment="Center" HorizontalAlignment="Left"/>
+                <TextBox Name="FNExtension" VerticalContentAlignment="Center" Height="24" Width="120" TextChanged="FNExtension_TextChanged"/>
+                <TextBlock FontWeight="Bold" Text=" --> " VerticalAlignment="Center" HorizontalAlignment="Left"/>
+                <TextBlock Name="NewFileName" FontWeight="Normal" VerticalAlignment="Center" HorizontalAlignment="Left"
+                           MaxWidth="370" Text="{Binding Path=newFileName}"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Name="Quit" Click="Quit_Click">Quit</Button>
+                <Button Name="Cancel" Content="Cancel" Visibility="Collapsed" Click="Cancel_Click" />
+                <Button Name="Process" Click="ProcessChannels_Click">Process</Button>
+            </StackPanel>
+        </Grid>
         <Border Grid.Row="3" BorderThickness="1" BorderBrush="DarkBlue" Margin="4">
             <TextBlock Name="Status" HorizontalAlignment="Center" Margin="4" FontWeight="Bold">Setting up</TextBlock>
         </Border>
