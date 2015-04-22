@@ -32,7 +32,7 @@
                 <StackPanel Orientation="Horizontal">
                     <ComboBox Name="Channel" Width="120" SelectionChanged="Channel_SelectionChanged" />
                     <TextBlock>Detrend--></TextBlock>
-                    <ComboBox Name="TrendDegree" Width="100" >
+                    <ComboBox Name="TrendDegree" Width="100" SelectionChanged="TrendDegree_SelectionChanged">
                         <ComboBoxItem Selector.IsSelected="True">None</ComboBoxItem>
                         <ComboBoxItem>Offset only</ComboBoxItem>
                         <ComboBoxItem>Linear</ComboBoxItem>

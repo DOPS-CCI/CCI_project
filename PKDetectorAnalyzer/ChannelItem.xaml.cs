@@ -18,7 +18,7 @@ namespace PKDetectorAnalyzer
     /// <summary>
     /// Interaction logic for ChannelItem.xaml
     /// </summary>
-    public partial class ChannelItem : ListBoxItem
+    public partial class ChannelItem : ListBoxItem, IEquatable<ChannelItem>
     {
         MainWindow mw;
 
@@ -56,14 +56,17 @@ namespace PKDetectorAnalyzer
 
         private void Channel_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            mw.fixChannelEntries();
+            mw.checkError();
+        }
+
+        private void TrendDegree_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            mw.checkError();
         }
 
         private void RemoveSpec_Click(object sender, RoutedEventArgs e)
         {
             mw.ChannelEntries.Items.Remove(this);
-            mw.fixChannelEntries();
-            mw.AddSpec.IsEnabled = true;
             mw.checkError();
         }
 
@@ -113,6 +116,23 @@ namespace PKDetectorAnalyzer
                 MinimumLength.BorderBrush = System.Windows.Media.Brushes.Red;
             }
             mw.checkError();
+        }
+
+        public bool Equals(ChannelItem other)
+        {
+            return Channel.SelectedIndex == other.Channel.SelectedIndex &&
+                TrendDegree.SelectedIndex == other.TrendDegree.SelectedIndex &&
+                _filterN == other._filterN && _threshold == other._threshold && _minimumL == other._minimumL;
+        }
+
+        public static bool operator ==(ChannelItem ci1, ChannelItem ci2)
+        {
+            return ci1.Equals(ci2);
+        }
+
+        public static bool operator !=(ChannelItem ci1, ChannelItem ci2)
+        {
+            return !ci1.Equals(ci2);
         }
 
     }

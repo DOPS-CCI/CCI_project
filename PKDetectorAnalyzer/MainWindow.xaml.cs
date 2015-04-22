@@ -114,47 +114,20 @@ namespace PKDetectorAnalyzer
             ChannelItem ci = new ChannelItem(this);
             ChannelEntries.Items.Add(ci);
             ci.Channel.SelectedIndex = 0;
-            fixChannelEntries();
-            AddSpec.IsEnabled = ChannelEntries.Items.Count < AnalogChannelCount;
             checkError();
-        }
-
-        internal void fixChannelEntries()
-        {
-            bool[] selectedChannels = new bool[AnalogChannelCount];
-            for (int i = 0; i < ChannelEntries.Items.Count; i++)
-            {
-                int chan = ((ChannelItem)ChannelEntries.Items[i]).Channel.SelectedIndex;
-                if (!selectedChannels[chan])
-                    selectedChannels[chan] = true;
-                else
-                {
-                    //we've got two entries with the same channel selected;
-                    //can only happen when a new Channel entry is being created,
-                    //so select the first non-selected channel to this point
-                    int j = 0;
-                    while (selectedChannels[j]) j++;
-                    ((ChannelItem)ChannelEntries.Items[i]).Channel.SelectedIndex = j;
-                    selectedChannels[j] = true;
-                }
-            }
-
-            for (int i = 0; i < ChannelEntries.Items.Count; i++)
-            {
-                ComboBox cb = ((ChannelItem)ChannelEntries.Items[i]).Channel;
-                for (int j = 0; j < selectedChannels.Length; j++)
-                {
-                    if (j != cb.SelectedIndex)
-                        ((ComboBoxItem)cb.Items[j]).IsEnabled = !selectedChannels[j];
-                }
-            }
         }
 
         internal void checkError()
         {
             bool result = ChannelEntries.Items.Count > 0 && FNExtension.Text.Length > 0;
-            foreach (ChannelItem ci in ChannelEntries.Items)
-                result &= ci._filterN > 0 && ci._minimumL > 0 && ci._threshold > 0D;
+            for (int i = 0; i < ChannelEntries.Items.Count; i++)
+            {
+                ChannelItem ci = (ChannelItem)ChannelEntries.Items[i];
+                result &= ci._filterN > 0 && ci._minimumL > 0 && ci._threshold > 0D; 
+                for (int j = i + 1; j < ChannelEntries.Items.Count; j++)
+                    result &= ci != (ChannelItem)ChannelEntries.Items[j];
+                if (!result) break;
+            }
             Process.IsEnabled = result;
         }
 
@@ -219,6 +192,10 @@ namespace PKDetectorAnalyzer
             internal double b;
             internal double sign;
             internal List<double> filterSignal;
+            internal int trendDegree;
+            internal int filterLength;
+            internal double threshold;
+            internal int minimumLength;
         }
 
         private void ProcessChannel_Worker(object sender, DoWorkEventArgs e)
@@ -351,6 +328,14 @@ namespace PKDetectorAnalyzer
             if (!e.Cancelled)
             {
                 List<eventTime> et = (List<eventTime>)e.Result;
+                ChannelItem ci = (ChannelItem)ChannelEntries.Items[currentChannel];
+                foreach (eventTime ev in et)
+                {
+                    ev.trendDegree = ci.TrendDegree.SelectedIndex - 1;
+                    ev.filterLength = ci._filterN;
+                    ev.threshold = ci._threshold;
+                    ev.minimumLength = ci._minimumL;
+                }
                 eventTimeList.AddRange(et);
                 currentChannel++;
                 if (currentChannel < ChannelEntries.Items.Count)
@@ -384,36 +369,72 @@ namespace PKDetectorAnalyzer
             foreach (ChannelItem ci in ChannelEntries.Items)
             {   //create GV Value entry for each channel name
                 channelOptions co = channels[ci.Channel.SelectedIndex];
-                gve.GVValueDictionary.Add(co.name, co.channel + 1); //Use "external" (1-based) channel numbering
+                int i;
+                gve.GVValueDictionary.TryGetValue(co.name, out i);
+                if (i == 0)
+                    gve.GVValueDictionary.Add(co.name, co.channel + 1); //Use "external" (1-based) channel numbering
             }
             head.GroupVars.Add("Source channel", gve); //Channel name: add to GV list in HDR
             ede.GroupVars.Add(gve); //include in GV list in new Event descriptor
 
             //GV 2
             gve = new GVEntry();
-            gve.Description = "Estimate of the magnitude of the PK signal in scale of channel";
-            head.GroupVars.Add("Magnitude", gve); //Magnitude
+            gve.GVValueDictionary = new Dictionary<string, int>(2);
+            gve.Description = "Found satisfactory fit to PK signal";
+            gve.GVValueDictionary.Add("Found", 1);
+            gve.GVValueDictionary.Add("Not found", 2);
+            head.GroupVars.Add("Found fit", gve);
             ede.GroupVars.Add(gve);
 
             //GV 3
             gve = new GVEntry();
-            gve.GVValueDictionary = new Dictionary<string, int>();
+            gve.Description = "Estimate of the magnitude of PK signal in scale of channel";
+            head.GroupVars.Add("Magnitude", gve); //Magnitude
+            ede.GroupVars.Add(gve);
+
+            //GV 4
+            gve = new GVEntry();
+            gve.GVValueDictionary = new Dictionary<string, int>(2);
             gve.Description = "Direction of PK signal";
             gve.GVValueDictionary.Add("Positive", 1);
             gve.GVValueDictionary.Add("Negative", 2);
             head.GroupVars.Add("Direction", gve); //Direction
             ede.GroupVars.Add(gve); //include in GV list in new Event descriptor
 
-            //GV 4
+            //GV 5
             gve = new GVEntry();
             gve.Description = "Estimate of the time constant (in millisecs) for the rising edge of the PK signal";
-            head.GroupVars.Add("Alpha time constant", gve); //Alpha time constant
+            head.GroupVars.Add("Alpha TC", gve); //Alpha time constant
             ede.GroupVars.Add(gve); //include in GV list in new Event descriptor
 
-            //GV 5
+            //GV 6
             gve = new GVEntry();
             gve.Description = "Chi square estimate of goodness of fit to the PK signal";
             head.GroupVars.Add("Chi square", gve); //Chi square
+            ede.GroupVars.Add(gve); //include in GV list in new Event descriptor
+
+            //GV 7
+            gve = new GVEntry();
+            gve.Description = "Degree of trend removal of original PK signal plus 2";
+            head.GroupVars.Add("Trend degree", gve);
+            ede.GroupVars.Add(gve); //include in GV list in new Event descriptor
+
+            //GV 8
+            gve = new GVEntry();
+            gve.Description = "Length of filter in points";
+            head.GroupVars.Add("Filter length", gve);
+            ede.GroupVars.Add(gve); //include in GV list in new Event descriptor
+
+            //GV 9
+            gve = new GVEntry();
+            gve.Description = "Capturing threshold in microV/datel times 10";
+            head.GroupVars.Add("Threshold", gve); 
+            ede.GroupVars.Add(gve); //include in GV list in new Event descriptor
+
+            //GV 10
+            gve = new GVEntry();
+            gve.Description = "Minimum length of above-threshold filter signal accepted";
+            head.GroupVars.Add("Minimum length", gve); 
             ede.GroupVars.Add(gve); //include in GV list in new Event descriptor
 
             head.Events.Add("PK detector event", ede);
@@ -451,12 +472,17 @@ namespace PKDetectorAnalyzer
                 DateTime time = new DateTime((long)((bdf.zeroTime + (double)et.time * bdf.SampleTime(et.channelNumber)) * 1E7));
                 Event.OutputEvent newEvent = new Event.OutputEvent(ede, time, 0);
                 //assign GV values to new event
-                newEvent.GVValue = new string[5];
+                newEvent.GVValue = new string[10];
                 newEvent.GVValue[0] = bdf.channelLabel(et.channelNumber);
-                newEvent.GVValue[1] = ((int)Math.Abs(et.A)).ToString("0");
-                newEvent.GVValue[2] = et.sign > 0 ? "Positive" : "Negative";
-                newEvent.GVValue[3] = ((int)(1000D / et.a)).ToString("0");
-                newEvent.GVValue[4] = ((int)et.chiSquare).ToString("0");
+                newEvent.GVValue[1] = et.foundFit ? "Found" : "Not found";
+                newEvent.GVValue[2] = ((int)Math.Abs(et.A)).ToString("0");
+                newEvent.GVValue[3] = et.sign > 0 ? "Positive" : "Negative";
+                newEvent.GVValue[4] = ((int)(1000D / et.a)).ToString("0");
+                newEvent.GVValue[5] = ((int)et.chiSquare).ToString("0");
+                newEvent.GVValue[6] = (et.trendDegree + 2).ToString("0");
+                newEvent.GVValue[7] = et.filterLength.ToString("0");
+                newEvent.GVValue[8] = ((int)(et.threshold * 10D)).ToString("0");
+                newEvent.GVValue[9] = et.minimumLength.ToString("0");
                 events.Add(newEvent);
             }
 
@@ -574,5 +600,37 @@ namespace PKDetectorAnalyzer
             checkError();
         }
 
+/* Unused at the moment...
+        internal void fixChannelEntries()
+        {
+            bool[] selectedChannels = new bool[AnalogChannelCount];
+            for (int i = 0; i < ChannelEntries.Items.Count; i++)
+            {
+                int chan = ((ChannelItem)ChannelEntries.Items[i]).Channel.SelectedIndex;
+                if (!selectedChannels[chan])
+                    selectedChannels[chan] = true;
+                else
+                {
+                    //we've got two entries with the same channel selected;
+                    //can only happen when a new Channel entry is being created,
+                    //so select the first non-selected channel to this point
+                    int j = 0;
+                    while (selectedChannels[j]) j++;
+                    ((ChannelItem)ChannelEntries.Items[i]).Channel.SelectedIndex = j;
+                    selectedChannels[j] = true;
+                }
+            }
+
+            for (int i = 0; i < ChannelEntries.Items.Count; i++)
+            {
+                ComboBox cb = ((ChannelItem)ChannelEntries.Items[i]).Channel;
+                for (int j = 0; j < selectedChannels.Length; j++)
+                {
+                    if (j != cb.SelectedIndex)
+                        ((ComboBoxItem)cb.Items[j]).IsEnabled = !selectedChannels[j];
+                }
+            }
+        }
+*/
     }
 }
