@@ -192,6 +192,7 @@ namespace PKDetectorAnalyzer
             internal double b;
             internal double sign;
             internal List<double> filterSignal;
+            internal int serialNumber;
             internal int trendDegree;
             internal int filterLength;
             internal double threshold;
@@ -224,6 +225,8 @@ namespace PKDetectorAnalyzer
             int minimumLength = args.minLength;
             bw.ReportProgress(0, "detecting with " + filterN.ToString("0") + "pt filter;  th = " +
                 threshold.ToString("0.00") + "; minLen = " + minimumLength.ToString("0"));
+
+            int eventCount = 0;
             for (int i = 0; i < N; i++)
             {
                 if (bw.CancellationPending) { e.Cancel = true; return; }
@@ -255,6 +258,7 @@ namespace PKDetectorAnalyzer
                         if (eventLength > minimumLength) //event counts only if longer than minimum length
                         {
                             eventTime ev = new eventTime();
+                            ev.serialNumber = ++eventCount;
                             ev.channelNumber = args.channelNumber;
                             ev.time = i - eventLength;
                             ev.length = eventLength;
@@ -415,23 +419,29 @@ namespace PKDetectorAnalyzer
 
             //GV 7
             gve = new GVEntry();
+            gve.Description = "Serial number for this channel/filter combonation";
+            head.GroupVars.Add("Serial number", gve);
+            ede.GroupVars.Add(gve); //include in GV list in new Event descriptor
+
+            //GV 8
+            gve = new GVEntry();
             gve.Description = "Degree of trend removal of original PK signal plus 2";
             head.GroupVars.Add("Trend degree", gve);
             ede.GroupVars.Add(gve); //include in GV list in new Event descriptor
 
-            //GV 8
+            //GV 9
             gve = new GVEntry();
             gve.Description = "Length of filter in points";
             head.GroupVars.Add("Filter length", gve);
             ede.GroupVars.Add(gve); //include in GV list in new Event descriptor
 
-            //GV 9
+            //GV 10
             gve = new GVEntry();
             gve.Description = "Capturing threshold in microV/datel times 10";
             head.GroupVars.Add("Threshold", gve); 
             ede.GroupVars.Add(gve); //include in GV list in new Event descriptor
 
-            //GV 10
+            //GV 11
             gve = new GVEntry();
             gve.Description = "Minimum length of above-threshold filter signal accepted";
             head.GroupVars.Add("Minimum length", gve); 
@@ -472,17 +482,18 @@ namespace PKDetectorAnalyzer
                 DateTime time = new DateTime((long)((bdf.zeroTime + (double)et.time * bdf.SampleTime(et.channelNumber)) * 1E7));
                 Event.OutputEvent newEvent = new Event.OutputEvent(ede, time, 0);
                 //assign GV values to new event
-                newEvent.GVValue = new string[10];
+                newEvent.GVValue = new string[11];
                 newEvent.GVValue[0] = bdf.channelLabel(et.channelNumber);
                 newEvent.GVValue[1] = et.foundFit ? "Found" : "Not found";
                 newEvent.GVValue[2] = ((int)Math.Abs(et.A)).ToString("0");
                 newEvent.GVValue[3] = et.sign > 0 ? "Positive" : "Negative";
                 newEvent.GVValue[4] = ((int)(1000D / et.a)).ToString("0");
                 newEvent.GVValue[5] = ((int)et.chiSquare).ToString("0");
-                newEvent.GVValue[6] = (et.trendDegree + 2).ToString("0");
-                newEvent.GVValue[7] = et.filterLength.ToString("0");
-                newEvent.GVValue[8] = ((int)(et.threshold * 10D)).ToString("0");
-                newEvent.GVValue[9] = et.minimumLength.ToString("0");
+                newEvent.GVValue[6] = et.serialNumber.ToString("0");
+                newEvent.GVValue[7] = (et.trendDegree + 2).ToString("0");
+                newEvent.GVValue[8] = et.filterLength.ToString("0");
+                newEvent.GVValue[9] = ((int)(et.threshold * 10D)).ToString("0");
+                newEvent.GVValue[10] = et.minimumLength.ToString("0");
                 events.Add(newEvent);
             }
 
