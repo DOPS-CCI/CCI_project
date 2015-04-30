@@ -196,14 +196,15 @@ namespace Event
         /// </summary>
         /// <param name="entry">EventDictionaryEntry describing the Event</param>
         /// <param name="time">time of Event</param>
-        /// <param name="index">assigned index of Event</param>
-        public OutputEvent(EventDictionaryEntry entry, DateTime time, int index)
+        /// <param name="index">assigned index of Event: cannot = 0 unless Event is naked</param>
+        public OutputEvent(EventDictionaryEntry entry, DateTime time, int index = 0)
             : base(entry)
         {
             ede = entry;
             m_time = (double)(time.Ticks) / 1E7;
             if (entry.intrinsic != null)
             {
+                if (index == 0) throw new Exception("Event.OutputEvent: attempt to create a new Event with GC = 0");
                 m_index = (uint)index;
                 m_gc = EventFactory.grayCode(m_index);
             }
