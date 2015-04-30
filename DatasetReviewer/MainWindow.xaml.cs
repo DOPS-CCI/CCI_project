@@ -393,9 +393,9 @@ namespace DatasetReviewer
 
                 if (sample.Value != lastSample.Value || foundEvents.Count > 0) //found or should have found Events at this time
                 {
-                    int n = foundEvents.Count - nNaked; //number of "simultaneous" marked Events
-                    bool AllEFEntriesValid = n == sample - lastSample;
-                    bool multiEvent = foundEvents.Count > 1; //indicator for multiple "simultaneous" Events
+                    int n = foundEvents.Count - nNaked; //number of "simultaneous" covered Events actually found
+                    bool AllEFEntriesValid = n == sample - lastSample; //this number of covered Events is correct
+                    bool multiEvent = foundEvents.Count > 1; //indicates multiple "simultaneous" Events
                     InputEvent evFound = null; //found at least one valid Event
 
                     Button evbutt = (Button)EventMarkers.FindResource("EventButton"); //create and place button over Event marker
@@ -451,7 +451,7 @@ namespace DatasetReviewer
                     r.StrokeThickness = currentDisplayWidthInSecs * 0.0008;
                     r.Stroke = Brushes.Black; //black by default
 
-                    //encode intrinsic/extrinsic/naked in green/blue colors/black; incorrect Event name encoded in red
+                    //encode intrinsic/extrinsic/naked (or multiple) in green/blue/black colors; incorrect Event name encoded in red
                     TextBlock tb = null; //explicit assignment to fool compiler
                     EventDictionaryEntry EDE;
                     if (multiEvent)
@@ -460,7 +460,7 @@ namespace DatasetReviewer
                         if (fSize > 0.0035) //minimal font size
                         {
                             tb = new TextBlock();
-                            tb.Text = n.ToString("0");
+                            tb.Text = foundEvents.Count.ToString("0");
                             tb.FontSize = fSize;
                             Canvas.SetLeft(tb, s);
                             Canvas.SetTop(tb, -0.1 * EMAH);
@@ -915,7 +915,8 @@ namespace DatasetReviewer
                         //see if any of them match the target
                         if (ie.Name == currentSearchEvent) //we have a winner!
                         {
-                            Viewer.ScrollToHorizontalOffset(((++p).ToSecs() - SearchSiteOffset * currentDisplayWidthInSecs) * XScaleSecsToInches);
+                            if (ie.EDE.intrinsic != null) ++p; //need to correct for covered Events, we've gone one point too far
+                            Viewer.ScrollToHorizontalOffset((p.ToSecs() - SearchSiteOffset * currentDisplayWidthInSecs) * XScaleSecsToInches);
                             return;
                         }
                     }
