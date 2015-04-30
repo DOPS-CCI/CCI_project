@@ -437,13 +437,13 @@ namespace PKDetectorAnalyzer
 
             //GV 10
             gve = new GVEntry();
-            gve.Description = "Capturing threshold in microV/datel times 10";
+            gve.Description = "Capturing threshold in microV/sec";
             head.GroupVars.Add("Threshold", gve); 
             ede.GroupVars.Add(gve); //include in GV list in new Event descriptor
 
             //GV 11
             gve = new GVEntry();
-            gve.Description = "Minimum length of above-threshold filter signal accepted";
+            gve.Description = "Minimum length of above-threshold filter signal in points";
             head.GroupVars.Add("Minimum length", gve); 
             ede.GroupVars.Add(gve); //include in GV list in new Event descriptor
 
@@ -476,11 +476,12 @@ namespace PKDetectorAnalyzer
             FileStream fs = new FileStream(System.IO.Path.Combine(directory, newFileName + ".hdr"), FileMode.Create, FileAccess.Write);
             new HeaderFileWriter(fs, head);
 
-//            Event.EventFactory eFactory = Event.EventFactory.Instance(head.Events);
             foreach (eventTime et in eventTimeList)
             {
-                DateTime time = new DateTime((long)((bdf.zeroTime + (double)et.time * bdf.SampleTime(et.channelNumber)) * 1E7));
-                Event.OutputEvent newEvent = new Event.OutputEvent(ede, time, 0);
+                double ST =  bdf.SampleTime(et.channelNumber);
+                DateTime time = new DateTime((long)((bdf.zeroTime + (double)et.time * ST) * 1E7));
+                //create a naked Event at this time
+                Event.OutputEvent newEvent = new Event.OutputEvent(ede, time);
                 //assign GV values to new event
                 newEvent.GVValue = new string[11];
                 newEvent.GVValue[0] = bdf.channelLabel(et.channelNumber);
@@ -492,7 +493,7 @@ namespace PKDetectorAnalyzer
                 newEvent.GVValue[6] = et.serialNumber.ToString("0");
                 newEvent.GVValue[7] = (et.trendDegree + 2).ToString("0");
                 newEvent.GVValue[8] = et.filterLength.ToString("0");
-                newEvent.GVValue[9] = ((int)(et.threshold * 10D)).ToString("0");
+                newEvent.GVValue[9] = ((int)(et.threshold / ST)).ToString("0");
                 newEvent.GVValue[10] = et.minimumLength.ToString("0");
                 events.Add(newEvent);
             }
