@@ -590,6 +590,7 @@ namespace ASCtoFMConverter
             epi.GVValue = Convert.ToInt32(ede.GVSpec.Text);
             epi.Start._Event = ede.Event1.SelectedItem; //may be EDE or string
             epi.End._Event = ede.Event2.SelectedItem; //may be EDE or string
+            epi.useEOF = (bool)ede.useEOF.IsChecked;
             Object o = ede.GV1.SelectedItem;
             if (o != null && o.GetType().Name == "GVEntry")
                 epi.Start._GV = (GVEntry)o;

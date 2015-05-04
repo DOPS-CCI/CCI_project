@@ -16,6 +16,7 @@ namespace ASCtoFMConverter
         internal EpisodeMark Start = new EpisodeMark();
         internal EpisodeMark End = new EpisodeMark();
         internal ExclusionDescription Exclude = null;
+        internal bool useEOF;
 
         public override string ToString()
         {
@@ -50,6 +51,18 @@ namespace ASCtoFMConverter
             if (ev.Name == this.EventName()) //event type matches
                 return (_GV == null || this.MatchGV(ev));
             return false;
+        }
+
+        /// <summary>
+        /// Check for match of Event tupe
+        /// </summary>
+        /// <param name="match">string to match special Event mark type</param>
+        /// <returns>true, if match; false, if special type but no match; null if not special type</returns>
+        internal bool? MatchesType(string match)
+        {
+            if (_Event.GetType() == typeof(string))
+                return (string)_Event == match;
+            return null;
         }
 
         /// <summary>
@@ -137,7 +150,7 @@ namespace ASCtoFMConverter
         public override string ToString()
         {
             StringBuilder sb = new StringBuilder(startEvent.Name);
-            if (endEvent.GetType() == typeof(EventDictionaryEntry))
+            if (endEvent != null && endEvent.GetType() == typeof(EventDictionaryEntry))
                 sb.Append(" to " + ((EventDictionaryEntry)endEvent).Name);
             return sb.ToString();
         }
