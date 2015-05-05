@@ -4,8 +4,13 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              mc:Ignorable="d" 
-             d:DesignHeight="90" d:DesignWidth="680" FontSize="12">
-    <Border BorderBrush="CornflowerBlue" BorderThickness="1" CornerRadius="6" Margin="3">
+             d:DesignHeight="120" d:DesignWidth="680" FontSize="12">
+    <TabControl Name="EpisodeDescriptionPanel">
+        <TabItem>
+            <TabItem.Header>
+                <TextBlock FontWeight="Bold">Episode description</TextBlock>
+            </TabItem.Header>
+        <Border BorderBrush="CornflowerBlue" BorderThickness="1" CornerRadius="6" Margin="1">
     <StackPanel Orientation="Horizontal">
         <Grid Width="Auto">
             <Grid.RowDefinitions>
@@ -65,4 +70,11 @@
             </Grid>
     </StackPanel>
     </Border>
-</UserControl>
+        </TabItem>
+        <TabItem PreviewMouseDown="TabItem_PreviewMouseDown">
+            <TabItem.Header>
+                <TextBlock FontSize="14" FontWeight="Bold" Text="+"/>
+            </TabItem.Header>
+        </TabItem>
+</TabControl>
+    </UserControl>

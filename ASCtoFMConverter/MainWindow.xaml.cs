@@ -87,7 +87,7 @@ namespace ASCtoFMConverter
             InitializeComponent();
 
             this.MinHeight = SystemInformation.WorkingArea.Height - 240;
-            this.EpisodeEntries.Items.Add(new EpisodeDescriptionEntry(head, checkError)); //include initial episode description
+            this.EpisodeEntries.Items.Add(new EpisodeDescriptionEntry(head, myValidate)); //include initial episode description
 
             this.Title = "Convert " + headerFileName;
             this.TitleLine.Text = head.Title + " - " + head.Date + " " + head.Time + " S=" + head.Subject.ToString("0000");
@@ -120,10 +120,10 @@ namespace ASCtoFMConverter
  
         private void AddSpec_Click(object sender, RoutedEventArgs e)
         {
-            EpisodeDescriptionEntry episode = new EpisodeDescriptionEntry(head, checkError);
+            EpisodeDescriptionEntry episode = new EpisodeDescriptionEntry(head, myValidate);
             EpisodeEntries.Items.Add(episode);
             if (EpisodeEntries.Items.Count > 1) RemoveSpec.IsEnabled = true;
-            checkError();
+            myValidate();
         }
 
         private void RemoveSpec_Click(object sender, RoutedEventArgs e)
@@ -131,7 +131,7 @@ namespace ASCtoFMConverter
             EpisodeDescriptionEntry episode = (EpisodeDescriptionEntry)EpisodeEntries.SelectedItem;
             EpisodeEntries.Items.Remove(episode);
             if (EpisodeEntries.Items.Count == 1) RemoveSpec.IsEnabled = false;
-            checkError();
+            myValidate();
         }
 
         private void All_Click(object sender, RoutedEventArgs e)
@@ -229,7 +229,7 @@ namespace ASCtoFMConverter
                 int[] res = (int[])e.Result;
                 StatusLine.Text = "Status: Conversion completed with " + res[0].ToString("0") + " records in " + res[1].ToString("0") + " recordsets generated.";
             }
-            checkError();
+            myValidate();
         }
 
         private void Decimation_TextChanged(object sender, TextChangedEventArgs e)
@@ -246,7 +246,7 @@ namespace ASCtoFMConverter
                 _decimation = 0;
                 Decimation.BorderBrush = System.Windows.Media.Brushes.Red;
             }
-            checkError();
+            myValidate();
         }
 
         double _recLength;
@@ -263,7 +263,7 @@ namespace ASCtoFMConverter
                 _recLength = 0D;
                 RecLength.BorderBrush = System.Windows.Media.Brushes.Red;
             }
-            checkError();
+            myValidate();
         }
 
         double _radinLow;
@@ -281,7 +281,7 @@ namespace ASCtoFMConverter
                 RadinLow.BorderBrush = System.Windows.Media.Brushes.Red;
                 RadinLowPts.Text = "Error";
             }
-            checkError();
+            myValidate();
         }
 
         double _radinHigh;
@@ -299,7 +299,7 @@ namespace ASCtoFMConverter
                 RadinHigh.BorderBrush = System.Windows.Media.Brushes.Red;
                 RadinHighPts.Text = "Error";
             }
-            checkError();
+            myValidate();
         }
 
         List<int> _refChan;
@@ -321,7 +321,7 @@ namespace ASCtoFMConverter
                 else
                     RefChanName.Text = bdf.channelLabel(_refChan[0]);
             }
-            checkError();
+            myValidate();
         }
 
         List<List<int>> _refChanExp;
@@ -354,7 +354,7 @@ namespace ASCtoFMConverter
                 int lc = _refChanExp.Count / 2;
                 RefChanExpDesc.Text = lc.ToString("0") + " reference set" + (lc <= 1 ? "" : "s");
             }
-            checkError();
+            myValidate();
         }
 
         private void SelChan_TextChanged(object sender, TextChangedEventArgs e)
@@ -375,7 +375,7 @@ namespace ASCtoFMConverter
                 else
                     SelChanName.Text = bdf.channelLabel(channels[0]);
             }
-            checkError();
+            myValidate();
         }
 
         private List<int> parseList(string str)
@@ -449,12 +449,12 @@ namespace ASCtoFMConverter
         private void Radin_Checked(object sender, RoutedEventArgs e)
         {
             Offsets.IsEnabled = !(bool)Radin.IsChecked;
-            checkError();
+            myValidate();
         }
 
         private void listView2_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            checkError();
+            myValidate();
         }
 
         private void Window_Closing(object sender, EventArgs e)
@@ -463,7 +463,7 @@ namespace ASCtoFMConverter
             bdf.Close();
         }
 
-        private void checkError()
+        private void myValidate()
         {
             if (!this.IsLoaded) return;
 
@@ -526,7 +526,7 @@ namespace ASCtoFMConverter
 
         private void radioButton_Changed(object sender, RoutedEventArgs e)
         {
-            checkError();
+            myValidate();
         }
 
         private void createASCConverter(ASCConverter conv)

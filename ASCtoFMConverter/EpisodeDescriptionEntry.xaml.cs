@@ -265,6 +265,12 @@ namespace ASCtoFMConverter
         {
             bool valid = true;
 
+            for (int i = 1; i < EpisodeDescriptionPanel.Items.Count - 1; i++)
+            {
+                PKDetectorEventCounter pkd = (PKDetectorEventCounter)EpisodeDescriptionPanel.Items[i];
+                valid &= pkd.Validate();
+            }
+
             if (double.IsNaN(_offset1))
             {
                 valid = false;
@@ -366,6 +372,14 @@ namespace ASCtoFMConverter
                 Event4.IsEnabled = true;
             }
             validate();
+        }
+
+        private void TabItem_PreviewMouseDown(object sender, MouseButtonEventArgs e)
+        {
+            PKDetectorEventCounter pkd = new PKDetectorEventCounter(hdr, validate);
+            if (pkd.Channel != null)
+                EpisodeDescriptionPanel.Items.Insert(EpisodeDescriptionPanel.Items.Count - 1, pkd);
+            e.Handled = true;
         }
     }
 }
