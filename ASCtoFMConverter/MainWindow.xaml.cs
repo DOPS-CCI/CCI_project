@@ -625,6 +625,38 @@ namespace ASCtoFMConverter
                 if (o1.GetType() == typeof(EventDictionaryEntry) && o != o1)
                     epi.Exclude.endEvent = (EventDictionaryEntry)o1;
             }
+
+            //create list of any counter routines
+            for (int i = 1; i < ede.EpisodeDescriptionPanel.Items.Count - 1; i++)
+            {
+                int v;
+                PKDetectorEventCounter pkd = (PKDetectorEventCounter)ede.EpisodeDescriptionPanel.Items[i];
+                int channelNumber = head.GroupVars["Source channel"].GVValueDictionary[(string)pkd.Channel.SelectedValue];
+                PKDetectorEventCounterDescription pkdDesc = new PKDetectorEventCounterDescription(bdf.SampleTime(channelNumber));
+                pkdDesc.channelNumber = channelNumber;
+                pkdDesc.GVName = pkd.GVName.Text;
+                v = pkd.Found.SelectedIndex;
+                if (v == 0) pkdDesc.found = null;
+                else pkdDesc.found = v == 1;
+                pkdDesc.includeCh12=(bool)pkd.Chi2.IsChecked;
+                if (pkdDesc.includeCh12)
+                    pkdDesc.chi2 = pkd.chi2;
+                pkdDesc.includeMagnitude = (bool)pkd.Magnitude.IsChecked;
+                if (pkdDesc.includeMagnitude)
+                    pkdDesc.magnitude = pkd.magnitude;
+                v=pkd.Sign.SelectedIndex;
+                if (v == 0) pkdDesc.positive = null;
+                else pkdDesc.positive = v == 1;
+                pkdDesc.includeFilter = (bool)pkd.Filter.IsChecked;
+                if (pkdDesc.includeFilter)
+                {
+                    pkdDesc.filterLength = pkd.filterSize;
+                    pkdDesc.filterThreshold = pkd.filterThreshold;
+                    pkdDesc.filterMinimumLength = pkd.filterMinimumLength;
+                }
+
+                epi.PKCounters.Add(pkdDesc);
+            }
             return epi;
         }
 

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
+using System.Linq;
 using System.Text;
 using BDFEDFFileStream;
 using ElectrodeFileStream;
@@ -91,15 +92,32 @@ namespace ASCtoFMConverter
             FMStream.GVNames(3, "EpisodeNumber");
             FMStream.GVNames(4, "EpisodeRecordNumber");
             FMStream.GVNames(5, "SecondsFromStart");
-            int j = 6;
-            foreach (GVEntry gv in GV) FMStream.GVNames(j++, gv.Name); //generate group variable names
+            int GVcount = 6;
+            foreach (GVEntry gv in GV) FMStream.GVNames(GVcount++, gv.Name); //generate group variable names
 
-            for (j = 0; j < FMStream.NC; j++) //generate channel labels
+            Dictionary<string,int> PKDCounterGVs = new Dictionary<string,int>();
+            foreach (EpisodeDescription ed in specs)
+            {
+                foreach (PKDetectorEventCounterDescription pkd in ed.PKCounters)
+                {
+                    string s = pkd.GVName;
+                    if (PKDCounterGVs.ContainsKey(s)) //already found, use correct GV number
+                        pkd.assignedGVNumber = PKDCounterGVs[s];
+                    else
+                    {
+                        PKDCounterGVs.Add(s, GVcount); //record new name in dictionary
+                        pkd.assignedGVNumber = GVcount; //and new GV number
+                        FMStream.GVNames(GVcount++, s); //add it to FM header
+                    }
+                }
+            }
+
+            for (int j = 0; j < FMStream.NC; j++) //generate channel labels
             {
                 string s = bdf.channelLabel(channels[j]);
                 ElectrodeFileStream.ElectrodeRecord p;
                 if (etrFile.etrPositions.TryGetValue(s, out p))
-                    FMStream.ChannelNames(j, s.PadRight(16, ' ') + p.projectPhiTheta().ToString("0"));   //add electrode location information, if available
+                    FMStream.ChannelNames(j, s.PadRight(16, ' ') + p.projectPhiTheta().ToString("0")); //add electrode location information, if available
                 else
                     FMStream.ChannelNames(j, s);
             }
@@ -114,20 +132,20 @@ namespace ASCtoFMConverter
             FMStream.Description(1, sb.ToString());
             sb.Clear();
             sb = sb.Append(specs[0].ToString());
-            for (j = 1; j < specs.Length; j++) sb.Append("/ " + specs[j].ToString());
+            for (int j = 1; j < specs.Length; j++) sb.Append("/ " + specs[j].ToString());
             string str = sb.ToString();
-            j = str.Length;
+            int sl = str.Length;
             int k;
-            if (j < 72) { FMStream.Description(2, str); k = 3; }
+            if (sl < 72) { FMStream.Description(2, str); k = 3; }
             else
             {
                 FMStream.Description(2, str.Substring(0, 72));
-                if (j < 144) { FMStream.Description(3, str.Substring(72)); k = 4; }
+                if (sl < 144) { FMStream.Description(3, str.Substring(72)); k = 4; }
                 else
                 {
                     FMStream.Description(3, str.Substring(72, 72));
                     k = 5;
-                    if (j < 216) FMStream.Description(4, str.Substring(144));
+                    if (sl < 216) FMStream.Description(4, str.Substring(144));
                     else FMStream.Description(4, str.Substring(144, 72));
                 }
             }
@@ -256,48 +274,64 @@ namespace ASCtoFMConverter
                     InputEvent endEvent = null;
                     double startTime;
                     double endTime = 0;
+
                     found = findNextMark(currentEpisode.Start, EventEnumerator, true, out startTime, out startEvent) &&
                         findNextMark(currentEpisode.End, EventEnumerator, false, out endTime, out endEvent);
+
                     if (found || startTime >= 0D && specs[i].useEOF)
                     { //use EOF 
                         //***************** FILMAN record loop
 
-                        startTime += currentEpisode.Start._offset - bdf.zeroTime;
-                        endTime += currentEpisode.End._offset - bdf.zeroTime;
+                        startTime += currentEpisode.Start._offset;
+                        endTime += currentEpisode.End._offset;
                         bw.ReportProgress(0, "Found episode " + (++epiNo).ToString("0") +
-                            " from " + startTime.ToString("0.000") + " to " + endTime.ToString("0.000"));
+                            " from " + (startTime - bdf.zeroTime).ToString("0.000") +
+                            " to " + (endTime - bdf.zeroTime).ToString("0.000"));
                         int maxNumberOfFMRecs = (int)Math.Floor((endTime - startTime) / FMRecLength);
 
                         BDFPoint startBDFPoint = new BDFPoint(bdf);
-                        startBDFPoint.FromSecs(startTime);
+                        startBDFPoint.FromSecs(startTime - bdf.zeroTime);
                         BDFPoint endBDFPoint = new BDFPoint(startBDFPoint);
 
                         /***** Get group variables for this record *****/
                         FMStream.record.GV[3] = epiNo;
-                        if (startEvent != null)
+                        if (startEvent != null) //exclude BOF
                         {
                             int GrVar = 6; //Load up group variables, based on the start Event
                             foreach (GVEntry gve in GV)
                             {
-                                j = startEvent.GetIntValueForGVName(gve.Name);
+                                int j = startEvent.GetIntValueForGVName(gve.Name);
                                 FMStream.record.GV[GrVar++] = j < 0 ? 0 : j; //use zero to indicate "No value"
                             }
                         }
 
                         /***** Process each FILMAN record *****/
-                        int numberOfFMRecs = 0;
+                        int actualNumberOfFMRecs = 0;
                         for (int rec = 1; rec <= maxNumberOfFMRecs; rec++)
                         {
                             endBDFPoint += FMRecordLengthInBDF; //update end point
                             if (currentEpisode.Exclude == null || !currentEpisode.Exclude.IsExcluded(startBDFPoint, endBDFPoint))
                             {
-                                FMStream.record.GV[4] = ++numberOfFMRecs; //Record number in this episode
+                                FMStream.record.GV[4] = ++actualNumberOfFMRecs; //Record number in this episode
                                 FMStream.record.GV[5] = Convert.ToInt32(Math.Ceiling(startBDFPoint.ToSecs())); //Approximate seconds since start of BDF file
+
+                                //*****insert counting code here*****
+                                int GVc0 = GVcount - PKDCounterGVs.Count;
+                                for (int j = GVc0; j < GVcount; j++) FMStream.record.GV[j] = 0;
+                                //calculate start and end times for this record: use BDFPoint values to assure accuracy;
+                                //avoids problem if FMRecordLength is not exactly represented in double
+                                startTime = startBDFPoint.ToSecs() + bdf.zeroTime;
+                                endTime = endBDFPoint.ToSecs() + bdf.zeroTime;
+                                foreach (EpisodeDescription ed in specs)
+                                    foreach (PKDetectorEventCounterDescription pkd in ed.PKCounters)
+                                        FMStream.record.GV[pkd.assignedGVNumber] +=
+                                            pkd.countMatchingEvents(startTime, startTime + FMRecLength, EventList);
+
                                 createFILMANRecord(startBDFPoint, endBDFPoint);
                             }
                             startBDFPoint = endBDFPoint; //move start point forward
                         }
-                        log.openFoundEpisode(epiNo, startTime, endTime, maxNumberOfFMRecs, numberOfFMRecs);
+                        log.openFoundEpisode(epiNo, startTime - bdf.zeroTime, endTime - bdf.zeroTime, maxNumberOfFMRecs, actualNumberOfFMRecs);
                         log.closeFoundEpisode();
                     }
 

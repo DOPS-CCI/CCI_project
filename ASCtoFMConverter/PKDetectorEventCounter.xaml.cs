@@ -12,6 +12,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 using CCILibrary;
+using Event;
 
 namespace ASCtoFMConverter
 {
@@ -23,6 +24,14 @@ namespace ASCtoFMConverter
         static int count = 0;
         private Header.Header header;
         private Window2.Validate validate;
+        internal int assignedGVnumber;
+
+        internal double chi2;
+        internal double magnitude;
+        internal int filterSize;
+        internal double filterThreshold;
+        internal int filterMinimumLength;
+
         public PKDetectorEventCounter(Header.Header hdr, Window2.Validate v)
         {
             if (hdr.Events.ContainsKey("PK detector event") &&
@@ -44,7 +53,6 @@ namespace ASCtoFMConverter
             }
         }
 
-        double chi2;
         private void Chi2TB_TextChanged(object sender, TextChangedEventArgs e)
         {
             chi2 = validDouble(Chi2Value.Text, true);
@@ -63,8 +71,8 @@ namespace ASCtoFMConverter
             if ((bool)Filter.IsChecked)
             {
                 if (filterSize < 0D) return false;
-                if (threshold < 0D) return false;
-                if (minimumLength < 0D) return false;
+                if (filterThreshold < 0D) return false;
+                if (filterMinimumLength < 0D) return false;
             }
             return true;
         }
@@ -79,10 +87,13 @@ namespace ASCtoFMConverter
 
         private void GVName_TextChanged(object sender, TextChangedEventArgs e)
         {
+            if (GVName.Text.Length == 0)
+                GVName.BorderBrush = Brushes.Red;
+            else
+                GVName.BorderBrush = Brushes.MediumBlue;
             validate();
         }
 
-        double magnitude;
         private void MagnitudeTB_TextChanged(object sender, TextChangedEventArgs e)
         {
             magnitude = validDouble(MagnitudeValue.Text, true);
@@ -93,7 +104,6 @@ namespace ASCtoFMConverter
             validate();
         }
 
-        int filterSize;
         private void FilterSize_TextChanged(object sender, TextChangedEventArgs e)
         {
             filterSize = validInteger(FilterSize.Text, true);
@@ -104,22 +114,20 @@ namespace ASCtoFMConverter
             validate();
         }
 
-        double threshold;
         private void Threshold_TextChanged(object sender, TextChangedEventArgs e)
         {
-            threshold = validDouble(Threshold.Text);
-            if (threshold < 0)
+            filterThreshold = validDouble(Threshold.Text);
+            if (filterThreshold < 0)
                 Threshold.BorderBrush = Brushes.Red;
             else
                 Threshold.BorderBrush = Brushes.MediumBlue;
             validate();
         }
 
-        int minimumLength;
         private void MinimumLength_TextChanged(object sender, TextChangedEventArgs e)
         {
-            minimumLength = validInteger(MinimumLength.Text, false);
-            if (minimumLength < 0)
+            filterMinimumLength = validInteger(MinimumLength.Text, false);
+            if (filterMinimumLength < 0)
                 MinimumLength.BorderBrush = Brushes.Red;
             else
                 MinimumLength.BorderBrush = Brushes.MediumBlue;

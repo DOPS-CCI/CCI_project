@@ -17,6 +17,7 @@ namespace ASCtoFMConverter
         internal EpisodeMark End = new EpisodeMark();
         internal ExclusionDescription Exclude = null;
         internal bool useEOF;
+        internal List<PKDetectorEventCounterDescription> PKCounters = new List<PKDetectorEventCounterDescription>();
 
         public override string ToString()
         {
@@ -153,6 +154,74 @@ namespace ASCtoFMConverter
             if (endEvent != null && endEvent.GetType() == typeof(EventDictionaryEntry))
                 sb.Append(" to " + ((EventDictionaryEntry)endEvent).Name);
             return sb.ToString();
+        }
+    }
+    
+    public class PKDetectorEventCounterDescription
+    {
+        internal string GVName;
+        internal int channelNumber;
+        internal bool? found;
+        internal bool includeCh12;
+        internal Comp comp1;
+        internal double chi2;
+        internal bool includeMagnitude;
+        internal Comp comp2;
+        internal double magnitude;
+        internal bool? positive;
+        internal bool includeFilter;
+        internal int filterLength;
+        internal double filterThreshold;
+        internal int filterMinimumLength;
+
+        internal int assignedGVNumber; //computed in ASCConverter once all PKDetectorEventCounterDescriptions created
+
+        double samplingTime;
+
+        public PKDetectorEventCounterDescription(double samplingTime)
+        {
+            this.samplingTime = samplingTime;
+        }
+
+        internal int countMatchingEvents(double startTime, double endTime, List<Event.InputEvent> events)
+        {
+            double d;
+            int v;
+            int count = 0;
+            foreach (InputEvent ie in events)
+            {
+                if (ie.Time >= endTime) break; //Since Events are sorted, we're done when beyond endTime
+                if (ie.Time < startTime) continue; //Event before time span?
+                if (ie.Name != "PK detector event") continue; //Event not correct type?
+                if (ie.GetIntValueForGVName("Channel number") != channelNumber) continue;
+                if (found != null)
+                    if (((bool)found) ^ (ie.GVValue[1] == "Found")) continue;
+                if (includeCh12)
+                {
+                    d = (double)ie.GetIntValueForGVName("Chi square");
+                    if (comp1 == Comp.lessthan) { if (d >= chi2) continue; }
+                    else { if (d <= chi2) continue; }
+                }
+                if (includeMagnitude)
+                {
+                    d = (double)ie.GetIntValueForGVName("Magnitude");
+                    if (comp2 == Comp.greaterthan) { if (d <= magnitude) continue; }
+                    else { if (d >= magnitude) continue; }
+                }
+                if (positive != null)
+                    if (((bool)positive) ^ (ie.GVValue[3] == "Positive")) continue;
+                if (includeFilter)
+                {
+                    v = ie.GetIntValueForGVName("Filter length");
+                    if (v != filterLength) continue;
+                    d = (double)ie.GetIntValueForGVName("Threshold") * samplingTime;
+                    if (d != filterThreshold) continue;
+                    v = ie.GetIntValueForGVName("Minimum length");
+                    if (v != filterMinimumLength) continue;
+                }
+                ++count;
+            }
+            return count;
         }
     }
 

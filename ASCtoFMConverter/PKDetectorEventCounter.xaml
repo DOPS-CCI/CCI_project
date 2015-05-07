@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+         xmlns:sys="clr-namespace:System;assembly=mscorlib"
              mc:Ignorable="d" 
              d:DesignHeight="120" d:DesignWidth="630" FontSize="11">
     <TabItem.Header>
@@ -58,10 +59,10 @@
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" Grid.Row="0" Grid.Column="2" HorizontalAlignment="Right">
                     <Label Content="Found"/>
-                    <ComboBox Width="110" SelectedIndex="0">
-                        <ComboBoxItem>Both</ComboBoxItem>
-                        <ComboBoxItem>Found only</ComboBoxItem>
-                        <ComboBoxItem>Not found only</ComboBoxItem>
+                    <ComboBox Name="Found" Width="110" SelectedIndex="0">
+                        <sys:String>Either</sys:String>
+                        <sys:String>Found only</sys:String>
+                        <sys:String>Not found only</sys:String>
                     </ComboBox>
                 </StackPanel>
                 <CheckBox Name="Chi2" Grid.Row="1" Grid.Column="0" Checked="CheckBox_Checked" Unchecked="CheckBox_Checked">
@@ -81,11 +82,11 @@
                     </StackPanel>
                 </CheckBox>
                 <StackPanel Orientation="Horizontal" Grid.Row="1" Grid.Column="2" HorizontalAlignment="Right">
-                    <Label Content="Sign"/>
-                    <ComboBox Width="110" SelectedIndex="0">
-                        <ComboBoxItem>Both</ComboBoxItem>
-                        <ComboBoxItem>Positive only</ComboBoxItem>
-                        <ComboBoxItem>Negative only</ComboBoxItem>
+                    <Label Content="Direction"/>
+                    <ComboBox Name="Sign" Width="110" SelectedIndex="0">
+                        <sys:String>Either</sys:String>
+                        <sys:String>Positive only</sys:String>
+                        <sys:String>Negative only</sys:String>
                     </ComboBox>
                 </StackPanel>
                 <CheckBox Name="Filter" Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" Margin="2" Checked="CheckBox_Checked" Unchecked="CheckBox_Checked">
