@@ -34,7 +34,7 @@ namespace ASCtoFMConverter
         public List<List<int>> referenceGroups = null;
         public List<List<int>> referenceChannels = null;
         public BDFEDFFileStream.BDFEDFFileReader bdf;
-        public List<GVEntry> GV;
+        public List<GVEntry> GVCopyAcross;
         public double FMRecLength;
         public int samplingRate;
         public bool ignoreStatus;
@@ -75,26 +75,7 @@ namespace ASCtoFMConverter
             int newRecordLength = Convert.ToInt32(Math.Ceiling(FMRecLength * samplingRate / (double)decimation));
             int FMRecordLengthInBDF = Convert.ToInt32(FMRecLength * samplingRate);
 
-            FMStream = new FILMANOutputStream(
-                File.Open(dlg.FileName, FileMode.Create, FileAccess.ReadWrite),
-                GV.Count + 6, 0, channels.Count,
-                newRecordLength,
-                FILMANFileStream.FILMANFileStream.Format.Real);
-            log = new LogFile(dlg.FileName + ".log.xml");
-            FMStream.IS = Convert.ToInt32((double)samplingRate / (double)decimation);
-            bigBuff = new double[bdf.NumberOfChannels - 1, FMStream.ND]; //have to dimension to BDF rather than FMStream
-            //in case we need for reference calculations
-
-            /***** Create FILMAN header records *****/
-            FMStream.GVNames(0, "Channel");
-            FMStream.GVNames(1, "Montage");
-            FMStream.GVNames(2, "NewGroupVariable");
-            FMStream.GVNames(3, "EpisodeNumber");
-            FMStream.GVNames(4, "EpisodeRecordNumber");
-            FMStream.GVNames(5, "SecondsFromStart");
-            int GVcount = 6;
-            foreach (GVEntry gv in GV) FMStream.GVNames(GVcount++, gv.Name); //generate group variable names
-
+            int GVCount = 6 + GVCopyAcross.Count;
             Dictionary<string,int> PKDCounterGVs = new Dictionary<string,int>();
             foreach (EpisodeDescription ed in specs)
             {
@@ -105,12 +86,43 @@ namespace ASCtoFMConverter
                         pkd.assignedGVNumber = PKDCounterGVs[s];
                     else
                     {
-                        PKDCounterGVs.Add(s, GVcount); //record new name in dictionary
-                        pkd.assignedGVNumber = GVcount; //and new GV number
-                        FMStream.GVNames(GVcount++, s); //add it to FM header
+                        PKDCounterGVs.Add(s, GVCount); //record new name in dictionary
+                        pkd.assignedGVNumber = GVCount++; //with its GV number
                     }
                 }
             }
+
+            //NOTE: because we have to have the number of GVs (and Channels) available when we create the output stream,
+            // we have to separate the enumeration of GVs from the naming of GVs; this could be avoided by using lists
+            // rather than arrays for GVNames in FILMANOuputStream and having an actual Header entity for FILMAN files;
+            // one would then enter the GVNames (and Channel names) into the list before creating the ouput stream and have
+            // the constructor use the counts to get NG and NC; NA could also be an array that must be created before as a
+            // byte array, but this might be awkward
+
+            FMStream = new FILMANOutputStream(
+                File.Open(dlg.FileName, FileMode.Create, FileAccess.ReadWrite),
+                GVCount, 0, channels.Count,
+                newRecordLength,
+                FILMANFileStream.FILMANFileStream.Format.Real);
+            log = new LogFile(dlg.FileName + ".log.xml");
+            FMStream.IS = Convert.ToInt32((double)samplingRate / (double)decimation);
+            bigBuff = new double[bdf.NumberOfChannels - 1, FMStream.ND]; //have to dimension to BDF rather than FMStream
+            //in case we need for reference calculations
+
+            /***** Create FILMAN header records *****/
+
+            //first GV names
+            //six for the standard
+            FMStream.GVNames(0, "Channel");
+            FMStream.GVNames(1, "Montage");
+            FMStream.GVNames(2, "NewGroupVariable");
+            FMStream.GVNames(3, "EpisodeNumber");
+            FMStream.GVNames(4, "EpisodeRecordNumber");
+            FMStream.GVNames(5, "SecondsFromStart");
+            //then the copied across GVs
+            for (int n = 0; n < GVCopyAcross.Count; n++) FMStream.GVNames(n + 6, GVCopyAcross[n].Name);
+            //and last, the GVs from the counters
+            foreach (KeyValuePair<string, int> kvp in PKDCounterGVs) FMStream.GVNames(kvp.Value, kvp.Key);
 
             for (int j = 0; j < FMStream.NC; j++) //generate channel labels
             {
@@ -298,7 +310,7 @@ namespace ASCtoFMConverter
                         if (startEvent != null) //exclude BOF
                         {
                             int GrVar = 6; //Load up group variables, based on the start Event
-                            foreach (GVEntry gve in GV)
+                            foreach (GVEntry gve in GVCopyAcross)
                             {
                                 int j = startEvent.GetIntValueForGVName(gve.Name);
                                 FMStream.record.GV[GrVar++] = j < 0 ? 0 : j; //use zero to indicate "No value"
@@ -316,8 +328,8 @@ namespace ASCtoFMConverter
                                 FMStream.record.GV[5] = Convert.ToInt32(Math.Ceiling(startBDFPoint.ToSecs())); //Approximate seconds since start of BDF file
 
                                 //*****insert counting code here*****
-                                int GVc0 = GVcount - PKDCounterGVs.Count;
-                                for (int j = GVc0; j < GVcount; j++) FMStream.record.GV[j] = 0;
+                                int GVc0 = GVCount - PKDCounterGVs.Count;
+                                for (int j = GVc0; j < GVCount; j++) FMStream.record.GV[j] = 0;
                                 //calculate start and end times for this record: use BDFPoint values to assure accuracy;
                                 //avoids problem if FMRecordLength is not exactly represented in double
                                 startTime = startBDFPoint.ToSecs() + bdf.zeroTime;

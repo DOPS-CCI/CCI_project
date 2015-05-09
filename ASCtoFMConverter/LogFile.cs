@@ -65,7 +65,7 @@ namespace ASCtoFMConverter
             logStream.WriteEndElement(/* Episodes */);
 
             logStream.WriteStartElement("GroupVars");
-            foreach (GVEntry gv in c.GV)
+            foreach (GVEntry gv in c.GVCopyAcross)
                 logStream.WriteElementString("GroupVar", gv.Name);
             logStream.WriteEndElement(/* GroupVars */);
             logStream.WriteElementString("Channels", CCIUtilities.Utilities.intListToString(c.channels, true));

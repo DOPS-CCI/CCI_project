@@ -540,7 +540,7 @@ namespace ASCtoFMConverter
             conv.channels = this.channels;
             conv.directory = this.directory;
             conv.headerFileName = this.headerFileName;
-            conv.GV = listView2.SelectedItems.Cast<GVEntry>().ToList<GVEntry>();
+            conv.GVCopyAcross = listView2.SelectedItems.Cast<GVEntry>().ToList<GVEntry>();
             conv.head = this.head;
             conv.decimation = _decimation;
             conv.removeOffsets = (bool)removeOffsets.IsChecked;

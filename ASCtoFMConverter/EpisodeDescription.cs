@@ -193,7 +193,7 @@ namespace ASCtoFMConverter
                 if (ie.Time >= endTime) break; //Since Events are sorted, we're done when beyond endTime
                 if (ie.Time < startTime) continue; //Event before time span?
                 if (ie.Name != "PK detector event") continue; //Event not correct type?
-                if (ie.GetIntValueForGVName("Channel number") != channelNumber) continue;
+                if (ie.GetIntValueForGVName("Source channel") != channelNumber) continue;
                 if (found != null)
                     if (((bool)found) ^ (ie.GVValue[1] == "Found")) continue;
                 if (includeCh12)
