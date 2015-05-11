@@ -115,15 +115,15 @@ namespace ASCtoFMConverter
 
             /***** Create FILMAN header records *****/
 
-            //first GV names
-            //six for the standard
+            //First GV names:
+            //six for the standard generated
             FMStream.GVNames(0, "Channel");
             FMStream.GVNames(1, "Montage");
             FMStream.GVNames(2, "NewGroupVariable");
             FMStream.GVNames(3, "EpisodeNumber");
             FMStream.GVNames(4, "EpisodeRecordNumber");
             FMStream.GVNames(5, "SecondsFromStart");
-            //then the copied across GVs
+            //then the copied-across GVs
             for (int n = 0; n < GVCopyAcross.Count; n++) FMStream.GVNames(n + 6, GVCopyAcross[n].Name);
             //and last, the GVs from the counters
             foreach (KeyValuePair<string, int> kvp in PKDCounterGVs) FMStream.GVNames(kvp.Value, kvp.Key);
@@ -250,6 +250,8 @@ namespace ASCtoFMConverter
                 if (!found)
                     throw (new Exception("No valid synchronizing Event found; use manual synchronization"));
             }
+            Log.writeToLog("\tinto FM file " + dlg.FileName);
+
 
             //Loop through each episode specification,
             // then through the Event file to find any regions satisfying the specification,
