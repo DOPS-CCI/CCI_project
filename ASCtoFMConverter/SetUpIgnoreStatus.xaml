@@ -12,23 +12,26 @@
         </StackPanel.Resources>
         <Border>
             <StackPanel Orientation="Vertical">
-                <RadioButton IsChecked="True" Name="typeTimes" Checked="typeTimes_Checked" GroupName="RB" Margin="8">Use clock times in Event file</RadioButton>
-                <TextBlock TextWrapping="Wrap" Margin="4" Width="400">Use this option only when Event times are in seconds from the start of the BDF file.
-                    This is not usually the case.</TextBlock>
-            </StackPanel>
-        </Border>
-        <Border>
-            <StackPanel Orientation="Vertical">
                 <StackPanel Orientation="Horizontal">
-                    <RadioButton VerticalAlignment="Center" Name="typeOffset" Checked="typeOffset_Checked" GroupName="RB" Margin="8,8,0,8">Assume offset to first "covered" Event is</RadioButton>
+                    <RadioButton IsChecked="True" VerticalAlignment="Center" Name="typeOffset" Checked="typeOffset_Checked" GroupName="RB" Margin="8,8,0,8">Assume offset to first "covered" Event is</RadioButton>
                     <TextBox Margin="4" Width="60" TextChanged="TextBox_TextChanged" IsEnabled="{Binding ElementName=typeOffset, Path=IsChecked}" Name="offsetValueTB">0</TextBox>
                     <TextBlock VerticalAlignment="Center" Text="secs "/> 
                 </StackPanel>
                 <TextBlock TextWrapping="Wrap" Width="400" Margin="4">Use this option when there are no Events of type
-                    intrinsic or extrinsic which are correctly marked in the Status channel. Be sure you know what this first Event is.</TextBlock>
+                    intrinsic or extrinsic which are correctly marked in the Status channel. This option is useful when
+                    the Status channel was not properly generated. Be sure you know what this first Event is and enter its
+                    offset from the beginning of the BDF file in seconds. This must be a positive number.
+                </TextBlock>
             </StackPanel>
         </Border>
-        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" >
+        <Border>
+            <StackPanel Orientation="Vertical">
+                <RadioButton Name="typeTimes" Checked="typeTimes_Checked" GroupName="RB" Margin="8">Use clock times in Event file</RadioButton>
+                <TextBlock TextWrapping="Wrap" Margin="4" Width="400">Use this option only when all Event times are in seconds from the start of the BDF file.
+                    This is not usually the case.</TextBlock>
+            </StackPanel>
+        </Border>
+       <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" >
             <Button Width="80" Height="24" Margin="8" Name="Cancel" IsCancel="True" Click="Cancel_Click">Cancel</Button>
             <Button Width="80" Height="24" Margin="8" Name="Continue" Click="Continue_Click" IsDefault="True">Continue</Button>
         </StackPanel>

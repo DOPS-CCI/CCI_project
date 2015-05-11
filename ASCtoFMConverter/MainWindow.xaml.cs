@@ -33,7 +33,7 @@ namespace ASCtoFMConverter
         string directory;
         string headerFileName;
         int samplingRate;
-        double markerOffset;
+        double offsetToFirstEvent;
         ASCtoFMConverter.ASCConverter asc = null;
 
         int _decimation;
@@ -146,13 +146,13 @@ namespace ASCtoFMConverter
 
         private void ConvertFM_Click(object sender, RoutedEventArgs e)
         {
-            if ((bool)NoMarkers.IsChecked)
+            if ((bool)NoSyncToStatus.IsChecked)
             {
                 SetUpIgnoreStatus dialog = new SetUpIgnoreStatus();
                 dialog.Owner = this;
                 if (!(bool)dialog.ShowDialog())
                     return; //without conversion
-                markerOffset = dialog.offsetValue;
+                offsetToFirstEvent = dialog.offsetValue;
             }
 
             ConvertFM.Visibility = Visibility.Hidden;
@@ -531,6 +531,7 @@ namespace ASCtoFMConverter
 
         private void createASCConverter(ASCConverter conv)
         {
+            conv.syncToFirst = (bool)SyncToFirst.IsChecked;
             conv.specs = new EpisodeDescription[this.EpisodeEntries.Items.Count];
             for (int i = 0; i < this.EpisodeEntries.Items.Count; i++)
             {
@@ -580,8 +581,8 @@ namespace ASCtoFMConverter
             conv.ED = this.ED;
             conv.FMRecLength = this._recLength;
             conv.samplingRate = this.samplingRate;
-            if (conv.ignoreStatus = (bool)NoMarkers.IsChecked)
-                conv.offsetToFirstEvent = markerOffset;
+            if (conv.ignoreStatus = (bool)NoSyncToStatus.IsChecked)
+                conv.offsetToFirstEvent = offsetToFirstEvent;
         }
 
         private EpisodeDescription getEpisode(EpisodeDescriptionEntry ede)
@@ -638,12 +639,18 @@ namespace ASCtoFMConverter
                 v = pkd.Found.SelectedIndex;
                 if (v == 0) pkdDesc.found = null;
                 else pkdDesc.found = v == 1;
-                pkdDesc.includeCh12=(bool)pkd.Chi2.IsChecked;
-                if (pkdDesc.includeCh12)
+                pkdDesc.includeChi2=(bool)pkd.Chi2.IsChecked;
+                if (pkdDesc.includeChi2)
+                {
+                    pkdDesc.comp1 = pkd.Comp1.SelectedIndex == 0 ? Comp.lessthan : Comp.greaterthan;
                     pkdDesc.chi2 = pkd.chi2;
+                }
                 pkdDesc.includeMagnitude = (bool)pkd.Magnitude.IsChecked;
                 if (pkdDesc.includeMagnitude)
+                {
+                    pkdDesc.comp2 = pkd.Comp2.SelectedIndex == 0 ? Comp.greaterthan : Comp.lessthan;
                     pkdDesc.magnitude = pkd.magnitude;
+                }
                 v=pkd.Sign.SelectedIndex;
                 if (v == 0) pkdDesc.positive = null;
                 else pkdDesc.positive = v == 1;

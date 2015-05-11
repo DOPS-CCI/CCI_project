@@ -24,7 +24,6 @@ namespace ASCtoFMConverter
         static int count = 0;
         private Header.Header header;
         private Window2.Validate validate;
-        internal int assignedGVnumber;
 
         internal double chi2;
         internal double magnitude;

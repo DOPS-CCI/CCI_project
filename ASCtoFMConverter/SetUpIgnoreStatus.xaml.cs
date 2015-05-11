@@ -40,7 +40,8 @@ namespace ASCtoFMConverter
 
         private void typeOffset_Checked(object sender, RoutedEventArgs e)
         {
-            offsetValue = checkOffsetValue(offsetValueTB.Text);
+            if (offsetValueTB != null)
+                offsetValue = checkOffsetValue(offsetValueTB.Text);
         }
 
         private double checkOffsetValue(string s)

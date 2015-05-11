@@ -162,7 +162,7 @@ namespace ASCtoFMConverter
         internal string GVName;
         internal int channelNumber;
         internal bool? found;
-        internal bool includeCh12;
+        internal bool includeChi2;
         internal Comp comp1;
         internal double chi2;
         internal bool includeMagnitude;
@@ -196,7 +196,7 @@ namespace ASCtoFMConverter
                 if (ie.GetIntValueForGVName("Source channel") != channelNumber) continue;
                 if (found != null)
                     if (((bool)found) ^ (ie.GVValue[1] == "Found")) continue;
-                if (includeCh12)
+                if (includeChi2)
                 {
                     d = (double)ie.GetIntValueForGVName("Chi square");
                     if (comp1 == Comp.lessthan) { if (d >= chi2) continue; }

@@ -35,9 +35,11 @@ namespace ASCtoFMConverter
         public List<List<int>> referenceChannels = null;
         public BDFEDFFileStream.BDFEDFFileReader bdf;
         public List<GVEntry> GVCopyAcross;
+        public Dictionary<string,int> PKDCounterGVs;
         public double FMRecLength;
         public int samplingRate;
         public bool ignoreStatus;
+        public bool syncToFirst; //if true sync clock to first covered Event; if false, to first Event after middle of dataset
         public double offsetToFirstEvent = -1D; //Negative to indicate use actual times in Events
 
         protected BackgroundWorker bw;
@@ -58,7 +60,7 @@ namespace ASCtoFMConverter
             ElectrodeInputFileStream etrFile = new ElectrodeInputFileStream(
                 new FileStream(System.IO.Path.Combine(directory, head.ElectrodeFile), FileMode.Open, FileAccess.Read));
 
-            /***** Open FILMAN file *****/
+            /***** Open new FILMAN file *****/
             SaveFileDialog dlg = new SaveFileDialog();
             dlg.Title = "Save as FILMAN file ...";
             dlg.AddExtension = true;
@@ -76,7 +78,9 @@ namespace ASCtoFMConverter
             int FMRecordLengthInBDF = Convert.ToInt32(FMRecLength * samplingRate);
 
             int GVCount = 6 + GVCopyAcross.Count;
-            Dictionary<string,int> PKDCounterGVs = new Dictionary<string,int>();
+
+            //Create dictionary of newly created counting GVs
+            PKDCounterGVs = new Dictionary<string, int>(); //GV name, GV location index
             foreach (EpisodeDescription ed in specs)
             {
                 foreach (PKDetectorEventCounterDescription pkd in ed.PKCounters)
@@ -207,17 +211,40 @@ namespace ASCtoFMConverter
             { //Need to find a covered (intrisic or extrinsic) Event to use as an indicial Event
                 bool found = false;
                 EventEnumerator = EventList.GetEnumerator();
-                while (!found && EventEnumerator.MoveNext())
-                {
-                    if (EventEnumerator.Current.EDE.intrinsic != null) //have we found a covered Event?
+                if (syncToFirst || ignoreStatus)
+                    while (!found && EventEnumerator.MoveNext())
                     {
-                        if (ignoreStatus)
+                        if (EventEnumerator.Current.EDE.intrinsic != null) //have we found a covered Event?
                         {
-                            bdf.setZeroTime(EventEnumerator.Current.Time - offsetToFirstEvent);
+                            if (ignoreStatus)
+                            {
+                                bdf.setZeroTime(EventEnumerator.Current.Time - offsetToFirstEvent);
+                                found = true;
+                            }
+                            else
+                                found = bdf.setZeroTime(EventEnumerator.Current);
+                        }
+                    }
+                else //sync to "middle" Event
+                {
+                    int midRecord = bdf.NumberOfRecords / 2;
+                    BDFLocFactory fac = new BDFLocFactory(bdf);
+                    BDFLoc loc = fac.New();
+                    loc.Rec = midRecord;
+                    bdf.read(midRecord);
+                    uint v1 = head.Mask & (uint)bdf.getStatusSample(loc);
+                    uint v2;
+                    InputEvent IE;
+                    while ((v2 = (uint)bdf.getStatusSample(++loc) & head.Mask) == v1) ;
+                    while (!found && EventEnumerator.MoveNext())
+                    {
+                        
+                        IE = EventEnumerator.Current;
+                        if (IE.GC == v2)
+                        {
+                            bdf.setZeroTime(IE.Time - loc.ToSecs());
                             found = true;
                         }
-                        else
-                            found = bdf.setZeroTime(EventEnumerator.Current);
                     }
                 }
                 if (!found)
@@ -282,6 +309,15 @@ namespace ASCtoFMConverter
 
                 do
                 {
+                    if (bw.CancellationPending) //look for cancellation first
+                    {
+                        bw.ReportProgress(0, "Conversion canceled with " + FMStream.NR.ToString("0") +
+                            " records in " + (FMStream.NR / FMStream.NC).ToString("0") + " recordsets generated.");
+                        FMStream.Close();
+                        log.Close();
+                        e.Cancel = true;
+                        return;
+                    }
                     InputEvent startEvent = null;
                     InputEvent endEvent = null;
                     double startTime;
@@ -300,6 +336,7 @@ namespace ASCtoFMConverter
                             " from " + (startTime - bdf.zeroTime).ToString("0.000") +
                             " to " + (endTime - bdf.zeroTime).ToString("0.000"));
                         int maxNumberOfFMRecs = (int)Math.Floor((endTime - startTime) / FMRecLength);
+                        log.openFoundEpisode(epiNo, startTime - bdf.zeroTime, endTime - bdf.zeroTime, maxNumberOfFMRecs);
 
                         BDFPoint startBDFPoint = new BDFPoint(bdf);
                         startBDFPoint.FromSecs(startTime - bdf.zeroTime);
@@ -343,8 +380,7 @@ namespace ASCtoFMConverter
                             }
                             startBDFPoint = endBDFPoint; //move start point forward
                         }
-                        log.openFoundEpisode(epiNo, startTime - bdf.zeroTime, endTime - bdf.zeroTime, maxNumberOfFMRecs, actualNumberOfFMRecs);
-                        log.closeFoundEpisode();
+                        log.closeFoundEpisode(actualNumberOfFMRecs);
                     }
 
                 } while (found && !(currentEpisode.Start.MatchesType("Beginning of file") == true)); //next Event, if any

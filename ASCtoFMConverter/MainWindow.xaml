@@ -16,12 +16,29 @@
         </Grid.RowDefinitions>
         <TextBox Grid.Row="0" FontSize="15" Margin="6,6,6,1" FontWeight="Bold" Name="TitleLine" IsReadOnly="True" TextAlignment="Center"></TextBox>
         <GroupBox Grid.Row="1" Header="Episode descriptions" BorderBrush="Black" Margin="6,0,6,0" FontSize="14">
-            <StackPanel Orientation="Vertical">
-            <ListBox Name="EpisodeEntries" VerticalContentAlignment="Top" Height="280"/>
-            <StackPanel Grid.Row="1" Orientation="Horizontal">
-                <Button Name="AddSpec" Grid.Row="1" Width="24" Height="24" FontSize="13" FontWeight="Bold" HorizontalAlignment="Left" Margin="4" Click="AddSpec_Click">+</Button>
-                <Button Name="RemoveSpec" Grid.Row="1" Width="24" Height="24" FontSize="13" FontWeight="Bold" HorizontalAlignment="Left" Margin="4" IsEnabled="False" Click="RemoveSpec_Click">-</Button>
-            </StackPanel></StackPanel>
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition/>
+                    <RowDefinition/>
+                </Grid.RowDefinitions>
+                <ListBox Grid.Row="0" Name="EpisodeEntries" VerticalContentAlignment="Top" Height="280"/>
+                <StackPanel Grid.Row="1" Orientation="Horizontal">
+                    <Button Name="AddSpec" Grid.Row="1" Width="24" Height="24" FontSize="13" FontWeight="Bold" HorizontalAlignment="Left" Margin="4" Click="AddSpec_Click">+</Button>
+                    <Button Name="RemoveSpec" Grid.Row="1" Width="24" Height="24" FontSize="13" FontWeight="Bold" HorizontalAlignment="Left" Margin="4" IsEnabled="False" Click="RemoveSpec_Click">-</Button>
+                </StackPanel>
+                <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <StackPanel.Resources>
+                        <Style TargetType="RadioButton">
+                            <Setter Property="VerticalAlignment" Value="Center"/>
+                            <Setter Property="Margin" Value="4"/>
+                        </Style>
+                    </StackPanel.Resources>
+                    <TextBlock Text=" Sync clock to: " VerticalAlignment="Center" />
+                    <RadioButton Name="SyncToFirst" IsChecked="True">first covered Event</RadioButton>
+                    <RadioButton>"middle" covered Event</RadioButton>
+                    <RadioButton Name="NoSyncToStatus" >none</RadioButton>
+                </StackPanel>
+            </Grid>
         </GroupBox>
         <GroupBox Grid.Row="2" Header="Group variables" BorderBrush="Black" Margin="6,0" FontSize="14" Height="203" VerticalAlignment="Bottom">
             <Grid VerticalAlignment="Center" Height="Auto">
@@ -150,9 +167,6 @@
                 <RadioButton Grid.Row="2" GroupName="Ref" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="8,5,0,6" Name="radioButton3" Width="Auto" Checked="radioButton_Changed" IsChecked="True">No correction (CMS/DRL)</RadioButton>
             </Grid>
         </GroupBox>
-        <StackPanel Grid.Row="6" Grid.Column="1" Orientation="Horizontal" Grid.ColumnSpan="2"  HorizontalAlignment="Left">
-            <CheckBox VerticalAlignment="Center" Margin="12,4,8,4" Name="NoMarkers" FontSize="14">Do not use BDF Status markers for clock synchronization</CheckBox>
-        </StackPanel>
         <StackPanel Grid.Row="6" Grid.Column="1" Orientation="Horizontal" Grid.ColumnSpan="2" FlowDirection="RightToLeft" HorizontalAlignment="Right">
             <Button VerticalAlignment="Center" Margin="12,4,8,4" Height="24" Name="ConvertFM" Width="80" FontSize="14" Click="ConvertFM_Click">Convert</Button>
             <Button VerticalAlignment="Center" Margin="8,4,8,4" Height="24" Name="Done" Width="80" FontSize="14" Click="Done_Click">Exit</Button>
