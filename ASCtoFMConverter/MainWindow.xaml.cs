@@ -64,14 +64,14 @@ namespace ASCtoFMConverter
 
         public Window2()
         {
-            CCIUtilities.Log.writeToLog("Starting ASCtoFMConverter " + CCIUtilities.Utilities.getVersionNumber());
-
             Microsoft.Win32.OpenFileDialog dlg = new Microsoft.Win32.OpenFileDialog();
             dlg.Title = "Open Header file ...";
             dlg.DefaultExt = ".hdr"; // Default file extension
             dlg.Filter = "HDR Files (.hdr)|*.hdr"; // Filter files by extension
             Nullable<bool> result = dlg.ShowDialog();
             if (result == null || result == false) Environment.Exit(0);
+
+            CCIUtilities.Log.writeToLog("Starting ASCtoFMConverter " + CCIUtilities.Utilities.getVersionNumber());
 
             directory = System.IO.Path.GetDirectoryName(dlg.FileName);
             headerFileName = System.IO.Path.GetFileNameWithoutExtension(dlg.FileName);
@@ -457,10 +457,10 @@ namespace ASCtoFMConverter
             myValidate();
         }
 
-        private void Window_Closing(object sender, EventArgs e)
+        private void Window_Closed(object sender, EventArgs e)
         {
-            CCIUtilities.Log.writeToLog("ASCtoFMConverter ending");
             bdf.Close();
+            CCIUtilities.Log.writeToLog("ASCtoFMConverter ending");
         }
 
         private void myValidate()
