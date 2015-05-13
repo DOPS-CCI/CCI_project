@@ -100,6 +100,7 @@ namespace PKDetectorAnalyzer
             InitializeComponent();
 
             Title = headerFileName;
+            TitleLine.Text = directory + System.IO.Path.DirectorySeparatorChar + headerFileName;
             FNExtension.Text = "PKDetection";
             DataContext = this;
 
@@ -133,7 +134,7 @@ namespace PKDetectorAnalyzer
 
         private void Quit_Click(object sender, RoutedEventArgs e)
         {
-            Environment.Exit(0);
+            this.Close();
         }
 
         internal class workerArguments
@@ -555,13 +556,12 @@ namespace PKDetectorAnalyzer
             for (int i = 0; i < t.N; i++)
             {
                 double t0 = t[i] - p[5];
+                double ebt = Math.Exp(-p[4] * t0);
+                y[i] = p[2] + (p[1] - p[2]) * (1D - ebt);
                 if (t0 > 0)
                 {
-                    double ebt = Math.Exp(-p[4] * t0);
-                    y[i] = p[2] + p[0] * ebt * (1D - Math.Exp(-p[3] * t0)) + (p[1] - p[2]) * (1D - ebt);
+                    y[i] += p[0] * ebt * (1D - Math.Exp(-p[3] * t0));
                 }
-                else
-                    y[i] = p[2];
             }
             return y;
         }
@@ -574,19 +574,21 @@ namespace PKDetectorAnalyzer
             for (int i = 0; i < t.N; i++)
             {
                 double t0 = t[i] - p[5];
-                if (t0 < 0D)
-                    J[i, 2] = 1D;
-                else
+                eat = Math.Exp(-p[3] * t0);
+                ebt = Math.Exp(-p[4] * t0);
+                J[i, 1] = 1D - ebt; //B
+                J[i, 2] = ebt; //C
+                J[i, 4] = p[1] - p[2]; //beta
+                J[i, 5] = (p[2] - p[1]) * p[4]; //t0
+                if (t0 > 0D) //UnitStep portion
                 {
-                    eat = Math.Exp(-p[3] * t0);
-                    ebt = Math.Exp(-p[4] * t0);
-                    J[i, 0] = ebt * (1D - eat);
-                    J[i, 1] = 1D - ebt;
-                    J[i, 2] = ebt;
-                    J[i, 3] = p[0] * t0 * eat * ebt;
-                    J[i, 4] = -ebt * t0 * (p[0] * (1D - eat) + p[2] - p[1]);
-                    J[i, 5] = ebt * (p[0] * (p[4] * (1D - eat) - p[3] * eat) + (p[2] - p[1]) * p[4]);
+                    J[i, 0] = ebt * (1D - eat); //A
+                    J[i, 3] = p[0] * t0 * eat * ebt; //alpha
+                    J[i, 4] -= p[0] * (1D - eat); //beta
+                    J[i, 5] += p[0] * (p[4] * (1D - eat) - p[3] * eat); //t0
                 }
+                J[i, 4] *= t0 * ebt; //beta
+                J[i, 5] *= ebt; //t0
             }
             return J;
         }
@@ -610,6 +612,11 @@ namespace PKDetectorAnalyzer
             }
             newFileName = headerFileName + "_" + ext;
             checkError();
+        }
+
+        private void Window_Closed(object sender, EventArgs e)
+        {
+            CCIUtilities.Log.writeToLog("End PKDetectorAnalyzer");
         }
 
 /* Unused at the moment...
