@@ -74,14 +74,14 @@ namespace PKDetectorAnalyzer
         
         public MainWindow()
         {
-            CCIUtilities.Log.writeToLog("Starting PKDetectorAnalyzer " + CCIUtilities.Utilities.getVersionNumber());
-
             Microsoft.Win32.OpenFileDialog dlg = new Microsoft.Win32.OpenFileDialog();
             dlg.Title = "Open Header file ...";
             dlg.DefaultExt = ".hdr"; // Default file extension
             dlg.Filter = "HDR Files (.hdr)|*.hdr"; // Filter files by extension
             Nullable<bool> result = dlg.ShowDialog();
             if (result == null || result == false) Environment.Exit(0);
+
+            CCIUtilities.Log.writeToLog("Starting PKDetectorAnalyzer " + CCIUtilities.Utilities.getVersionNumber());
 
             directory = System.IO.Path.GetDirectoryName(dlg.FileName);
             headerFileName = System.IO.Path.GetFileNameWithoutExtension(dlg.FileName);
