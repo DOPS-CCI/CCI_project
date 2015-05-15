@@ -28,10 +28,13 @@
                 <Setter Property="IsReadOnly" Value="True"/>
             </Style>
         </StackPanel.Resources>
+            <GroupBox Header="Event Name Ext" BorderBrush="DarkBlue">
+                <TextBox Name="EventNameExt" Width="105" TextAlignment="Left" TextChanged="GVNameExt_TextChanged"></TextBox>
+            </GroupBox>
             <GroupBox Header="Channel data" BorderBrush="DarkBlue">
                 <StackPanel Orientation="Horizontal">
                     <ComboBox Name="Channel" Width="120" SelectionChanged="Channel_SelectionChanged" />
-                    <TextBlock>Detrend--></TextBlock>
+                    <TextBlock>Detrend ></TextBlock>
                     <ComboBox Name="TrendDegree" Width="100" SelectionChanged="TrendDegree_SelectionChanged">
                         <ComboBoxItem Selector.IsSelected="True">None</ComboBoxItem>
                         <ComboBoxItem>Offset only</ComboBoxItem>
@@ -50,11 +53,11 @@
             </GroupBox>
             <GroupBox Header="Filter parameters" BorderBrush="DarkBlue">
             <StackPanel Orientation="Horizontal">
-                <TextBlock>Filter size--></TextBlock>
+                <TextBlock>Length ></TextBlock>
                 <TextBox Name="FilterSize" TextChanged="FilterSize_TextChanged">256</TextBox>
-                <TextBlock>Threshold--></TextBlock>
-                <TextBox Name="Threshold" TextChanged="Threshold_TextChanged">6.0</TextBox>
-                <TextBlock>Minimum length--></TextBlock>
+                <TextBlock>Thresh ></TextBlock>
+                <TextBox Name="Threshold" TextChanged="Threshold_TextChanged">4.0</TextBox>
+                <TextBlock>Min length ></TextBlock>
                 <TextBox Name="MinimumLength" TextChanged="MinimumLength_TextChanged">64</TextBox>
             </StackPanel>
         </GroupBox>

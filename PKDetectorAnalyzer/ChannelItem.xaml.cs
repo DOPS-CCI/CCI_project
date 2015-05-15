@@ -42,6 +42,14 @@ namespace PKDetectorAnalyzer
         internal int _minimumL;
         internal double _threshold;
 
+        internal string ImpliedEventName
+        {
+            get
+            {
+                return "**PKCnt" + Channel.Text + (EventNameExt.Text != "" ? "_" + EventNameExt.Text : "");
+            }
+        }
+
         public ChannelItem(MainWindow mw)
         {
             this.mw = mw;
@@ -115,6 +123,11 @@ namespace PKDetectorAnalyzer
                 _minimumL = 0;
                 MinimumLength.BorderBrush = System.Windows.Media.Brushes.Red;
             }
+            mw.checkError();
+        }
+
+        private void GVNameExt_TextChanged(object sender, TextChangedEventArgs e)
+        {
             mw.checkError();
         }
 

@@ -22,6 +22,7 @@ using EventDictionary;
 using BDFEDFFileStream;
 using EventFile;
 using GroupVarDictionary;
+using EventDictionary;
 
 namespace PKDetectorAnalyzer
 {
@@ -30,6 +31,9 @@ namespace PKDetectorAnalyzer
     /// </summary>
     public partial class MainWindow : Window, INotifyPropertyChanged
     {
+
+        const int maxPointsBefore = 2000;
+        const int maxPointsAfter = 16000;
         public event PropertyChangedEventHandler PropertyChanged;
         public void OnPropertyChanged(PropertyChangedEventArgs e)
         {
@@ -67,8 +71,8 @@ namespace PKDetectorAnalyzer
         }
 
         static LevenbergMarquardt LM = new LevenbergMarquardt(func, Jfunc,
-           new LinearAlgebra.NVector(new double[] { -30000D, -60000D, -60000D, 0.25, 0.005, -0.1 }),
-           new LinearAlgebra.NVector(new double[] { 30000D, 60000D, 60000D, 20, 0.1, 0.25 }), null,
+           new LinearAlgebra.NVector(new double[] { -30000D, -60000D, -60000D, 0.25, 0.005, -0.25 }),
+           new LinearAlgebra.NVector(new double[] { 30000D, 60000D, 60000D, 20, 0.1, 0.5 }), null,
            new double[] { 0.0001, 0.00001, 0.00001, 0.01 },
            LevenbergMarquardt.UpdateType.Marquardt);
         
@@ -139,6 +143,7 @@ namespace PKDetectorAnalyzer
 
         internal class workerArguments
         {
+            internal ChannelItem channelItem;
             internal int channelNumber;
             internal double[] data;
             internal double samplingRate;
@@ -149,6 +154,7 @@ namespace PKDetectorAnalyzer
 
             internal workerArguments(ChannelItem ci, MainWindow mw)
             {
+                channelItem = ci;
                 channelNumber = mw.channels[ci.Channel.SelectedIndex].channel;
                 data = mw.bdf.readAllChannelData(channelNumber); //read in next data channel
                 samplingRate = (double)mw.bdf.NumberOfSamples(channelNumber) / mw.bdf.RecordDurationDouble;
@@ -181,8 +187,9 @@ namespace PKDetectorAnalyzer
 
         internal class eventTime
         {
+            internal ChannelItem channelItem;
             internal int channelNumber;
-            internal int time;
+            internal int startTime;
             internal int length;
             internal bool foundFit;
             internal double chiSquare;
@@ -191,6 +198,7 @@ namespace PKDetectorAnalyzer
             internal double C;
             internal double a;
             internal double b;
+            internal int t0;
             internal double sign;
             internal List<double> filterSignal;
             internal int serialNumber;
@@ -198,6 +206,8 @@ namespace PKDetectorAnalyzer
             internal int filterLength;
             internal double threshold;
             internal int minimumLength;
+
+            internal int endTime { get {return startTime + length; } }
         }
 
         private void ProcessChannel_Worker(object sender, DoWorkEventArgs e)
@@ -258,14 +268,15 @@ namespace PKDetectorAnalyzer
                     {
                         if (eventLength > minimumLength) //event counts only if longer than minimum length
                         {
-                            eventTime ev = new eventTime();
+                            eventTime ev = new eventTime(); //create eventTime for each detected signal
+                            ev.channelItem = args.channelItem;
                             ev.serialNumber = ++eventCount;
                             ev.channelNumber = args.channelNumber;
-                            ev.time = i - eventLength;
+                            ev.startTime = i - eventLength; //starting index in data
                             ev.length = eventLength;
                             ev.sign = sign;
                             ev.filterSignal = filtered;
-                            filtered = new List<double>(64); //need new filtered array
+                            filtered = new List<double>(64); //need new filtered array for signal
                             eventList.Add(ev);
                         }
                         else
@@ -273,47 +284,26 @@ namespace PKDetectorAnalyzer
                         inEvent = false;
                     }
             }
-            int dataLength;
-            double t;
-            eventTime et0;
-            eventTime et1;
-            double max;
+
+            //now we do a fit on each of the detected signals
             double samplingRate = args.samplingRate;
-            double t0 = (double)filterN / (2D * samplingRate);
-            for (int i = 0; i < eventList.Count - 1; i++)
-            {
-                if (bw.CancellationPending) { e.Cancel = true; return; }
-                bw.ReportProgress((int)((100D * i) / eventList.Count), "");
-                et0 = eventList[i];
-                et1 = eventList[i + 1];
-                dataLength = Math.Min(et1.time - et0.time, 16000);
-                max = double.MinValue;
-                for (int p = et0.time; p < et0.time + et0.length; p++) max = Math.Max(max, Math.Abs(d[p]));
-                et0.A = et0.sign * max; //max sign*Abs(displacement)
-                et0.C = d[et0.time]; //estimate of initial offset
-                et0.B = et0.C; //current actual "baseline"
-                et0.a = 4D; //typical alpha
-                et0.b = 0.04; //typical beta
-                t = t0; //half filterN / SR
-                if (et0.foundFit = fitSignal(d, et0.time, dataLength, samplingRate,
-                    ref et0.A, ref et0.B, ref et0.C, ref et0.a, ref et0.b, ref t))
-                    et0.time += (int)(t * samplingRate);
-                et0.chiSquare = LM.ChiSquare;
-            }
-            et0 = eventList[eventList.Count - 1];
-            dataLength = Math.Min(N - et0.time, 16000);
-            max = double.MinValue;
-            for (int p = et0.time; p < et0.time + et0.length; p++) max = Math.Max(max, Math.Abs(d[p]));
-            et0.A = et0.sign * max; //max sign*Abs(displacement)
-            et0.C = d[et0.time]; //estimate of initial offset
-            et0.B = et0.C;
-            et0.a = 4D;
-            et0.b = 0.05;
-            t = 0.25;
-            if (et0.foundFit = fitSignal(d, et0.time, dataLength, samplingRate,
-                ref et0.A, ref et0.B, ref et0.C, ref et0.a, ref et0.b, ref t))
-                et0.time += (int)(t * samplingRate);
-            et0.chiSquare = LM.ChiSquare;
+            double t0 = (double)filterN / (2D * samplingRate); //fixed initial estimate of t0
+            int nEvents = eventList.Count;
+            if(nEvents!=0)
+                if(nEvents!=1)
+                    if (nEvents >= 2) //at least two Events
+                    {
+                        eventList[0].foundFit = fitSignal(d, 0, eventList[0], eventList[1].startTime, samplingRate);
+                        for (int i = 1; i < eventList.Count - 1; i++)
+                        {
+                            if (bw.CancellationPending) { e.Cancel = true; return; } //look for cancellation
+                            bw.ReportProgress((int)((100D * i) / eventList.Count), "");
+                            eventList[i].foundFit = fitSignal(d, eventList[i - 1].endTime, eventList[i], eventList[i + 1].startTime, samplingRate);
+                        }
+                        eventList[eventList.Count - 1].foundFit = fitSignal(d, eventList[eventList.Count - 2].endTime, eventList[eventList.Count - 1], d.Length, samplingRate);
+                    }
+                    else //must be single Event
+                        eventList[0].foundFit = fitSignal(d, 0, eventList[0], d.Length, samplingRate);
             e.Result = eventList;
         }
 
@@ -343,12 +333,12 @@ namespace PKDetectorAnalyzer
                 }
                 eventTimeList.AddRange(et);
                 currentChannel++;
-                if (currentChannel < ChannelEntries.Items.Count)
+                if (currentChannel < ChannelEntries.Items.Count) //then we run another one
                 {
                     bw.RunWorkerAsync(new workerArguments((ChannelItem)ChannelEntries.Items[currentChannel], this)); //process next channel
                     return;
                 }
-                ProcessEvents();
+                ProcessEvents(); //now we've accumulated Events, finsh off new Event file
                 Status.Text = "Written files under " + System.IO.Path.Combine(directory, newFileName);
             }
             else
@@ -360,12 +350,8 @@ namespace PKDetectorAnalyzer
 
         private void ProcessEvents()
         {
-            //Create Event Dictionary entry for the new PK event
-            EventDictionary.EventDictionaryEntry ede = new EventDictionary.EventDictionaryEntry();
-            ede.Description = "PK detector events from PKDetectorAnalyzer";
-            ede.intrinsic = null; //naked Event
-            ede.GroupVars = new List<GVEntry>(5);
             GVEntry gve;
+            GVEntry[] newGVList = new GVEntry[11];
 
             //GV 1
             gve = new GVEntry();
@@ -380,7 +366,7 @@ namespace PKDetectorAnalyzer
                     gve.GVValueDictionary.Add(co.name, co.channel + 1); //Use "external" (1-based) channel numbering
             }
             head.GroupVars.Add("Source channel", gve); //Channel name: add to GV list in HDR
-            ede.GroupVars.Add(gve); //include in GV list in new Event descriptor
+            newGVList[0] = gve;
 
             //GV 2
             gve = new GVEntry();
@@ -389,13 +375,13 @@ namespace PKDetectorAnalyzer
             gve.GVValueDictionary.Add("Found", 1);
             gve.GVValueDictionary.Add("Not found", 2);
             head.GroupVars.Add("Found fit", gve);
-            ede.GroupVars.Add(gve);
+            newGVList[1] = gve;
 
             //GV 3
             gve = new GVEntry();
             gve.Description = "Estimate of the magnitude of PK signal in scale of channel";
             head.GroupVars.Add("Magnitude", gve); //Magnitude
-            ede.GroupVars.Add(gve);
+            newGVList[2] = gve;
 
             //GV 4
             gve = new GVEntry();
@@ -404,51 +390,59 @@ namespace PKDetectorAnalyzer
             gve.GVValueDictionary.Add("Positive", 1);
             gve.GVValueDictionary.Add("Negative", 2);
             head.GroupVars.Add("Direction", gve); //Direction
-            ede.GroupVars.Add(gve); //include in GV list in new Event descriptor
+            newGVList[3] = gve;
 
             //GV 5
             gve = new GVEntry();
             gve.Description = "Estimate of the time constant (in millisecs) for the rising edge of the PK signal";
             head.GroupVars.Add("Alpha TC", gve); //Alpha time constant
-            ede.GroupVars.Add(gve); //include in GV list in new Event descriptor
+            newGVList[4] = gve;
 
             //GV 6
             gve = new GVEntry();
             gve.Description = "Chi square estimate of goodness of fit to the PK signal";
             head.GroupVars.Add("Chi square", gve); //Chi square
-            ede.GroupVars.Add(gve); //include in GV list in new Event descriptor
+            newGVList[5] = gve;
 
             //GV 7
             gve = new GVEntry();
             gve.Description = "Serial number for this channel/filter combonation";
             head.GroupVars.Add("Serial number", gve);
-            ede.GroupVars.Add(gve); //include in GV list in new Event descriptor
+            newGVList[6] = gve;
 
             //GV 8
             gve = new GVEntry();
             gve.Description = "Degree of trend removal of original PK signal plus 2";
             head.GroupVars.Add("Trend degree", gve);
-            ede.GroupVars.Add(gve); //include in GV list in new Event descriptor
+            newGVList[7] = gve;
 
             //GV 9
             gve = new GVEntry();
             gve.Description = "Length of filter in points";
             head.GroupVars.Add("Filter length", gve);
-            ede.GroupVars.Add(gve); //include in GV list in new Event descriptor
+            newGVList[8] = gve;
 
             //GV 10
             gve = new GVEntry();
             gve.Description = "Capturing threshold in microV/sec";
-            head.GroupVars.Add("Threshold", gve); 
-            ede.GroupVars.Add(gve); //include in GV list in new Event descriptor
+            head.GroupVars.Add("Threshold", gve);
+            newGVList[9] = gve;
 
             //GV 11
             gve = new GVEntry();
             gve.Description = "Minimum length of above-threshold filter signal in points";
-            head.GroupVars.Add("Minimum length", gve); 
-            ede.GroupVars.Add(gve); //include in GV list in new Event descriptor
+            head.GroupVars.Add("Minimum length", gve);
+            newGVList[10] = gve;
 
-            head.Events.Add("PK detector event", ede);
+            //Create Event Dictionary entry for each new PK event/ChannelItem
+            foreach (ChannelItem ci in ChannelEntries.Items)
+            {
+                EventDictionaryEntry ede = new EventDictionaryEntry();
+                ede.Description = "PK detector events from PKDetectorAnalyzer on channel " + ci.Channel.Text;
+                ede.intrinsic = null; //naked Event
+                ede.GroupVars = new List<GVEntry>(newGVList);
+                head.Events.Add(ci.ImpliedEventName, ede);
+            }
 
             head.Comment += (head.Comment == "" ? "" : Environment.NewLine) +
                 "PK source Events added on " + DateTime.Now.ToString("dd MMM yyyy HH:mm:ss") + " by " + Environment.UserName;
@@ -480,9 +474,9 @@ namespace PKDetectorAnalyzer
             foreach (eventTime et in eventTimeList)
             {
                 double ST =  bdf.SampleTime(et.channelNumber);
-                DateTime time = new DateTime((long)((bdf.zeroTime + (double)et.time * ST) * 1E7));
+                DateTime time = new DateTime((long)((bdf.zeroTime + (double)(et.t0 + et.startTime) * ST) * 1E7));
                 //create a naked Event at this time
-                Event.OutputEvent newEvent = new Event.OutputEvent(ede, time);
+                Event.OutputEvent newEvent = new Event.OutputEvent(head.Events[et.channelItem.ImpliedEventName], time);
                 //assign GV values to new event
                 newEvent.GVValue = new string[11];
                 newEvent.GVValue[0] = bdf.channelLabel(et.channelNumber);
@@ -499,7 +493,7 @@ namespace PKDetectorAnalyzer
                 events.Add(newEvent);
             }
 
-            events = events.OrderBy(ev => ev.Time).ToList(); //sort into time order
+            events = events.OrderBy(ev => ev.Time).ToList(); //sort Events into time order
 
             fs = new FileStream(System.IO.Path.Combine(directory,head.EventFile), FileMode.Create, FileAccess.Write);
             EventFileWriter efw = new EventFileWriter(fs);
@@ -531,21 +525,41 @@ namespace PKDetectorAnalyzer
             }
         }
 
-        private static bool fitSignal(double[] d, int start, int dataLength, double samplingRate,
-            ref double A, ref double B, ref double C, ref double a, ref double b, ref double tOffset)
+        private static bool fitSignal(double[] d, int beforeTime, eventTime current, int afterTime, double samplingRate)
         {
+
+            //determine subset of data around the detection signal
+            int start = Math.Min(current.startTime - beforeTime, maxPointsBefore); //up to 2000 points before
+            double newTOffset = (double)start / samplingRate;
+            int dataLength = start + Math.Min(afterTime - current.startTime, maxPointsAfter); //up to 16000 points after
+
+            double max = double.MinValue;
+            for (int v = current.startTime; v < current.startTime + current.length; v++) max = Math.Max(max, Math.Abs(d[v]));
+
             LinearAlgebra.NVector t = new LinearAlgebra.NVector(dataLength);
-            for (int t0 = 0; t0 < dataLength; t0++) t[t0] = (double)t0 / samplingRate;
+            for (int ti = 0; ti < dataLength; ti++) t[ti] = (double)ti / samplingRate - newTOffset; //create independent variable array
             LinearAlgebra.NVector y = new LinearAlgebra.NVector(dataLength);
-            for (int i = 0; i < dataLength; i++)
-                y[i] = d[start + i];
-            LinearAlgebra.NVector p = LM.Calculate(new LinearAlgebra.NVector(new double[] { A, B, C, a, b, tOffset }), t, y);
-            A = p[0];
-            B = p[1];
-            C = p[2];
-            a = p[3];
-            b = p[4];
-            tOffset = p[5];
+            start = current.startTime - start;
+            for (int i = 0; i < dataLength; i++) y[i] = d[start + i]; //create dependent variable array
+
+            LinearAlgebra.NVector p =
+                LM.Calculate(
+                new LinearAlgebra.NVector(new double[] { current.sign * max, /* A */
+                    d[current.startTime], /* B */
+                    d[current.startTime], /* C */
+                    4D, /* alpha */
+                    0.04, /* beta */
+                    0D }), /* t0 */
+                t, y); //fitsignal using Levenberg-Marquardt algorithm
+
+            current.A = p[0]; //parse estimated parameters out
+            current.B = p[1];
+            current.C = p[2];
+            current.a = p[3];
+            current.b = p[4];
+            if (LM.Result > 0)
+                current.t0 += (int)(p[5] * samplingRate); //offset starting time by new t0, only if fit found
+            current.chiSquare = LM.ChiSquare; //remember Chi square
             return LM.Result > 0;
         }
 
