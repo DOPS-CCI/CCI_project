@@ -70,6 +70,8 @@ namespace PKDetectorAnalyzer
             }
         }
 
+        GVEntry[] newGVList = new GVEntry[11];
+
         static LevenbergMarquardt LM = new LevenbergMarquardt(func, Jfunc,
            new LinearAlgebra.NVector(new double[] { -30000D, -60000D, -60000D, 0.25, 0.005, -0.25 }),
            new LinearAlgebra.NVector(new double[] { 30000D, 60000D, 60000D, 20, 0.1, 0.5 }), null,
@@ -351,88 +353,120 @@ namespace PKDetectorAnalyzer
         private void ProcessEvents()
         {
             GVEntry gve;
-            GVEntry[] newGVList = new GVEntry[11];
 
             //GV 1
-            gve = new GVEntry();
-            gve.GVValueDictionary = new Dictionary<string, int>();
-            gve.Description = "Source channel for this Event";
-            foreach (ChannelItem ci in ChannelEntries.Items)
-            {   //create GV Value entry for each channel name
-                channelOptions co = channels[ci.Channel.SelectedIndex];
-                int i;
-                gve.GVValueDictionary.TryGetValue(co.name, out i);
-                if (i == 0)
-                    gve.GVValueDictionary.Add(co.name, co.channel + 1); //Use "external" (1-based) channel numbering
+            if (!head.GroupVars.ContainsKey("Source channel"))
+            {
+                gve = new GVEntry();
+                gve.GVValueDictionary = new Dictionary<string, int>();
+                gve.Description = "Source channel for this Event";
+                foreach (ChannelItem ci in ChannelEntries.Items)
+                {   //create GV Value entry for each channel name
+                    channelOptions co = channels[ci.Channel.SelectedIndex];
+                    int i;
+                    gve.GVValueDictionary.TryGetValue(co.name, out i);
+                    if (i == 0)
+                        gve.GVValueDictionary.Add(co.name, co.channel + 1); //Use "external" (1-based) channel numbering
+                }
+                head.GroupVars.Add("Source channel", gve); //Channel name: add to GV list in HDR
+                newGVList[0] = gve;
             }
-            head.GroupVars.Add("Source channel", gve); //Channel name: add to GV list in HDR
-            newGVList[0] = gve;
 
             //GV 2
-            gve = new GVEntry();
-            gve.GVValueDictionary = new Dictionary<string, int>(2);
-            gve.Description = "Found satisfactory fit to PK signal";
-            gve.GVValueDictionary.Add("Found", 1);
-            gve.GVValueDictionary.Add("Not found", 2);
-            head.GroupVars.Add("Found fit", gve);
-            newGVList[1] = gve;
+            if (!head.GroupVars.ContainsKey("Found fit"))
+            {
+                gve = new GVEntry();
+                gve.GVValueDictionary = new Dictionary<string, int>(2);
+                gve.Description = "Found satisfactory fit to PK signal";
+                gve.GVValueDictionary.Add("Found", 1);
+                gve.GVValueDictionary.Add("Not found", 2);
+                head.GroupVars.Add("Found fit", gve);
+                newGVList[1] = gve;
+            }
 
             //GV 3
-            gve = new GVEntry();
-            gve.Description = "Estimate of the magnitude of PK signal in scale of channel";
-            head.GroupVars.Add("Magnitude", gve); //Magnitude
-            newGVList[2] = gve;
+            if (!head.GroupVars.ContainsKey("Magnitude"))
+            {
+                gve = new GVEntry();
+                gve.Description = "Estimate of the magnitude of PK signal in scale of channel";
+                head.GroupVars.Add("Magnitude", gve); //Magnitude
+                newGVList[2] = gve;
+            }
 
             //GV 4
-            gve = new GVEntry();
-            gve.GVValueDictionary = new Dictionary<string, int>(2);
-            gve.Description = "Direction of PK signal";
-            gve.GVValueDictionary.Add("Positive", 1);
-            gve.GVValueDictionary.Add("Negative", 2);
-            head.GroupVars.Add("Direction", gve); //Direction
-            newGVList[3] = gve;
+            if (!head.GroupVars.ContainsKey("Direction"))
+            {
+                gve = new GVEntry();
+                gve.GVValueDictionary = new Dictionary<string, int>(2);
+                gve.Description = "Direction of PK signal";
+                gve.GVValueDictionary.Add("Positive", 1);
+                gve.GVValueDictionary.Add("Negative", 2);
+                head.GroupVars.Add("Direction", gve); //Direction
+                newGVList[3] = gve;
+            }
 
             //GV 5
-            gve = new GVEntry();
-            gve.Description = "Estimate of the time constant (in millisecs) for the rising edge of the PK signal";
-            head.GroupVars.Add("Alpha TC", gve); //Alpha time constant
-            newGVList[4] = gve;
+            if (!head.GroupVars.ContainsKey("Alpha TC"))
+            {
+                gve = new GVEntry();
+                gve.Description = "Estimate of the time constant (in millisecs) for the rising edge of the PK signal";
+                head.GroupVars.Add("Alpha TC", gve); //Alpha time constant
+                newGVList[4] = gve;
+            }
 
             //GV 6
-            gve = new GVEntry();
-            gve.Description = "Chi square estimate of goodness of fit to the PK signal";
-            head.GroupVars.Add("Chi square", gve); //Chi square
-            newGVList[5] = gve;
+            if (!head.GroupVars.ContainsKey("Chi square"))
+            {
+                gve = new GVEntry();
+                gve.Description = "Chi square estimate of goodness of fit to the PK signal";
+                head.GroupVars.Add("Chi square", gve); //Chi square
+                newGVList[5] = gve;
+            }
 
             //GV 7
-            gve = new GVEntry();
-            gve.Description = "Serial number for this channel/filter combonation";
-            head.GroupVars.Add("Serial number", gve);
-            newGVList[6] = gve;
+            if (!head.GroupVars.ContainsKey("Serial number"))
+            {
+                gve = new GVEntry();
+                gve.Description = "Serial number for this channel/filter combonation";
+                head.GroupVars.Add("Serial number", gve);
+                newGVList[6] = gve;
+            }
 
             //GV 8
-            gve = new GVEntry();
-            gve.Description = "Degree of trend removal of original PK signal plus 2";
-            head.GroupVars.Add("Trend degree", gve);
-            newGVList[7] = gve;
+            if (!head.GroupVars.ContainsKey("Trend degree"))
+            {
+                gve = new GVEntry();
+                gve.Description = "Degree of trend removal of original PK signal plus 2";
+                head.GroupVars.Add("Trend degree", gve);
+                newGVList[7] = gve;
+            }
 
             //GV 9
-            gve = new GVEntry();
-            gve.Description = "Length of filter in points";
-            head.GroupVars.Add("Filter length", gve);
-            newGVList[8] = gve;
+            if (!head.GroupVars.ContainsKey("Filter length"))
+            {
+                gve = new GVEntry();
+                gve.Description = "Length of filter in points";
+                head.GroupVars.Add("Filter length", gve);
+                newGVList[8] = gve;
+            }
 
             //GV 10
-            gve = new GVEntry();
-            gve.Description = "Capturing threshold in microV/sec";
-            head.GroupVars.Add("Threshold", gve);
-            newGVList[9] = gve;
+            if (!head.GroupVars.ContainsKey("Threshold"))
+            {
+                gve = new GVEntry();
+                gve.Description = "Capturing threshold in microV/sec";
+                head.GroupVars.Add("Threshold", gve);
+                newGVList[9] = gve;
+            }
 
             //GV 11
-            gve = new GVEntry();
-            gve.Description = "Minimum length of above-threshold filter signal in points";
-            head.GroupVars.Add("Minimum length", gve);
-            newGVList[10] = gve;
+            if (!head.GroupVars.ContainsKey("Minimum length"))
+            {
+                gve = new GVEntry();
+                gve.Description = "Minimum length of above-threshold filter signal in points";
+                head.GroupVars.Add("Minimum length", gve);
+                newGVList[10] = gve;
+            }
 
             //Create Event Dictionary entry for each new PK event/ChannelItem
             foreach (ChannelItem ci in ChannelEntries.Items)
@@ -467,6 +501,7 @@ namespace PKDetectorAnalyzer
             
             efr.Close();
 
+            //write out new HDR file
             head.EventFile = newFileName + ".evt"; //now we can change Event file name and write out new HDR
             FileStream fs = new FileStream(System.IO.Path.Combine(directory, newFileName + ".hdr"), FileMode.Create, FileAccess.Write);
             new HeaderFileWriter(fs, head);
