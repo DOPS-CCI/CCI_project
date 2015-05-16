@@ -66,7 +66,7 @@ namespace ASCtoFMConverter
                     {
                         logStream.WriteStartElement("PKDetectorCounter");
                         logStream.WriteAttributeString("AssignedGV", pkd.GVName);
-                        logStream.WriteAttributeString("Channel", c.bdf.channelLabel(pkd.channelNumber - 1));
+                        logStream.WriteAttributeString("Event", pkd.EventName);
                         if (pkd.found != null)
                             logStream.WriteElementString("FoundFit", (bool)pkd.found ? "True" : "False");
                         if (pkd.includeChi2)
@@ -85,14 +85,6 @@ namespace ASCtoFMConverter
                         }
                         if (pkd.positive != null)
                             logStream.WriteElementString("Sign", (bool)pkd.positive ? "Positive" : "Negative");
-                        if (pkd.includeFilter)
-                        {
-                            logStream.WriteStartElement("Filter");
-                            logStream.WriteAttributeString("FilterLength", pkd.filterLength.ToString("0"));
-                            logStream.WriteAttributeString("Threshold", pkd.filterThreshold.ToString("0.0"));
-                            logStream.WriteAttributeString("MinimumLength", pkd.filterMinimumLength.ToString("0"));
-                            logStream.WriteEndElement(/* Filter */);
-                        }
                         logStream.WriteEndElement(/* PKDetectorCounter */);
                     }
                 }

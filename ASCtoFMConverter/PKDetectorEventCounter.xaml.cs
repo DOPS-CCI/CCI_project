@@ -13,6 +13,7 @@ using System.Windows.Navigation;
 using System.Windows.Shapes;
 using CCILibrary;
 using Event;
+using EventDictionary;
 
 namespace ASCtoFMConverter
 {
@@ -33,15 +34,20 @@ namespace ASCtoFMConverter
 
         public PKDetectorEventCounter(Header.Header hdr, Window2.Validate v)
         {
-            if (hdr.Events.ContainsKey("PK detector event") &&
-                hdr.Events["PK detector event"].GroupVars.Contains(hdr.GroupVars["Source channel"]))
+            bool test = false;
+            foreach(string e in hdr.Events.Keys)
+                if (e.Substring(0, 7) == "**PKCnt") { test = true; break; }
+
+            if (test)
             {
                 this.header = hdr;
                 this.validate = v;
+
                 InitializeComponent();
-                foreach (string str in hdr.GroupVars["Source channel"].GVValueDictionary.Keys)
-                    Channel.Items.Add(str);
-                Channel.SelectedIndex = 0;
+
+                foreach (string str in hdr.Events.Keys)
+                    if (str.Substring(0, 7) == "**PKCnt") EventName.Items.Add(str);
+                EventName.SelectedIndex = 0;
                 this.GVName.Text = "PKEventCount" + (++count).ToString("0");
                 Comp1.Items.Add("<");
                 Comp1.Items.Add(">");
@@ -67,12 +73,6 @@ namespace ASCtoFMConverter
             if (GVName.Text.Length==0) return false;
             if ((bool)Chi2.IsChecked && chi2 < 0D) return false;
             if ((bool)Magnitude.IsChecked && magnitude < 0D) return false;
-            if ((bool)Filter.IsChecked)
-            {
-                if (filterSize < 0D) return false;
-                if (filterThreshold < 0D) return false;
-                if (filterMinimumLength < 0D) return false;
-            }
             return true;
         }
 
@@ -100,36 +100,6 @@ namespace ASCtoFMConverter
                 MagnitudeValue.BorderBrush = Brushes.Red;
             else
                 MagnitudeValue.BorderBrush = Brushes.MediumBlue;
-            validate();
-        }
-
-        private void FilterSize_TextChanged(object sender, TextChangedEventArgs e)
-        {
-            filterSize = validInteger(FilterSize.Text, true);
-            if (filterSize < 0)
-                FilterSize.BorderBrush = Brushes.Red;
-            else
-                FilterSize.BorderBrush = Brushes.MediumBlue;
-            validate();
-        }
-
-        private void Threshold_TextChanged(object sender, TextChangedEventArgs e)
-        {
-            filterThreshold = validDouble(Threshold.Text);
-            if (filterThreshold < 0)
-                Threshold.BorderBrush = Brushes.Red;
-            else
-                Threshold.BorderBrush = Brushes.MediumBlue;
-            validate();
-        }
-
-        private void MinimumLength_TextChanged(object sender, TextChangedEventArgs e)
-        {
-            filterMinimumLength = validInteger(MinimumLength.Text, false);
-            if (filterMinimumLength < 0)
-                MinimumLength.BorderBrush = Brushes.Red;
-            else
-                MinimumLength.BorderBrush = Brushes.MediumBlue;
             validate();
         }
 

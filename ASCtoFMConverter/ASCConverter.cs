@@ -366,7 +366,7 @@ namespace ASCtoFMConverter
                                 FMStream.record.GV[4] = ++actualNumberOfFMRecs; //Record number in this episode
                                 FMStream.record.GV[5] = Convert.ToInt32(Math.Ceiling(startBDFPoint.ToSecs())); //Approximate seconds since start of BDF file
 
-                                //*****insert counting code here*****
+                                //*****Count PK Events*****
                                 int GVc0 = GVCount - PKDCounterGVs.Count;
                                 for (int j = GVc0; j < GVCount; j++) FMStream.record.GV[j] = 0;
                                 //calculate start and end times for this record: use BDFPoint values to assure accuracy;

@@ -160,7 +160,7 @@ namespace ASCtoFMConverter
     public class PKDetectorEventCounterDescription
     {
         internal string GVName;
-        internal int channelNumber;
+        internal string EventName;
         internal bool? found;
         internal bool includeChi2;
         internal Comp comp1;
@@ -169,10 +169,6 @@ namespace ASCtoFMConverter
         internal Comp comp2;
         internal double magnitude;
         internal bool? positive;
-        internal bool includeFilter;
-        internal int filterLength;
-        internal double filterThreshold;
-        internal int filterMinimumLength;
 
         internal int assignedGVNumber; //computed in ASCConverter once all PKDetectorEventCounterDescriptions created
 
@@ -186,14 +182,12 @@ namespace ASCtoFMConverter
         internal int countMatchingEvents(double startTime, double endTime, List<Event.InputEvent> events)
         {
             double d;
-            int v;
             int count = 0;
             foreach (InputEvent ie in events)
             {
                 if (ie.Time >= endTime) break; //Since Events are sorted, we're done when beyond endTime
                 if (ie.Time < startTime) continue; //Event before time span?
-                if (ie.Name != "PK detector event") continue; //Event not correct type?
-                if (ie.GetIntValueForGVName("Source channel") != channelNumber) continue;
+                if (ie.Name != EventName) continue; //Event not correct type?
                 if (found != null)
                     if (((bool)found) ^ (ie.GVValue[1] == "Found")) continue;
                 if (includeChi2)
@@ -210,15 +204,6 @@ namespace ASCtoFMConverter
                 }
                 if (positive != null)
                     if (((bool)positive) ^ (ie.GVValue[3] == "Positive")) continue;
-                if (includeFilter)
-                {
-                    v = ie.GetIntValueForGVName("Filter length");
-                    if (v != filterLength) continue;
-                    d = (double)ie.GetIntValueForGVName("Threshold") * samplingTime;
-                    if (d != filterThreshold) continue;
-                    v = ie.GetIntValueForGVName("Minimum length");
-                    if (v != filterMinimumLength) continue;
-                }
                 ++count;
             }
             return count;

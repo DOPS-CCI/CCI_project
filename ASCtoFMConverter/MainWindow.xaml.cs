@@ -632,9 +632,12 @@ namespace ASCtoFMConverter
             {
                 int v;
                 PKDetectorEventCounter pkd = (PKDetectorEventCounter)ede.EpisodeDescriptionPanel.Items[i];
-                int channelNumber = head.GroupVars["Source channel"].GVValueDictionary[(string)pkd.Channel.SelectedValue];
-                PKDetectorEventCounterDescription pkdDesc = new PKDetectorEventCounterDescription(bdf.SampleTime(channelNumber));
-                pkdDesc.channelNumber = channelNumber;
+                string channelBasisName = ((string)pkd.EventName.SelectedItem).Substring(7);
+                int i_;
+                if ((i_ = channelBasisName.IndexOf('_')) > 0) channelBasisName = channelBasisName.Substring(0, i_);
+                PKDetectorEventCounterDescription pkdDesc =
+                    new PKDetectorEventCounterDescription(bdf.ChannelNumberFromLabel(channelBasisName));
+                pkdDesc.EventName = (string)pkd.EventName.SelectedItem;
                 pkdDesc.GVName = pkd.GVName.Text;
                 v = pkd.Found.SelectedIndex;
                 if (v == 0) pkdDesc.found = null;
@@ -654,14 +657,6 @@ namespace ASCtoFMConverter
                 v=pkd.Sign.SelectedIndex;
                 if (v == 0) pkdDesc.positive = null;
                 else pkdDesc.positive = v == 1;
-                pkdDesc.includeFilter = (bool)pkd.Filter.IsChecked;
-                if (pkdDesc.includeFilter)
-                {
-                    pkdDesc.filterLength = pkd.filterSize;
-                    pkdDesc.filterThreshold = pkd.filterThreshold;
-                    pkdDesc.filterMinimumLength = pkd.filterMinimumLength;
-                }
-
                 epi.PKCounters.Add(pkdDesc);
             }
             return epi;

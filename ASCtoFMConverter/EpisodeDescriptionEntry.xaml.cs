@@ -35,6 +35,7 @@ namespace ASCtoFMConverter
         {
             this.hdr = head;
             this.validate = v;
+
             InitializeComponent();
 
             EventDictionary.EventDictionary events = hdr.Events;
@@ -377,7 +378,7 @@ namespace ASCtoFMConverter
         private void TabItem_PreviewMouseDown(object sender, MouseButtonEventArgs e)
         {
             PKDetectorEventCounter pkd = new PKDetectorEventCounter(hdr, validate);
-            if (pkd.Channel != null)
+            if (pkd.EventName != null)
                 EpisodeDescriptionPanel.Items.Insert(EpisodeDescriptionPanel.Items.Count - 1, pkd);
             e.Handled = true;
         }
