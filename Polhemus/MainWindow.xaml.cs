@@ -49,7 +49,7 @@ namespace Polhemus
 
         Projection projection;
 
-        const string networkFolder = @"X:\ElectrodePositionFiles";
+        static internal const string networkFolder = @"X:\ElectrodePositionFiles";
         const string templatesFolder = @"Templates"; //location of template files
         const double screenDPI = 120D; //modify to make window fit to screen
         const int smooth = 50; //smoothing factor for moving average distance
@@ -66,10 +66,20 @@ namespace Polhemus
             if (standAlone)
             {
                 w = new Window1();
-                foreach (string s in Directory.EnumerateFiles(networkFolder + System.IO.Path.DirectorySeparatorChar + templatesFolder))
+                try
                 {
-                    string f = System.IO.Path.GetFileNameWithoutExtension(s);
-                    w.Templates.Items.Add(f);
+                    foreach (string s in Directory.EnumerateFiles(networkFolder + System.IO.Path.DirectorySeparatorChar + templatesFolder))
+                    {
+                        string f = System.IO.Path.GetFileNameWithoutExtension(s);
+                        w.Templates.Items.Add(f);
+                    }
+                }
+                catch (Exception e)
+                {
+                    CCIUtilities.ErrorWindow ew = new CCIUtilities.ErrorWindow();
+                    ew.Message = "Unable to access Templates folder; message = " + e.Message;
+                    ew.ShowDialog();
+                    Environment.Exit(0);
                 }
                 w.Templates.SelectedIndex = 0;
                 w.WindowStartupLocation = WindowStartupLocation.CenterScreen;

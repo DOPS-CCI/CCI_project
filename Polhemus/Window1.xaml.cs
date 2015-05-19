@@ -58,6 +58,7 @@ namespace Polhemus
             dlg.DefaultExt = ".etr"; // Default file extension
             dlg.Filter = "Electrode Files (.etr)|*.etr"; // Filter files by extension
             dlg.FileName = "Electrodes.etr";
+            dlg.InitialDirectory = MainWindow.networkFolder;
             Nullable<bool> result = dlg.ShowDialog();
             if (result != null && (bool)result)
             {
