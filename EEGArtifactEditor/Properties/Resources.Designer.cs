@@ -59,5 +59,25 @@ namespace EEGArtifactEditor.Properties {
                 resourceCulture = value;
             }
         }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Byte[].
+        /// </summary>
+        internal static byte[] Reverse_16ch {
+            get {
+                object obj = ResourceManager.GetObject("Reverse_16ch", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Byte[].
+        /// </summary>
+        internal static byte[] Topological_128ch {
+            get {
+                object obj = ResourceManager.GetObject("Topological_128ch", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
     }
 }
