@@ -49,7 +49,7 @@ namespace Polhemus
 
         Projection projection;
 
-        static internal const string networkFolder = @"X:\ElectrodePositionFiles";
+        static internal string networkFolder = @"X:\ElectrodePositionFiles";
         const string templatesFolder = @"Templates"; //location of template files
         const double screenDPI = 120D; //modify to make window fit to screen
         const int smooth = 50; //smoothing factor for moving average distance
