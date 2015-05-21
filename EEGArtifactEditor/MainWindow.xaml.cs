@@ -51,8 +51,10 @@ namespace EEGArtifactEditor
         Popup channelPopup = new Popup();
         TextBlock popupTB = new TextBlock();
 
-        internal List<ChannelCanvas> candidateChannelList = new List<ChannelCanvas>(0);
-        internal List<ChannelCanvas> currentChannelList = new List<ChannelCanvas>(0); //list of currently displayed channels
+        internal List<int> EEGChannels = new List<int>(0); //list of EEG channels; only channels eligible for display
+        internal List<int> selectedEEGChannels; //final list of channels to display, ordered by montage
+
+        internal List<ChannelCanvas> currentChannelList = new List<ChannelCanvas>(0); //list of currently displayed channels, in order, top to bottom
         internal List<OutputEvent> events = new List<OutputEvent>();
         internal Dictionary<string, ElectrodeRecord> electrodes;
 
@@ -82,8 +84,14 @@ namespace EEGArtifactEditor
 
                 bdf = new BDFEDFFileReader(new FileStream(System.IO.Path.Combine(directory, header.BDFFile),
                         FileMode.Open, FileAccess.Read));
+
+                //make list of candidate EEG channels, so that channel selection window can use it
                 BDFLength = (double)bdf.NumberOfRecords * bdf.RecordDuration;
-                Window1 w = new Window1(this);
+                string trans = bdf.transducer(0); //here we assumne that channel 0 is an EEG channel
+                for (int i = 0; i < bdf.NumberOfChannels - 1; i++) //exclude Status channel
+                    if (bdf.transducer(i) == trans) EEGChannels.Add(i);
+
+                Window1 w = new Window1(this); //open channel selection and file approval window
                 r = (bool)w.ShowDialog();
 
             } while (r == false);
@@ -125,7 +133,7 @@ namespace EEGArtifactEditor
                     this.Close();
                 }
 
-                if (updateFlag)
+                if (updateFlag) //re-editing this dataset for artifacts
                 {
                     Event.EventFactory.Instance(header.Events); // set up the factory, based on this Event dictionary
                     //and read them in
@@ -158,19 +166,17 @@ namespace EEGArtifactEditor
                             i++;
                     }
                 }
+
                 //initialize the individual channel canvases
 
-                string trans = bdf.transducer(0); //here we assumne that channel 0 is an EEG channel
-                for (int i = 0; i < bdf.NumberOfChannels - 1; i++)
-                    if (bdf.transducer(i) == trans) //include only EEG channels; i.e. those that use the same transducer as channel 0
-                    {
-                        ChannelCanvas cc = new ChannelCanvas(this, i);
-                        ViewerCanvas.Children.Add(cc);
-                        ViewerCanvas.Children.Add(cc.offScaleRegions);
-                        candidateChannelList.Add(cc);
-                    }
+                foreach (int chan in selectedEEGChannels)
+                {
+                    ChannelCanvas cc = new ChannelCanvas(this, chan);
+                    currentChannelList.Add(cc);
+                    ViewerCanvas.Children.Add(cc);
+                    ViewerCanvas.Children.Add(cc.offScaleRegions);
+                }
 
-                currentChannelList.AddRange(candidateChannelList); //start with all the remaining channels
 
                 Title = headerFileName; //set window title
                 BDFFileInfo.Content = bdf.ToString();
@@ -757,74 +763,15 @@ namespace EEGArtifactEditor
 #if DEBUG
             Console.WriteLine("In ViewerContextMenu_Opened with graph " + graphNumber.ToString("0") + " and X " + rightMouseClickLoc.X);
 #endif
-            if (graphNumber < currentChannelList.Count)
-            {
-                //set up context menu about to be displayed
-                string channelName = bdf.channelLabel(currentChannelList[graphNumber]._channel);
-                ((MenuItem)(ViewerGrid.ContextMenu.Items[6])).Header = "Remove channel " + channelName;
-                if (currentChannelList.Count <= 1)
-                    ((MenuItem)(ViewerGrid.ContextMenu.Items[6])).IsEnabled = false;
-                else
-                    ((MenuItem)(ViewerGrid.ContextMenu.Items[6])).IsEnabled = true;
-                ViewerGrid.ContextMenu.Visibility = Visibility.Visible;
-                AddChannel.Items.Clear();
-                if (currentChannelList.Count < candidateChannelList.Count)
-                {
-                    ((MenuItem)ViewerGrid.ContextMenu.Items[5]).IsEnabled = true;
-                    foreach (ChannelCanvas cc in candidateChannelList)
-                    {
-                        if (currentChannelList.Contains(cc)) continue;
-                        MenuItem mi = new MenuItem();
-                        mi.Header = bdf.channelLabel(cc._channel);
-                        mi.Click += new RoutedEventHandler(MenuItemAdd_Click);
-                        AddChannel.Items.Add(mi);
-                    }
-                }
-                else
-                {
-                    ((MenuItem)ViewerGrid.ContextMenu.Items[5]).IsEnabled = false;
-                }
-                RemoveSeg.IsEnabled = MarkerCanvas.NumberOfRegions > 0 &&
-                    MarkerCanvas.FindRegion(rightMouseClickLoc.X) != null;
-            }
-            else
-                ViewerGrid.ContextMenu.Visibility = Visibility.Collapsed;
-        }
-
-        private void MenuItemAdd_Click(object sender, RoutedEventArgs e)
-        {
-            int chan = bdf.ChannelNumberFromLabel((string)((MenuItem)sender).Header);
-            ChannelCanvas cc = candidateChannelList.Find(c => c._channel == chan);
-            int index;
-            for (index = 0; index < currentChannelList.Count; index++)
-                if (currentChannelList[index]._channel > chan) break;
-            currentChannelList.Insert(index, cc);
-            ViewerCanvas.Children.Add(cc); //order doesn't make a difference
-            ViewerCanvas.Children.Add(cc.offScaleRegions);
-            ChannelCanvas.nominalCanvasHeight = ViewerGrid.ActualHeight / currentChannelList.Count;
-            ChannelCanvas.decimateOld = -1;
-            reDrawChannelLabels();
-            reDrawChannels();
-        }
-
-        private void MenuItemRemove_Click(object sender, RoutedEventArgs e)
-        {
-            if (graphNumber < currentChannelList.Count && currentChannelList.Count > 1)
-            {
-                ChannelCanvas cc = currentChannelList[graphNumber];             
-                currentChannelList.Remove(cc);
-                ViewerCanvas.Children.Remove(cc);
-                ViewerCanvas.Children.Remove(cc.offScaleRegions);
-                ChannelCanvas.nominalCanvasHeight = ViewerGrid.ActualHeight / currentChannelList.Count;
-                reDrawChannelLabels();
-                reDrawChannels();
-            }
         }
 
         private void MenuItemMakeNote_Click(object sender, RoutedEventArgs e)
         {
             if (graphNumber < currentChannelList.Count)
-                Clipboard.SetText(bdf.channelLabel(currentChannelList[graphNumber]._channel)); //copy channel name to clipboard
+            {
+                int chan = currentChannelList[graphNumber]._channel;
+                Clipboard.SetText(bdf.channelLabel(chan) + "(" + (chan + 1).ToString("0") + ")"); //copy channel name to clipboard
+            }
             else
                 Clipboard.SetText("");
             if (notes == null) //has it been closed?
@@ -926,18 +873,7 @@ namespace EEGArtifactEditor
                 notes.Close();
             Log.writeToLog("EEGArtifactEditor ending");
         }
-/*
-        private void Window_KeyDown(object sender, KeyEventArgs e)
-        {
-            switch (e.Key)
-            {
-                default:
-                    Console.WriteLine(e.Key);
-                    break;
-            }
-            e.Handled = false;
-        }
-*/
+
         private void VerticalScale_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             ComboBox cb = (ComboBox)sender;
@@ -1059,7 +995,7 @@ namespace EEGArtifactEditor
                 foreach (ChannelCanvas cc in currentChannelList)
                     markChannelRegions(cc);
             else
-                foreach (ChannelCanvas cc in candidateChannelList)
+                foreach (ChannelCanvas cc in currentChannelList)
                     cc.offScaleRegions.Visibility = Visibility.Hidden;
         }
     }
@@ -1119,6 +1055,9 @@ namespace EEGArtifactEditor
             _channelLabel = new TextBlock(new Run(bdf.channelLabel(_channel)));
             this.VerticalAlignment = VerticalAlignment.Top;
             this.HorizontalAlignment = HorizontalAlignment.Stretch;
+
+            this.ToolTip = bdf.channelLabel(_channel) + "(" + (_channel + 1).ToString("0") + ")";
+
             path.Stroke = Brushes.Black;
             path.StrokeLineJoin = PenLineJoin.Round;
             path.Data = geometry;

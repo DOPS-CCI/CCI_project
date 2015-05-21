@@ -44,15 +44,11 @@
                             <Separator/>
                             <MenuItem Header="Create entry note" Click="MenuItemMakeNote_Click"/>
                             <Separator/>
-                            <MenuItem Name="AddChannel" Header="Add channel"/>
-                            <MenuItem Header="Remove channel " Click="MenuItemRemove_Click" />
-                            <Separator/>
                             <MenuItem Header="Print window" Click="MenuItemPrint_Click" />
                         </ContextMenu>
                     </Grid.ContextMenu>
                     <Canvas Name="ViewerCanvas">
                         <local:MarkerCanvasClass x:Name="MarkerCanvas"/>
-<!--                    <Line Fill="Red" Stroke="Black" Canvas.Top="100" Canvas.Left="100" X1="0" X2="100" Y1="100" Y2="-100" ClipToBounds="False" />--> 
                     </Canvas>
                 </Grid>
            </ScrollViewer>
