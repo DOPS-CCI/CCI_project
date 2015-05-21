@@ -1179,6 +1179,7 @@ namespace DatasetReviewer
             path.StrokeLineJoin = PenLineJoin.Round;
             path.Data = geometry;
             this.Children.Add(path);
+            this.ToolTip = bdf.channelLabel(_channel) + "(" + (_channel + 1).ToString("0") + ")";
             baseline.X1 = 0;
             baseline.HorizontalAlignment = HorizontalAlignment.Left;
             baseline.VerticalAlignment = VerticalAlignment.Top;

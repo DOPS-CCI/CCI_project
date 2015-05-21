@@ -27,7 +27,7 @@
     <InstallUrl>http://zoomlenz.net/CCI/publish/DatasetReviewer/</InstallUrl>
     <CreateWebPageOnPublish>true</CreateWebPageOnPublish>
     <WebPage>publish.htm</WebPage>
-    <ApplicationRevision>15</ApplicationRevision>
+    <ApplicationRevision>16</ApplicationRevision>
     <ApplicationVersion>1.0.0.%2a</ApplicationVersion>
     <UseApplicationTrust>false</UseApplicationTrust>
     <CreateDesktopShortcut>true</CreateDesktopShortcut>
@@ -64,10 +64,10 @@
     <SignManifests>true</SignManifests>
   </PropertyGroup>
   <PropertyGroup>
-    <ManifestCertificateThumbprint>93B122B36FCEA52D918BD5D61D35832FB9BE7CA7</ManifestCertificateThumbprint>
+    <ManifestCertificateThumbprint>055FD3EEAB01D47F4134FD16E55C8D2B0A562243</ManifestCertificateThumbprint>
   </PropertyGroup>
   <PropertyGroup>
-    <ManifestKeyFile>DatasetReviewer_TemporaryKey.pfx</ManifestKeyFile>
+    <ManifestKeyFile>DatasetReviewer_1_TemporaryKey.pfx</ManifestKeyFile>
   </PropertyGroup>
   <PropertyGroup>
     <SignAssembly>true</SignAssembly>
