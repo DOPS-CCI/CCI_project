@@ -33,7 +33,7 @@ namespace ASCtoFMConverter
         string directory;
         string headerFileName;
         int samplingRate;
-        double markerOffset;
+        double offsetToFirstEvent;
         ASCtoFMConverter.ASCConverter asc = null;
 
         int _decimation;
@@ -64,14 +64,14 @@ namespace ASCtoFMConverter
 
         public Window2()
         {
-            CCIUtilities.Log.writeToLog("Starting ASCtoFMConverter " + CCIUtilities.Utilities.getVersionNumber());
-
             Microsoft.Win32.OpenFileDialog dlg = new Microsoft.Win32.OpenFileDialog();
             dlg.Title = "Open Header file ...";
             dlg.DefaultExt = ".hdr"; // Default file extension
             dlg.Filter = "HDR Files (.hdr)|*.hdr"; // Filter files by extension
             Nullable<bool> result = dlg.ShowDialog();
             if (result == null || result == false) Environment.Exit(0);
+
+            CCIUtilities.Log.writeToLog("Starting ASCtoFMConverter " + CCIUtilities.Utilities.getVersionNumber());
 
             directory = System.IO.Path.GetDirectoryName(dlg.FileName);
             headerFileName = System.IO.Path.GetFileNameWithoutExtension(dlg.FileName);
@@ -87,7 +87,7 @@ namespace ASCtoFMConverter
             InitializeComponent();
 
             this.MinHeight = SystemInformation.WorkingArea.Height - 240;
-            this.EpisodeEntries.Items.Add(new EpisodeDescriptionEntry(head, checkError)); //include initial episode description
+            this.EpisodeEntries.Items.Add(new EpisodeDescriptionEntry(head, myValidate)); //include initial episode description
 
             this.Title = "Convert " + headerFileName;
             this.TitleLine.Text = head.Title + " - " + head.Date + " " + head.Time + " S=" + head.Subject.ToString("0000");
@@ -120,10 +120,10 @@ namespace ASCtoFMConverter
  
         private void AddSpec_Click(object sender, RoutedEventArgs e)
         {
-            EpisodeDescriptionEntry episode = new EpisodeDescriptionEntry(head, checkError);
+            EpisodeDescriptionEntry episode = new EpisodeDescriptionEntry(head, myValidate);
             EpisodeEntries.Items.Add(episode);
             if (EpisodeEntries.Items.Count > 1) RemoveSpec.IsEnabled = true;
-            checkError();
+            myValidate();
         }
 
         private void RemoveSpec_Click(object sender, RoutedEventArgs e)
@@ -131,7 +131,7 @@ namespace ASCtoFMConverter
             EpisodeDescriptionEntry episode = (EpisodeDescriptionEntry)EpisodeEntries.SelectedItem;
             EpisodeEntries.Items.Remove(episode);
             if (EpisodeEntries.Items.Count == 1) RemoveSpec.IsEnabled = false;
-            checkError();
+            myValidate();
         }
 
         private void All_Click(object sender, RoutedEventArgs e)
@@ -146,13 +146,13 @@ namespace ASCtoFMConverter
 
         private void ConvertFM_Click(object sender, RoutedEventArgs e)
         {
-            if ((bool)NoMarkers.IsChecked)
+            if ((bool)NoSyncToStatus.IsChecked)
             {
                 SetUpIgnoreStatus dialog = new SetUpIgnoreStatus();
                 dialog.Owner = this;
                 if (!(bool)dialog.ShowDialog())
                     return; //without conversion
-                markerOffset = dialog.offsetValue;
+                offsetToFirstEvent = dialog.offsetValue;
             }
 
             ConvertFM.Visibility = Visibility.Hidden;
@@ -229,7 +229,7 @@ namespace ASCtoFMConverter
                 int[] res = (int[])e.Result;
                 StatusLine.Text = "Status: Conversion completed with " + res[0].ToString("0") + " records in " + res[1].ToString("0") + " recordsets generated.";
             }
-            checkError();
+            myValidate();
         }
 
         private void Decimation_TextChanged(object sender, TextChangedEventArgs e)
@@ -246,7 +246,7 @@ namespace ASCtoFMConverter
                 _decimation = 0;
                 Decimation.BorderBrush = System.Windows.Media.Brushes.Red;
             }
-            checkError();
+            myValidate();
         }
 
         double _recLength;
@@ -263,7 +263,7 @@ namespace ASCtoFMConverter
                 _recLength = 0D;
                 RecLength.BorderBrush = System.Windows.Media.Brushes.Red;
             }
-            checkError();
+            myValidate();
         }
 
         double _radinLow;
@@ -281,7 +281,7 @@ namespace ASCtoFMConverter
                 RadinLow.BorderBrush = System.Windows.Media.Brushes.Red;
                 RadinLowPts.Text = "Error";
             }
-            checkError();
+            myValidate();
         }
 
         double _radinHigh;
@@ -299,7 +299,7 @@ namespace ASCtoFMConverter
                 RadinHigh.BorderBrush = System.Windows.Media.Brushes.Red;
                 RadinHighPts.Text = "Error";
             }
-            checkError();
+            myValidate();
         }
 
         List<int> _refChan;
@@ -321,7 +321,7 @@ namespace ASCtoFMConverter
                 else
                     RefChanName.Text = bdf.channelLabel(_refChan[0]);
             }
-            checkError();
+            myValidate();
         }
 
         List<List<int>> _refChanExp;
@@ -354,7 +354,7 @@ namespace ASCtoFMConverter
                 int lc = _refChanExp.Count / 2;
                 RefChanExpDesc.Text = lc.ToString("0") + " reference set" + (lc <= 1 ? "" : "s");
             }
-            checkError();
+            myValidate();
         }
 
         private void SelChan_TextChanged(object sender, TextChangedEventArgs e)
@@ -375,7 +375,7 @@ namespace ASCtoFMConverter
                 else
                     SelChanName.Text = bdf.channelLabel(channels[0]);
             }
-            checkError();
+            myValidate();
         }
 
         private List<int> parseList(string str)
@@ -449,21 +449,21 @@ namespace ASCtoFMConverter
         private void Radin_Checked(object sender, RoutedEventArgs e)
         {
             Offsets.IsEnabled = !(bool)Radin.IsChecked;
-            checkError();
+            myValidate();
         }
 
         private void listView2_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            checkError();
+            myValidate();
         }
 
-        private void Window_Closing(object sender, EventArgs e)
+        private void Window_Closed(object sender, EventArgs e)
         {
-            CCIUtilities.Log.writeToLog("ASCtoFMConverter ending");
             bdf.Close();
+            CCIUtilities.Log.writeToLog("ASCtoFMConverter ending");
         }
 
-        private void checkError()
+        private void myValidate()
         {
             if (!this.IsLoaded) return;
 
@@ -526,11 +526,12 @@ namespace ASCtoFMConverter
 
         private void radioButton_Changed(object sender, RoutedEventArgs e)
         {
-            checkError();
+            myValidate();
         }
 
         private void createASCConverter(ASCConverter conv)
         {
+            conv.syncToFirst = (bool)SyncToFirst.IsChecked;
             conv.specs = new EpisodeDescription[this.EpisodeEntries.Items.Count];
             for (int i = 0; i < this.EpisodeEntries.Items.Count; i++)
             {
@@ -540,7 +541,7 @@ namespace ASCtoFMConverter
             conv.channels = this.channels;
             conv.directory = this.directory;
             conv.headerFileName = this.headerFileName;
-            conv.GV = listView2.SelectedItems.Cast<GVEntry>().ToList<GVEntry>();
+            conv.GVCopyAcross = listView2.SelectedItems.Cast<GVEntry>().ToList<GVEntry>();
             conv.head = this.head;
             conv.decimation = _decimation;
             conv.removeOffsets = (bool)removeOffsets.IsChecked;
@@ -580,8 +581,8 @@ namespace ASCtoFMConverter
             conv.ED = this.ED;
             conv.FMRecLength = this._recLength;
             conv.samplingRate = this.samplingRate;
-            if (conv.ignoreStatus = (bool)NoMarkers.IsChecked)
-                conv.offsetToFirstEvent = markerOffset;
+            if (conv.ignoreStatus = (bool)NoSyncToStatus.IsChecked)
+                conv.offsetToFirstEvent = offsetToFirstEvent;
         }
 
         private EpisodeDescription getEpisode(EpisodeDescriptionEntry ede)
@@ -590,6 +591,7 @@ namespace ASCtoFMConverter
             epi.GVValue = Convert.ToInt32(ede.GVSpec.Text);
             epi.Start._Event = ede.Event1.SelectedItem; //may be EDE or string
             epi.End._Event = ede.Event2.SelectedItem; //may be EDE or string
+            epi.useEOF = (bool)ede.useEOF.IsChecked;
             Object o = ede.GV1.SelectedItem;
             if (o != null && o.GetType().Name == "GVEntry")
                 epi.Start._GV = (GVEntry)o;
@@ -623,6 +625,39 @@ namespace ASCtoFMConverter
                 object o1 = ede.Event4.SelectedItem;
                 if (o1.GetType() == typeof(EventDictionaryEntry) && o != o1)
                     epi.Exclude.endEvent = (EventDictionaryEntry)o1;
+            }
+
+            //create list of any counter routines
+            for (int i = 1; i < ede.EpisodeDescriptionPanel.Items.Count - 1; i++)
+            {
+                int v;
+                PKDetectorEventCounter pkd = (PKDetectorEventCounter)ede.EpisodeDescriptionPanel.Items[i];
+                string channelBasisName = ((string)pkd.EventName.SelectedItem).Substring(7);
+                int i_;
+                if ((i_ = channelBasisName.IndexOf('_')) > 0) channelBasisName = channelBasisName.Substring(0, i_);
+                PKDetectorEventCounterDescription pkdDesc =
+                    new PKDetectorEventCounterDescription(bdf.ChannelNumberFromLabel(channelBasisName));
+                pkdDesc.EventName = (string)pkd.EventName.SelectedItem;
+                pkdDesc.GVName = pkd.GVName.Text;
+                v = pkd.Found.SelectedIndex;
+                if (v == 0) pkdDesc.found = null;
+                else pkdDesc.found = v == 1;
+                pkdDesc.includeChi2=(bool)pkd.Chi2.IsChecked;
+                if (pkdDesc.includeChi2)
+                {
+                    pkdDesc.comp1 = pkd.Comp1.SelectedIndex == 0 ? Comp.lessthan : Comp.greaterthan;
+                    pkdDesc.chi2 = pkd.chi2;
+                }
+                pkdDesc.includeMagnitude = (bool)pkd.Magnitude.IsChecked;
+                if (pkdDesc.includeMagnitude)
+                {
+                    pkdDesc.comp2 = pkd.Comp2.SelectedIndex == 0 ? Comp.greaterthan : Comp.lessthan;
+                    pkdDesc.magnitude = pkd.magnitude;
+                }
+                v=pkd.Sign.SelectedIndex;
+                if (v == 0) pkdDesc.positive = null;
+                else pkdDesc.positive = v == 1;
+                epi.PKCounters.Add(pkdDesc);
             }
             return epi;
         }

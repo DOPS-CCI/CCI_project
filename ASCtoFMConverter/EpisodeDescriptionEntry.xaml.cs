@@ -35,10 +35,12 @@ namespace ASCtoFMConverter
         {
             this.hdr = head;
             this.validate = v;
+
             InitializeComponent();
 
             EventDictionary.EventDictionary events = hdr.Events;
             Event1.Items.Add("Any Event");
+            Event1.Items.Add("Beginning of file");
             Event2.Items.Add("Same Event");
             Event2.Items.Add("Next Event (any)");
             Event2.Items.Add("Next Event (covered)");
@@ -70,14 +72,36 @@ namespace ASCtoFMConverter
         private void Event1_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (GV1 == null) return;
+            if (e.RemovedItems.Count > 0) //is this the first entry?
+            {
+                object removedItem = e.RemovedItems[0]; //find out if the item changed away from was BOF
+                if (removedItem.GetType() == typeof(string) && (string)removedItem == "Beginning of file" && Event2 != null)
+                { //if so we need to remove this choice from Event2
+                    Event2.Items.Insert(0, "Same Event");
+                    if (Event2.SelectedIndex == 3)
+                        Event2.SelectedIndex = 0; //reselect if we were on BOF here too
+                    Event2.Items.RemoveAt(3); //then remove BOF choice
+                }
+            }
             GV1.Items.Clear();
             GV1.Items.Add("*None*");
+            GV1.SelectedIndex = 0;
+            Comp1.IsEnabled = false;
+            GVValue1TB.IsEnabled = false;
+            GVPanel1.IsEnabled = true;
             Object o = Event1.SelectedItem;
             if (o.GetType().Name=="String")
             {
-                if (hdr.GroupVars != null)
+                if ((string)o == "Any Event" && hdr.GroupVars != null)
                     foreach (GVEntry gv in hdr.GroupVars.Values)
                         GV1.Items.Add(gv);
+                else if((string)o == "Beginning of file")
+                {
+                    GVPanel1.IsEnabled = false;
+                    Event2.Items.Insert(3, "Beginning of file"); //add this choice to Event2
+                    Event2.SelectedIndex = 3; //Select Beginning of file
+                    Event2.Items.RemoveAt(0); //then remove unneeded item
+                }
             }
             else
             {
@@ -85,9 +109,6 @@ namespace ASCtoFMConverter
                     foreach (GVEntry gv in ((EventDictionaryEntry)o).GroupVars)
                         GV1.Items.Add(gv);
             }
-            GV1.SelectedIndex = 0;
-            Comp1.IsEnabled = false;
-            GVValue1TB.IsEnabled = false;
             validate();
         }
 
@@ -97,10 +118,13 @@ namespace ASCtoFMConverter
             Offset1_TextChanged(null, null); //check for correct offset values
             GV2.Items.Clear();
             GV2.Items.Add("*None*");
+            GV2.SelectedIndex = 0;
+            Comp2.IsEnabled = false;
+            GVValue2TB.IsEnabled = false;
             Object o = Event2.SelectedItem;
             if (o.GetType().Name == "String")
             {
-                if ((string)o == "Same Event")
+                if ((string)o == "Same Event" || (string)o == "Beginning of file")
                 {
                     GVPanel2.IsEnabled = false;
                     return;
@@ -115,9 +139,6 @@ namespace ASCtoFMConverter
                     foreach (GVEntry gv in ((EventDictionaryEntry)o).GroupVars)
                         GV2.Items.Add(gv);
             }
-            GV2.SelectedIndex = 0;
-            Comp2.IsEnabled = false;
-            GVValue2TB.IsEnabled = false;
             GVPanel2.IsEnabled = true;
             validate();
         }
@@ -240,15 +261,16 @@ namespace ASCtoFMConverter
             validate();
         }
 
+//*********** Validation routine ************
         public bool Validate()
         {
             bool valid = true;
-            if (_GVspec <= 0)
+
+            for (int i = 1; i < EpisodeDescriptionPanel.Items.Count - 1; i++)
             {
-                valid = false;
-                GVSpec.BorderBrush = Brushes.Red;
+                PKDetectorEventCounter pkd = (PKDetectorEventCounter)EpisodeDescriptionPanel.Items[i];
+                valid &= pkd.Validate();
             }
-            else GVSpec.BorderBrush = Brushes.MediumBlue;
 
             if (double.IsNaN(_offset1))
             {
@@ -263,6 +285,35 @@ namespace ASCtoFMConverter
                 Offset2.BorderBrush = Brushes.Red;
             }
             else Offset2.BorderBrush = Brushes.MediumBlue;
+
+            if (this.Event1.SelectedItem.GetType() == typeof(string) && ((string)Event1.SelectedItem) == "Beginning of file")
+            { //this is special case where we are referencing from beginning of file
+                if (valid &&
+                    this.Event2.SelectedItem.GetType() == typeof(string) &&
+                    ((string)Event2.SelectedItem) == "Beginning of file") //then we know that both offset1 and offset2 are numbers
+                    // and Event2 is Beginning of file
+                {
+                    if (_offset1 < 0)
+                    {
+                        valid = false;
+                        Offset1.BorderBrush = Brushes.Red;
+                    }
+                    if (_offset1 >= _offset2)
+                    {
+                        valid = false;
+                        Offset1.BorderBrush = Brushes.Red;
+                        Offset2.BorderBrush = Brushes.Red;
+                    }
+                }
+                return valid;
+            }
+
+            if (_GVspec <= 0)
+            {
+                valid = false;
+                GVSpec.BorderBrush = Brushes.Red;
+            }
+            else GVSpec.BorderBrush = Brushes.MediumBlue;
 
             if(!double.IsNaN(_offset1) && !double.IsNaN(_offset2))
                 if (Event2.SelectedItem.GetType().Name == "String" &&
@@ -324,10 +375,12 @@ namespace ASCtoFMConverter
             validate();
         }
 
-        private void Event4_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private void TabItem_PreviewMouseDown(object sender, MouseButtonEventArgs e)
         {
-
+            PKDetectorEventCounter pkd = new PKDetectorEventCounter(hdr, validate);
+            if (pkd.EventName != null)
+                EpisodeDescriptionPanel.Items.Insert(EpisodeDescriptionPanel.Items.Count - 1, pkd);
+            e.Handled = true;
         }
-
     }
 }

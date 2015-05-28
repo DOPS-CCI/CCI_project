@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
+using System.Linq;
 using System.Text;
 using BDFEDFFileStream;
 using ElectrodeFileStream;
@@ -33,10 +34,12 @@ namespace ASCtoFMConverter
         public List<List<int>> referenceGroups = null;
         public List<List<int>> referenceChannels = null;
         public BDFEDFFileStream.BDFEDFFileReader bdf;
-        public List<GVEntry> GV;
+        public List<GVEntry> GVCopyAcross;
+        public Dictionary<string,int> PKDCounterGVs;
         public double FMRecLength;
         public int samplingRate;
         public bool ignoreStatus;
+        public bool syncToFirst; //if true sync clock to first covered Event; if false, to first Event after middle of dataset
         public double offsetToFirstEvent = -1D; //Negative to indicate use actual times in Events
 
         protected BackgroundWorker bw;
@@ -57,7 +60,7 @@ namespace ASCtoFMConverter
             ElectrodeInputFileStream etrFile = new ElectrodeInputFileStream(
                 new FileStream(System.IO.Path.Combine(directory, head.ElectrodeFile), FileMode.Open, FileAccess.Read));
 
-            /***** Open FILMAN file *****/
+            /***** Open new FILMAN file *****/
             SaveFileDialog dlg = new SaveFileDialog();
             dlg.Title = "Save as FILMAN file ...";
             dlg.AddExtension = true;
@@ -74,9 +77,35 @@ namespace ASCtoFMConverter
             int newRecordLength = Convert.ToInt32(Math.Ceiling(FMRecLength * samplingRate / (double)decimation));
             int FMRecordLengthInBDF = Convert.ToInt32(FMRecLength * samplingRate);
 
+            int GVCount = 6 + GVCopyAcross.Count;
+
+            //Create dictionary of newly created counting GVs
+            PKDCounterGVs = new Dictionary<string, int>(); //GV name, GV location index
+            foreach (EpisodeDescription ed in specs)
+            {
+                foreach (PKDetectorEventCounterDescription pkd in ed.PKCounters)
+                {
+                    string s = pkd.GVName;
+                    if (PKDCounterGVs.ContainsKey(s)) //already found, use correct GV number
+                        pkd.assignedGVNumber = PKDCounterGVs[s];
+                    else
+                    {
+                        PKDCounterGVs.Add(s, GVCount); //record new name in dictionary
+                        pkd.assignedGVNumber = GVCount++; //with its GV number
+                    }
+                }
+            }
+
+            //NOTE: because we have to have the number of GVs (and Channels) available when we create the output stream,
+            // we have to separate the enumeration of GVs from the naming of GVs; this could be avoided by using lists
+            // rather than arrays for GVNames in FILMANOuputStream and having an actual Header entity for FILMAN files;
+            // one would then enter the GVNames (and Channel names) into the list before creating the ouput stream and have
+            // the constructor use the counts to get NG and NC; NA could also be an array that must be created before as a
+            // byte array, but this might be awkward
+
             FMStream = new FILMANOutputStream(
                 File.Open(dlg.FileName, FileMode.Create, FileAccess.ReadWrite),
-                GV.Count + 6, 0, channels.Count,
+                GVCount, 0, channels.Count,
                 newRecordLength,
                 FILMANFileStream.FILMANFileStream.Format.Real);
             log = new LogFile(dlg.FileName + ".log.xml");
@@ -85,21 +114,26 @@ namespace ASCtoFMConverter
             //in case we need for reference calculations
 
             /***** Create FILMAN header records *****/
+
+            //First GV names:
+            //six for the standard generated
             FMStream.GVNames(0, "Channel");
             FMStream.GVNames(1, "Montage");
             FMStream.GVNames(2, "NewGroupVariable");
             FMStream.GVNames(3, "EpisodeNumber");
             FMStream.GVNames(4, "EpisodeRecordNumber");
             FMStream.GVNames(5, "SecondsFromStart");
-            int j = 6;
-            foreach (GVEntry gv in GV) FMStream.GVNames(j++, gv.Name); //generate group variable names
+            //then the copied-across GVs
+            for (int n = 0; n < GVCopyAcross.Count; n++) FMStream.GVNames(n + 6, GVCopyAcross[n].Name);
+            //and last, the GVs from the counters
+            foreach (KeyValuePair<string, int> kvp in PKDCounterGVs) FMStream.GVNames(kvp.Value, kvp.Key);
 
-            for (j = 0; j < FMStream.NC; j++) //generate channel labels
+            for (int j = 0; j < FMStream.NC; j++) //generate channel labels
             {
                 string s = bdf.channelLabel(channels[j]);
                 ElectrodeFileStream.ElectrodeRecord p;
                 if (etrFile.etrPositions.TryGetValue(s, out p))
-                    FMStream.ChannelNames(j, s.PadRight(16, ' ') + p.projectPhiTheta().ToString("0"));   //add electrode location information, if available
+                    FMStream.ChannelNames(j, s.PadRight(16, ' ') + p.projectPhiTheta().ToString("0")); //add electrode location information, if available
                 else
                     FMStream.ChannelNames(j, s);
             }
@@ -114,20 +148,20 @@ namespace ASCtoFMConverter
             FMStream.Description(1, sb.ToString());
             sb.Clear();
             sb = sb.Append(specs[0].ToString());
-            for (j = 1; j < specs.Length; j++) sb.Append("/ " + specs[j].ToString());
+            for (int j = 1; j < specs.Length; j++) sb.Append("/ " + specs[j].ToString());
             string str = sb.ToString();
-            j = str.Length;
+            int sl = str.Length;
             int k;
-            if (j < 72) { FMStream.Description(2, str); k = 3; }
+            if (sl < 72) { FMStream.Description(2, str); k = 3; }
             else
             {
                 FMStream.Description(2, str.Substring(0, 72));
-                if (j < 144) { FMStream.Description(3, str.Substring(72)); k = 4; }
+                if (sl < 144) { FMStream.Description(3, str.Substring(72)); k = 4; }
                 else
                 {
                     FMStream.Description(3, str.Substring(72, 72));
                     k = 5;
-                    if (j < 216) FMStream.Description(4, str.Substring(144));
+                    if (sl < 216) FMStream.Description(4, str.Substring(144));
                     else FMStream.Description(4, str.Substring(144, 72));
                 }
             }
@@ -159,8 +193,13 @@ namespace ASCtoFMConverter
 
             int epiNo = 0; //found episode counter
 
-            IEnumerator<InputEvent> EFREnum; //Enumerator for stepping through Event file
-            bool more;
+            //read in list of Events
+            List<InputEvent> EventList = new List<InputEvent>();
+            foreach (InputEvent ie in new EventFileReader(
+                    new FileStream(System.IO.Path.Combine(directory, head.EventFile),
+                    FileMode.Open, FileAccess.Read)))
+                EventList.Add(ie);
+            IEnumerator<InputEvent> EventEnumerator; //Enumerator for stepping through Event file
 
  //******** Synchronize clocks
             //Need to synchronize clocks by setting the BDF.zeroTime value
@@ -171,26 +210,48 @@ namespace ASCtoFMConverter
             else 
             { //Need to find a covered (intrisic or extrinsic) Event to use as an indicial Event
                 bool found = false;
-                EFREnum = (new EventFileReader(
-                    new FileStream(System.IO.Path.Combine(directory, head.EventFile),
-                    FileMode.Open, FileAccess.Read))).GetEnumerator();
-                while (!found && EFREnum.MoveNext())
-                {
-                    if (EFREnum.Current.EDE.intrinsic != null) //have we found a covered Event?
+                EventEnumerator = EventList.GetEnumerator();
+                if (syncToFirst || ignoreStatus)
+                    while (!found && EventEnumerator.MoveNext())
                     {
-                        if (ignoreStatus)
+                        if (EventEnumerator.Current.EDE.intrinsic != null) //have we found a covered Event?
                         {
-                            bdf.setZeroTime(EFREnum.Current.Time - offsetToFirstEvent);
+                            if (ignoreStatus)
+                            {
+                                bdf.setZeroTime(EventEnumerator.Current.Time - offsetToFirstEvent);
+                                found = true;
+                            }
+                            else
+                                found = bdf.setZeroTime(EventEnumerator.Current);
+                        }
+                    }
+                else //sync to "middle" Event
+                {
+                    int midRecord = bdf.NumberOfRecords / 2;
+                    BDFLocFactory fac = new BDFLocFactory(bdf);
+                    BDFLoc loc = fac.New();
+                    loc.Rec = midRecord;
+                    bdf.read(midRecord);
+                    uint v1 = head.Mask & (uint)bdf.getStatusSample(loc);
+                    uint v2;
+                    InputEvent IE;
+                    while ((v2 = (uint)bdf.getStatusSample(++loc) & head.Mask) == v1) ;
+                    while (!found && EventEnumerator.MoveNext())
+                    {
+                        
+                        IE = EventEnumerator.Current;
+                        if (IE.GC == v2)
+                        {
+                            bdf.setZeroTime(IE.Time - loc.ToSecs());
                             found = true;
                         }
-                        else
-                            found = bdf.setZeroTime(EFREnum.Current);
                     }
                 }
                 if (!found)
                     throw (new Exception("No valid synchronizing Event found; use manual synchronization"));
-                EFREnum.Dispose();
             }
+            Log.writeToLog("\tinto FM file " + dlg.FileName);
+
 
             //Loop through each episode specification,
             // then through the Event file to find any regions satisfying the specification,
@@ -203,29 +264,30 @@ namespace ASCtoFMConverter
                 FMStream.record.GV[2] = currentEpisode.GVValue; //set epispec GV value
 
                 if (currentEpisode.Exclude != null)
-                {//Here we complete the ExclusionDescription for the given Episode specification
+                {
+                    //Here we complete the ExclusionDescription for the given Episode specification
                     //by finding all the segemnts that must be excluded and 
-                    //calculating their From to To BDFPoints
+                    //calculating their From to To BDFPoints; this is done for each specification to
+                    //permit different exclusion criteria for each EpisodeDescription
+
                     ExclusionDescription ed = currentEpisode.Exclude;
-                    EFREnum = (new EventFileReader(
-                        new FileStream(System.IO.Path.Combine(directory, head.EventFile),
-                        FileMode.Open, FileAccess.Read))).GetEnumerator();
+                    EventEnumerator = EventList.GetEnumerator();
                     EventDictionaryEntry startEDE = ed.startEvent;
-                    bool t = ed.endEvent.GetType() == typeof(EventDictionaryEntry);
+                    bool t = ed.endEvent != null && ed.endEvent.GetType() == typeof(EventDictionaryEntry);
                     EventDictionaryEntry endEDE = null;
                     if(t)
                         endEDE = (EventDictionaryEntry)ed.endEvent;
-                    while(EFREnum.MoveNext())
+                    while(EventEnumerator.MoveNext())
                     {
-                        InputEvent ev = EFREnum.Current;
+                        InputEvent ev = EventEnumerator.Current;
                         if (ev.Name == startEDE.Name)
                         {
                             BDFPoint b = new BDFPoint(bdf).FromSecs(ev.Time - bdf.zeroTime);
                             ed.From.Add(b);
                             if (t)
-                                while (EFREnum.MoveNext())
+                                while (EventEnumerator.MoveNext())
                                 {
-                                    ev = EFREnum.Current;
+                                    ev = EventEnumerator.Current;
                                     if (ev.Name == endEDE.Name)
                                     {
                                         ed.To.Add(new BDFPoint(bdf).FromSecs(ev.Time - bdf.zeroTime));
@@ -236,134 +298,172 @@ namespace ASCtoFMConverter
                                 ed.To.Add(b);
                         }
                     }
-                    EFREnum.Dispose();
                 }
 
-                // Technique is to loop through Event file until an Event is found that matches the
+                // From here we loop through Event file until an Event is found that matches the
                 // current startEvent in spec[i]; from that point a matching endEvent is sought;
                 // episode is then processed; note that this implies that overlapping episodes are not
-                // generally permitted (in a give specification) except when caused by offsets.
+                // generally permitted (in a given specification) except when caused by offsets.
 
 //************* Event file loop
-                EFREnum = (new EventFileReader(
-                    new FileStream(System.IO.Path.Combine(directory, head.EventFile),
-                    FileMode.Open, FileAccess.Read))).GetEnumerator();
-                more = EFREnum.MoveNext();
-                while (more)
+                EventEnumerator = EventList.GetEnumerator();
+                bool found;
+
+                do
                 {
-                    EpisodeMark eventCriterium = currentEpisode.Start; //first look for a starting Event
+                    if (bw.CancellationPending) //look for cancellation first
+                    {
+                        bw.ReportProgress(0, "Conversion canceled with " + FMStream.NR.ToString("0") +
+                            " records in " + (FMStream.NR / FMStream.NC).ToString("0") + " recordsets generated.");
+                        FMStream.Close();
+                        log.Close();
+                        e.Cancel = true;
+                        return;
+                    }
                     InputEvent startEvent = null;
                     InputEvent endEvent = null;
+                    double startTime;
+                    double endTime = 0;
 
-                    do //see if next Event meets current criterium (either Start or Stop Event)
-                    {
-                        if (bw.CancellationPending) //look for cancellation first
-                        {
-                            bw.ReportProgress(0, "Conversion canceled with " + FMStream.NR.ToString("0") + 
-                                " records in " + (FMStream.NR / FMStream.NC).ToString("0") + " recordsets generated.");
-                            EFREnum.Dispose();
-                            FMStream.Close();
-                            log.Close();
-                            e.Cancel = true;
-                            return;
-                        }
-                        InputEvent currentEvent = EFREnum.Current;
-                        if (eventCriterium._Event.GetType().Name == "EventDictionaryEntry") //then this is a "named" event criterium
-                            if (eventCriterium.Match(currentEvent)) //found matching Event
-                            {
-                                if (startEvent == null) //then we're looking for a starting Event
-                                {
-                                    startEvent = currentEvent; //found match for Start, remember it
-                                    eventCriterium = currentEpisode.End; //now switch to looking for End Event
-                                    // but don't advance to next Event, so "Same Event" works
-                                }
-                                else //this might be an end Event
-                                {
-                                    if(currentEvent==startEvent && eventCriterium._offset <= currentEpisode.Start._offset)//same Event, make sure offsets work
-                                        more = EFREnum.MoveNext(); // these two don't work, move on to next
-                                    else // different events or correctly ordered offsets
-                                        endEvent = currentEvent; //matches the endEvent for this spec; don't advance: next Start could be same Event
-                               }
-                            }
-                            else more = EFREnum.MoveNext(); //move on to next Event
-                        else //check special cases
-                        {
-                            str = (string)eventCriterium._Event;
-                            if (str == "Same Event") //only occurs as endEvent
-                            {
-                                endEvent = currentEvent;
-                                more = EFREnum.MoveNext(); //must advance to avoid endless loop!
-                            }
-                            else if (str.Substring(0,10) == "Next Event") //only occurs as endEvent
-                            {
-                                more = EFREnum.MoveNext(); //in this case, advance, then test
-                                if (str.Substring(11) == "(all)" || currentEvent.EDE.intrinsic != null)
-                                    if (eventCriterium.MatchGV(currentEvent) && more) endEvent = EFREnum.Current;
-                            }
-                            else if (str == "Any Event") //only occurs as startEvent
-                            {
-                                if (eventCriterium.MatchGV(currentEvent))
-                                {
-                                    startEvent = currentEvent;
-                                    eventCriterium = currentEpisode.End;
-                                }
-                                else more = EFREnum.MoveNext(); //no match, move to next Event
-                            }
-                            else more = false; //shouldn't occur -- skip this spec by simulating EOF
-                        }
-                    } while (endEvent == null && more);
+                    found = findNextMark(currentEpisode.Start, EventEnumerator, true, out startTime, out startEvent) &&
+                        findNextMark(currentEpisode.End, EventEnumerator, false, out endTime, out endEvent);
 
-                    // At this point, startEvent refers to an Event that satisfies the criteria for starting an episode,
-                    // and endEvent to the Event satisfying criterium for ending an episode. If endEvent != null,
-                    // then the episode is complete. If more is false, then end-of-file has been reached and
-                    // endEvent will be null. In this case, if startEvent is not null, one could use the end-of-file as the end
-                    // of the episode **************NOT IMPLEMENTED
+                    if (found || startTime >= 0D && specs[i].useEOF)
+                    { //use EOF 
+                        //***************** FILMAN record loop
 
-//***************** FILMAN record loop
-                    if (endEvent != null) //process found complete episode, up to offset running off end-of-file!
-                    {
-                        double startTime = startEvent.Time + currentEpisode.Start._offset - bdf.zeroTime;
-                        double endTime = endEvent.Time + currentEpisode.End._offset - bdf.zeroTime;
-                        bw.ReportProgress(0, "Found episode " + (++epiNo).ToString("0") + " from " + startTime.ToString("0.000") + " to " + endTime.ToString("0.000"));
+                        startTime += currentEpisode.Start._offset;
+                        endTime += currentEpisode.End._offset;
+                        bw.ReportProgress(0, "Found episode " + (++epiNo).ToString("0") +
+                            " from " + (startTime - bdf.zeroTime).ToString("0.000") +
+                            " to " + (endTime - bdf.zeroTime).ToString("0.000"));
                         int maxNumberOfFMRecs = (int)Math.Floor((endTime - startTime) / FMRecLength);
+                        log.openFoundEpisode(epiNo, startTime - bdf.zeroTime, endTime - bdf.zeroTime, maxNumberOfFMRecs);
 
                         BDFPoint startBDFPoint = new BDFPoint(bdf);
-                        startBDFPoint.FromSecs(startTime);
-                        BDFPoint endBDFPoint=new BDFPoint(startBDFPoint);
+                        startBDFPoint.FromSecs(startTime - bdf.zeroTime);
+                        BDFPoint endBDFPoint = new BDFPoint(startBDFPoint);
 
                         /***** Get group variables for this record *****/
                         FMStream.record.GV[3] = epiNo;
-                        int GrVar = 6; //Load up group variables, based on the start Event
-                        foreach (GVEntry gve in GV)
+                        if (startEvent != null) //exclude BOF
                         {
-                            j = startEvent.GetIntValueForGVName(gve.Name);
-                            FMStream.record.GV[GrVar++] = j < 0 ? 0 : j;
+                            int GrVar = 6; //Load up group variables, based on the start Event
+                            foreach (GVEntry gve in GVCopyAcross)
+                            {
+                                int j = startEvent.GetIntValueForGVName(gve.Name);
+                                FMStream.record.GV[GrVar++] = j < 0 ? 0 : j; //use zero to indicate "No value"
+                            }
                         }
 
                         /***** Process each FILMAN record *****/
-                        int numberOfFMRecs = 0;
+                        int actualNumberOfFMRecs = 0;
                         for (int rec = 1; rec <= maxNumberOfFMRecs; rec++)
                         {
                             endBDFPoint += FMRecordLengthInBDF; //update end point
                             if (currentEpisode.Exclude == null || !currentEpisode.Exclude.IsExcluded(startBDFPoint, endBDFPoint))
                             {
-                                FMStream.record.GV[4] = ++numberOfFMRecs; //Record number in this episode
+                                FMStream.record.GV[4] = ++actualNumberOfFMRecs; //Record number in this episode
                                 FMStream.record.GV[5] = Convert.ToInt32(Math.Ceiling(startBDFPoint.ToSecs())); //Approximate seconds since start of BDF file
+
+                                //*****Count PK Events*****
+                                int GVc0 = GVCount - PKDCounterGVs.Count;
+                                for (int j = GVc0; j < GVCount; j++) FMStream.record.GV[j] = 0;
+                                //calculate start and end times for this record: use BDFPoint values to assure accuracy;
+                                //avoids problem if FMRecordLength is not exactly represented in double
+                                startTime = startBDFPoint.ToSecs() + bdf.zeroTime;
+                                endTime = endBDFPoint.ToSecs() + bdf.zeroTime;
+                                foreach (EpisodeDescription ed in specs)
+                                    foreach (PKDetectorEventCounterDescription pkd in ed.PKCounters)
+                                        FMStream.record.GV[pkd.assignedGVNumber] +=
+                                            pkd.countMatchingEvents(startTime, startTime + FMRecLength, EventList);
+
                                 createFILMANRecord(startBDFPoint, endBDFPoint);
                             }
                             startBDFPoint = endBDFPoint; //move start point forward
                         }
-                        log.openFoundEpisode(epiNo, startTime, endTime, maxNumberOfFMRecs, numberOfFMRecs);
-                        log.closeFoundEpisode();
+                        log.closeFoundEpisode(actualNumberOfFMRecs);
                     }
-                } //next Event
-                EFREnum.Dispose();
+
+                } while (found && !(currentEpisode.Start.MatchesType("Beginning of file") == true)); //next Event, if any
+
             }  //next spec
 
             e.Result = new int[] { FMStream.NR, FMStream.NR / FMStream.NC };
             FMStream.Close();
             log.Close();
             Log.writeToLog("Completed ASC conversion with " + FMStream.NR.ToString("0") + " FM records created");
+        }
+
+        /// <summary>
+        /// Find the next Event that matches a criterium; may be either a startEvent or an endEvent;
+        ///     assumes that the EFREnum.Current is the last matched Event; handles case of.Current being null 
+        ///     first time in or if there is no Event associated with the last match ("Beginning of file");
+        ///     routine should not be called if there was not a previous match (other than first entry)
+        /// </summary>
+        /// <param name="eventCriterium">Criterium for finding this Event</param>
+        /// <param name="EFREnum">Enumerator for the list of Events</param>
+        /// <param name="startEvent">indicates that this is a StartEvent criterium</param>
+        /// <param name="time">Time that Event occurs in seconds from some epoch (ususally 1600 or 0CE)</param>
+        /// <param name="ie">The Event associated with this find, may be null if none</param>
+        /// <returns>true if match found, otherwise false</returns>
+
+        bool sameEventFlag = false;
+        private bool findNextMark(EpisodeMark eventCriterium, IEnumerator<InputEvent> Events, bool startEvent, out double time, out InputEvent ie)
+        {
+            if (eventCriterium._Event.GetType() == typeof(string)) //handle special cases first
+            {
+                string str = (string)eventCriterium._Event;
+                if (str == "Beginning of file") //may occur as start- or endEvent
+                {
+                    time = bdf.zeroTime;
+                    ie = null; //only one with no additional GVs possible
+                    return true;
+                }
+                else if (str == "Same Event") //only occurs as endEvent
+                { //will only be called if there has been a previous match
+                    ie = Events.Current;
+                    time = ie.Time;
+                    sameEventFlag = true;
+                    return true;
+                }
+            } //end special cases
+
+            time = -1D; //default returns
+            ie = null;
+
+            bool more = true;
+            //this allows a start Event to match the previously matched Event except in case of Same Event
+            if (!startEvent || Events.Current == null || sameEventFlag)
+                more = Events.MoveNext();
+            sameEventFlag = false;
+
+            while(more) // loop through Events beginning at .Current to find one meeting eventCriterium
+            {
+                ie = Events.Current;
+                if (eventCriterium._Event.GetType() == typeof(EventDictionaryEntry)) //if named Event, simply check it
+                {
+                    if (eventCriterium.Match(ie)) //found matching Event
+                    {
+                        time = ie.Time;
+                        return true;
+                    }
+                }
+                else //anonymous Event
+                {
+                    string str = eventCriterium.EventName();
+                    if (str == "Any Event" || str.Substring(11) == "(all)" || ie.EDE.intrinsic != null) //make sure Any Event or
+                        if (eventCriterium.MatchGV(ie))
+                        {
+                            time = ie.Time;
+                            return true;
+                        }
+                }
+                more = Events.MoveNext(); //move on to next Event
+            } //while loop
+            if (!startEvent) //if endEvent time is end of BDF file
+                time = bdf.zeroTime + bdf.RecordDurationDouble * bdf.NumberOfRecords;
+            return false;
         }
 
         private bool createFILMANRecord(BDFPoint startingPt, BDFPoint endPt)

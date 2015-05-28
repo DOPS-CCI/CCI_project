@@ -60,13 +60,53 @@ namespace ASCtoFMConverter
                     logStream.WriteEndElement(/* GVCriterium */);
                 }
                 logStream.WriteEndElement(/* End */);
+                if(ED.PKCounters!=null&&ED.PKCounters.Count!=0)
+                {
+                    foreach (PKDetectorEventCounterDescription pkd in ED.PKCounters)
+                    {
+                        logStream.WriteStartElement("PKDetectorCounter");
+                        logStream.WriteAttributeString("AssignedGV", pkd.GVName);
+                        logStream.WriteAttributeString("Event", pkd.EventName);
+                        if (pkd.found != null)
+                            logStream.WriteElementString("FoundFit", (bool)pkd.found ? "True" : "False");
+                        if (pkd.includeChi2)
+                        {
+                            logStream.WriteStartElement("ChiSquare");
+                            logStream.WriteAttributeString("Comp", pkd.comp1.ToString());
+                            logStream.WriteAttributeString("Value", pkd.chi2.ToString("0.0"));
+                            logStream.WriteEndElement(/* ChiSquare */);
+                        }
+                        if (pkd.includeMagnitude)
+                        {
+                            logStream.WriteStartElement("Magnitude");
+                            logStream.WriteAttributeString("Comp", pkd.comp2.ToString());
+                            logStream.WriteAttributeString("Value", pkd.magnitude.ToString("0.0"));
+                            logStream.WriteEndElement(/* Magnitude */);
+                        }
+                        if (pkd.positive != null)
+                            logStream.WriteElementString("Sign", (bool)pkd.positive ? "Positive" : "Negative");
+                        logStream.WriteEndElement(/* PKDetectorCounter */);
+                    }
+                }
                 logStream.WriteEndElement(/* EpisodeDefinition */);
             }
             logStream.WriteEndElement(/* Episodes */);
 
             logStream.WriteStartElement("GroupVars");
-            foreach (GVEntry gv in c.GV)
-                logStream.WriteElementString("GroupVar", gv.Name);
+            foreach (GVEntry gv in c.GVCopyAcross)
+            {
+                logStream.WriteStartElement("GroupVar");
+                logStream.WriteAttributeString("Type", "CopyOver");
+                logStream.WriteString(gv.Name);
+                logStream.WriteEndElement(/* GroupVar */);
+            }
+            foreach (string s in c.PKDCounterGVs.Keys)
+            {
+                logStream.WriteStartElement("GroupVar");
+                logStream.WriteAttributeString("Type", "PKCount");
+                logStream.WriteString(s);
+                logStream.WriteEndElement(/* GroupVar */);
+            }
             logStream.WriteEndElement(/* GroupVars */);
             logStream.WriteElementString("Channels", CCIUtilities.Utilities.intListToString(c.channels, true));
 
@@ -107,20 +147,20 @@ namespace ASCtoFMConverter
             logStream.WriteEndElement(/* Conversion */);
         }
 
-        public void openFoundEpisode(int episodeNumber, double startTime, double endTime, int nRecs, int mRecs)
+        public void openFoundEpisode(int episodeNumber, double startTime, double endTime, int nRecs)
         {
             logStream.WriteStartElement("Episode");
             logStream.WriteAttributeString("Index", episodeNumber.ToString("0"));
             logStream.WriteAttributeString("StartTime", startTime.ToString("0.000"));
             logStream.WriteAttributeString("EndTime", endTime.ToString("0.000"));
             logStream.WriteAttributeString("NominalFMRecs", nRecs.ToString("0"));
-            logStream.WriteAttributeString("ActualFMRecs", mRecs.ToString("0"));
-            gatherStats(mRecs);
         }
 
-        public void closeFoundEpisode()
+        public void closeFoundEpisode(int mRecs)
         {
+            logStream.WriteAttributeString("ActualFMRecs", mRecs.ToString("0"));
             logStream.WriteEndElement(/* Episode */);
+            gatherStats(mRecs);
         }
 
         public void registerError(string message, InputEvent ie)

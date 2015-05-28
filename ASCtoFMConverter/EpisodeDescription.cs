@@ -16,6 +16,8 @@ namespace ASCtoFMConverter
         internal EpisodeMark Start = new EpisodeMark();
         internal EpisodeMark End = new EpisodeMark();
         internal ExclusionDescription Exclude = null;
+        internal bool useEOF;
+        internal List<PKDetectorEventCounterDescription> PKCounters = new List<PKDetectorEventCounterDescription>();
 
         public override string ToString()
         {
@@ -50,6 +52,18 @@ namespace ASCtoFMConverter
             if (ev.Name == this.EventName()) //event type matches
                 return (_GV == null || this.MatchGV(ev));
             return false;
+        }
+
+        /// <summary>
+        /// Check for match of Event tupe
+        /// </summary>
+        /// <param name="match">string to match special Event mark type</param>
+        /// <returns>true, if match; false, if special type but no match; null if not special type</returns>
+        internal bool? MatchesType(string match)
+        {
+            if (_Event.GetType() == typeof(string))
+                return (string)_Event == match;
+            return null;
         }
 
         /// <summary>
@@ -137,9 +151,62 @@ namespace ASCtoFMConverter
         public override string ToString()
         {
             StringBuilder sb = new StringBuilder(startEvent.Name);
-            if (endEvent.GetType() == typeof(EventDictionaryEntry))
+            if (endEvent != null && endEvent.GetType() == typeof(EventDictionaryEntry))
                 sb.Append(" to " + ((EventDictionaryEntry)endEvent).Name);
             return sb.ToString();
+        }
+    }
+    
+    public class PKDetectorEventCounterDescription
+    {
+        internal string GVName;
+        internal string EventName;
+        internal bool? found;
+        internal bool includeChi2;
+        internal Comp comp1;
+        internal double chi2;
+        internal bool includeMagnitude;
+        internal Comp comp2;
+        internal double magnitude;
+        internal bool? positive;
+
+        internal int assignedGVNumber; //computed in ASCConverter once all PKDetectorEventCounterDescriptions created
+
+        double samplingTime;
+
+        public PKDetectorEventCounterDescription(double samplingTime)
+        {
+            this.samplingTime = samplingTime;
+        }
+
+        internal int countMatchingEvents(double startTime, double endTime, List<Event.InputEvent> events)
+        {
+            double d;
+            int count = 0;
+            foreach (InputEvent ie in events)
+            {
+                if (ie.Time >= endTime) break; //Since Events are sorted, we're done when beyond endTime
+                if (ie.Time < startTime) continue; //Event before time span?
+                if (ie.Name != EventName) continue; //Event not correct type?
+                if (found != null)
+                    if (((bool)found) ^ (ie.GVValue[1] == "Found")) continue;
+                if (includeChi2)
+                {
+                    d = (double)ie.GetIntValueForGVName("Chi square");
+                    if (comp1 == Comp.lessthan) { if (d >= chi2) continue; }
+                    else { if (d <= chi2) continue; }
+                }
+                if (includeMagnitude)
+                {
+                    d = (double)ie.GetIntValueForGVName("Magnitude");
+                    if (comp2 == Comp.greaterthan) { if (d <= magnitude) continue; }
+                    else { if (d >= magnitude) continue; }
+                }
+                if (positive != null)
+                    if (((bool)positive) ^ (ie.GVValue[3] == "Positive")) continue;
+                ++count;
+            }
+            return count;
         }
     }
 
