@@ -60,31 +60,26 @@ namespace EventFile
                 xr.ReadStartElement("GrayCode", nameSpace);
                 ev.m_gc = (uint)xr.ReadContentAsInt();
                 xr.ReadEndElement(/* GrayCode */);
-                if (xr.Name == "ClockTime")
+                if (xr.Name == "ClockTime") //usual form for Events
                 {
-                    xr.ReadStartElement(/* ClockTime */);
-                    string t = xr.ReadContentAsString();
-                    if (t.Contains("."))
+                    string t = xr.ReadElementString(/* ClockTime */);
+                    if (t.Contains(".")) //preferred, with decimal point
                         ev.m_time = Convert.ToDouble(t);
-                    else
+                    else //deprecated, no decimal point
                     {
                         int l = t.Length - 7; //count in 100nsec intervals
                         ev.m_time = Convert.ToDouble(t.Substring(0, l) + "." + t.Substring(l));
                     }
-                    xr.ReadEndElement(/* ClockTime */);
-                    xr.ReadStartElement("EventTime", nameSpace);
-                    ev.EventTime = xr.ReadContentAsString(); //For human consumption only!
-                    xr.ReadEndElement(/* EventTime */);
+                    if (!ev.EDE.BDFBased) // only used for Absolute ClockTimes
+                        ev.EventTime = xr.ReadElementString("EventTime", nameSpace);
                 }
-                else //Time construct -- deprecated as of 11 Feb 2013
+                else if (xr.Name == "Time") //Time construct -- deprecated as of 11 Feb 2013
                 {
-                    xr.ReadStartElement("Time", nameSpace);
-                    string t = xr.ReadContentAsString();
+                    string t = xr.ReadElementString(/* Time */);
                     if (t.Contains(".")) //new style
                         ev.m_time = System.Convert.ToDouble(t);
-                    else //old style -- very deprecated!
+                    else //old, old style -- very deprecated!
                         ev.m_time = System.Convert.ToDouble(t.Substring(0, 11) + "." + t.Substring(11));
-                    xr.ReadEndElement(/* Time */);
                 }
                 bool isEmpty = xr.IsEmptyElement; // Use this to handle <GroupVars /> construct
                 xr.ReadStartElement("GroupVars", nameSpace);
@@ -236,10 +231,22 @@ namespace EventFile
                 xw.WriteAttributeString("Name", ev.Name);
                 xw.WriteElementString("Index", ev.Index.ToString("0"));
                 xw.WriteElementString("GrayCode", ev.GC.ToString("0"));
-                xw.WriteElementString("ClockTime", ev.Time.ToString("00000000000.0000000"));
-                DateTime t = new DateTime((long)(ev.Time * 1E7));
-                if (t.Year < 500) t = t.AddYears(1600); //convert to 0 year basis from 1600 basis
-                xw.WriteElementString("EventTime", t.ToString("d MMM yyyy HH:mm:ss.fffFF"));
+                xw.WriteStartElement("ClockTime");
+                if (ev.EDE.BDFBased) // BDF-based clock
+                {
+                    xw.WriteString(ev.Time.ToString("0.0000000"));
+                    xw.WriteEndElement(/* ClockTime */);
+                }
+                else // Absolute clock
+                {
+                    xw.WriteString(ev.Time.ToString("00000000000.0000000"));
+                    xw.WriteEndElement(/* ClockTime */);
+
+                    //only Absolute clocks record EventTime in readable form
+                    DateTime t = new DateTime((long)(ev.Time * 1E7));
+                    if (t.Year < 1000) t = t.AddYears(1600); //convert to 0 year basis from 1600 basis
+                    xw.WriteElementString("EventTime", t.ToString("d MMM yyyy HH:mm:ss.fffFF"));
+                }
                 xw.WriteStartElement("GroupVars");
                 if (ev.GVValue != null)
                     for (int j = 0; j < ev.GVValue.Length; j++)

@@ -39,6 +39,9 @@
     <AssemblyOriginatorKeyFile>Keyfile.snk</AssemblyOriginatorKeyFile>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="CCIUtilities">
+      <HintPath>..\CCIUtilities\bin\Debug\CCIUtilities.dll</HintPath>
+    </Reference>
     <Reference Include="PresentationCore" />
     <Reference Include="System" />
     <Reference Include="System.Core" />

@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Event;
 using CCILibrary;
+using CCIUtilities;
 
 namespace BDFEDFFileStream
 {
@@ -613,10 +614,11 @@ namespace BDFEDFFileStream
 
         /// <summary>
         /// Calculates the time of start of file (record 0, point 0) based on the InputEvent.
-        /// After this, value may be accessed via property <code>zeroTime</code>
+        /// After this, value may be accessed via property <code>zeroTime</code>; this synchronizes
+        /// the clocks of BDF file and the Event file
         /// </summary>
-        /// <param name="IE">InputEvent to use as index</param>
-        /// <returns>True if GC found in Status channel, false if not</returns>
+        /// <param name="IE">InputEvent to use for synchronization</param>
+        /// <returns>True if GC found in Status channel (synchronization successful), false if not</returns>
         public bool setZeroTime(Event.Event IE)
         {
             int[] statusBuffer = new int[NSamp];
@@ -647,7 +649,8 @@ namespace BDFEDFFileStream
         }
 
         /// <summary>
-        /// Read-only property which is the time from the first point in file to the reference Event (graycode)
+        /// Read-only property which is the absolute time of the first point in the file
+        /// Used to synch Events with absolute times to the BDF file
         /// </summary>
         public double zeroTime
         {
@@ -656,6 +659,59 @@ namespace BDFEDFFileStream
                 if (_zeroTime == null) throw new Exception("In BDFEDFFileReader: zeroTime not initialized");
                 return (double)_zeroTime;
             }
+        }
+
+        /// <summary>
+        /// Calculates number of seconds from beginning of file to an Event; if Event is Absolute,
+        /// uses zeroTime to synchonize clocks; zeroTime must be previously set.
+        /// </summary>
+        /// <param name="ie">The Event to locate</param>
+        /// <returns>Time to Event</returns>
+        public double timeFromBeginningOfFileTo(Event.Event ie)
+        {
+            if (ie.EDE.BDFBased) return ie.Time;
+            return ie.Time - zeroTime;
+        }
+
+        public bool findGCAfter(GrayCode gc, ref BDFLoc p)
+        {
+            while ((++p).IsInFile)
+                if (gc.CompareTo(getStatusSample(p)) <= 0) return true;
+            return false;
+        }
+
+        public bool findGCBefore(GrayCode gc, ref BDFLoc p)
+        {
+            while ((--p).IsInFile)
+                if (gc.CompareTo(getStatusSample(p)) > 0) { p++; return true; }
+            return false;
+        }
+
+        public bool findGCNear(GrayCode gc, ref BDFLoc p)
+        {
+            if (gc.CompareTo(getStatusSample(p)) <= 0) return findGCBefore(gc, ref p);
+            else return findGCAfter(gc, ref p);
+        }
+
+        public double findGCAfter(GrayCode gc, double time)
+        {
+            BDFLoc p = (new BDFLocFactory(this)).New().FromSecs(time);
+            if (findGCAfter(gc, ref p)) return p.ToSecs();
+            return -1D;
+        }
+
+        public double findGCBefore(GrayCode gc, double time)
+        {
+            BDFLoc p = (new BDFLocFactory(this)).New().FromSecs(time);
+            if (findGCBefore(gc, ref p)) return p.ToSecs();
+            return -1D;
+        }
+
+        public double findGCNear(GrayCode gc, double time)
+        {
+            BDFLoc p = (new BDFLocFactory(this)).New().FromSecs(time);
+            if (findGCNear(gc, ref p)) return p.ToSecs();
+            return -1D;
         }
 
         public new void Dispose()

@@ -127,9 +127,19 @@ namespace HeaderFileStream
                                 ede.intrinsic = null;
                             else
                                 ede.intrinsic = s != "extrinsic";
-                        }
-                        else
-                            ede.intrinsic = true;
+                        } //else Type is intrinsic by default
+                        if (xr.MoveToAttribute("Clock")) //is there a Clock attribute?
+                        {
+                            string s = xr.ReadContentAsString();
+                            if (s == "Absolute")
+                                ede.BDFBased = false;
+                            else if (s == "BDF-based")
+                            {
+                                if (ede.intrinsic != null) throw new Exception("Incompatible Type and Clock attributes in Event");
+                                ede.BDFBased = true;
+                            }
+                            else throw new Exception("Invalid Clock attribute in Event");
+                        } //else clock is Absolute by default
                         xr.ReadStartElement(/* Event */);
                         xr.ReadStartElement("Name", nameSpace);
                         string name = xr.ReadContentAsString();
@@ -301,6 +311,7 @@ namespace HeaderFileStream
                 {
                     xw.WriteStartElement("Event");
                     xw.WriteAttributeString("Type", ede.Value.intrinsic != null ? (bool)ede.Value.intrinsic ? "intrinsic" : "extrinsic" : "*");
+                    xw.WriteAttributeString("Clock", ede.Value.BDFBased ? "BDF-based" : "Absolute");
                     xw.WriteElementString("Name", ede.Key);
                     xw.WriteElementString("Description", ede.Value.Description);
                     if (ede.Value.intrinsic != null && !(bool)ede.Value.intrinsic)

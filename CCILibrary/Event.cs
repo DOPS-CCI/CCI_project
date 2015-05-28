@@ -8,16 +8,16 @@ namespace Event
 {
     /// <summary>
     /// Class EventFactory: Creates Events
-    ///      needed so that all created events conform to the EventDictionary
+    ///      assures that all created events conform to the EventDictionary
     ///      
     /// The classes in this namespace attempt to protect the integrity of the Events created,
     /// confirming that they conform to the EventDictionary in the Header; this implies the
     /// need for a factory approach in general. Every Event (either OutputEvent or InputEvent)
-    /// has to have an EventDictionaryEntry; if it is created via the factory, the EDE must be in
-    /// the EventDictionary. Input and Output Events may be directly created, but must be based on an
-    /// EDE; the Name property of the Event is always taken from the EDE. All public properties of
-    /// the Event (either Input or Output) are read-only, but generally there is internal access
-    /// for writing within CCILibrary (the "assembly").
+    /// has to have an associated EventDictionaryEntry; if it is created via the factory, the EDE
+    /// must be in the EventDictionary. Input and Output Events may be directly created, but must
+    /// be based on an EDE; the Name property of the Event is always taken from the EDE. All
+    /// public properties of the Event (either Input or Output) are read-only, but generally
+    /// there is internal access for writing within CCILibrary (the "assembly").
     /// </summary>
     public class EventFactory
     {
@@ -70,7 +70,7 @@ namespace Event
             if (!ed.TryGetValue(name, out ede)) //check to make sure there is an EventDictionaryEntry for this name
                 throw new Exception("No entry in EventDictionary for \"" + name + "\"");
             OutputEvent e = new OutputEvent(ede);
-            if (ede.intrinsic != null)
+            if (ede.IsCovered)
             {
                 e.m_index = nextIndex();
                 e.m_gc = grayCode((uint)e.Index);
@@ -188,23 +188,24 @@ namespace Event
         {
             m_time = (double)(DateTime.Now.Ticks) / 1E7; // Get time immediately
 
-            if (entry.GroupVars.Count > 0) GVValue = new string[entry.GroupVars.Count]; //allocate correct number of group variable value entries
+            if (entry.GroupVars != null && entry.GroupVars.Count > 0)
+                GVValue = new string[entry.GroupVars.Count]; //allocate correct number of group variable value entries
             else GVValue = null;
         }
         /// <summary>
         /// Stand-alone constructor for use creating simulated events (not real-time); no checking is performed
         /// </summary>
         /// <param name="entry">EventDictionaryEntry describing the Event</param>
-        /// <param name="time">time of Event</param>
+        /// <param name="time">DateTime of Event</param>
         /// <param name="index">assigned index of Event: cannot = 0 unless Event is naked</param>
         public OutputEvent(EventDictionaryEntry entry, DateTime time, int index = 0)
             : base(entry)
         {
             ede = entry;
             m_time = (double)(time.Ticks) / 1E7;
-            if (entry.intrinsic != null)
+            if (entry.IsCovered)
             {
-                if (index == 0) throw new Exception("Event.OutputEvent: attempt to create a new Event with GC = 0");
+                if (index == 0) throw new Exception("Event.OutputEvent: attempt to create a covered OutputEvent with GC = 0");
                 m_index = (uint)index;
                 m_gc = EventFactory.grayCode(m_index);
             }
@@ -214,14 +215,14 @@ namespace Event
         /// Stand-alone constructor for use creating simulated events (not real-time); no checking is performed
         /// </summary>
         /// <param name="entry">EventDictionaryEntry describing the Event</param>
-        /// <param name="time">time of Event</param>
+        /// <param name="time">time of Event, ticks since 0CE</param>
         /// <param name="index">assigned index of Event</param>
         public OutputEvent(EventDictionaryEntry entry, long time, int index)
             : base(entry)
         {
             ede = entry;
             m_time = (double)(time) / 1E7;
-            if (entry.intrinsic != null)
+            if (entry.IsCovered)
             {
                 m_index = (uint)index;
                 m_gc = EventFactory.grayCode(m_index);
@@ -229,8 +230,21 @@ namespace Event
             GVValue = null;
         }
         /// <summary>
-        /// Copy constructor from an InputEvent to permit copying of Event file entries
-        /// to create new Event files
+        /// Stand-alone constructor for use creating naked events based on BDF
+        /// </summary>
+        /// <param name="entry">EventDictionaryEntry describing the Event</param>
+        /// <param name="time">time of Event, seconds since start of BDF file</param>
+        public OutputEvent(EventDictionaryEntry entry, double time)
+            : base(entry)
+        {
+            if (!entry.BDFBased) throw new Exception("OutputEvent constructor(EDE, double) only for BDF-based Events");
+            ede = entry;
+            m_time = time;
+            GVValue = null;
+        }
+        /// <summary>
+        /// Copy constructor converting an InputEvent to OutputEvent to permit copying
+        /// of Event file entries to create a new Event file
         /// </summary>
         /// <param name="ie">InputEvent to be copied</param>
         public OutputEvent(InputEvent ie) : base(ie.EDE)
@@ -271,20 +285,20 @@ namespace Event
         {
             string nl = Environment.NewLine;
             StringBuilder str = new StringBuilder("Event name: " + this.Name + nl);
-            if (EDE.intrinsic != null) //these are meaningless if naked Event
+            if (EDE.IsCovered) //these are meaningless if naked Event
             {
                 str.Append("Index: " + Index.ToString("0") + nl);
                 str.Append("GrayCode: " + GC.ToString("0") + nl);
             }
-            if (EventTime != null && EventTime != "")
+            if (EventTime != null && EventTime != "") //EventTime field exists => must be Absolute, though perhaps old-form (no Type attribute)
             {
-                str.Append("ClockTime: " + Time.ToString("00000000000.0000000" + nl));
+                str.Append("ClockTime(Absolute): " + Time.ToString("00000000000.0000000" + nl));
                 str.Append("EventTime: " + EventTime + nl);
             }
-            else
-            {
-                str.Append("Time: " + Time.ToString("00000000000.0000000") + nl);
-            }
+            else if (ede.m_bdfBased) //new form, with Type=BDF-based
+                str.Append("ClockTime(BDF-based): " + Time.ToString("0.0000000") + nl);
+            else //deprecated form: no EventTime or Type attribute, always Absolute
+                str.Append("Time(Absolute,deprecated): " + Time.ToString("00000000000.0000000") + nl);
             if (ede.GroupVars != null) //if there are GVs
             {
                 int j = 0;
