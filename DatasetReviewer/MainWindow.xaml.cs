@@ -384,7 +384,7 @@ namespace DatasetReviewer
                 //now make a list of Events that occur at this "instant"
                 //first naked Events
                 List<InputEvent> foundEvents = events.Where(e => e.EDE.intrinsic == null &&
-                    Math.Abs(e.Time - bdf.zeroTime - s) < bdf.SampTime / 2).ToList(); //make list of naked Events at this time
+                    Math.Abs(bdf.timeFromBeginningOfFileTo(e) - s) < bdf.SampTime / 2).ToList(); //make list of naked Events at this time
                 int nNaked = foundEvents.Count;
                 //then instrinsic/extrinsic Events (marked Events)
                 if (sample.Value != lastSample.Value)
@@ -420,7 +420,7 @@ namespace DatasetReviewer
                             {
                                 evFound = ev; //remember last valid entry
                                 sb.Append(ev.ToString());
-                                sb.Append("Offset=" + ((ev.Time - bdf.zeroTime - s) * 1000D).ToString("+0.0 msec;-0.0 msec;None") + Environment.NewLine);
+                                sb.Append("Offset=" + ((bdf.timeFromBeginningOfFileTo(ev) - s) * 1000D).ToString("+0.0 msec;-0.0 msec;None") + Environment.NewLine);
                             }
                             else
                             {
@@ -859,70 +859,33 @@ namespace DatasetReviewer
         private void SearchEvent_Click(object sender, RoutedEventArgs e)
         {
             Button b = (Button)sender;
+            double currentOffset = currentDisplayOffsetInSecs + SearchSiteOffset * currentDisplayWidthInSecs;
+            double newOffset;
+            BDFEDFFileStream.BDFLoc p = bdf.LocationFactory.New().FromSecs(currentOffset);
+            GrayCode bgc = (new GrayCode(head.Status)).NewGrayCodeForStatus(bdf.getStatusSample(p));
+            InputEvent ie;
             if ((string)b.Content == "Next")
             {
-                BDFEDFFileStream.BDFLoc p = bdf.LocationFactory.New().FromSecs(currentDisplayOffsetInSecs + SearchSiteOffset * currentDisplayWidthInSecs);
-                GrayCode lastGC = new GrayCode(head.Status);
-                lastGC.Value = (uint)bdf.getStatusSample(p++) & head.Mask;
-                GrayCode nextGC = new GrayCode(head.Status);
-                for (; p.IsInFile; p++)
-                {
-                    nextGC.Value = (uint)bdf.getStatusSample(p) & head.Mask;
-                    double s = p.ToSecs(); //center marker at s
-
-                    //now make a list of Events that occur at this "instant"
-                    //first naked Events
-                    List<InputEvent> foundEvents = events.Where(ev => ev.EDE.intrinsic == null &&
-                        Math.Abs(ev.Time - bdf.zeroTime - s) < bdf.SampTime / 2).ToList(); //make list of naked Events at this time
-                    //then instrinsic/extrinsic Events (marked Events)
-                    if (nextGC.Value != lastGC.Value)
-                        foundEvents.AddRange(events.Where(ev => lastGC.CompareTo(ev.GC) < 0 &&
-                            nextGC.CompareTo(ev.GC) >= 0).ToList()); //and add marked Events
-
-                    foreach (InputEvent ie in foundEvents) //then one (or more) Events occur at this point
-                    {
-                        if (ie.Name == currentSearchEvent) //we have a winner!
-                        {
-                            Viewer.ScrollToHorizontalOffset((p.ToSecs() - SearchSiteOffset * currentDisplayWidthInSecs) * XScaleSecsToInches);
-                            return;
-                        }
-                    }
-                    lastGC.Value = nextGC.Value;
-                }
+                currentOffset += bdf.SampTime / 2D;
+                ie = events.Find(ev => ev.Name == currentSearchEvent && bdf.timeFromBeginningOfFileTo(ev) > currentOffset && (bgc.CompareTo(ev.GC) < 0 || ev.EDE.intrinsic == null));
             }
             else //Prev
             {
-                BDFEDFFileStream.BDFLoc p = bdf.LocationFactory.New().FromSecs(currentDisplayOffsetInSecs + SearchSiteOffset * currentDisplayWidthInSecs);
-                GrayCode lastGC = new GrayCode(head.Status);
-                lastGC.Value = (uint)bdf.getStatusSample(--p) & head.Mask;
-                GrayCode nextGC = new GrayCode(head.Status);
-                for (; p.IsInFile; p--)
-                {
-                    nextGC.Value = (uint)bdf.getStatusSample(p) & head.Mask;
-                    double s = p.ToSecs(); //center marker at s
-
-                    //now make a list of Events that occur at this "instant"
-                    //first naked Events
-                    List<InputEvent> foundEvents = events.Where(ev => ev.EDE.intrinsic == null &&
-                        Math.Abs(ev.Time - bdf.zeroTime - s) < bdf.SampTime / 2).ToList(); //make list of naked Events at this time
-                    //then instrinsic/extrinsic Events (marked Events)
-                    if (nextGC.Value != lastGC.Value)
-                        foundEvents.AddRange(events.Where(ev => lastGC.CompareTo(ev.GC) >= 0 &&
-                            nextGC.CompareTo(ev.GC) < 0).ToList()); //and add marked Events
-
-                    foreach(InputEvent ie in foundEvents) //then at least one Event occured here
-                    {
-                        //see if any of them match the target
-                        if (ie.Name == currentSearchEvent) //we have a winner!
-                        {
-                            if (ie.EDE.intrinsic != null) ++p; //need to correct for covered Events, we've gone one point too far
-                            Viewer.ScrollToHorizontalOffset((p.ToSecs() - SearchSiteOffset * currentDisplayWidthInSecs) * XScaleSecsToInches);
-                            return;
-                        }
-                    }
-                    lastGC.Value = nextGC.Value;
-                }
+                currentOffset -= bdf.SampTime / 2D;
+                ie = events.LastOrDefault(ev => ev.Name == currentSearchEvent && bdf.timeFromBeginningOfFileTo(ev) < currentOffset && (bgc.CompareTo(ev.GC) > 0 || ev.EDE.intrinsic == null));
             }
+            if (ie == null) return;
+            if (ie.EDE.BDFBased) //known BDF-based clock
+                newOffset = ie.Time;
+            else if (ie.EDE.intrinsic == null) newOffset = bdf.timeFromBeginningOfFileTo(ie); //naked Event using Absolute clock -- not preferred, but OK
+            else //covered Event, always Absolute clock
+            {
+                GrayCode gc = new GrayCode(head.Status);
+                gc.Value = (uint)ie.GC;
+                newOffset = bdf.findGCNear(gc, bdf.timeFromBeginningOfFileTo(ie)); //search for nearby Status channel mark
+            }
+            if (newOffset >= 0D)
+                Viewer.ScrollToHorizontalOffset((newOffset - SearchSiteOffset * currentDisplayWidthInSecs) * XScaleSecsToInches);
         }
 
 //----> Handle Event pop-up display
