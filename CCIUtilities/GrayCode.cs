@@ -10,9 +10,12 @@ namespace CCIUtilities
     /// special meaning at the start of the BDF file, before the first Event, and is never used to
     /// encode an Event
     /// </summary>
-    public class GrayCode : IComparable<GrayCode>
+    public struct GrayCode : IComparable<GrayCode>
     {
         uint _GC;
+        int _status;
+        uint _indexMax;
+
         public uint Value
         {
             get { return _GC; }
@@ -23,9 +26,6 @@ namespace CCIUtilities
                     throw new Exception("Attempt to set GrayCode to value outside of valid range");
             }
         }
-
-        int _status;
-        uint _indexMax;
 
         /// <summary>
         /// Trivial constructor; set to the lowest/first Gray code
@@ -59,6 +59,8 @@ namespace CCIUtilities
         {
             _status = status;
             _indexMax = (1U << _status) - 2;
+            _GC = 0;
+            this.Encode(n);
         }
 
         /// <summary>
@@ -83,6 +85,13 @@ namespace CCIUtilities
             for (int shift = 1; shift < _status; shift <<= 1)
                 n ^= (n >> shift);
             return n;
+        }
+
+        public GrayCode NewGrayCodeForStatus(int statusValue)
+        {
+            GrayCode gc = new GrayCode(this);
+            gc.Value = (uint)statusValue & (0xFFFFFFFF >> (32 - _status));
+            return gc;
         }
 
         /// <summary>
@@ -143,12 +152,23 @@ namespace CCIUtilities
         /// <summary>
         /// Compare Gray codes
         /// </summary>
-        /// <param name="gc">integer GrayCode to compare to; assumed to have same number of Status bits</param>
+        /// <param name="statusValue">integer GrayCode from Status channel to compare to; assumed to have same number of Status bits</param>
         /// <returns>-1 for less than; 1 for greater than; 0 for equal</returns>
         /// <exception cref="ArgumentException">Throws if number of Status bits not equal</exception>
-        public int CompareTo(int gc)
+        public int CompareTo(int statusValue)
         {
-            return Utilities.modComp(this.Decode(), Utilities.GC2uint((uint)gc), _status);
+            return Utilities.modComp(this.Decode(), Utilities.GC2uint((uint)statusValue & (0xFFFFFFFF >> (32 - _status))), _status);
+        }
+
+        /// <summary>
+        /// Compare Gray codes
+        /// </summary>
+        /// <param name="gc">unsigned integer GrayCode to compare to; assumed to have same number of Status bits</param>
+        /// <returns>-1 for less than; 1 for greater than; 0 for equal</returns>
+        /// <exception cref="ArgumentException">Throws if number of Status bits not equal</exception>
+        public int CompareTo(uint gc)
+        {
+            return Utilities.modComp(this.Decode(), Utilities.GC2uint(gc), _status);
         }
 
         public override string ToString()
