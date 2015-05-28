@@ -64,6 +64,8 @@ namespace PKDetectorAnalyzer
 
         private void Channel_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
+            string s = (string)((ComboBoxItem)e.AddedItems[0]).Content;
+            NewEventName.Text = "**PKCnt" + s + (EventNameExt.Text != "" ? "_" + EventNameExt.Text : "");
             mw.checkError();
         }
 
@@ -126,8 +128,9 @@ namespace PKDetectorAnalyzer
             mw.checkError();
         }
 
-        private void GVNameExt_TextChanged(object sender, TextChangedEventArgs e)
+        private void EventNameExt_TextChanged(object sender, TextChangedEventArgs e)
         {
+            this.NewEventName.Text = "**PKCnt" + Channel.Text + (EventNameExt.Text != "" ? "_" + EventNameExt.Text : "");
             mw.checkError();
         }
 

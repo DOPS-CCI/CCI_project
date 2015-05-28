@@ -127,12 +127,14 @@ namespace PKDetectorAnalyzer
         internal void checkError()
         {
             bool result = ChannelEntries.Items.Count > 0 && FNExtension.Text.Length > 0;
-            for (int i = 0; i < ChannelEntries.Items.Count; i++)
+            for (int i = 0; i < ChannelEntries.Items.Count; i++) //check each ChannelItem
             {
+
                 ChannelItem ci = (ChannelItem)ChannelEntries.Items[i];
-                result &= ci._filterN > 0 && ci._minimumL > 0 && ci._threshold > 0D; 
+                string ciName = ci.NewEventName.Text;
+                result &= ci._filterN > 0 && ci._minimumL > 0 && ci._threshold > 0D && !head.Events.ContainsKey(ciName);
                 for (int j = i + 1; j < ChannelEntries.Items.Count; j++)
-                    result &= ci != (ChannelItem)ChannelEntries.Items[j];
+                    result &= ciName != ((ChannelItem)ChannelEntries.Items[j]).NewEventName.Text;
                 if (!result) break;
             }
             Process.IsEnabled = result;
@@ -350,6 +352,7 @@ namespace PKDetectorAnalyzer
             Process.IsEnabled = true;
         }
 
+        //Process the PK events found
         private void ProcessEvents()
         {
             GVEntry gve;
@@ -472,8 +475,8 @@ namespace PKDetectorAnalyzer
             foreach (ChannelItem ci in ChannelEntries.Items)
             {
                 EventDictionaryEntry ede = new EventDictionaryEntry();
-                ede.Description = "PK detector events from PKDetectorAnalyzer on channel " + ci.Channel.Text;
-                ede.intrinsic = null; //naked Event
+                ede.Description = "PK detector events from PKDetectorAnalyzer based on channel " + ci.Channel.Text;
+                ede.BDFBased = true; //naked Event with clock BDF-based
                 ede.GroupVars = new List<GVEntry>(newGVList);
                 head.Events.Add(ci.ImpliedEventName, ede);
             }
@@ -492,7 +495,7 @@ namespace PKDetectorAnalyzer
             foreach (Event.InputEvent ie in efr) // read in all Events into dictionary
             {
                 events.Add(new Event.OutputEvent(ie)); //make list of all current Events
-                if (!zeroSet && ie.EDE.intrinsic != null)
+                if (!zeroSet && ie.EDE.IsCovered) //set zeroTime based on first encounter covered Event
                 {
                     bdf.setZeroTime(ie);
                     zeroSet = true;
@@ -509,9 +512,8 @@ namespace PKDetectorAnalyzer
             foreach (eventTime et in eventTimeList)
             {
                 double ST =  bdf.SampleTime(et.channelNumber);
-                DateTime time = new DateTime((long)((bdf.zeroTime + (double)(et.t0 + et.startTime) * ST) * 1E7));
                 //create a naked Event at this time
-                Event.OutputEvent newEvent = new Event.OutputEvent(head.Events[et.channelItem.ImpliedEventName], time);
+                Event.OutputEvent newEvent = new Event.OutputEvent(head.Events[et.channelItem.ImpliedEventName], (double)(et.t0 + et.startTime) * ST);
                 //assign GV values to new event
                 newEvent.GVValue = new string[11];
                 newEvent.GVValue[0] = bdf.channelLabel(et.channelNumber);
@@ -528,7 +530,7 @@ namespace PKDetectorAnalyzer
                 events.Add(newEvent);
             }
 
-            events = events.OrderBy(ev => ev.Time).ToList(); //sort Events into time order
+            events = events.OrderBy(ev => bdf.timeFromBeginningOfFileTo(ev)).ToList(); //sort Events into time order
 
             fs = new FileStream(System.IO.Path.Combine(directory,head.EventFile), FileMode.Create, FileAccess.Write);
             EventFileWriter efw = new EventFileWriter(fs);
@@ -666,6 +668,11 @@ namespace PKDetectorAnalyzer
         private void Window_Closed(object sender, EventArgs e)
         {
             CCIUtilities.Log.writeToLog("End PKDetectorAnalyzer");
+        }
+
+        private void ChannelEntries_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+
         }
 
 /* Unused at the moment...
