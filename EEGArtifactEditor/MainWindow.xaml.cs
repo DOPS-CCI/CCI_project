@@ -145,14 +145,14 @@ namespace EEGArtifactEditor
                         ev = events[i];
                         if (ev.Name == "**ArtifactBegin")
                         {
-                            left = ev.Time - bdf.zeroTime;
+                            left = bdf.timeFromBeginningOfFileTo(ev);
                             events.Remove(ev);
                             while (i < events.Count)
                             {
                                 ev = events[i];
                                 if (ev.Name == "**ArtifactEnd")
                                 {
-                                    MarkerCanvas.createMarkRegion(left, ev.Time - bdf.zeroTime);
+                                    MarkerCanvas.createMarkRegion(left, bdf.timeFromBeginningOfFileTo(ev));
                                     events.Remove(ev);
                                     break;
                                 }
@@ -907,8 +907,8 @@ namespace EEGArtifactEditor
                 header.Comment = sb.ToString();
                 if (updateFlag) //then, this dataset is based on another one; need to find out if this is an update of current dataset only, or if a new file is to be created
                 {
-                    header.Events.TryGetValue("**ArtifactBegin", out ede1);
-                    header.Events.TryGetValue("**ArtifactEnd", out ede2);
+                    if (!header.Events.TryGetValue("**ArtifactBegin", out ede1) || !header.Events.TryGetValue("**ArtifactEnd", out ede2) || !ede1.BDFBased || !ede2.BDFBased)
+                        throw new Exception("Error in attempted update of previously marked dataset; may be update of old-form dataset");
                     Window3 w = new Window3();
                     w.Owner = this;
                     w.ShowDialog();
@@ -926,9 +926,11 @@ namespace EEGArtifactEditor
                     //Modify header with new "naked" Events and file names
                     ede1 = new EventDictionaryEntry();
                     ede1.intrinsic = null;
+                    ede1.BDFBased = true; //Use BDF-based clocking
                     ede1.Description = "Beginning of artifact region";
                     ede2 = new EventDictionaryEntry();
                     ede2.intrinsic = null;
+                    ede2.BDFBased = true; //Use BDF-based clocking
                     ede2.Description = "End of artifact region";
                     header.Events.Add("**ArtifactBegin", ede1);
                     header.Events.Add("**ArtifactEnd", ede2);
@@ -946,16 +948,16 @@ namespace EEGArtifactEditor
 
                 foreach (MarkerRectangle mr in MarkerCanvas.markedRegions) //update Event file to include new artifact marks
                 {
-                    double eventTime = mr.leftEdge + bdf.zeroTime;
-                    OutputEvent newOE = new OutputEvent(ede1, new DateTime((long)(eventTime * 1E7)), 0);
-                    int index = events.FindIndex(ev => ev.Time >= eventTime);
+                    double eventTime = mr.leftEdge;
+                    OutputEvent newOE = new OutputEvent(ede1, eventTime);
+                    int index = events.FindIndex(ev => bdf.timeFromBeginningOfFileTo(ev) >= eventTime);
                     if (index < 0) //must be after last Event or no Events
                         events.Add(newOE);
                     else
                         events.Insert(index, newOE);
-                    eventTime = mr.rightEdge + bdf.zeroTime;
-                    newOE = new OutputEvent(ede2, new DateTime((long)(eventTime * 1E7)), 0);
-                    index = events.FindIndex(ev => ev.Time > eventTime);
+                    eventTime = mr.rightEdge;
+                    newOE = new OutputEvent(ede2, eventTime);
+                    index = events.FindIndex(ev => bdf.timeFromBeginningOfFileTo(ev) > eventTime);
                     if (index < 0)
                         events.Add(newOE);
                     else
