@@ -363,6 +363,7 @@ namespace DatasetReviewer
         }
 
 //----> Re-draw routines here
+        private bool showAllEventsAtAbsoluteTime = false;
         private void reDrawEvents()
         {
             EventMarkers.Children.Clear();
@@ -379,22 +380,30 @@ namespace DatasetReviewer
             for (BDFEDFFileStream.BDFLoc p = start; p.lessThan(end); p++) //search through displayed BDF points
             {
                 double s = p.ToSecs(); //center marker at s
-                sample.Value = (uint)bdf.getStatusSample(p) & head.Mask;
-
-                //now make a list of Events that occur at this "instant"
-                //first naked Events
-                List<InputEvent> foundEvents = events.Where(e => e.EDE.intrinsic == null &&
-                    Math.Abs(bdf.timeFromBeginningOfFileTo(e) - s) < bdf.SampTime / 2).ToList(); //make list of naked Events at this time
-                int nNaked = foundEvents.Count;
-                //then instrinsic/extrinsic Events (marked Events)
-                if (sample.Value != lastSample.Value)
-                    foundEvents.AddRange(events.Where(e => lastSample.CompareTo(e.GC) < 0 &&
-                        sample.CompareTo(e.GC) >= 0).ToList()); //and add marked Events
-
-                if (sample.Value != lastSample.Value || foundEvents.Count > 0) //found or should have found Events at this time
+                List<InputEvent> foundEvents;
+                bool AllEFEntriesValid = true;
+                if (showAllEventsAtAbsoluteTime) //show Covered Events at absolute time
                 {
-                    int n = foundEvents.Count - nNaked; //number of "simultaneous" covered Events actually found
-                    bool AllEFEntriesValid = n == sample - lastSample; //this number of covered Events is correct
+                    foundEvents = events.Where(e => Math.Abs(bdf.timeFromBeginningOfFileTo(e) - s) < bdf.SampTime / 2).ToList();
+                }
+                else
+                { //show Covered Events at Status mark
+                    sample.Value = (uint)bdf.getStatusSample(p) & head.Mask;
+
+                    //now make a list of Events that occur at this "instant"
+                    //first naked Events
+                    foundEvents = events.Where(e => e.EDE.IsNaked &&
+                        Math.Abs(bdf.timeFromBeginningOfFileTo(e) - s) < bdf.SampTime / 2).ToList(); //make list of naked Events "near" this time
+                    int nNaked = foundEvents.Count;
+                    //then instrinsic/extrinsic Events (marked Events)
+                    if (sample.CompareTo(lastSample) != 0) //then there should be some covered Events here
+                        foundEvents.AddRange(events.Where(e => lastSample.CompareTo(e.GC) < 0 &&
+                            sample.CompareTo(e.GC) >= 0).ToList()); //and add marked Events
+                    AllEFEntriesValid = (foundEvents.Count - nNaked) == (sample - lastSample); //this number of found covered Events is correct
+                }
+
+                if (foundEvents.Count > 0 || !showAllEventsAtAbsoluteTime && sample.CompareTo(lastSample) != 0)
+                { //do we have Events to mark or should mark at this point?
                     bool multiEvent = foundEvents.Count > 1; //indicates multiple "simultaneous" Events
                     InputEvent evFound = null; //found at least one valid Event
 
@@ -410,26 +419,26 @@ namespace DatasetReviewer
                     else
                     {
                         StringBuilder sb = new StringBuilder();
-                        GrayCode gc = lastSample;
+                        GrayCode gc = lastSample; //value of last GC before the step
                         int i = 0;
                         foreach(InputEvent ev in foundEvents)
                         {
-                            if (multiEvent)
+                            if (multiEvent) //multiple Events at this point; show data concatenated with title
                                 sb.Append("Event number " + (++i).ToString("0") + ":" + Environment.NewLine);
-                            if (foundEvents.Count(e => e.GC == (int)(++gc).Value) == 1) //there should be exactly one found Event with GC of each value
-                            {
+                            if (showAllEventsAtAbsoluteTime || foundEvents.Count(e => e.GC == (int)(++gc).Value) == 1) //there should be exactly one found Event
+                            {// with GC of each value (don't check if absolute only)
                                 evFound = ev; //remember last valid entry
                                 sb.Append(ev.ToString());
                                 sb.Append("Offset=" + ((bdf.timeFromBeginningOfFileTo(ev) - s) * 1000D).ToString("+0.0 msec;-0.0 msec;None") + Environment.NewLine);
                             }
-                            else
+                            else //more than one Event at this time with same GC
                             {
-                                if (ev.EDE.intrinsic == null)
+                                if (ev.EDE.IsNaked) //OK if Event is naked
                                 {
                                     evFound = ev;
                                     sb.Append(ev.ToString());
                                 }
-                                else
+                                else //more than one covered Event with same GC at this point
                                 {
                                     AllEFEntriesValid = false; //there's at least one invalid Event file entry
                                     sb.Append("No Event file entry for Event" + Environment.NewLine + "     with GC = "
@@ -512,6 +521,7 @@ namespace DatasetReviewer
                         EventMarkers.Children.Add(l2);
                     }
                     EventMarkers.Children.Add(r);
+
                     lastSample.Value = sample.Value;
                 } //Event mark based on Status mark
             } //end for each displayed point
@@ -1081,6 +1091,23 @@ namespace DatasetReviewer
                     break;
             }
             e.Handled = false;
+        }
+
+        private void AbsoluteEvents_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.LeftButton == MouseButtonState.Released) return; //left button press only
+            AbsoluteEvents.CaptureMouse();
+            showAllEventsAtAbsoluteTime = true;
+            reDrawEvents();
+            e.Handled = true;
+        }
+
+        private void AbsoluteEvents_MouseUp(object sender, MouseButtonEventArgs e)
+        {
+            Mouse.Capture(null); //free mousecapture
+            showAllEventsAtAbsoluteTime = false;
+            reDrawEvents();
+            e.Handled = true;
         }
     }
 

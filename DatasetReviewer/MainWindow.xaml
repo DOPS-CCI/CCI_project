@@ -102,9 +102,9 @@
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
             <TextBlock Grid.Column="0" Text="0.1" VerticalAlignment="Center" Margin="20,0,4,0"/>
-            <Slider Grid.Column="1" Name="FOV" ValueChanged="FOV_ValueChanged" Minimum="-1" Padding="0" Margin="0,4,0,0" TickPlacement="TopLeft" LargeChange="0.30103" TickFrequency="0.30103" Value="3" HorizontalAlignment="Stretch" Focusable="False" />
+            <Slider Grid.Column="0" Grid.ColumnSpan="2" Name="FOV" ValueChanged="FOV_ValueChanged" Minimum="-1" Padding="0" Margin="40,4,0,0" TickPlacement="TopLeft" LargeChange="0.30103" TickFrequency="0.30103" Value="3" HorizontalAlignment="Stretch" Focusable="False" />
             <TextBlock Grid.Column="2" Name="FOVMax" Text="1000" VerticalAlignment="Center" Margin="4,0,20,0" />
-            <TextBlock Grid.Row="1" Grid.Column="1" FontWeight="Bold" FontSize="12" TextAlignment="Center" HorizontalAlignment="Center" VerticalAlignment="Stretch">
+            <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" FontWeight="Bold" FontSize="12" TextAlignment="Center" HorizontalAlignment="Center" VerticalAlignment="Stretch">
                 <TextBlock.ContextMenu>
                     <ContextMenu Width="Auto" Opened="DWContextMenu_Opened" Closed="DWContextMenu_Closed">
                         <StackPanel Orientation="Horizontal">
@@ -118,7 +118,7 @@
                     <Run Name="DW" Text="10.000">
                 </Run>
             </Span></TextBlock>
-            <TextBlock Grid.Row="1" Grid.RowSpan="2" Grid.Column="0" Grid.ColumnSpan="2" FontWeight="Bold" VerticalAlignment="Center" Margin="8">
+            <TextBlock Grid.Row="1" Grid.RowSpan="2" Grid.Column="0" Grid.ColumnSpan="2" FontWeight="Bold" VerticalAlignment="Top" Margin="8">
                 <TextBlock.ContextMenu>
                     <ContextMenu Name="EventSelector">
                         <ContextMenu.Resources>
@@ -131,7 +131,7 @@
                     <Run Name="SearchEventName"/>
                 </Span>
             </TextBlock>
-            <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Margin="0,0,0,4" HorizontalAlignment="Center" VerticalAlignment="Top" >
+            <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" Orientation="Horizontal" Margin="0,0,0,4" HorizontalAlignment="Center" VerticalAlignment="Top" >
                 <StackPanel.Resources>
                     <Style TargetType="RadioButton">
                         <Setter Property="Margin" Value="8,0"/>
@@ -188,6 +188,7 @@
                     <Button Name="ChangeDecimation" Padding="3,0" Click="ChangeDecimation_Click" IsEnabled="False" IsDefault="True" Height="20">Δ</Button>
                 </StackPanel>
             </Grid>
+        <Button Name="AbsoluteEvents" Grid.Column="0" Grid.ColumnSpan="1" Grid.Row="2" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="8,0" Width="180" PreviewMouseDown="AbsoluteEvents_MouseDown" PreviewMouseUp="AbsoluteEvents_MouseUp">Display Events at absolute times</Button>
         </Grid>
     </Grid>
 </Window>
