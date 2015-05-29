@@ -635,8 +635,7 @@ namespace ASCtoFMConverter
                 string channelBasisName = ((string)pkd.EventName.SelectedItem).Substring(7);
                 int i_;
                 if ((i_ = channelBasisName.IndexOf('_')) > 0) channelBasisName = channelBasisName.Substring(0, i_);
-                PKDetectorEventCounterDescription pkdDesc =
-                    new PKDetectorEventCounterDescription(bdf.ChannelNumberFromLabel(channelBasisName));
+                PKDetectorEventCounterDescription pkdDesc = new PKDetectorEventCounterDescription(bdf);
                 pkdDesc.EventName = (string)pkd.EventName.SelectedItem;
                 pkdDesc.GVName = pkd.GVName.Text;
                 v = pkd.Found.SelectedIndex;

@@ -172,11 +172,11 @@ namespace ASCtoFMConverter
 
         internal int assignedGVNumber; //computed in ASCConverter once all PKDetectorEventCounterDescriptions created
 
-        double samplingTime;
+        BDFEDFFileStream.BDFEDFFileReader bdf;
 
-        public PKDetectorEventCounterDescription(double samplingTime)
+        public PKDetectorEventCounterDescription(BDFEDFFileStream.BDFEDFFileReader BDF)
         {
-            this.samplingTime = samplingTime;
+            bdf = BDF;
         }
 
         internal int countMatchingEvents(double startTime, double endTime, List<Event.InputEvent> events)
@@ -185,8 +185,8 @@ namespace ASCtoFMConverter
             int count = 0;
             foreach (InputEvent ie in events)
             {
-                if (ie.Time >= endTime) break; //Since Events are sorted, we're done when beyond endTime
-                if (ie.Time < startTime) continue; //Event before time span?
+                if (bdf.timeFromBeginningOfFileTo(ie) >= endTime) break; //Since Events are sorted, we're done when beyond endTime
+                if (bdf.timeFromBeginningOfFileTo(ie) < startTime) continue; //Event before time span?
                 if (ie.Name != EventName) continue; //Event not correct type?
                 if (found != null)
                     if (((bool)found) ^ (ie.GVValue[1] == "Found")) continue;

@@ -205,8 +205,8 @@ namespace ASCtoFMConverter
             //Need to synchronize clocks by setting the BDF.zeroTime value
             //zeroTime is the time, according to the Event file clock, of the beginning of the BDF file (BioSemi clock)
             if (ignoreStatus && offsetToFirstEvent < 0) //cannot use Status markers to synchronize clocks, so
-                //use raw Event clock times as actual offsets from beginning of BDF file
-                bdf.setZeroTime(0D);
+                //use raw Event clock times as actual offsets from beginning of BDF file; in other words assume all Events are BDF-based
+                bdf.setZeroTime(0D); //this keeps it from throwing an error when "synchronizing"
             else 
             { //Need to find a covered (intrisic or extrinsic) Event to use as an indicial Event
                 bool found = false;
@@ -248,7 +248,7 @@ namespace ASCtoFMConverter
                     }
                 }
                 if (!found)
-                    throw (new Exception("No valid synchronizing Event found; use manual synchronization"));
+                    throw (new Exception("No valid synchronizing (covered) Event found; use manual synchronization"));
             }
             Log.writeToLog("\tinto FM file " + dlg.FileName);
 
@@ -282,7 +282,7 @@ namespace ASCtoFMConverter
                         InputEvent ev = EventEnumerator.Current;
                         if (ev.Name == startEDE.Name)
                         {
-                            BDFPoint b = new BDFPoint(bdf).FromSecs(ev.Time - bdf.zeroTime);
+                            BDFPoint b = new BDFPoint(bdf).FromSecs(bdf.timeFromBeginningOfFileTo(ev));
                             ed.From.Add(b);
                             if (t)
                                 while (EventEnumerator.MoveNext())
@@ -290,7 +290,7 @@ namespace ASCtoFMConverter
                                     ev = EventEnumerator.Current;
                                     if (ev.Name == endEDE.Name)
                                     {
-                                        ed.To.Add(new BDFPoint(bdf).FromSecs(ev.Time - bdf.zeroTime));
+                                        ed.To.Add(new BDFPoint(bdf).FromSecs(bdf.timeFromBeginningOfFileTo(ev)));
                                         break;
                                     }
                                 }
@@ -335,13 +335,13 @@ namespace ASCtoFMConverter
                         startTime += currentEpisode.Start._offset;
                         endTime += currentEpisode.End._offset;
                         bw.ReportProgress(0, "Found episode " + (++epiNo).ToString("0") +
-                            " from " + (startTime - bdf.zeroTime).ToString("0.000") +
-                            " to " + (endTime - bdf.zeroTime).ToString("0.000"));
+                            " from " + startTime.ToString("0.000") +
+                            " to " + endTime.ToString("0.000"));
                         int maxNumberOfFMRecs = (int)Math.Floor((endTime - startTime) / FMRecLength);
-                        log.openFoundEpisode(epiNo, startTime - bdf.zeroTime, endTime - bdf.zeroTime, maxNumberOfFMRecs);
+                        log.openFoundEpisode(epiNo, startTime, endTime, maxNumberOfFMRecs);
 
                         BDFPoint startBDFPoint = new BDFPoint(bdf);
-                        startBDFPoint.FromSecs(startTime - bdf.zeroTime);
+                        startBDFPoint.FromSecs(startTime);
                         BDFPoint endBDFPoint = new BDFPoint(startBDFPoint);
 
                         /***** Get group variables for this record *****/
@@ -371,8 +371,8 @@ namespace ASCtoFMConverter
                                 for (int j = GVc0; j < GVCount; j++) FMStream.record.GV[j] = 0;
                                 //calculate start and end times for this record: use BDFPoint values to assure accuracy;
                                 //avoids problem if FMRecordLength is not exactly represented in double
-                                startTime = startBDFPoint.ToSecs() + bdf.zeroTime;
-                                endTime = endBDFPoint.ToSecs() + bdf.zeroTime;
+                                startTime = startBDFPoint.ToSecs();
+                                endTime = endBDFPoint.ToSecs();
                                 foreach (EpisodeDescription ed in specs)
                                     foreach (PKDetectorEventCounterDescription pkd in ed.PKCounters)
                                         FMStream.record.GV[pkd.assignedGVNumber] +=
@@ -397,7 +397,7 @@ namespace ASCtoFMConverter
 
         /// <summary>
         /// Find the next Event that matches a criterium; may be either a startEvent or an endEvent;
-        ///     assumes that the EFREnum.Current is the last matched Event; handles case of.Current being null 
+        ///     assumes that the EFREnum.Current is the last matched Event; handles case of .Current being null 
         ///     first time in or if there is no Event associated with the last match ("Beginning of file");
         ///     routine should not be called if there was not a previous match (other than first entry)
         /// </summary>
@@ -416,14 +416,14 @@ namespace ASCtoFMConverter
                 string str = (string)eventCriterium._Event;
                 if (str == "Beginning of file") //may occur as start- or endEvent
                 {
-                    time = bdf.zeroTime;
+                    time = 0D;
                     ie = null; //only one with no additional GVs possible
                     return true;
                 }
                 else if (str == "Same Event") //only occurs as endEvent
                 { //will only be called if there has been a previous match
                     ie = Events.Current;
-                    time = ie.Time;
+                    time = bdf.timeFromBeginningOfFileTo(ie); ;
                     sameEventFlag = true;
                     return true;
                 }
@@ -445,7 +445,7 @@ namespace ASCtoFMConverter
                 {
                     if (eventCriterium.Match(ie)) //found matching Event
                     {
-                        time = ie.Time;
+                        time = bdf.timeFromBeginningOfFileTo(ie);
                         return true;
                     }
                 }
@@ -455,14 +455,14 @@ namespace ASCtoFMConverter
                     if (str == "Any Event" || str.Substring(11) == "(all)" || ie.EDE.intrinsic != null) //make sure Any Event or
                         if (eventCriterium.MatchGV(ie))
                         {
-                            time = ie.Time;
+                            time = bdf.timeFromBeginningOfFileTo(ie);
                             return true;
                         }
                 }
                 more = Events.MoveNext(); //move on to next Event
             } //while loop
             if (!startEvent) //if endEvent time is end of BDF file
-                time = bdf.zeroTime + bdf.RecordDurationDouble * bdf.NumberOfRecords;
+                time = bdf.RecordDurationDouble * bdf.NumberOfRecords;
             return false;
         }
 
