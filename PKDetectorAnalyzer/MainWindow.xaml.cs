@@ -127,15 +127,20 @@ namespace PKDetectorAnalyzer
         internal void checkError()
         {
             bool result = ChannelEntries.Items.Count > 0 && FNExtension.Text.Length > 0;
-            for (int i = 0; i < ChannelEntries.Items.Count; i++) //check each ChannelItem
+            foreach (ChannelItem ci in ChannelEntries.Items) //check each ChannelItem
             {
-
-                ChannelItem ci = (ChannelItem)ChannelEntries.Items[i];
                 string ciName = ci.NewEventName.Text;
                 result &= ci._filterN > 0 && ci._minimumL > 0 && ci._threshold > 0D && !head.Events.ContainsKey(ciName);
-                for (int j = i + 1; j < ChannelEntries.Items.Count; j++)
-                    result &= ciName != ((ChannelItem)ChannelEntries.Items[j]).NewEventName.Text;
-                if (!result) break;
+                int cnt = 0;
+                foreach (ChannelItem c in ChannelEntries.Items) if (c.NewEventName.Text == ciName) cnt++;
+                if (cnt > 1) //non-unique name
+                {
+                    ci.NewEventName.Foreground = Brushes.Red;
+                    result = false;
+                }
+                else
+                    ci.NewEventName.Foreground = Brushes.Black;
+
             }
             Process.IsEnabled = result;
         }
