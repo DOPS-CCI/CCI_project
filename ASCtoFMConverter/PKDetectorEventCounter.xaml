@@ -7,7 +7,7 @@
              mc:Ignorable="d" 
              d:DesignHeight="120" d:DesignWidth="630" FontSize="11">
     <TabItem.Header>
-        <TextBlock Name="TabText" FontWeight="Bold" Text="{Binding ElementName=GVName, Path=Text}"/>
+        <TextBlock Name="TabText" FontWeight="Bold" Text="PK Detector Counter"/>
     </TabItem.Header>
     <TabItem.Resources>
         <Style TargetType="ComboBox">
@@ -44,48 +44,43 @@
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition  Width="60"/>
-                    <ColumnDefinition Width="150" />
-                    <ColumnDefinition Width="84"/>
-                    <ColumnDefinition  Width="150"/>
+                    <ColumnDefinition Width="100" />
+                    <ColumnDefinition  Width="80"/>
                     <ColumnDefinition Width="60" />
-                    <ColumnDefinition Width="104"/>
-                    <ColumnDefinition Width="32"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition  Width="Auto"/>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
-                
-                <Label Grid.Row="0" Grid.Column="0" Content="GV name"/>
-                <TextBox Grid.Row="0" Grid.Column="1" Name="GVName" Width="146" TextChanged="GVName_TextChanged">PKEventCounter</TextBox>
-                <Label Grid.Row="0" Grid.Column="2" HorizontalAlignment="Right">Event</Label>
-                <ComboBox Grid.Row="0" Grid.Column="3" Name="EventName" Width="146"/>
-                <Label Grid.Row="0" Grid.Column="4" Content="Found"/>
-                <ComboBox Grid.Row="0" Grid.Column="5" Name="Found" Width="100" SelectedIndex="0">
+                <TextBlock Grid.Column="0" Grid.Row="0" Grid.RowSpan="2" TextWrapping="Wrap" TextAlignment="Right" VerticalAlignment="Center" Margin="2" FontWeight="Bold">Select PK Channel Events--></TextBlock>
+                <ListBox Grid.Row="0" Grid.Column="1" Grid.RowSpan="2" Name="EventSelection" SelectedIndex="0" SelectionMode="Multiple" Margin="2" SelectionChanged="EventSelection_SelectionChanged" />
+                <Label Grid.Row="0" Grid.Column="2" Content="Found"/>
+                <ComboBox Grid.Row="0" Grid.Column="3" Name="Found" Width="100" SelectedIndex="0">
                     <sys:String>Either</sys:String>
                     <sys:String>Found only</sys:String>
                     <sys:String>Not found only</sys:String>
                 </ComboBox>
-                <CheckBox Name="Chi2" Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Checked="CheckBox_Checked" Unchecked="CheckBox_Checked" HorizontalAlignment="Right">
-                    <StackPanel Orientation="Horizontal" IsEnabled="{Binding ElementName=Chi2, Path=IsChecked}">
-                        <Label>
-                            <Span>Chi<Run BaselineAlignment="Top" FontSize="9">2</Run></Span>
-                        </Label>
-                        <ComboBox Name="Comp1" Width="34" SelectedIndex="0" HorizontalContentAlignment="Center"/>
-                        <TextBox Name="Chi2Value" Width="106" TextChanged="Chi2TB_TextChanged"/>
-                    </StackPanel>
-                </CheckBox>
-                <CheckBox Name="Magnitude" Grid.Row="1" Grid.Column="2" Grid.ColumnSpan="2" Unchecked="CheckBox_Checked" Checked="CheckBox_Checked" HorizontalAlignment="Right">
-                    <StackPanel Orientation="Horizontal" Grid.Row="1" Grid.Column="1" HorizontalAlignment="Right" IsEnabled="{Binding ElementName=Magnitude, Path=IsChecked}">
-                        <Label Content="Magnitude"/>
-                        <ComboBox Name="Comp2" Width="34" SelectedIndex="0" HorizontalContentAlignment="Center"/>
-                        <TextBox Name="MagnitudeValue" Width="106" TextChanged="MagnitudeTB_TextChanged" Text="0"/>
-                    </StackPanel>
-                </CheckBox>
-                <Label Grid.Row="1" Grid.Column="4" Content="Direction"/>
-                <ComboBox Grid.Row="1" Grid.Column="5" Name="Sign" Width="100" SelectedIndex="0">
+                <Label Grid.Row="1" Grid.Column="2" Content="Direction"/>
+                <ComboBox Grid.Row="1" Grid.Column="3" Name="Sign" Width="100" SelectedIndex="0">
                         <sys:String>Either</sys:String>
                         <sys:String>Positive only</sys:String>
                         <sys:String>Negative only</sys:String>
-                    </ComboBox>
-                <Button Name="Delete" Grid.Row="0" Grid.Column="6" Grid.RowSpan="2" HorizontalAlignment="Right" Width="22" Height="22" Margin="2" VerticalAlignment="Center" Click="Delete_Click">
+                </ComboBox>
+                <CheckBox Name="Magnitude" Grid.Row="0" Grid.Column="4" Unchecked="CheckBox_Checked" Checked="CheckBox_Checked" HorizontalAlignment="Right" Content="Magnitude"/>
+                <StackPanel Orientation="Horizontal" Grid.Row="0" Grid.Column="5" HorizontalAlignment="Right" IsEnabled="{Binding ElementName=Magnitude, Path=IsChecked}">
+                    <ComboBox Name="Comp2" Width="34" SelectedIndex="0" HorizontalContentAlignment="Center"/>
+                    <TextBox Name="MagnitudeValue" Width="106" TextChanged="MagnitudeTB_TextChanged" Text="0"/>
+                </StackPanel>
+                <CheckBox Name="Chi2" Grid.Row="1" Grid.Column="4" Checked="CheckBox_Checked" Unchecked="CheckBox_Checked" HorizontalAlignment="Right" >
+                    <CheckBox.Content>
+                        <Span>Chi<Run BaselineAlignment="Top" FontSize="9">2</Run></Span>
+                    </CheckBox.Content>
+                </CheckBox>
+                <StackPanel Orientation="Horizontal" Grid.Row="1" Grid.Column="5" IsEnabled="{Binding ElementName=Chi2, Path=IsChecked}">
+                    <ComboBox Name="Comp1" Width="34" SelectedIndex="0" HorizontalContentAlignment="Center"/>
+                    <TextBox Name="Chi2Value" Width="106" TextChanged="Chi2TB_TextChanged"/>
+                </StackPanel>
+                <Button Name="Delete" Grid.Row="0" Grid.Column="6" Grid.RowSpan="2" HorizontalAlignment="Right" Width="22" Height="22" Margin="8" VerticalAlignment="Center" Click="Delete_Click">
                     <TextBlock FontSize="14" FontWeight="Bold" Text="-" Margin="0,-3,0,3" />
                 </Button>
             </Grid>

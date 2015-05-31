@@ -22,15 +22,11 @@ namespace ASCtoFMConverter
     /// </summary>
     public partial class PKDetectorEventCounter : TabItem
     {
-        static int count = 0;
         private Header.Header header;
         private Window2.Validate validate;
 
         internal double chi2;
         internal double magnitude;
-        internal int filterSize;
-        internal double filterThreshold;
-        internal int filterMinimumLength;
 
         public PKDetectorEventCounter(Header.Header hdr, Window2.Validate v)
         {
@@ -38,7 +34,7 @@ namespace ASCtoFMConverter
             foreach(string e in hdr.Events.Keys)
                 if (e.Substring(0, 7) == "**PKCnt") { test = true; break; }
 
-            if (test)
+            if (test) //then dataset has appropriate PK detector Events
             {
                 this.header = hdr;
                 this.validate = v;
@@ -46,9 +42,8 @@ namespace ASCtoFMConverter
                 InitializeComponent();
 
                 foreach (string str in hdr.Events.Keys)
-                    if (str.Substring(0, 7) == "**PKCnt") EventName.Items.Add(str);
-                EventName.SelectedIndex = 0;
-                this.GVName.Text = "PKEventCount" + (++count).ToString("0");
+                    if (str.Substring(0, 7) == "**PKCnt") EventSelection.Items.Add(str.Substring(7));
+                EventSelection.SelectedIndex = 0;
                 Comp1.Items.Add("<");
                 Comp1.Items.Add(">");
                 Comp1.SelectedIndex = 0;
@@ -70,7 +65,7 @@ namespace ASCtoFMConverter
 
         internal bool Validate()
         {
-            if (GVName.Text.Length==0) return false;
+            if (EventSelection.SelectedItems.Count < 1) return false;
             if ((bool)Chi2.IsChecked && chi2 < 0D) return false;
             if ((bool)Magnitude.IsChecked && magnitude < 0D) return false;
             return true;
@@ -81,15 +76,6 @@ namespace ASCtoFMConverter
             TabControl tc = (TabControl)this.Parent;
             tc.Items.Remove(this);
             tc.SelectedIndex = 0;
-            validate();
-        }
-
-        private void GVName_TextChanged(object sender, TextChangedEventArgs e)
-        {
-            if (GVName.Text.Length == 0)
-                GVName.BorderBrush = Brushes.Red;
-            else
-                GVName.BorderBrush = Brushes.MediumBlue;
             validate();
         }
 
@@ -135,6 +121,13 @@ namespace ASCtoFMConverter
 
         private void CheckBox_Checked(object sender, RoutedEventArgs e)
         {
+            validate();
+        }
+
+        private void EventSelection_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (EventSelection.SelectedItems.Count < 1) EventSelection.BorderBrush = Brushes.Red;
+            else EventSelection.BorderBrush = Brushes.DarkBlue;
             validate();
         }
     }

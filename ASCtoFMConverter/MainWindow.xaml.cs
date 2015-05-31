@@ -546,7 +546,6 @@ namespace ASCtoFMConverter
             conv.decimation = _decimation;
             conv.removeOffsets = (bool)removeOffsets.IsChecked;
             conv.removeTrends = (bool)removeTrends.IsChecked;
-//            conv.removeSpline = (bool)splineOffsets.IsChecked;
             conv.radinOffset = Radin.IsEnabled && (bool)Radin.IsChecked;
             if (conv.radinOffset)
             {
@@ -632,12 +631,9 @@ namespace ASCtoFMConverter
             {
                 int v;
                 PKDetectorEventCounter pkd = (PKDetectorEventCounter)ede.EpisodeDescriptionPanel.Items[i];
-                string channelBasisName = ((string)pkd.EventName.SelectedItem).Substring(7);
-                int i_;
-                if ((i_ = channelBasisName.IndexOf('_')) > 0) channelBasisName = channelBasisName.Substring(0, i_);
                 PKDetectorEventCounterDescription pkdDesc = new PKDetectorEventCounterDescription(bdf);
-                pkdDesc.EventName = (string)pkd.EventName.SelectedItem;
-                pkdDesc.GVName = pkd.GVName.Text;
+                pkdDesc.EventNames = new List<string>(0);
+                foreach (string s in pkd.EventSelection.SelectedItems) pkdDesc.EventNames.Add("**PKCnt" + s);
                 v = pkd.Found.SelectedIndex;
                 if (v == 0) pkdDesc.found = null;
                 else pkdDesc.found = v == 1;
@@ -656,7 +652,7 @@ namespace ASCtoFMConverter
                 v=pkd.Sign.SelectedIndex;
                 if (v == 0) pkdDesc.positive = null;
                 else pkdDesc.positive = v == 1;
-                epi.PKCounters.Add(pkdDesc);
+                epi.PKCounter = pkdDesc;
             }
             return epi;
         }

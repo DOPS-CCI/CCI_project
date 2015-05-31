@@ -35,7 +35,6 @@ namespace ASCtoFMConverter
         public List<List<int>> referenceChannels = null;
         public BDFEDFFileStream.BDFEDFFileReader bdf;
         public List<GVEntry> GVCopyAcross;
-        public Dictionary<string,int> PKDCounterGVs;
         public double FMRecLength;
         public int samplingRate;
         public bool ignoreStatus;
@@ -78,23 +77,17 @@ namespace ASCtoFMConverter
             int FMRecordLengthInBDF = Convert.ToInt32(FMRecLength * samplingRate);
 
             int GVCount = 6 + GVCopyAcross.Count;
-
-            //Create dictionary of newly created counting GVs
-            PKDCounterGVs = new Dictionary<string, int>(); //GV name, GV location index
+            bool PKCounterExists = false;
             foreach (EpisodeDescription ed in specs)
             {
-                foreach (PKDetectorEventCounterDescription pkd in ed.PKCounters)
+                PKDetectorEventCounterDescription pkd = ed.PKCounter;
+                if (pkd != null)
                 {
-                    string s = pkd.GVName;
-                    if (PKDCounterGVs.ContainsKey(s)) //already found, use correct GV number
-                        pkd.assignedGVNumber = PKDCounterGVs[s];
-                    else
-                    {
-                        PKDCounterGVs.Add(s, GVCount); //record new name in dictionary
-                        pkd.assignedGVNumber = GVCount++; //with its GV number
-                    }
+                    PKCounterExists = true;
+                    pkd.assignedGVNumber = GVCount;
                 }
             }
+            GVCount += PKCounterExists ? 3 : 0;
 
             //NOTE: because we have to have the number of GVs (and Channels) available when we create the output stream,
             // we have to separate the enumeration of GVs from the naming of GVs; this could be avoided by using lists
@@ -126,7 +119,12 @@ namespace ASCtoFMConverter
             //then the copied-across GVs
             for (int n = 0; n < GVCopyAcross.Count; n++) FMStream.GVNames(n + 6, GVCopyAcross[n].Name);
             //and last, the GVs from the counters
-            foreach (KeyValuePair<string, int> kvp in PKDCounterGVs) FMStream.GVNames(kvp.Value, kvp.Key);
+            if (PKCounterExists) //if there are any PK counters, we'll need their GVs
+            {
+                FMStream.GVNames(GVCount - 3, "PK-rate");
+                FMStream.GVNames(GVCount - 2, "PK-velocity");
+                FMStream.GVNames(GVCount - 1, "PK-accel");
+            }
 
             for (int j = 0; j < FMStream.NC; j++) //generate channel labels
             {
@@ -361,22 +359,29 @@ namespace ASCtoFMConverter
                         for (int rec = 1; rec <= maxNumberOfFMRecs; rec++)
                         {
                             endBDFPoint += FMRecordLengthInBDF; //update end point
-                            if (currentEpisode.Exclude == null || !currentEpisode.Exclude.IsExcluded(startBDFPoint, endBDFPoint))
+                            if (currentEpisode.Exclude == null || !currentEpisode.Exclude.IsExcluded(startBDFPoint, endBDFPoint)) //is not excluded:
                             {
                                 FMStream.record.GV[4] = ++actualNumberOfFMRecs; //Record number in this episode
                                 FMStream.record.GV[5] = Convert.ToInt32(Math.Ceiling(startBDFPoint.ToSecs())); //Approximate seconds since start of BDF file
 
-                                //*****Count PK Events*****
-                                int GVc0 = GVCount - PKDCounterGVs.Count;
-                                for (int j = GVc0; j < GVCount; j++) FMStream.record.GV[j] = 0;
                                 //calculate start and end times for this record: use BDFPoint values to assure accuracy;
                                 //avoids problem if FMRecordLength is not exactly represented in double
                                 startTime = startBDFPoint.ToSecs();
                                 endTime = endBDFPoint.ToSecs();
-                                foreach (EpisodeDescription ed in specs)
-                                    foreach (PKDetectorEventCounterDescription pkd in ed.PKCounters)
-                                        FMStream.record.GV[pkd.assignedGVNumber] +=
-                                            pkd.countMatchingEvents(startTime, startTime + FMRecLength, EventList);
+
+                                //*****Count PK Events in this record*****
+                                if (PKCounterExists)
+                                {
+                                    for (int j = GVCount - 3; j < GVCount; j++) FMStream.record.GV[j] = 0; //zero out as default
+                                    if(currentEpisode.PKCounter!=null)
+                                    {
+                                        PKDetectorEventCounterDescription pkd = currentEpisode.PKCounter;
+                                        double[] v = pkd.countMatchingEvents(startTime, startTime + FMRecLength, EventList);
+                                        FMStream.record.GV[GVCount - 3] = Convert.ToInt32(1000D * v[0]); //make per thousand to nave useful integer
+                                        FMStream.record.GV[GVCount - 2] = Convert.ToInt32(v[1]);
+                                        FMStream.record.GV[GVCount - 1] = Convert.ToInt32(v[2]);
+                                    }
+                                }
 
                                 createFILMANRecord(startBDFPoint, endBDFPoint);
                             }

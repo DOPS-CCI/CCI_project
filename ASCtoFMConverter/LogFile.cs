@@ -35,6 +35,7 @@ namespace ASCtoFMConverter
             logStream.WriteElementString("Source", c.directory);
 
             logStream.WriteStartElement("Episodes");
+            bool addPKGVs=false;
             foreach (EpisodeDescription ED in c.specs)
             {
                 logStream.WriteStartElement("EpisodeDefinition");
@@ -60,33 +61,37 @@ namespace ASCtoFMConverter
                     logStream.WriteEndElement(/* GVCriterium */);
                 }
                 logStream.WriteEndElement(/* End */);
-                if(ED.PKCounters!=null&&ED.PKCounters.Count!=0)
+
+                if(ED.PKCounter!=null)
                 {
-                    foreach (PKDetectorEventCounterDescription pkd in ED.PKCounters)
+                    addPKGVs = true;
+                    PKDetectorEventCounterDescription pkd = ED.PKCounter;
+                    logStream.WriteStartElement("PKDetectorCounter");
+                    logStream.WriteStartElement("Events");
+                    foreach (string s in pkd.EventNames)
                     {
-                        logStream.WriteStartElement("PKDetectorCounter");
-                        logStream.WriteAttributeString("AssignedGV", pkd.GVName);
-                        logStream.WriteAttributeString("Event", pkd.EventName);
-                        if (pkd.found != null)
-                            logStream.WriteElementString("FoundFit", (bool)pkd.found ? "True" : "False");
-                        if (pkd.includeChi2)
-                        {
-                            logStream.WriteStartElement("ChiSquare");
-                            logStream.WriteAttributeString("Comp", pkd.comp1.ToString());
-                            logStream.WriteAttributeString("Value", pkd.chi2.ToString("0.0"));
-                            logStream.WriteEndElement(/* ChiSquare */);
-                        }
-                        if (pkd.includeMagnitude)
-                        {
-                            logStream.WriteStartElement("Magnitude");
-                            logStream.WriteAttributeString("Comp", pkd.comp2.ToString());
-                            logStream.WriteAttributeString("Value", pkd.magnitude.ToString("0.0"));
-                            logStream.WriteEndElement(/* Magnitude */);
-                        }
-                        if (pkd.positive != null)
-                            logStream.WriteElementString("Sign", (bool)pkd.positive ? "Positive" : "Negative");
-                        logStream.WriteEndElement(/* PKDetectorCounter */);
+                        logStream.WriteElementString("Name", s);
                     }
+                    logStream.WriteEndElement(/* Events */);
+                    if (pkd.found != null)
+                        logStream.WriteElementString("FoundFit", (bool)pkd.found ? "True" : "False");
+                    if (pkd.includeChi2)
+                    {
+                        logStream.WriteStartElement("ChiSquare");
+                        logStream.WriteAttributeString("Comp", pkd.comp1.ToString());
+                        logStream.WriteAttributeString("Value", pkd.chi2.ToString("0.0"));
+                        logStream.WriteEndElement(/* ChiSquare */);
+                    }
+                    if (pkd.includeMagnitude)
+                    {
+                        logStream.WriteStartElement("Magnitude");
+                        logStream.WriteAttributeString("Comp", pkd.comp2.ToString());
+                        logStream.WriteAttributeString("Value", pkd.magnitude.ToString("0.0"));
+                        logStream.WriteEndElement(/* Magnitude */);
+                    }
+                    if (pkd.positive != null)
+                        logStream.WriteElementString("Sign", (bool)pkd.positive ? "Positive" : "Negative");
+                    logStream.WriteEndElement(/* PKDetectorCounter */);
                 }
                 logStream.WriteEndElement(/* EpisodeDefinition */);
             }
@@ -100,11 +105,19 @@ namespace ASCtoFMConverter
                 logStream.WriteString(gv.Name);
                 logStream.WriteEndElement(/* GroupVar */);
             }
-            foreach (string s in c.PKDCounterGVs.Keys)
+            if (addPKGVs)
             {
                 logStream.WriteStartElement("GroupVar");
                 logStream.WriteAttributeString("Type", "PKCount");
-                logStream.WriteString(s);
+                logStream.WriteString("PK-rate");
+                logStream.WriteEndElement(/* GroupVar */);
+                logStream.WriteStartElement("GroupVar");
+                logStream.WriteAttributeString("Type", "PKCount");
+                logStream.WriteString("PK-velocity");
+                logStream.WriteEndElement(/* GroupVar */);
+                logStream.WriteStartElement("GroupVar");
+                logStream.WriteAttributeString("Type", "PKCount");
+                logStream.WriteString("PK-accel");
                 logStream.WriteEndElement(/* GroupVar */);
             }
             logStream.WriteEndElement(/* GroupVars */);

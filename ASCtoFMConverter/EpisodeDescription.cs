@@ -17,7 +17,7 @@ namespace ASCtoFMConverter
         internal EpisodeMark End = new EpisodeMark();
         internal ExclusionDescription Exclude = null;
         internal bool useEOF;
-        internal List<PKDetectorEventCounterDescription> PKCounters = new List<PKDetectorEventCounterDescription>();
+        internal PKDetectorEventCounterDescription PKCounter;
 
         public override string ToString()
         {
@@ -159,8 +159,7 @@ namespace ASCtoFMConverter
     
     public class PKDetectorEventCounterDescription
     {
-        internal string GVName;
-        internal string EventName;
+        internal List<string> EventNames;
         internal bool? found;
         internal bool includeChi2;
         internal Comp comp1;
@@ -179,34 +178,38 @@ namespace ASCtoFMConverter
             bdf = BDF;
         }
 
-        internal int countMatchingEvents(double startTime, double endTime, List<Event.InputEvent> events)
+        internal double[] countMatchingEvents(double startTime, double endTime, List<Event.InputEvent> events)
         {
-            double d;
-            int count = 0;
+            double[] d = new double[3];
+            double mag;
             foreach (InputEvent ie in events)
             {
                 if (bdf.timeFromBeginningOfFileTo(ie) >= endTime) break; //Since Events are sorted, we're done when beyond endTime
                 if (bdf.timeFromBeginningOfFileTo(ie) < startTime) continue; //Event before time span?
-                if (ie.Name != EventName) continue; //Event not correct type?
+                if (!EventNames.Contains(ie.Name)) continue; //Event not correct type?
                 if (found != null)
                     if (((bool)found) ^ (ie.GVValue[1] == "Found")) continue;
-                if (includeChi2)
-                {
-                    d = (double)ie.GetIntValueForGVName("Chi square");
-                    if (comp1 == Comp.lessthan) { if (d >= chi2) continue; }
-                    else { if (d <= chi2) continue; }
-                }
-                if (includeMagnitude)
-                {
-                    d = (double)ie.GetIntValueForGVName("Magnitude");
-                    if (comp2 == Comp.greaterthan) { if (d <= magnitude) continue; }
-                    else { if (d >= magnitude) continue; }
-                }
                 if (positive != null)
                     if (((bool)positive) ^ (ie.GVValue[3] == "Positive")) continue;
-                ++count;
+                if (includeChi2)
+                {
+                    double v = (double)ie.GetIntValueForGVName("Chi square");
+                    if (comp1 == Comp.lessthan) { if (v >= chi2) continue; }
+                    else { if (v <= chi2) continue; }
+                }
+                mag = (double)ie.GetIntValueForGVName("Magnitude");
+                if (includeMagnitude)
+                {
+                    if (comp2 == Comp.greaterthan) { if (mag <= magnitude) continue; }
+                    else { if (mag >= magnitude) continue; }
+                }
+                d[0]++; //rate
+                d[1] += mag; //velocity
+                d[2] += mag * 1000D / (double)ie.GetIntValueForGVName("Alpha TC"); //acceleration
             }
-            return count;
+            mag = endTime - startTime;
+            for (int i = 0; i < 3; i++) d[i] /= mag;
+            return d;
         }
     }
 

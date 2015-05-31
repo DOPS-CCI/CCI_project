@@ -378,7 +378,7 @@ namespace ASCtoFMConverter
         private void TabItem_PreviewMouseDown(object sender, MouseButtonEventArgs e)
         {
             PKDetectorEventCounter pkd = new PKDetectorEventCounter(hdr, validate);
-            if (pkd.EventName != null)
+            if (pkd != null) //returns null if no **PKCnt Events defined
                 EpisodeDescriptionPanel.Items.Insert(EpisodeDescriptionPanel.Items.Count - 1, pkd);
             e.Handled = true;
         }
