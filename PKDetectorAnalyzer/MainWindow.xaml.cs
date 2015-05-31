@@ -1,19 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Linq;
 using System.IO;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
 using CCIUtilities;
 using CCILibrary;
 using Header;
@@ -22,7 +15,6 @@ using EventDictionary;
 using BDFEDFFileStream;
 using EventFile;
 using GroupVarDictionary;
-using EventDictionary;
 
 namespace PKDetectorAnalyzer
 {
@@ -74,7 +66,7 @@ namespace PKDetectorAnalyzer
 
         static LevenbergMarquardt LM = new LevenbergMarquardt(func, Jfunc,
            new LinearAlgebra.NVector(new double[] { -30000D, -60000D, -60000D, 0.25, 0.005, -0.25 }),
-           new LinearAlgebra.NVector(new double[] { 30000D, 60000D, 60000D, 20, 0.1, 0.5 }), null,
+           new LinearAlgebra.NVector(new double[] { 30000D, 60000D, 60000D, 40, 0.1, 0.5 }), null,
            new double[] { 0.0001, 0.00001, 0.00001, 0.01 },
            LevenbergMarquardt.UpdateType.Marquardt);
         
