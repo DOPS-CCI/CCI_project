@@ -135,7 +135,7 @@ namespace HeaderFileStream
                                 ede.BDFBased = false;
                             else if (s == "BDF-based")
                             {
-                                if (ede.intrinsic != null) throw new Exception("Incompatible Type and Clock attributes in Event");
+                                if (ede.IsCovered) throw new Exception("Incompatible Type and Clock attributes in Event");
                                 ede.BDFBased = true;
                             }
                             else throw new Exception("Invalid Clock attribute in Event");
@@ -147,7 +147,7 @@ namespace HeaderFileStream
                         xr.ReadStartElement("Description", nameSpace);
                         ede.Description = xr.ReadContentAsString();
                         xr.ReadEndElement(/* Description */);
-                        if (ede.intrinsic != null && !(bool)ede.intrinsic)
+                        if (ede.IsCovered && !(bool)ede.intrinsic)
                         {
                             xr.ReadStartElement("Channel", nameSpace);
                             ede.channelName = xr.ReadContentAsString();
@@ -310,11 +310,11 @@ namespace HeaderFileStream
                 foreach (KeyValuePair<string, EventDictionaryEntry> ede in head.Events)
                 {
                     xw.WriteStartElement("Event");
-                    xw.WriteAttributeString("Type", ede.Value.intrinsic != null ? (bool)ede.Value.intrinsic ? "intrinsic" : "extrinsic" : "*");
+                    xw.WriteAttributeString("Type", ede.Value.IsCovered ? (bool)ede.Value.intrinsic ? "intrinsic" : "extrinsic" : "*");
                     xw.WriteAttributeString("Clock", ede.Value.BDFBased ? "BDF-based" : "Absolute");
                     xw.WriteElementString("Name", ede.Key);
                     xw.WriteElementString("Description", ede.Value.Description);
-                    if (ede.Value.intrinsic != null && !(bool)ede.Value.intrinsic)
+                    if (ede.Value.IsCovered && !(bool)ede.Value.intrinsic)
                     {
                         xw.WriteElementString("Channel", ede.Value.channelName);
                         xw.WriteElementString("Edge", ede.Value.rise ? "rising" : "falling");

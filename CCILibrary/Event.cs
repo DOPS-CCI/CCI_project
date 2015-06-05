@@ -3,6 +3,8 @@ using System.Text;
 using System.Threading;
 using EventDictionary;
 using GroupVarDictionary;
+using BDFEDFFileStream;
+using CCIUtilities;
 
 namespace Event
 {
@@ -270,6 +272,16 @@ namespace Event
         public string EventTime; //optional; string translation of Time
         public string[] GVValue;
 
+        //these items added to include concept of relativeTime, where all Event locations are w.r.t. BDF file origin
+        public double? _relativeTime;
+        public double relativeTime
+        {
+            get { return (double)_relativeTime; } //will throw exception if relativeTime hasn't been set
+        }
+        static BDFEDFFileReader bdf = null;
+        static Header.Header head = null;
+
+
         public InputEvent(EventDictionaryEntry entry): base(entry)
         {
             if (ede.GroupVars != null && ede.GroupVars.Count > 0) GVValue = new string[ede.GroupVars.Count];
@@ -281,6 +293,34 @@ namespace Event
             return i < 0 ? -1 : ede.GroupVars[i].ConvertGVValueStringToInteger(GVValue[i]);
         }
 
+        /// <summary>
+        /// Links all input Events to a particular dataset in order to make the timing of InputEvents relative
+        /// to the BDF file
+        /// </summary>
+        /// <param name="Head">HDR file reader for the dataset</param>
+        /// <param name="BDF">BDF file reader for the dataset</param>
+        public static void LinkEventsToDataset(Header.Header Head, BDFEDFFileReader BDF)
+        {
+            head = Head;
+            bdf = BDF;
+        }
+
+        public void setRelativeTime() //need this post-processor because zeroTime isn't set when Events being read in
+        {
+            if (!EDE.BDFBased)
+            {
+                _relativeTime = m_time - bdf.zeroTime;
+                if (EDE.IsCovered) //covered Event => try to find Status mark nearby to use as actual Event time
+                {
+                    double offset;
+                    if ((offset = bdf.findGCNear(new GrayCode((uint)GC, head.Status), (double)_relativeTime)) >= 0D)
+                        _relativeTime = offset; //use actual offset to Status mark
+                }
+            }
+            else
+                _relativeTime = m_time;
+        }
+        
         public override string ToString()
         {
             string nl = Environment.NewLine;

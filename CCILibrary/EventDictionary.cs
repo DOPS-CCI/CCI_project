@@ -32,7 +32,8 @@ namespace EventDictionary
         public string Description { get { return m_description; } set { m_description = value; } } //need for binding
 
         public bool? intrinsic = true; //specifies the Event type: 
-            // intrinsic (true) are computer generated; extrinsic are external (nonsynchronous); use null for intrinsic Events with no Status marker (naked)
+            // intrinsic (true) are computer generated; extrinsic are external (nonsynchronous); both should have corresponding Status markers;
+            // use null for intrinsic Events with no Status marker (naked)
         internal bool m_bdfBased = false;
         public bool BDFBased //Time in Event is based on start of BDF file if true; otherwise Time is absolute if false => clocks need synchronization
         {
@@ -43,9 +44,11 @@ namespace EventDictionary
                 m_bdfBased = value;
             }
         }
-        public string IE { get { return intrinsic != null ? (bool)intrinsic ? "I" : "E" : "*"; } }
+        public string IE { get { return IsCovered ? (bool)intrinsic ? "I" : "E" : "*"; } }
         public bool IsCovered { get { return intrinsic != null; } }
         public bool IsNaked { get { return intrinsic == null; } }
+        public bool IsIntrinsic { get { return intrinsic == null || (bool)intrinsic; } }
+        public bool IsExtrinsic { get { return intrinsic == null || !(bool)intrinsic; } }
 
         public string channelName;
         public int channel = -1; //specifies channel number that contains the extrinsic Event data (AIB) -- only used for extrinsic Events
