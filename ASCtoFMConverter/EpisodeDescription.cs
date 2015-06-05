@@ -178,14 +178,14 @@ namespace ASCtoFMConverter
             bdf = BDF;
         }
 
-        internal double[] countMatchingEvents(double startTime, double endTime, List<Event.InputEvent> events)
+        internal double[] countMatchingEvents(double startTime, double endTime, List<InputEvent> events)
         {
             double[] d = new double[3];
             double mag;
             foreach (InputEvent ie in events)
             {
-                if (bdf.timeFromBeginningOfFileTo(ie) >= endTime) break; //Since Events are sorted, we're done when beyond endTime
-                if (bdf.timeFromBeginningOfFileTo(ie) < startTime) continue; //Event before time span?
+                if (ie.relativeTime >= endTime) break; //Since Events are sorted, we're done when beyond endTime
+                if (ie.relativeTime < startTime) continue; //Event before time span?
                 if (!EventNames.Contains(ie.Name)) continue; //Event not correct type?
                 if (found != null)
                     if (((bool)found) ^ (ie.GVValue[1] == "Found")) continue;

@@ -192,27 +192,31 @@ namespace ASCtoFMConverter
             int epiNo = 0; //found episode counter
 
             //read in list of Events
+            bw.ReportProgress(0, "Reading Events, synchronizing clocks, and calculating Event offsets from BDF file");
             List<InputEvent> EventList = new List<InputEvent>();
+            InputEvent.LinkEventsToDataset(head, bdf); //link InputEvents to this specific dataset
             foreach (InputEvent ie in new EventFileReader(
                     new FileStream(System.IO.Path.Combine(directory, head.EventFile),
                     FileMode.Open, FileAccess.Read)))
+            {
                 EventList.Add(ie);
+            }
             IEnumerator<InputEvent> EventEnumerator; //Enumerator for stepping through Event file
 
  //******** Synchronize clocks
             //Need to synchronize clocks by setting the BDF.zeroTime value
             //zeroTime is the time, according to the Event file clock, of the beginning of the BDF file (BioSemi clock)
-            if (ignoreStatus && offsetToFirstEvent < 0) //cannot use Status markers to synchronize clocks, so
-                //use raw Event clock times as actual offsets from beginning of BDF file; in other words assume all Events are BDF-based
+            if (ignoreStatus && offsetToFirstEvent < 0D) //cannot use Status markers to synchronize clocks, so
+                //use raw Event clock times as actual offsets from beginning of BDF file; in other words force all Events to be BDF-based
                 bdf.setZeroTime(0D); //this keeps it from throwing an error when "synchronizing"
-            else 
+            else
             { //Need to find a covered (intrisic or extrinsic) Event to use as an indicial Event
                 bool found = false;
                 EventEnumerator = EventList.GetEnumerator();
                 if (syncToFirst || ignoreStatus)
                     while (!found && EventEnumerator.MoveNext())
                     {
-                        if (EventEnumerator.Current.EDE.intrinsic != null) //have we found a covered Event?
+                        if (EventEnumerator.Current.EDE.IsCovered) //have we found a covered Event?
                         {
                             if (ignoreStatus)
                             {
@@ -233,10 +237,10 @@ namespace ASCtoFMConverter
                     uint v1 = head.Mask & (uint)bdf.getStatusSample(loc);
                     uint v2;
                     InputEvent IE;
-                    while ((v2 = (uint)bdf.getStatusSample(++loc) & head.Mask) == v1) ;
+                    while ((v2 = (uint)bdf.getStatusSample(++loc) & head.Mask) == v1) ; //find next Status mark after mid point of file; v2 = GC
                     while (!found && EventEnumerator.MoveNext())
                     {
-                        
+
                         IE = EventEnumerator.Current;
                         if (IE.GC == v2)
                         {
@@ -250,6 +254,10 @@ namespace ASCtoFMConverter
             }
             Log.writeToLog("\tinto FM file " + dlg.FileName);
 
+            foreach(InputEvent ie in EventList) //modify relativeTime field depending on type of Event
+                ie.setRelativeTime();
+
+            EventList = EventList.OrderBy(ev => ev.relativeTime).ToList(); //re-sort: minor order changes may occur
 
             //Loop through each episode specification,
             // then through the Event file to find any regions satisfying the specification,
@@ -428,7 +436,7 @@ namespace ASCtoFMConverter
                 else if (str == "Same Event") //only occurs as endEvent
                 { //will only be called if there has been a previous match
                     ie = Events.Current;
-                    time = bdf.timeFromBeginningOfFileTo(ie); ;
+                    time = Events.Current.relativeTime;
                     sameEventFlag = true;
                     return true;
                 }
@@ -450,17 +458,17 @@ namespace ASCtoFMConverter
                 {
                     if (eventCriterium.Match(ie)) //found matching Event
                     {
-                        time = bdf.timeFromBeginningOfFileTo(ie);
+                        time = Events.Current.relativeTime;
                         return true;
                     }
                 }
                 else //anonymous Event
                 {
                     string str = eventCriterium.EventName();
-                    if (str == "Any Event" || str.Substring(11) == "(all)" || ie.EDE.intrinsic != null) //make sure Any Event or
+                    if (str == "Any Event" || str.Substring(11) == "(all)" || ie.EDE.IsCovered) //make sure Any Event or
                         if (eventCriterium.MatchGV(ie))
                         {
-                            time = bdf.timeFromBeginningOfFileTo(ie);
+                            time = Events.Current.relativeTime;
                             return true;
                         }
                 }
