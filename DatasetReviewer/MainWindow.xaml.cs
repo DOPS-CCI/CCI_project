@@ -96,7 +96,7 @@ namespace DatasetReviewer
                 {
                     foreach (EventDictionaryEntry ede in ED.Values) // add ANA channels that are referenced by extrinsic Events
                     {
-                        if (ede.intrinsic != null && !(bool)ede.intrinsic)
+                        if (ede.IsCovered && !(bool)ede.intrinsic)
                         {
                             int chan = bdf.ChannelNumberFromLabel(ede.channelName);
                             if (!channelList.Contains(chan)) //don't enter duplicate
@@ -129,7 +129,7 @@ namespace DatasetReviewer
             bool z = false;
             foreach (Event.InputEvent ie in efr)// read in all Events into dictionary
             {
-                if (ie.EDE.intrinsic == null)
+                if (ie.EDE.IsNaked)
                     events.Add(ie);
                 else if (events.Count(e => e.GC == ie.GC) == 0) //quietly skip duplicates
                 {
@@ -478,7 +478,7 @@ namespace DatasetReviewer
                     }
                     if (AllEFEntriesValid && (EDE = evFound.EDE) != null)
                     {
-                        if (!multiEvent && EDE.intrinsic != null) //if multi-Event or naked, don't mark by type and leave black
+                        if (!multiEvent && EDE.IsCovered) //if multi-Event or naked, don't mark by type and leave black
                             if ((bool)EDE.intrinsic) //single Event intrinsic
                             {
                                 Ellipse e = new Ellipse();
@@ -877,17 +877,17 @@ namespace DatasetReviewer
             if ((string)b.Content == "Next")
             {
                 currentOffset += bdf.SampTime / 2D;
-                ie = events.Find(ev => ev.Name == currentSearchEvent && bdf.timeFromBeginningOfFileTo(ev) > currentOffset && (bgc.CompareTo(ev.GC) < 0 || ev.EDE.intrinsic == null));
+                ie = events.Find(ev => ev.Name == currentSearchEvent && bdf.timeFromBeginningOfFileTo(ev) > currentOffset && (bgc.CompareTo(ev.GC) < 0 || ev.EDE.IsNaked));
             }
             else //Prev
             {
                 currentOffset -= bdf.SampTime / 2D;
-                ie = events.LastOrDefault(ev => ev.Name == currentSearchEvent && bdf.timeFromBeginningOfFileTo(ev) < currentOffset && (bgc.CompareTo(ev.GC) > 0 || ev.EDE.intrinsic == null));
+                ie = events.LastOrDefault(ev => ev.Name == currentSearchEvent && bdf.timeFromBeginningOfFileTo(ev) < currentOffset && (bgc.CompareTo(ev.GC) > 0 || ev.EDE.IsNaked));
             }
             if (ie == null) return;
             if (ie.EDE.BDFBased) //known BDF-based clock
                 newOffset = ie.Time;
-            else if (ie.EDE.intrinsic == null) newOffset = bdf.timeFromBeginningOfFileTo(ie); //naked Event using Absolute clock -- not preferred, but OK
+            else if (ie.EDE.IsNaked) newOffset = bdf.timeFromBeginningOfFileTo(ie); //naked Event using Absolute clock -- not preferred, but OK
             else //covered Event, always Absolute clock
             {
                 GrayCode gc = new GrayCode(head.Status);
