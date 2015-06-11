@@ -54,6 +54,7 @@
   <ItemGroup>
     <Compile Include="CompoundList.cs" />
     <Compile Include="GrayCode.cs" />
+    <Compile Include="IValidate.cs" />
     <Compile Include="LevenbergMarquardt.cs" />
     <Compile Include="Log.cs" />
     <Compile Include="NMMatrix.cs" />
