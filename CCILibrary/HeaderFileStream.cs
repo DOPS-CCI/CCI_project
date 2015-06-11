@@ -354,6 +354,8 @@ namespace HeaderFileStream
                 xw.WriteElementString("BDFFile", head.BDFFile);
                 xw.WriteElementString("EventFile", head.EventFile);
                 xw.WriteElementString("ElectrodeFile", head.ElectrodeFile);
+                if (head.Comment != null && head.Comment != "")
+                    xw.WriteElementString("Comment", head.Comment);
                 xw.WriteEndElement(/* SessionDescription */);
                 xw.WriteEndElement(/* Header */);
                 xw.Close();
