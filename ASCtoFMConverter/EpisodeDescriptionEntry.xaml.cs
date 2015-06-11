@@ -15,23 +15,26 @@ using HeaderFileStream;
 using EventDictionary;
 using Event;
 using GroupVarDictionary;
+using CCIUtilities;
 
 namespace ASCtoFMConverter
 {
     /// <summary>
     /// Interaction logic for EpisodeDescriptionEntry.xaml
     /// </summary>
-    public partial class EpisodeDescriptionEntry : UserControl
+    public partial class EpisodeDescriptionEntry : UserControl, IValidate
     {
+        private static int EDcount = 0;
         private Header.Header hdr;
-        private int _GVspec = 1;
+        private int _GVspec;
         private int _GVVal1 = 0;
         private int _GVVal2 = 0;
         private double _offset1 = 0D;
         private double _offset2 = 0D;
-        private Window2.Validate validate;
+        private IValidate validate;
+        public int GVValue { get { return _GVspec; } }
 
-        public EpisodeDescriptionEntry(Header.Header head, Window2.Validate v)
+        public EpisodeDescriptionEntry(Header.Header head, IValidate v)
         {
             this.hdr = head;
             this.validate = v;
@@ -61,12 +64,16 @@ namespace ASCtoFMConverter
             Comp1.Items.Add("!=");
             Comp2.Items.Add("=");
             Comp2.Items.Add("!=");
+
+            _GVspec = ++EDcount;
+            GVSpec.Text = _GVspec.ToString("0");
+
         }
 
         private void GVSpec_TextChanged(object sender, TextChangedEventArgs e)
         {
             int.TryParse(GVSpec.Text, out _GVspec);
-            validate();
+            validate.Validate();
         }
 
         private void Event1_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -109,7 +116,7 @@ namespace ASCtoFMConverter
                     foreach (GVEntry gv in ((EventDictionaryEntry)o).GroupVars)
                         GV1.Items.Add(gv);
             }
-            validate();
+            validate.Validate();
         }
 
         private void Event2_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -140,7 +147,7 @@ namespace ASCtoFMConverter
                         GV2.Items.Add(gv);
             }
             GVPanel2.IsEnabled = true;
-            validate();
+            validate.Validate();
         }
 
         private void GV1_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -186,7 +193,7 @@ namespace ASCtoFMConverter
                 Comp1.IsEnabled = true;
                 Comp1.SelectedIndex = 0;
             }
-            validate();
+            validate.Validate();
         }
 
         private void GV2_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -232,33 +239,33 @@ namespace ASCtoFMConverter
                 Comp2.IsEnabled = true;
                 Comp2.SelectedIndex = 0;
             }
-            validate();
+            validate.Validate();
         }
 
         private void GVValue1TB_TextChanged(object sender, TextChangedEventArgs e)
         {
             int.TryParse(GVValue1TB.Text, out _GVVal1); //_GVVal1 = 0 if unsuccesful, which is invalid anyway
-            validate();
+            validate.Validate();
         }
 
         private void GVValue2TB_TextChanged(object sender, TextChangedEventArgs e)
         {
             int.TryParse(GVValue2TB.Text, out _GVVal2); //_GVVal2 = 0 if unsuccesful, which is invalid anyway
-            validate();
+            validate.Validate();
         }
 
         private void Offset1_TextChanged(object sender, TextChangedEventArgs e)
         {
             if (!this.IsLoaded) return;
             if (!double.TryParse(Offset1.Text, out _offset1)) _offset1 = double.NaN;
-            validate();
+            validate.Validate();
         }
 
         private void Offset2_TextChanged(object sender, TextChangedEventArgs e)
         {
             if (!this.IsLoaded) return;
             if (!double.TryParse(Offset2.Text, out _offset2)) _offset2 = double.NaN;
-            validate();
+            validate.Validate();
         }
 
 //*********** Validation routine ************
@@ -311,9 +318,9 @@ namespace ASCtoFMConverter
             if (_GVspec <= 0)
             {
                 valid = false;
-                GVSpec.BorderBrush = Brushes.Red;
+                GVSpec.Background = Brushes.Red;
             }
-            else GVSpec.BorderBrush = Brushes.MediumBlue;
+            else GVSpec.Background = Brushes.White;
 
             if(!double.IsNaN(_offset1) && !double.IsNaN(_offset2))
                 if (Event2.SelectedItem.GetType().Name == "String" &&
@@ -372,14 +379,17 @@ namespace ASCtoFMConverter
                 Event4.SelectedIndex = 0;
                 Event4.IsEnabled = true;
             }
-            validate();
+            validate.Validate();
         }
 
         private void TabItem_PreviewMouseDown(object sender, MouseButtonEventArgs e)
         {
             PKDetectorEventCounter pkd = new PKDetectorEventCounter(hdr, validate);
-            if (pkd != null) //returns null if no **PKCnt Events defined
-                EpisodeDescriptionPanel.Items.Insert(EpisodeDescriptionPanel.Items.Count - 1, pkd);
+            if (pkd != null) //returns null if no **PKDet Events defined
+            {
+                EpisodeDescriptionPanel.Items.Insert(EpisodeDescriptionPanel.Items.Count - 1, pkd); //
+                AddCounter.IsEnabled = false; //allow only singleton PK Counter
+            }
             e.Handled = true;
         }
     }

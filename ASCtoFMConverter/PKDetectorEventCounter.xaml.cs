@@ -12,6 +12,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 using CCILibrary;
+using CCIUtilities;
 using Event;
 using EventDictionary;
 
@@ -20,19 +21,19 @@ namespace ASCtoFMConverter
     /// <summary>
     /// Interaction logic for PKDetectorEventCounter.xaml
     /// </summary>
-    public partial class PKDetectorEventCounter : TabItem
+    public partial class PKDetectorEventCounter : TabItem, IValidate
     {
         private Header.Header header;
-        private Window2.Validate validate;
+        private IValidate validate;
 
         internal double chi2;
         internal double magnitude;
 
-        public PKDetectorEventCounter(Header.Header hdr, Window2.Validate v)
+        public PKDetectorEventCounter(Header.Header hdr, IValidate v)
         {
             bool test = false;
             foreach(string e in hdr.Events.Keys)
-                if (e.Substring(0, 7) == "**PKCnt") { test = true; break; }
+                if (e.Substring(0, 7) == "**PKDet") { test = true; break; } //make sure there are PK detector Events present
 
             if (test) //then dataset has appropriate PK detector Events
             {
@@ -42,7 +43,7 @@ namespace ASCtoFMConverter
                 InitializeComponent();
 
                 foreach (string str in hdr.Events.Keys)
-                    if (str.Substring(0, 7) == "**PKCnt") EventSelection.Items.Add(str.Substring(7));
+                    if (str.Substring(0, 7) == "**PKDet") EventSelection.Items.Add(str.Substring(7)); //Add to Event selection list
                 EventSelection.SelectedIndex = 0;
                 Comp1.Items.Add("<");
                 Comp1.Items.Add(">");
@@ -60,10 +61,10 @@ namespace ASCtoFMConverter
                 Chi2Value.BorderBrush = Brushes.Red;
             else
                 Chi2Value.BorderBrush = Brushes.MediumBlue;
-            validate();
+            validate.Validate();
         }
 
-        internal bool Validate()
+        public bool Validate()
         {
             if (EventSelection.SelectedItems.Count < 1) return false;
             if ((bool)Chi2.IsChecked && chi2 < 0D) return false;
@@ -76,7 +77,8 @@ namespace ASCtoFMConverter
             TabControl tc = (TabControl)this.Parent;
             tc.Items.Remove(this);
             tc.SelectedIndex = 0;
-            validate();
+            ((TabItem)(tc.Items[tc.Items.Count - 1])).IsEnabled = true;
+            validate.Validate();
         }
 
         private void MagnitudeTB_TextChanged(object sender, TextChangedEventArgs e)
@@ -86,7 +88,7 @@ namespace ASCtoFMConverter
                 MagnitudeValue.BorderBrush = Brushes.Red;
             else
                 MagnitudeValue.BorderBrush = Brushes.MediumBlue;
-            validate();
+            validate.Validate();
         }
 
         static int validInteger(string s, bool gtZero)
@@ -121,14 +123,14 @@ namespace ASCtoFMConverter
 
         private void CheckBox_Checked(object sender, RoutedEventArgs e)
         {
-            validate();
+            validate.Validate();
         }
 
         private void EventSelection_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (EventSelection.SelectedItems.Count < 1) EventSelection.BorderBrush = Brushes.Red;
             else EventSelection.BorderBrush = Brushes.DarkBlue;
-            validate();
+            validate.Validate();
         }
     }
 }
