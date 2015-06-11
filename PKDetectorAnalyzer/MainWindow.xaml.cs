@@ -24,8 +24,10 @@ namespace PKDetectorAnalyzer
     public partial class MainWindow : Window, INotifyPropertyChanged
     {
 
-        const int maxPointsBefore = 2000;
-        const int maxPointsAfter = 16000;
+        const double maxSecsBefore = 5D;
+        const double maxSecsAfter = 40D;
+        const double deadtimeSecsAfter = 2D;
+        const double deadtimeSecsBefore = 0.5D;
         public event PropertyChangedEventHandler PropertyChanged;
         public void OnPropertyChanged(PropertyChangedEventArgs e)
         {
@@ -277,6 +279,10 @@ namespace PKDetectorAnalyzer
                             ev.length = eventLength;
                             ev.sign = sign;
                             ev.filterSignal = filtered;
+                            ev.trendDegree = args.trendDegree;
+                            ev.filterLength = args.filterLength;
+                            ev.threshold = args.threshold;
+                            ev.minimumLength = args.minLength;
                             filtered = new List<double>(64); //need new filtered array for signal
                             eventList.Add(ev);
                         }
@@ -325,13 +331,6 @@ namespace PKDetectorAnalyzer
             {
                 List<eventTime> et = (List<eventTime>)e.Result;
                 ChannelItem ci = (ChannelItem)ChannelEntries.Items[currentChannel];
-                foreach (eventTime ev in et)
-                {
-                    ev.trendDegree = ci.TrendDegree.SelectedIndex - 1;
-                    ev.filterLength = ci._filterN;
-                    ev.threshold = ci._threshold;
-                    ev.minimumLength = ci._minimumL;
-                }
                 eventTimeList.AddRange(et);
                 currentChannel++;
                 if (currentChannel < ChannelEntries.Items.Count) //then we run another one
@@ -561,11 +560,10 @@ namespace PKDetectorAnalyzer
 
         private static bool fitSignal(double[] d, int beforeTime, eventTime current, int afterTime, double samplingRate)
         {
-
             //determine subset of data around the detection signal
-            int start = Math.Min(current.startTime - beforeTime, maxPointsBefore); //up to 2000 points before
+            int start = Math.Max(0, Math.Min(current.startTime - (beforeTime + (int)(deadtimeSecsAfter * samplingRate)), (int)(maxSecsBefore * samplingRate))); //up to 5 seconds before
             double newTOffset = (double)start / samplingRate;
-            int dataLength = start + Math.Min(afterTime - current.startTime, maxPointsAfter); //up to 16000 points after
+            int dataLength = start + Math.Max(current.filterLength, Math.Min(afterTime - current.filterLength - current.startTime, (int)(maxSecsAfter * samplingRate))); //up to 40 seconds after
 
             double max = double.MinValue;
             for (int v = current.startTime; v < current.startTime + current.length; v++) max = Math.Max(max, Math.Abs(d[v]));

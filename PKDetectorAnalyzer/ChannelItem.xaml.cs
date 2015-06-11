@@ -46,7 +46,7 @@ namespace PKDetectorAnalyzer
         {
             get
             {
-                return "**PKCnt" + Channel.Text + (EventNameExt.Text != "" ? "_" + EventNameExt.Text : "");
+                return "**PKDet" + Channel.Text + (EventNameExt.Text != "" ? "_" + EventNameExt.Text : "");
             }
         }
 
@@ -65,7 +65,7 @@ namespace PKDetectorAnalyzer
         private void Channel_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             string s = (string)((ComboBoxItem)e.AddedItems[0]).Content;
-            NewEventName.Text = "**PKCnt" + s + (EventNameExt.Text != "" ? "_" + EventNameExt.Text : "");
+            NewEventName.Text = "**PKDet" + s + (EventNameExt.Text != "" ? "_" + EventNameExt.Text : "");
             mw.checkError();
         }
 
@@ -130,7 +130,7 @@ namespace PKDetectorAnalyzer
 
         private void EventNameExt_TextChanged(object sender, TextChangedEventArgs e)
         {
-            this.NewEventName.Text = "**PKCnt" + Channel.Text + (EventNameExt.Text != "" ? "_" + EventNameExt.Text : "");
+            this.NewEventName.Text = ImpliedEventName;
             mw.checkError();
         }
 
