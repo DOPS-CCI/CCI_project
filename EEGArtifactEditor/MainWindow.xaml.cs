@@ -118,7 +118,7 @@ namespace EEGArtifactEditor
                 //now set zeroTime for this BDF file, after finding an appropriate (non-"naked") Event
                 bool ok = false;
                 foreach (OutputEvent ev in events)
-                    if (header.Events[ev.Name].intrinsic != null)
+                    if (header.Events[ev.Name].IsCovered)
                     {
                         bdf.setZeroTime(ev);
                         ok = true;
