@@ -39,7 +39,7 @@ namespace ASCtoFMConverter
             foreach (EpisodeDescription ED in c.specs)
             {
                 logStream.WriteStartElement("EpisodeDefinition");
-                logStream.WriteAttributeString("NewGV ", ED.GVValue.ToString("0"));
+                logStream.WriteAttributeString("NewGV", ED.GVValue.ToString("0"));
                 logStream.WriteStartElement("Start");
                 logStream.WriteElementString("Event", ED.Start.EventName());
                 if(ED.Start._GV!=null){
