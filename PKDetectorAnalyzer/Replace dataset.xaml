@@ -1,0 +1,38 @@
+﻿<Window x:Class="PKDetectorAnalyzer.Replace_dataset"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:pkd="clr-namespace:PKDetectorAnalyzer"
+        Title="Replace existing dataset?" Width="500" ResizeMode="NoResize" SizeToContent="Height" FontSize="16">
+    <StackPanel Orientation="Vertical">
+        <TextBlock TextWrapping="Wrap" Padding="8"><Span Foreground="Red" FontWeight="Bold">WARNING:</Span> A dataset already exists with this name -- <Run Name="FN"/> Do you wish to replace it with the new dataset?</TextBlock>
+        <StackPanel Orientation="Vertical" HorizontalAlignment="Left">
+            <StackPanel.Resources>
+                <Style TargetType="Button">
+                    <Setter Property="Width" Value="100"/>
+                    <Setter Property="Height" Value="30"/>
+                    <Setter Property="FontWeight" Value="Bold"/>
+                    <Setter Property="Margin" Value="8"/>
+                    <Setter Property="HorizontalAlignment" Value="Left"/>
+                    <EventSetter Event="Click" Handler="Button_Click"/>
+                </Style>
+                <Style TargetType="TextBlock">
+                    <Setter Property="VerticalAlignment" Value="Center"/>
+                    <Setter Property="Margin" Value="4"/>
+                </Style>
+            </StackPanel.Resources>
+            <StackPanel Orientation="Horizontal">
+                <Button Name="Yes">Yes</Button>
+                <TextBlock>Replace existing datset</TextBlock>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal">
+                <Button Name="No" IsEnabled="False">No</Button>
+                <TextBlock>Use new file name extension</TextBlock>
+                <TextBox Name="NewExtension" Width="140" Height="30" Text="{Binding Extension, UpdateSourceTrigger=PropertyChanged}" TextChanged="NewExtension_TextChanged" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal">
+                <Button Name="Exit">Exit</Button>
+                <TextBlock>Do not save dataset</TextBlock>
+            </StackPanel>
+        </StackPanel>
+    </StackPanel>
+</Window>

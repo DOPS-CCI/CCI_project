@@ -338,8 +338,8 @@ namespace PKDetectorAnalyzer
                     bw.RunWorkerAsync(new workerArguments((ChannelItem)ChannelEntries.Items[currentChannel], this)); //process next channel
                     return;
                 }
-                ProcessEvents(); //now we've accumulated Events, finsh off new Event file
-                Status.Text = "Written files under " + System.IO.Path.Combine(directory, newFileName);
+                if (ProcessEvents()) //now we've accumulated Events, finsh off new Event file
+                    Status.Text = "Written files under " + System.IO.Path.Combine(directory, newFileName);
             }
             else
                 Status.Text = "Setting up";
@@ -348,8 +348,8 @@ namespace PKDetectorAnalyzer
             Process.IsEnabled = true;
         }
 
-        //Process the PK events found
-        private void ProcessEvents()
+        //Process the PK events found: returns true if files succesfully written
+        private bool ProcessEvents()
         {
             GVEntry gve;
 
@@ -501,8 +501,31 @@ namespace PKDetectorAnalyzer
             efr.Close();
 
             //write out new HDR file
-            head.EventFile = newFileName + ".evt"; //now we can change Event file name and write out new HDR
-            FileStream fs = new FileStream(System.IO.Path.Combine(directory, newFileName + ".hdr"), FileMode.Create, FileAccess.Write);
+            FileStream fs = null;
+            bool? OK = false;
+            while (!(bool)OK)
+            {
+                try
+                {
+                    head.EventFile = newFileName + ".evt"; //now we can change Event file name and write out new HDR
+                    fs = new FileStream(System.IO.Path.Combine(directory, newFileName + ".hdr"), FileMode.CreateNew, FileAccess.Write);
+                    OK = true;
+                }
+                catch (IOException)
+                {
+                    Replace_dataset rd = new Replace_dataset(newFileName, this.FNExtension.Text);
+                    rd.WindowStartupLocation = WindowStartupLocation.CenterOwner;
+                    rd.Owner = this;
+                    OK = (bool)rd.ShowDialog();
+                    if (OK == null)
+                    {
+                        Status.Text = "Cancelled writing new dataset";
+                        return false;
+                    }
+                    if (!(bool)OK)
+                        this.FNExtension.Text = rd.NewExtension.Text; //this will also change newFileName
+                }
+            }
             new HeaderFileWriter(fs, head);
 
             foreach (eventTime et in eventTimeList)
@@ -533,6 +556,7 @@ namespace PKDetectorAnalyzer
             foreach (Event.OutputEvent ev in events)
                 efw.writeRecord(ev);
             efw.Close();
+            return true;
         }
 
         private void Cancel_Click(object sender, RoutedEventArgs e)
