@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+  <xs:element name="Header">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="ExperimentDescription"/>
+        <xs:element ref="SessionDescription"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="ExperimentDescription">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="SoftwareVersion"/>
+        <xs:element ref="Title"/>
+        <xs:element ref="LongDescription"/>
+        <xs:element ref="Experimenter"/>
+        <xs:element ref="Status"/>
+        <xs:element maxOccurs="unbounded" ref="GroupVar"/>
+        <xs:element maxOccurs="unbounded" ref="Event"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="SoftwareVersion" type="xs:NMTOKEN"/>
+  <xs:element name="Title" type="xs:string"/>
+  <xs:element name="LongDescription" type="xs:string"/>
+  <xs:element name="Experimenter" type="xs:string"/>
+  <xs:element name="Status" type="xs:integer"/>
+  <xs:element name="Event">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="Name"/>
+        <xs:element ref="Description"/>
+        <xs:element maxOccurs="unbounded" ref="GroupVar" minOccurs="0"/>
+      </xs:sequence>
+      <xs:attribute name="Clock" use="required" type="xs:NCName"/>
+      <xs:attribute name="Type" use="required"/>
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="SessionDescription">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="Date"/>
+        <xs:element ref="Time"/>
+        <xs:element ref="Subject"/>
+        <xs:element ref="Agent"/>
+        <xs:element ref="Technician"/>
+        <xs:element ref="BDFFile"/>
+        <xs:element ref="EventFile"/>
+        <xs:element ref="ElectrodeFile"/>
+        <xs:element ref="Comment"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="Date" type="xs:date"/>
+  <xs:element name="Time" type="xs:time" block=""/>
+  <xs:element name="Subject" type="xs:integer"/>
+  <xs:element name="Agent" type="xs:integer"/>
+  <xs:element name="Technician" type="xs:string"/>
+  <xs:element name="BDFFile" type="xs:NCName"/>
+  <xs:element name="EventFile" type="xs:string"/>
+  <xs:element name="ElectrodeFile" type="xs:string"/>
+  <xs:element name="Comment" type="xs:string"/>
+  <xs:element name="GroupVar">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:sequence minOccurs="0">
+          <xs:element ref="Name"/>
+          <xs:element ref="Description"/>
+        </xs:sequence>
+        <xs:element minOccurs="0" maxOccurs="unbounded" ref="GV"/>
+      </xs:sequence>
+      <xs:attribute name="Name"/>
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="GV">
+    <xs:complexType>
+      <xs:simpleContent>
+        <xs:extension base="xs:integer">
+          <xs:attribute name="Desc" use="required"/>
+        </xs:extension>
+      </xs:simpleContent>
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="Name" type="xs:string"/>
+  <xs:element name="Description" type="xs:string"/>
+</xs:schema>
