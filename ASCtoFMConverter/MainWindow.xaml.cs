@@ -83,7 +83,7 @@ namespace ASCtoFMConverter
             bdf = new BDFEDFFileReader(
                 new FileStream(System.IO.Path.Combine(directory, head.BDFFile),
                     FileMode.Open, FileAccess.Read));
-            samplingRate = bdf.NSamp / bdf.RecordDuration;
+            samplingRate = (int)((double)bdf.NSamp / bdf.RecordDurationDouble);
 
             InitializeComponent();
 
