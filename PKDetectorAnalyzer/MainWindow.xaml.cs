@@ -92,8 +92,11 @@ namespace PKDetectorAnalyzer
             bdf = new BDFEDFFileReader(
                 new FileStream(System.IO.Path.Combine(directory, head.BDFFile),
                     FileMode.Open, FileAccess.Read));
-            for (int i = 0; i < bdf.NumberOfChannels; i++)
+            for (int i = 0; i < bdf.NumberOfChannels; i++) //first see if this file has standard transducer labels
                 if (bdf.transducer(i) == "Analog Input Box")
+                    channels.Add(new channelOptions(i, bdf.channelLabel(i)));
+            if (channels.Count == 0) //if it does not, then show all channels
+                for (int i = 0; i < bdf.NumberOfChannels; i++)
                     channels.Add(new channelOptions(i, bdf.channelLabel(i)));
             AnalogChannelCount = channels.Count;
 
