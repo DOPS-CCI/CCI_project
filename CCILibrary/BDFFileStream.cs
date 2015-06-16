@@ -298,7 +298,7 @@ namespace BDFFileStream {
                 for (int i = 0; i < NSamp; i++)
                     if ((mask & statusBuffer[i]) == IE.GC)
                     {
-                        _zeroTime = IE.Time - (double)this.RecordDuration * (--rec + (double)i / NSamp);
+                        _zeroTime = IE.Time - this.RecordDuration * (--rec + (double)i / NSamp);
                         return true;
                     }
             }

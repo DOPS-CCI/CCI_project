@@ -232,7 +232,7 @@ namespace EventFile
                 xw.WriteElementString("Index", ev.Index.ToString("0"));
                 xw.WriteElementString("GrayCode", ev.GC.ToString("0"));
                 xw.WriteStartElement("ClockTime");
-                if (ev.EDE.BDFBased) // BDF-based clock
+                if (ev.BDFBased) // BDF-based clock
                 {
                     xw.WriteString(ev.Time.ToString("0.0000000"));
                     xw.WriteEndElement(/* ClockTime */);
@@ -255,7 +255,7 @@ namespace EventFile
                         xw.WriteAttributeString("Name", ev.EDE.GroupVars[j].Name); //assure it matches HDR entry
                         string s = ev.GVValue[j];
                         int v = ev.EDE.GroupVars[j].ConvertGVValueStringToInteger(s);
-                        if (v <= 0)
+                        if (v < 0)
                             throw new Exception("Attempt to write invalid value of \"" + s + "\" to GV " + ev.EDE.GroupVars[j].Name);
                         xw.WriteValue(s);
                         xw.WriteEndElement(/* GV */);

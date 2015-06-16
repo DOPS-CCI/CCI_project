@@ -179,6 +179,45 @@ namespace Event
             catch { }
             return r;
         }
+
+        public static int CompareEventsByTime(Event ev1, Event ev2)
+        {
+            if (ev1.Time > ev2.Time) return 1;
+            if (ev1.Time < ev2.Time) return -1;
+            return 0;
+        }
+
+        public bool IsCovered
+        {
+            get
+            {
+                return ede.IsCovered;
+            }
+        }
+
+        public bool IsNaked
+        {
+            get
+            {
+                return ede.IsNaked;
+            }
+        }
+
+        public bool IsExtrinsic
+        {
+            get
+            {
+                return ede.IsExtrinsic;
+            }
+        }
+
+        public bool BDFBased
+        {
+            get
+            {
+                return ede.BDFBased;
+            }
+        }
     }
 
     //********** Class: OutputEvent **********

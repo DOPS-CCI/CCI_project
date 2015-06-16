@@ -290,6 +290,12 @@ namespace BDFEDFFileStream
         protected BinaryReader reader;
         double? _zeroTime = null;
 
+
+        public bool hasStatus
+        {
+            get { return header.hasStatus; }
+        }
+
         /// <summary>
         /// Constructor for BDFEDFFileReader: reads in file Header, initializes record and BDFLocFactory
         /// </summary>
@@ -630,7 +636,7 @@ namespace BDFEDFFileStream
                 for (int i = 0; i < NSamp; i++)
                     if ((mask & statusBuffer[i]) == IE.GC)
                     {
-                        _zeroTime = IE.Time - (double)this.RecordDuration * (--rec + (double)i / NSamp);
+                        _zeroTime = IE.Time - (double)this.RecordDurationDouble * (--rec + (double)i / NSamp);
                         return true;
                     }
             }
@@ -673,6 +679,26 @@ namespace BDFEDFFileStream
             return ie.Time - zeroTime;
         }
 
+        public bool findGCAtOrAfter(GrayCode gc, ref BDFLoc p)
+        {
+            while (p.IsInFile)
+            {
+                if (gc.CompareTo(getStatusSample(p)) <= 0) return true;
+                p++;
+            }
+            return false;
+        }
+
+        public bool findGCAtOrAfter(GrayCode gc, ref BDFLoc p, BDFLoc end)
+        {
+            while (p.lessThan(end) && p.IsInFile)
+            {
+                if (gc.CompareTo(getStatusSample(p)) <= 0) return true;
+                p++;
+            }
+            return false;
+        }
+
         public bool findGCAfter(GrayCode gc, ref BDFLoc p)
         {
             while ((++p).IsInFile)
@@ -680,9 +706,23 @@ namespace BDFEDFFileStream
             return false;
         }
 
+        public bool findGCAfter(GrayCode gc, ref BDFLoc p, BDFLoc end)
+        {
+            while ((++p).IsInFile && p.lessThan(end))
+                if (gc.CompareTo(getStatusSample(p)) <= 0) return true;
+            return false;
+        }
+
         public bool findGCBefore(GrayCode gc, ref BDFLoc p)
         {
             while ((--p).IsInFile)
+                if (gc.CompareTo(getStatusSample(p)) > 0) { p++; return true; }
+            return false;
+        }
+
+        public bool findGCBefore(GrayCode gc, ref BDFLoc p, BDFLoc end)
+        {
+            while ((--p).IsInFile && p.greaterThanOrEqualTo(end))
                 if (gc.CompareTo(getStatusSample(p)) > 0) { p++; return true; }
             return false;
         }
@@ -1077,11 +1117,15 @@ namespace BDFEDFFileStream
                 }
                 else
                     throw new BDFEDFException("Not valid BDF or EDF format");
+
+                //NOTE: we have taken a "promiscuous" approach  by allowing EDF files that do not
+                // match the details of the standard w.r.t. the subject and recording IDs; thus
+                // files that cannot be read by EDFReader may work OK using this reader
                 nChar = reader.Read(cBuf, 0, 80);
                 localSubjectId = new string(cBuf, 0, 80).TrimEnd();
                 nChar = reader.Read(cBuf, 0, 80);
                 localRecordingId = new string(cBuf, 0, 80).TrimEnd();
-                nChar = reader.Read(cBuf, 0, 16);
+                nChar = reader.Read(cBuf, 0, 16); //date and time string
                 string s2 = new string(cBuf, 0, 16);
                 int day = int.Parse(s2.Substring(0, 2));
                 int mon = int.Parse(s2.Substring(3, 2));

@@ -53,7 +53,7 @@ namespace CCILibrary
             _rec = 0;
             _pt = 0;
             _recSize = bdf.NSamp;
-            _sec = (double)bdf.RecordDuration;
+            _sec = bdf.RecordDurationDouble;
             _st = _sec / (double)_recSize;
         }
 
