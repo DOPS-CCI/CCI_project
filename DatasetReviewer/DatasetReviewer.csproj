@@ -89,6 +89,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="App.cs" />
+    <Compile Include="RedrawEvents.cs" />
     <Compile Include="Window2.xaml.cs" />
     <Compile Include="MainWindow.xaml.cs" />
     <Compile Include="Window1.xaml.cs" />
@@ -127,7 +128,9 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="DatasetReviewer_TemporaryKey.pfx" />
-    <None Include="Properties\app.manifest" />
+    <None Include="Properties\app.manifest">
+      <SubType>Designer</SubType>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <BootstrapperPackage Include=".NETFramework,Version=v4.0,Profile=Client">
