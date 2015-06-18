@@ -282,7 +282,7 @@ namespace BDFEDFFileStream
     }
 
     /// <summary>
-    /// Class for reading a BDF or EDF file
+    /// Class for reading a BDF, EDF, or EDF+ file
     /// </summary>
     public class BDFEDFFileReader : BDFEDFFileStream, IDisposable
     {
@@ -361,6 +361,8 @@ namespace BDFEDFFileStream
             long pos = reader.BaseStream.Position; //remember current file position
             long increment = 0; //calculate BDF/EDF record size in bytes
             foreach (int c in header.numberSamples) increment += c;
+            if (header._hasAnnotations)
+                increment += header.AnnotationLength; //don't forget possible annotations!
             increment *= header._bytesPerSample;
             int bufferSize = NumberOfSamples(channel) * header._bytesPerSample; //size of intermediate buffer for single channel
             byte[] buffer = new byte[bufferSize]; //allocate intermediate buffer
@@ -368,7 +370,10 @@ namespace BDFEDFFileStream
             double o = header.Offset(channel);
             double[] data = new double[NumberOfRecords * NumberOfSamples(channel)]; //allocate final data array
             long currentRecordPosition = (long)header.headerSize; //calculate initial file pointer position
-            for (int i = 0; i < channel; i++) currentRecordPosition += (long)NumberOfSamples(i) * header._bytesPerSample;
+            for (int i = 0; i < channel; i++)
+                currentRecordPosition += (long)NumberOfSamples(i) * header._bytesPerSample;
+            if (header._AnnotationChannel < channel)
+                currentRecordPosition += header.AnnotationLength * 2; //Yikes! but not likely to occur, since annotation usually at end!!
             int currentDataPosition = 0; //keeps track of where we are in the data array
 
             while (currentRecordPosition < reader.BaseStream.Length) //read entire file for this channel
@@ -675,7 +680,7 @@ namespace BDFEDFFileStream
         /// <returns>Time to Event</returns>
         public double timeFromBeginningOfFileTo(Event.Event ie)
         {
-            if (ie.EDE.BDFBased) return ie.Time;
+            if (ie.BDFBased) return ie.Time;
             return ie.Time - zeroTime;
         }
 
@@ -796,6 +801,7 @@ namespace BDFEDFFileStream
         }
 
         //Preferred constructor; no ambiguity or round-off error possible
+        //BDF or EDF, but not EDF+
         public BDFEDFFileWriter(Stream str, int nChan, double recordDuration, int numberOfSamples, bool isBDF)
         {
             if (!str.CanWrite) throw new BDFEDFException("BDFEDFFileStream must be able to write to Stream.");
@@ -928,6 +934,7 @@ namespace BDFEDFFileStream
         internal int headerSize;
         internal int numberOfRecords;
         internal int numberChannels;
+        internal int nActualChannels;
         internal int recordDuration;
         internal double? recordDurationDouble = null; //used only if Record Duration isn't an integer;
                         //only for reading; not recommended by standard, but a practical necessity
@@ -938,14 +945,15 @@ namespace BDFEDFFileStream
         internal int[] numberSamples;
         internal double[] gain;
         internal double[] offset;
-        internal bool _BDFFile;
+        internal bool _BDFFile = true;
         internal bool _EDFPlusFile = false;
-        internal int _bytesPerSample; //= 3 for BIOSEMI, = 2 for EDF
+        internal int _bytesPerSample = 3; //= 3 for BIOSEMI, = 2 for EDF
         internal bool _isContinuous = true;
         internal bool _hasStatus = true;
         internal bool _hasAnnotations = false;
         internal int _AnnotationChannel; //only valid if _hasAnnotations is true
-        internal int AnnotationOffset;
+        internal int AnnotationOffset; //only valid if _hasAnnotations is true
+        internal int AnnotationLength; //only valid if _hasAnnotations is true
         public bool isBDFFile { get { return _BDFFile; } }
         public bool isEDFFile { get { return !_BDFFile; } }
         public bool isEDFPlusFile { get { return _EDFPlusFile; } }
@@ -959,14 +967,15 @@ namespace BDFEDFFileStream
                 return null;
             }
         }
+        internal int[] _channelMap;
         public bool hasStatus { get { return channelLabels[numberChannels - 1] == "Status"; } }
         internal bool _isValid = false;
         public bool isValid { get { return _isValid; } }
 
-        internal BDFEDFHeader() { } //Usual read constructor
+        internal BDFEDFHeader() { } //Usual read constructor; can read BDF/EDF/EDF+
 
         /// <summary>
-        /// General constructor for creating a new (unwritten) BDF/EDF file header record
+        /// General constructor for creating a new (unwritten) BDF/EDF file header record (not EDF+)
         /// </summary>
         /// <param name="file">Stream opened for writing this header</param>
         /// <param name="nChan">Number of channels in the BDF/EDF file</param>
@@ -1018,7 +1027,7 @@ namespace BDFEDFFileStream
 
         /// <summary>
         /// Preferred constructor: assures exact integer number of samples in records; record duration may
-        /// be non-integer and calculated sampling rate may be approximate
+        /// be non-integer and calculated sampling rate may be approximate; for EDF and BDF only, not EDF+
         /// </summary>
         /// <param name="nChan">Number of channels in stream</param>
         /// <param name="duration">Length of each record in seconds; written to three decimal places only</param>
@@ -1170,80 +1179,123 @@ namespace BDFEDFFileStream
                     else
                         throw e;
                 }
+
                 nChar = reader.Read(cBuf, 0, 4);
-                numberChannels = int.Parse(new string(cBuf, 0, 4));
-                if ((numberChannels + 1) * 256 != headerSize)
+                nActualChannels = int.Parse(new string(cBuf, 0, 4));
+                if ((nActualChannels + 1) * 256 != headerSize)
                     throw new BDFEDFException("Incorrect header size for number of channels = " +
-                        numberChannels.ToString("0"));
-                channelLabels = new string[numberChannels];
-                for (int i = 0; i < numberChannels; i++)
+                        nActualChannels.ToString("0"));
+
+                int ch = 0;
+                channelLabels = new string[nActualChannels]; //May be one too many if EDF+; oh, well
+                for (int i = 0; i < nActualChannels; i++)
                 {
                     nChar = reader.Read(cBuf, 0, 16);
                     s2 = new string(cBuf, 0, 16).TrimEnd();
                     if (_EDFPlusFile && s2 == "EDF Annotations")
                     {
-                        if(_hasAnnotations)
+                        if (_hasAnnotations)
                             throw new BDFEDFException("More than one \"EDF Annotations\" channel in EDF+ file");
                         _hasAnnotations = true;
                         _AnnotationChannel = i;
                     }
-                    channelLabels[i] = s2;
+                    else
+                        channelLabels[ch++] = s2;
                 }
                 if (!_isContinuous && !_hasAnnotations)
                     throw new BDFEDFException("Discontinuous EDF+ file must have annotation channel");
-                transducerTypes = new string[numberChannels];
-                for (int i = 0; i < numberChannels; i++)
+                numberChannels = ch; //actual count of non "Annotation" channels! UGH! Is this awkward?
+
+                transducerTypes = new string[numberChannels]; //from here on we have the correct number of items
+                ch = 0;
+                for (int i = 0; i < nActualChannels; i++)
                 {
                     nChar = reader.Read(cBuf, 0, 80);
-                    transducerTypes[i] = new string(cBuf, 0, 80).TrimEnd();
+                    if (_hasAnnotations && (i == _AnnotationChannel)) continue;
+                    transducerTypes[ch++]  = new string(cBuf, 0, 80).TrimEnd();
                 }
+
                 physicalDimensions = new string[numberChannels];
-                for (int i = 0; i < numberChannels; i++)
+                ch = 0;
+                for (int i = 0; i < nActualChannels; i++)
                 {
                     nChar = reader.Read(cBuf, 0, 8);
-                    physicalDimensions[i] = new string(cBuf, 0, 8).TrimEnd();
+                    if (_hasAnnotations && (i == _AnnotationChannel)) continue;
+                    physicalDimensions[ch++] = new string(cBuf, 0, 8).TrimEnd();
                 }
+
                 physicalMinimums = new double[numberChannels];
-                for (int i = 0; i < numberChannels; i++)
+                ch = 0;
+                for (int i = 0; i < nActualChannels; i++)
                 {
                     nChar = reader.Read(cBuf, 0, 8);
-                    physicalMinimums[i] = double.Parse(new string(cBuf, 0, 8));
+                    if (_hasAnnotations && (i == _AnnotationChannel)) continue;
+                    physicalMinimums[ch++] = double.Parse(new string(cBuf, 0, 8).TrimEnd());
                 }
+
                 physicalMaximums = new double[numberChannels];
-                for (int i = 0; i < numberChannels; i++)
+                ch = 0;
+                for (int i = 0; i < nActualChannels; i++)
                 {
                     nChar = reader.Read(cBuf, 0, 8);
-                    physicalMaximums[i] = double.Parse(new string(cBuf, 0, 8));
+                    if (_hasAnnotations && (i == _AnnotationChannel)) continue;
+                    physicalMaximums[ch++] = double.Parse(new string(cBuf, 0, 8).TrimEnd());
                 }
+
                 digitalMinimums = new int[numberChannels];
-                for (int i = 0; i < numberChannels; i++)
+                ch = 0;
+                for (int i = 0; i < nActualChannels; i++)
                 {
                     nChar = reader.Read(cBuf, 0, 8);
-                    digitalMinimums[i] = int.Parse(new string(cBuf, 0, 8));
+                    if (_hasAnnotations && (i == _AnnotationChannel)) continue;
+                    digitalMinimums[ch++] = int.Parse(new string(cBuf, 0, 8).TrimEnd());
                 }
+
                 digitalMaximums = new int[numberChannels];
-                for (int i = 0; i < numberChannels; i++)
+                ch = 0;
+                for (int i = 0; i < nActualChannels; i++)
                 {
                     nChar = reader.Read(cBuf, 0, 8);
-                    digitalMaximums[i] = int.Parse(new string(cBuf, 0, 8));
+                    if (_hasAnnotations && (i == _AnnotationChannel)) continue;
+                    digitalMaximums[ch++] = int.Parse(new string(cBuf, 0, 8).TrimEnd());
                 }
+
                 channelPrefilters = new string[numberChannels];
-                for (int i = 0; i < numberChannels; i++)
+                ch = 0;
+                for (int i = 0; i < nActualChannels; i++)
                 {
                     nChar = reader.Read(cBuf, 0, 80);
-                    channelPrefilters[i] = new string(cBuf, 0, 80).TrimEnd();
+                    if (_hasAnnotations && (i == _AnnotationChannel)) continue;
+                    channelPrefilters[ch++] = new string(cBuf, 0, 80).TrimEnd();
                 }
+
                 numberSamples = new int[numberChannels];
-                for (int i = 0; i < numberChannels; i++)
+                ch = 0;
+                for (int i = 0; i < nActualChannels; i++)
                 {
                     nChar = reader.Read(cBuf, 0, 8);
-                    numberSamples[i] = int.Parse(new string(cBuf, 0, 8));
+                    int v = int.Parse(new string(cBuf, 0, 8).TrimEnd());
+                    if (_hasAnnotations && (i == _AnnotationChannel))
+                    {
+                        AnnotationLength = v;
+                        continue;
+                    }
+                    numberSamples[ch++] = v;
                 }
-                if (hasAnnotations) //calculate offset to annotation channel
+
+                _channelMap = new int[numberChannels];
+                if (_hasAnnotations) //calculate offset to annotation channel & create channel map
                 {
                     AnnotationOffset = 0;
-                    for (int i = 0; i < _AnnotationChannel; i++) AnnotationOffset += numberSamples[i] * 2; //has to be EDF+
+                    for (int i = 0; i < _AnnotationChannel; i++)
+                        AnnotationOffset += numberSamples[i] * 2; //has to be EDF+
+                    ch = 0;
+                    for (int i = 0; i < nActualChannels; i++)
+                        if (i != AnnotationChannel) _channelMap[ch++] = i;
                 }
+                else
+                    for (int i = 0; i < numberChannels; i++) _channelMap[i] = i;
+
                 reader.BaseStream.Position = headerSize; //skip rest of record; position for first record
             }
             catch (Exception e)
@@ -1251,6 +1303,7 @@ namespace BDFEDFFileStream
                 throw new Exception("In BDFEDFHeader.read at byte " + reader.BaseStream.Position +
                     ": " + e.Message);
             }
+
             gain = new double[numberChannels];
             offset = new double[numberChannels];
             for (int i = 0; i < numberChannels; i++) offset[i] = Double.PositiveInfinity;
@@ -1273,7 +1326,8 @@ namespace BDFEDFFileStream
         public double Offset(int channel)
         {
             if (!Double.IsInfinity(offset[channel])) return offset[channel];
-            double num = (double)digitalMaximums[channel] * physicalMinimums[channel] - (double)digitalMinimums[channel] * physicalMaximums[channel];
+            double num = (double)digitalMaximums[channel] * physicalMinimums[channel] -
+                (double)digitalMinimums[channel] * physicalMaximums[channel];
             long den = digitalMaximums[channel] - digitalMinimums[channel];
             if (den == 0L) return offset[channel] = 0.0;
             return offset[channel] = num / (double)den;
@@ -1302,6 +1356,7 @@ namespace BDFEDFFileStream
         BDFEDFFileStream fileStream;
         BDFEDFHeader header;
         internal int[][] channelData;
+        internal char[] annotationData;
 
         public int getRawPoint(int channel, int point)
         {
@@ -1333,15 +1388,19 @@ namespace BDFEDFFileStream
                 r.recordLength += n;
             }
             //copy actual values across
-            for (i = 0; i < header.numberChannels; i++)
+            for (i = 0; i < nC; i++)
                 for (int j = 0; j < header.numberSamples[i]; j++)
                     r.channelData[i][j] = this.channelData[i][j];
+            if (header._hasAnnotations)
+                for (i = 0; i < header.AnnotationLength; i++)
+                    r.annotationData[i] = this.annotationData[i];
             return r;
         }
 
         internal BDFEDFRecord(BDFEDFFileStream fs)
         {
             fileStream = fs;
+            header = fs.header;
             int nC = fs.header.numberChannels;
             channelData = new int[nC][];
             int i = 0;
@@ -1350,9 +1409,13 @@ namespace BDFEDFFileStream
                 channelData[i++] = new int[n];
                 recordLength += n;
             }
+            if (header._hasAnnotations)
+            {
+                recordLength += header.AnnotationLength;
+                annotationData = new char[header.AnnotationLength];
+            }
             recordLength *= fs.header._bytesPerSample; // calculate length in bytes
             fs._recordBuffer = new byte[recordLength];
-            header = fs.header;
         }
 
         private BDFEDFRecord(){}
@@ -1381,7 +1444,13 @@ namespace BDFEDFFileStream
                     }
                     else
                     {
-                        channelData[channel][sample] = convert24(fileStream._recordBuffer[i], fileStream._recordBuffer[i + 1]);
+                        if (header._hasAnnotations && channel == header._AnnotationChannel)
+                        {
+                            annotationData[2 * i] = (char)fileStream._recordBuffer[i];
+                            annotationData[2 * i + 1] = (char)fileStream._recordBuffer[i + 1];
+                        }
+                        else
+                            channelData[header._channelMap[channel]][sample] = convert24(fileStream._recordBuffer[i], fileStream._recordBuffer[i + 1]);
                         i += 2;
                     }
                 }

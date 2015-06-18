@@ -70,7 +70,7 @@ namespace EventFile
                         int l = t.Length - 7; //count in 100nsec intervals
                         ev.m_time = Convert.ToDouble(t.Substring(0, l) + "." + t.Substring(l));
                     }
-                    if (!ev.EDE.BDFBased) // only used for Absolute ClockTimes
+                    if (!ev.BDFBased) // only used for Absolute ClockTimes
                         ev.EventTime = xr.ReadElementString("EventTime", nameSpace);
                 }
                 else if (xr.Name == "Time") //Time construct -- deprecated as of 11 Feb 2013
