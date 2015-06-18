@@ -105,6 +105,7 @@ namespace CCIUtilities
             return Assembly.GetExecutingAssembly().GetName().Version.ToString();
         }
 
+        //NOTE: must assure that n is in the correct range
         public static uint uint2GC(uint n)
         {
             return n ^ (n >> 1);

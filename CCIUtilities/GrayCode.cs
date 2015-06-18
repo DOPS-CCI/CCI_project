@@ -12,9 +12,9 @@ namespace CCIUtilities
     /// </summary>
     public struct GrayCode : IComparable<GrayCode>
     {
-        uint _GC;
-        int _status;
-        uint _indexMax;
+        uint _GC; //value of the Graycode
+        int _status; //Status value Graycode based upon
+        uint _indexMax; //calculated maximum for this Graycode (based on _status)
 
         public uint Value
         {
@@ -92,6 +92,20 @@ namespace CCIUtilities
             GrayCode gc = new GrayCode(this);
             gc.Value = (uint)statusValue & (0xFFFFFFFF >> (32 - _status));
             return gc;
+        }
+
+        /// <summary>
+        /// Addition
+        /// </summary>
+        /// <param name="gc">Advance Gray code by an integer</param>
+        /// <returns>Correctly advanced Gray code</returns>
+        public static GrayCode operator +(GrayCode gc, int i)
+        {
+            if (i < 0) throw new Exception("Attempt to add a negative number to a GrayCode");
+            GrayCode gc1 = new GrayCode(gc);
+            if (gc1._GC != 0 || i > 0)
+                gc1._GC = Utilities.uint2GC((gc1.Decode() + (uint)i - 1) % gc1._indexMax + 1);
+            return gc1;
         }
 
         /// <summary>
