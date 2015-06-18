@@ -494,7 +494,7 @@ namespace PKDetectorAnalyzer
             foreach (Event.InputEvent ie in efr) // read in all Events into dictionary
             {
                 events.Add(new Event.OutputEvent(ie)); //make list of all current Events
-                if (!zeroSet && ie.EDE.IsCovered) //set zeroTime based on first encounter covered Event
+                if (!zeroSet && ie.IsCovered) //set zeroTime based on first encounter covered Event
                 {
                     bdf.setZeroTime(ie);
                     zeroSet = true;
