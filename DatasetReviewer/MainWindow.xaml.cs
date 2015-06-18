@@ -129,7 +129,7 @@ namespace DatasetReviewer
             bool z = false;
             foreach (Event.InputEvent ie in efr)// read in all Events into dictionary
             {
-                if (ie.EDE.IsNaked)
+                if (ie.IsNaked)
                     events.Add(ie);
                 else if (events.Count(e => e.GC == ie.GC) == 0) //quietly skip duplicates
                 {
@@ -710,22 +710,25 @@ namespace DatasetReviewer
             double currentOffset = currentDisplayOffsetInSecs + SearchSiteOffset * currentDisplayWidthInSecs;
             double newOffset;
             BDFEDFFileStream.BDFLoc p = bdf.LocationFactory.New().FromSecs(currentOffset);
-            GrayCode bgc = (new GrayCode(head.Status)).NewGrayCodeForStatus(bdf.getStatusSample(p));
             InputEvent ie;
             if ((string)b.Content == "Next")
             {
                 currentOffset += bdf.SampTime / 2D;
-                ie = events.Find(ev => ev.Name == currentSearchEvent && bdf.timeFromBeginningOfFileTo(ev) > currentOffset && (bgc.CompareTo(ev.GC) < 0 || ev.EDE.IsNaked));
+                ie = events.Find(ev => ev.Name == currentSearchEvent &&
+                    bdf.timeFromBeginningOfFileTo(ev) > currentOffset &&
+                    (ev.IsNaked || (new GrayCode(head.Status)).NewGrayCodeForStatus(bdf.getStatusSample(p)).CompareTo(ev.GC) < 0));
             }
             else //Prev
             {
                 currentOffset -= bdf.SampTime / 2D;
-                ie = events.LastOrDefault(ev => ev.Name == currentSearchEvent && bdf.timeFromBeginningOfFileTo(ev) < currentOffset && (bgc.CompareTo(ev.GC) > 0 || ev.EDE.IsNaked));
+                ie = events.LastOrDefault(ev => ev.Name == currentSearchEvent &&
+                    bdf.timeFromBeginningOfFileTo(ev) < currentOffset &&
+                    (ev.IsNaked || (new GrayCode(head.Status)).NewGrayCodeForStatus(bdf.getStatusSample(p)).CompareTo(ev.GC) > 0));
             }
             if (ie == null) return;
-            if (ie.EDE.BDFBased) //known BDF-based clock
+            if (ie.BDFBased) //known BDF-based clock
                 newOffset = ie.Time;
-            else if (ie.EDE.IsNaked) newOffset = bdf.timeFromBeginningOfFileTo(ie); //naked Event using Absolute clock -- not preferred, but OK
+            else if (ie.IsNaked) newOffset = bdf.timeFromBeginningOfFileTo(ie); //naked Event using Absolute clock -- not preferred, but OK
             else //covered Event, always Absolute clock
             {
                 GrayCode gc = new GrayCode(head.Status);
