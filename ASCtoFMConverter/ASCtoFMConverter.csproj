@@ -29,7 +29,7 @@
     <InstallUrl>http://zoomlenz.net/CCI/publish/ASCtoFMConverter/</InstallUrl>
     <CreateWebPageOnPublish>true</CreateWebPageOnPublish>
     <WebPage>publish.htm</WebPage>
-    <ApplicationRevision>16</ApplicationRevision>
+    <ApplicationRevision>18</ApplicationRevision>
     <ApplicationVersion>1.0.0.%2a</ApplicationVersion>
     <UseApplicationTrust>false</UseApplicationTrust>
     <CreateDesktopShortcut>true</CreateDesktopShortcut>
@@ -88,9 +88,6 @@
     </Reference>
     <Reference Include="CCIUtilities">
       <HintPath>..\CCIUtilities\bin\Debug\CCIUtilities.dll</HintPath>
-    </Reference>
-    <Reference Include="SplineRegression">
-      <HintPath>..\SplineRegression\bin\Debug\SplineRegression.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Data" />

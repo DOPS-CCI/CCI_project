@@ -13,7 +13,6 @@ using FILMANFileStream;
 using GroupVarDictionary;
 using CCILibrary;
 using CCIUtilities;
-using SplineRegression;
 using Microsoft.Win32;
 
 namespace ASCtoFMConverter
