@@ -13,7 +13,7 @@ namespace CCIUtilities
             set
             {
                 errorMessage.Text = value;
-                Log.writeToLog(value); //attempt to write log message
+                Log.writeToLog("***** ERROR: " + value); //attempt to write log message
             }
         }
 
