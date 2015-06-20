@@ -49,7 +49,7 @@ namespace DatasetReviewer
             }
             if(bdf.hasStatus && !showAllEventsAtAbsoluteTime) //displaying covered Events at Status marks
             {
-                BDFEDFFileStream.BDFLoc start = bdf.LocationFactory.New().FromSecs(currentDisplayWidthInSecs);
+                BDFEDFFileStream.BDFLoc start = bdf.LocationFactory.New().FromSecs(currentDisplayOffsetInSecs);
                 BDFEDFFileStream.BDFLoc end = bdf.LocationFactory.New().FromSecs(currentDisplayOffsetInSecs + currentDisplayWidthInSecs);
                 GrayCode sample = new GrayCode(head.Status);
                 GrayCode lastSample = new GrayCode(sample);

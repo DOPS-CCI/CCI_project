@@ -63,6 +63,9 @@ namespace DatasetReviewer
 
         public MainWindow()
         {
+
+            Log.writeToLog("Starting DatasetReviewer " + Assembly.GetExecutingAssembly().GetName().Version.ToString());
+
             do
             {
                 bool r;
@@ -77,13 +80,33 @@ namespace DatasetReviewer
 
                     directory = System.IO.Path.GetDirectoryName(dlg.FileName); //will use to find other files in dataset
                     headerFileName = System.IO.Path.GetFileNameWithoutExtension(dlg.FileName);
-
-                    head = (new HeaderFileReader(dlg.OpenFile())).read();
+                    try
+                    {
+                        head = (new HeaderFileReader(dlg.OpenFile())).read();
+                    }
+                    catch (Exception e)
+                    {
+                        r = false; //loop around again
+                        ErrorWindow ew = new ErrorWindow();
+                        ew.Message = "Error reading Header file: " + e.Message;
+                        continue;
+                    }
                     ED = head.Events;
 
-                    bdf = new BDFEDFFileStream.BDFEDFFileReader(
-                        new FileStream(System.IO.Path.Combine(directory, head.BDFFile),
-                            FileMode.Open, FileAccess.Read));
+                    try
+                    {
+                        bdf = new BDFEDFFileStream.BDFEDFFileReader(
+                            new FileStream(System.IO.Path.Combine(directory, head.BDFFile),
+                                FileMode.Open, FileAccess.Read));
+                    }
+                    catch (Exception e)
+                    {
+                        r = false; //loop around again
+                        ErrorWindow ew = new ErrorWindow();
+                        ew.Message = "Error reading BDF file header: " + e.Message;
+                        ew.ShowDialog();
+                        continue;
+                    }
                     int samplingRate = (int)((double)bdf.NSamp / bdf.RecordDurationDouble);
                     BDFLength = (double)bdf.NumberOfRecords * bdf.RecordDurationDouble;
 
@@ -92,11 +115,13 @@ namespace DatasetReviewer
 
                 } while (r == false);
 
+                Log.writeToLog("     on dataset " + headerFileName);
+
                 if (includeANAs)
                 {
                     foreach (EventDictionaryEntry ede in ED.Values) // add ANA channels that are referenced by extrinsic Events
                     {
-                        if (ede.IsCovered && !(bool)ede.intrinsic)
+                        if (ede.IsCovered && ede.IsExtrinsic)
                         {
                             int chan = bdf.ChannelNumberFromLabel(ede.channelName);
                             if (!channelList.Contains(chan)) //don't enter duplicate
@@ -107,9 +132,6 @@ namespace DatasetReviewer
             } while (channelList.Count == 0);
 
             InitializeComponent();
-
-            Log.writeToLog("Starting DatasetReviewer " + Assembly.GetExecutingAssembly().GetName().Version.ToString() +
-                " on dataset " + headerFileName);
 
             //initialize the individual channel graphs
             foreach (int i in channelList)
@@ -122,28 +144,50 @@ namespace DatasetReviewer
             BDFFileInfo.Content = bdf.ToString();
             HDRFileInfo.Content = head.ToString();
             Event.EventFactory.Instance(head.Events); // set up the factory
-            EventFileReader efr = new EventFileReader(
-                new FileStream(System.IO.Path.Combine(directory, head.EventFile),
-                    FileMode.Open, FileAccess.Read)); // open Event file
-
-            bool z = false;
-            foreach (Event.InputEvent ie in efr)// read in all Events into dictionary
+            EventFileReader efr = null;
+            try
             {
-                if (ie.IsNaked)
-                    events.Add(ie);
-                else if (events.Count(e => e.GC == ie.GC) == 0) //quietly skip duplicates
+                    efr = new EventFileReader(
+                        new FileStream(System.IO.Path.Combine(directory, head.EventFile),
+                            FileMode.Open, FileAccess.Read)); // open Event file
+                bool z = false;
+                foreach (Event.InputEvent ie in efr)// read in all Events into dictionary
                 {
-                    if (!z)
-                        z = bdf.setZeroTime(ie);
-                    events.Add(ie);
+                    if (ie.IsNaked)
+                        events.Add(ie);
+                    else if (events.Count(e => e.GC == ie.GC) == 0) //quietly skip duplicates
+                    {
+                        if (!z)
+                            z = bdf.setZeroTime(ie);
+                        events.Add(ie);
+                    }
                 }
+                efr.Close(); //now events is Dictionary of Events in the dataset; lookup by GC
             }
-            efr.Close(); //now events is Dictionary of Events in the dataset; lookup by GC
+            catch (Exception e)
+            {
+                ErrorWindow ew = new ErrorWindow();
+                ew.Message = "Error reading Event file : " + e.Message + ". Exitting DatasetReviewer.";
+                ew.ShowDialog();
+                Log.writeToLog(Environment.NewLine +  e.StackTrace);
+                Environment.Exit(0);
+            }
 
-            ElectrodeInputFileStream eif = new ElectrodeInputFileStream(
-                new FileStream(System.IO.Path.Combine(directory, head.ElectrodeFile),
-                    FileMode.Open, FileAccess.Read)); //open Electrode file
-            electrodes = eif.etrPositions; //read 'em in
+            try
+            {
+                ElectrodeInputFileStream eif = new ElectrodeInputFileStream(
+                    new FileStream(System.IO.Path.Combine(directory, head.ElectrodeFile),
+                        FileMode.Open, FileAccess.Read)); //open Electrode file
+                electrodes = eif.etrPositions; //read 'em in
+            }
+            catch (Exception e)
+            {
+                ErrorWindow ew = new ErrorWindow();
+                ew.Message = "Error reading Electrode file : " + e.Message + ". Exitting DatasetReviewer.";
+                ew.ShowDialog();
+                Log.writeToLog(Environment.NewLine + e.StackTrace);
+                Environment.Exit(0);
+            }
 
             EventMarkers.Width = BDFLength;
             eventTB = new TextBlock(new Run("Events"));
@@ -710,20 +754,23 @@ namespace DatasetReviewer
             double currentOffset = currentDisplayOffsetInSecs + SearchSiteOffset * currentDisplayWidthInSecs;
             double newOffset;
             BDFEDFFileStream.BDFLoc p = bdf.LocationFactory.New().FromSecs(currentOffset);
+            GrayCode gc = new GrayCode(head.Status);
             InputEvent ie;
             if ((string)b.Content == "Next")
             {
                 currentOffset += bdf.SampTime / 2D;
+                if(bdf.hasStatus)
+                    gc = gc.NewGrayCodeForStatus(bdf.getStatusSample(p));
                 ie = events.Find(ev => ev.Name == currentSearchEvent &&
-                    bdf.timeFromBeginningOfFileTo(ev) > currentOffset &&
-                    (ev.IsNaked || (new GrayCode(head.Status)).NewGrayCodeForStatus(bdf.getStatusSample(p)).CompareTo(ev.GC) < 0));
+                    (ev.IsNaked && bdf.timeFromBeginningOfFileTo(ev) > currentOffset || !ev.IsNaked && gc.CompareTo(ev.GC) < 0));
             }
             else //Prev
             {
                 currentOffset -= bdf.SampTime / 2D;
+                if (bdf.hasStatus)
+                    gc = gc.NewGrayCodeForStatus(bdf.getStatusSample(p - 1));
                 ie = events.LastOrDefault(ev => ev.Name == currentSearchEvent &&
-                    bdf.timeFromBeginningOfFileTo(ev) < currentOffset &&
-                    (ev.IsNaked || (new GrayCode(head.Status)).NewGrayCodeForStatus(bdf.getStatusSample(p)).CompareTo(ev.GC) > 0));
+                    (ev.IsNaked && bdf.timeFromBeginningOfFileTo(ev) < currentOffset || !ev.IsNaked && gc.CompareTo(ev.GC) >= 0));
             }
             if (ie == null) return;
             if (ie.BDFBased) //known BDF-based clock
@@ -731,7 +778,6 @@ namespace DatasetReviewer
             else if (ie.IsNaked) newOffset = bdf.timeFromBeginningOfFileTo(ie); //naked Event using Absolute clock -- not preferred, but OK
             else //covered Event, always Absolute clock
             {
-                GrayCode gc = new GrayCode(head.Status);
                 gc.Value = (uint)ie.GC;
                 newOffset = bdf.findGCNear(gc, bdf.timeFromBeginningOfFileTo(ie)); //search for nearby Status channel mark
             }
