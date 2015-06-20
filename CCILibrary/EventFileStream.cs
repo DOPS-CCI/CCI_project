@@ -87,21 +87,23 @@ namespace EventFile
                 {
                     //the GVs in the EVT file should match the GVs defined in the HDR file in number, name, and order
                     int j = 0;
-                    foreach (GVEntry gve in ev.EDE.GroupVars)
-                    {
-                        if (xr.IsStartElement("GV"))
+                    if(ev.EDE.GroupVars!=null)
+                        foreach (GVEntry gve in ev.EDE.GroupVars)
                         {
-                            string GVName = xr["Name", nameSpace];
-                            if (GVName == null)
-                                throw new Exception("GV " + gve.Name + " not found in Event " + ev.Name);
-                            if (gve.Name != GVName)
-                                throw new Exception("Found GV named " + GVName + " in Event file which does not match Event " + ev.Name + " definition for GV " + gve.Name);
-                            xr.ReadStartElement(/* GV */);
-                            ev.GVValue[j++] = xr.ReadContentAsString();
-                            xr.ReadEndElement(/* GV */);
+                            if (xr.IsStartElement("GV"))
+                            {
+                                string GVName = xr["Name", nameSpace];
+                                if (GVName == null)
+                                    throw new Exception("GV " + gve.Name + " not found in Event " + ev.Name);
+                                if (gve.Name != GVName)
+                                    throw new Exception("Found GV named " + GVName + " in Event file which does not match Event " + ev.Name + " definition for GV " + gve.Name);
+                                xr.ReadStartElement(/* GV */);
+                                ev.GVValue[j++] = xr.ReadContentAsString();
+                                xr.ReadEndElement(/* GV */);
+                            }
+                            else
+                                throw new Exception("Missing GV named " + gve.Name + " in Event file record for Event " + ev.Name);
                         }
-
-                    }
                     xr.ReadEndElement(/* GroupVars */);
                 }
                 else
