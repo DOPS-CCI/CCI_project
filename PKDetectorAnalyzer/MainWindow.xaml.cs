@@ -94,7 +94,7 @@ namespace PKDetectorAnalyzer
                     FileMode.Open, FileAccess.Read));
             for (int i = 0; i < bdf.NumberOfChannels; i++) //first see if this file has standard transducer labels
                 if (bdf.transducer(i) == "Analog Input Box")
-                    channels.Add(new channelOptions(i, bdf.channelLabel(i)));
+                    channels.Add(new channelOptions(i, bdf.channelLabel(i))); //if it does, use them as channel choices
             if (channels.Count == 0) //if it does not, then show all channels
                 for (int i = 0; i < bdf.NumberOfChannels; i++)
                     channels.Add(new channelOptions(i, bdf.channelLabel(i)));
@@ -514,7 +514,7 @@ namespace PKDetectorAnalyzer
                     fs = new FileStream(System.IO.Path.Combine(directory, newFileName + ".hdr"), FileMode.CreateNew, FileAccess.Write);
                     OK = true;
                 }
-                catch (IOException)
+                catch (IOException) //force only a new
                 {
                     Replace_dataset rd = new Replace_dataset(newFileName, this.FNExtension.Text);
                     rd.WindowStartupLocation = WindowStartupLocation.CenterOwner;
@@ -696,38 +696,5 @@ namespace PKDetectorAnalyzer
         {
 
         }
-
-/* Unused at the moment...
-        internal void fixChannelEntries()
-        {
-            bool[] selectedChannels = new bool[AnalogChannelCount];
-            for (int i = 0; i < ChannelEntries.Items.Count; i++)
-            {
-                int chan = ((ChannelItem)ChannelEntries.Items[i]).Channel.SelectedIndex;
-                if (!selectedChannels[chan])
-                    selectedChannels[chan] = true;
-                else
-                {
-                    //we've got two entries with the same channel selected;
-                    //can only happen when a new Channel entry is being created,
-                    //so select the first non-selected channel to this point
-                    int j = 0;
-                    while (selectedChannels[j]) j++;
-                    ((ChannelItem)ChannelEntries.Items[i]).Channel.SelectedIndex = j;
-                    selectedChannels[j] = true;
-                }
-            }
-
-            for (int i = 0; i < ChannelEntries.Items.Count; i++)
-            {
-                ComboBox cb = ((ChannelItem)ChannelEntries.Items[i]).Channel;
-                for (int j = 0; j < selectedChannels.Length; j++)
-                {
-                    if (j != cb.SelectedIndex)
-                        ((ComboBoxItem)cb.Items[j]).IsEnabled = !selectedChannels[j];
-                }
-            }
-        }
-*/
     }
 }
