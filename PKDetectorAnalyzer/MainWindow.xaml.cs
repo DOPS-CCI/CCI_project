@@ -213,17 +213,17 @@ namespace PKDetectorAnalyzer
             internal double threshold;
             internal int minimumLength;
 
-            internal int endTime { get {return startTime + length; } }
+            internal int endTime { get { return startTime + length; } }
         }
 
         private void ProcessChannel_Worker(object sender, DoWorkEventArgs e)
         {
-            List<eventTime> eventList = new List<eventTime>();
+            List<eventTime> eventList = new List<eventTime>(); //holds list of potential new Events for this channel
             workerArguments args = (workerArguments)e.Argument;
-            double[] d = args.data;
+            double[] d = args.data; //channel data to be analyzed
             int N = d.Length;
             int degree = args.trendDegree;
-            if (degree >= 0)
+            if (degree >= 0) //the perform polynomial detrending
             {
                 bw.ReportProgress(0, "detrending with " + degree.ToString("0") + " degree polynomial");
                 removeTrend(d, degree);
@@ -373,6 +373,8 @@ namespace PKDetectorAnalyzer
                 head.GroupVars.Add("Source channel", gve); //Channel name: add to GV list in HDR
                 newGVList[0] = gve;
             }
+            else
+                newGVList[0] = head.GroupVars["Source channel"];
 
             //GV 2
             if (!head.GroupVars.ContainsKey("Found fit"))
@@ -385,6 +387,8 @@ namespace PKDetectorAnalyzer
                 head.GroupVars.Add("Found fit", gve);
                 newGVList[1] = gve;
             }
+            else
+                newGVList[1] = head.GroupVars["Found fit"];
 
             //GV 3
             if (!head.GroupVars.ContainsKey("Magnitude"))
@@ -394,6 +398,8 @@ namespace PKDetectorAnalyzer
                 head.GroupVars.Add("Magnitude", gve); //Magnitude
                 newGVList[2] = gve;
             }
+            else
+                newGVList[2] = head.GroupVars["Magnitude"];
 
             //GV 4
             if (!head.GroupVars.ContainsKey("Direction"))
@@ -406,6 +412,8 @@ namespace PKDetectorAnalyzer
                 head.GroupVars.Add("Direction", gve); //Direction
                 newGVList[3] = gve;
             }
+            else
+                newGVList[3] = head.GroupVars["Direction"];
 
             //GV 5
             if (!head.GroupVars.ContainsKey("Alpha TC"))
@@ -415,6 +423,8 @@ namespace PKDetectorAnalyzer
                 head.GroupVars.Add("Alpha TC", gve); //Alpha time constant
                 newGVList[4] = gve;
             }
+            else
+                newGVList[4] = head.GroupVars["Alpha TC"];
 
             //GV 6
             if (!head.GroupVars.ContainsKey("Chi square"))
@@ -424,6 +434,8 @@ namespace PKDetectorAnalyzer
                 head.GroupVars.Add("Chi square", gve); //Chi square
                 newGVList[5] = gve;
             }
+            else
+                newGVList[5] = head.GroupVars["Chi square"];
 
             //GV 7
             if (!head.GroupVars.ContainsKey("Serial number"))
@@ -433,6 +445,8 @@ namespace PKDetectorAnalyzer
                 head.GroupVars.Add("Serial number", gve);
                 newGVList[6] = gve;
             }
+            else
+                newGVList[6] = head.GroupVars["Serial number"];
 
             //GV 8
             if (!head.GroupVars.ContainsKey("Trend degree"))
@@ -442,6 +456,8 @@ namespace PKDetectorAnalyzer
                 head.GroupVars.Add("Trend degree", gve);
                 newGVList[7] = gve;
             }
+            else
+                newGVList[7] = head.GroupVars["Trend degree"];
 
             //GV 9
             if (!head.GroupVars.ContainsKey("Filter length"))
@@ -451,6 +467,8 @@ namespace PKDetectorAnalyzer
                 head.GroupVars.Add("Filter length", gve);
                 newGVList[8] = gve;
             }
+            else
+                newGVList[8] = head.GroupVars["Filter length"];
 
             //GV 10
             if (!head.GroupVars.ContainsKey("Threshold"))
@@ -460,6 +478,8 @@ namespace PKDetectorAnalyzer
                 head.GroupVars.Add("Threshold", gve);
                 newGVList[9] = gve;
             }
+            else
+                newGVList[9] = head.GroupVars["Threshold"];
 
             //GV 11
             if (!head.GroupVars.ContainsKey("Minimum length"))
@@ -469,6 +489,8 @@ namespace PKDetectorAnalyzer
                 head.GroupVars.Add("Minimum length", gve);
                 newGVList[10] = gve;
             }
+            else
+                newGVList[10] = head.GroupVars["Minimum length"];
 
             //Create Event Dictionary entry for each new PK event/ChannelItem
             foreach (ChannelItem ci in ChannelEntries.Items)
@@ -543,7 +565,10 @@ namespace PKDetectorAnalyzer
                 newEvent.GVValue[2] = ((int)Math.Abs(et.A)).ToString("0");
                 newEvent.GVValue[3] = et.sign > 0 ? "Positive" : "Negative";
                 newEvent.GVValue[4] = ((int)(1000D / et.a)).ToString("0");
-                newEvent.GVValue[5] = ((int)et.chiSquare).ToString("0");
+                if (et.chiSquare < 2E9)
+                    newEvent.GVValue[5] = ((int)et.chiSquare).ToString("0");
+                else
+                    newEvent.GVValue[5] = "0";
                 newEvent.GVValue[6] = et.serialNumber.ToString("0");
                 newEvent.GVValue[7] = (et.trendDegree + 2).ToString("0");
                 newEvent.GVValue[8] = et.filterLength.ToString("0");
@@ -571,16 +596,16 @@ namespace PKDetectorAnalyzer
 
         static void removeTrend(double[] data, int degree)
         {
-            double[] coef = Polynominal.fitPolynomial(data, degree);
+            double[] coef = Polynomial.fitPolynomial(data, degree);
             //apply the fit to the existing data
             int N = data.Length;
             double offset = ((double)N + 1D) / 2D;
             for (int i = 1; i <= N; i++)
             {
                 double v = (double)i - offset;
-                double c = coef[0];
-                for (int j = 1; j <= degree; j++)
-                    c += coef[j] * Math.Pow(v, j);
+                double c = 0D;
+                for (int j = degree; j >= 0; j--)
+                    c = c * v + coef[j];
                 data[i - 1] -= c;
             }
         }
