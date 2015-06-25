@@ -84,7 +84,7 @@ namespace PKDetectorAnalyzer
         {
             try
             {
-                _filterN = System.Convert.ToInt32(FilterSize.Text);
+                _filterN = (int)(System.Convert.ToDouble(FilterSize.Text) / mw.bdf.SampTime);
                 if (_filterN <= 1) throw new Exception();
                 FilterSize.BorderBrush = System.Windows.Media.Brushes.MediumBlue;
             }
@@ -116,7 +116,7 @@ namespace PKDetectorAnalyzer
         {
             try
             {
-                _minimumL = System.Convert.ToInt32(MinimumLength.Text);
+                _minimumL = (int)(System.Convert.ToDouble(MinimumLength.Text) / mw.bdf.SampTime);
                 if (_minimumL <= 0) throw new Exception();
                 MinimumLength.BorderBrush = System.Windows.Media.Brushes.MediumBlue;
             }

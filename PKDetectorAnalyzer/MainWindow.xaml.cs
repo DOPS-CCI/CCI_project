@@ -65,12 +65,6 @@ namespace PKDetectorAnalyzer
         }
 
         GVEntry[] newGVList = new GVEntry[11];
-
-        static LevenbergMarquardt LM = new LevenbergMarquardt(func, Jfunc,
-           new LinearAlgebra.NVector(new double[] { -30000D, -60000D, -60000D, 0.25, 0.005, -0.25 }),
-           new LinearAlgebra.NVector(new double[] { 30000D, 60000D, 60000D, 40, 0.1, 0.5 }), null,
-           new double[] { 0.0001, 0.00001, 0.00001, 0.01 },
-           LevenbergMarquardt.UpdateType.Marquardt);
         
         public MainWindow()
         {
@@ -229,6 +223,12 @@ namespace PKDetectorAnalyzer
                 removeTrend(d, degree);
             }
 
+            double maxD = d[0];
+            double minD = maxD;
+            foreach (double v in d)
+                if (v > maxD) maxD = v;
+                else if (v < minD) minD = v;
+
             int filterN = args.filterLength;
             double[] V = new double[filterN];
             double c1 = 12D / (double)(filterN * (filterN - 1) * (filterN + 1));
@@ -240,6 +240,7 @@ namespace PKDetectorAnalyzer
             double sign = 1D;
             double threshold = args.threshold;
             int minimumLength = args.minLength;
+
             bw.ReportProgress(0, "detecting with " + filterN.ToString("0") + "pt filter;  th = " +
                 threshold.ToString("0.00") + "; minLen = " + minimumLength.ToString("0"));
 
@@ -303,17 +304,17 @@ namespace PKDetectorAnalyzer
                 if(nEvents!=1)
                     if (nEvents >= 2) //at least two Events
                     {
-                        eventList[0].foundFit = fitSignal(d, 0, eventList[0], eventList[1].startTime, samplingRate);
+                        eventList[0].foundFit = fitSignal(d, 0, eventList[0], eventList[1].startTime, samplingRate, minD, maxD);
                         for (int i = 1; i < eventList.Count - 1; i++)
                         {
                             if (bw.CancellationPending) { e.Cancel = true; return; } //look for cancellation
                             bw.ReportProgress((int)((100D * i) / eventList.Count), "");
-                            eventList[i].foundFit = fitSignal(d, eventList[i - 1].endTime, eventList[i], eventList[i + 1].startTime, samplingRate);
+                            eventList[i].foundFit = fitSignal(d, eventList[i - 1].endTime, eventList[i], eventList[i + 1].startTime, samplingRate, minD, maxD);
                         }
-                        eventList[eventList.Count - 1].foundFit = fitSignal(d, eventList[eventList.Count - 2].endTime, eventList[eventList.Count - 1], d.Length, samplingRate);
+                        eventList[eventList.Count - 1].foundFit = fitSignal(d, eventList[eventList.Count - 2].endTime, eventList[eventList.Count - 1], d.Length, samplingRate, minD, maxD);
                     }
                     else //must be single Event
-                        eventList[0].foundFit = fitSignal(d, 0, eventList[0], d.Length, samplingRate);
+                        eventList[0].foundFit = fitSignal(d, 0, eventList[0], d.Length, samplingRate, minD, maxD);
             e.Result = eventList;
         }
 
@@ -354,12 +355,10 @@ namespace PKDetectorAnalyzer
         //Process the PK events found: returns true if files succesfully written
         private bool ProcessEvents()
         {
-            GVEntry gve;
-
             //GV 1
             if (!head.GroupVars.ContainsKey("Source channel"))
             {
-                gve = new GVEntry();
+                GVEntry gve = new GVEntry();
                 gve.GVValueDictionary = new Dictionary<string, int>();
                 gve.Description = "Source channel for this Event";
                 foreach (ChannelItem ci in ChannelEntries.Items)
@@ -377,129 +376,49 @@ namespace PKDetectorAnalyzer
                 newGVList[0] = head.GroupVars["Source channel"];
 
             //GV 2
-            if (!head.GroupVars.ContainsKey("Found fit"))
-            {
-                gve = new GVEntry();
-                gve.GVValueDictionary = new Dictionary<string, int>(2);
-                gve.Description = "Found satisfactory fit to PK signal";
-                gve.GVValueDictionary.Add("Found", 1);
-                gve.GVValueDictionary.Add("Not found", 2);
-                head.GroupVars.Add("Found fit", gve);
-                newGVList[1] = gve;
-            }
-            else
-                newGVList[1] = head.GroupVars["Found fit"];
+            newGVList[1] = head.AddOrGetGroupVar("Found fit", "Found satisfactory fit to PK signal",
+                new string[] { "Found", "Not found" });
 
             //GV 3
-            if (!head.GroupVars.ContainsKey("Magnitude"))
-            {
-                gve = new GVEntry();
-                gve.Description = "Estimate of the magnitude of PK signal in scale of channel";
-                head.GroupVars.Add("Magnitude", gve); //Magnitude
-                newGVList[2] = gve;
-            }
-            else
-                newGVList[2] = head.GroupVars["Magnitude"];
+                newGVList[2] = head.AddOrGetGroupVar("Magnitude",
+                    "Estimate of the magnitude of PK signal in scale of channel");
 
             //GV 4
-            if (!head.GroupVars.ContainsKey("Direction"))
-            {
-                gve = new GVEntry();
-                gve.GVValueDictionary = new Dictionary<string, int>(2);
-                gve.Description = "Direction of PK signal";
-                gve.GVValueDictionary.Add("Positive", 1);
-                gve.GVValueDictionary.Add("Negative", 2);
-                head.GroupVars.Add("Direction", gve); //Direction
-                newGVList[3] = gve;
-            }
-            else
-                newGVList[3] = head.GroupVars["Direction"];
+                newGVList[3] = head.AddOrGetGroupVar("Direction", "Direction of PK signal",
+                    new string[] { "Positive", "Negative" });
 
             //GV 5
-            if (!head.GroupVars.ContainsKey("Alpha TC"))
-            {
-                gve = new GVEntry();
-                gve.Description = "Estimate of the time constant (in millisecs) for the rising edge of the PK signal";
-                head.GroupVars.Add("Alpha TC", gve); //Alpha time constant
-                newGVList[4] = gve;
-            }
-            else
-                newGVList[4] = head.GroupVars["Alpha TC"];
+                newGVList[4] = head.AddOrGetGroupVar("Alpha TC",
+                    "Estimate of the time constant (in millisecs) for the rising edge of the PK signal");
 
             //GV 6
-            if (!head.GroupVars.ContainsKey("Chi square"))
-            {
-                gve = new GVEntry();
-                gve.Description = "Chi square estimate of goodness of fit to the PK signal";
-                head.GroupVars.Add("Chi square", gve); //Chi square
-                newGVList[5] = gve;
-            }
-            else
-                newGVList[5] = head.GroupVars["Chi square"];
+                newGVList[5] = head.AddOrGetGroupVar("Chi square",
+                    "Chi square estimate of goodness of fit to the PK signal");
 
             //GV 7
-            if (!head.GroupVars.ContainsKey("Serial number"))
-            {
-                gve = new GVEntry();
-                gve.Description = "Serial number for this channel/filter combonation";
-                head.GroupVars.Add("Serial number", gve);
-                newGVList[6] = gve;
-            }
-            else
-                newGVList[6] = head.GroupVars["Serial number"];
+                newGVList[6] = head.AddOrGetGroupVar("Serial number",
+                    "Serial number for this channel/filter combonation");
 
             //GV 8
-            if (!head.GroupVars.ContainsKey("Trend degree"))
-            {
-                gve = new GVEntry();
-                gve.Description = "Degree of trend removal of original PK signal plus 2";
-                head.GroupVars.Add("Trend degree", gve);
-                newGVList[7] = gve;
-            }
-            else
-                newGVList[7] = head.GroupVars["Trend degree"];
+                newGVList[7] = head.AddOrGetGroupVar("Trend degree",
+                    "Degree of trend removal of original PK signal plus 2");
 
             //GV 9
-            if (!head.GroupVars.ContainsKey("Filter length"))
-            {
-                gve = new GVEntry();
-                gve.Description = "Length of filter in points";
-                head.GroupVars.Add("Filter length", gve);
-                newGVList[8] = gve;
-            }
-            else
-                newGVList[8] = head.GroupVars["Filter length"];
+                newGVList[8] = head.AddOrGetGroupVar("Filter length", "Length of filter in points");
 
             //GV 10
-            if (!head.GroupVars.ContainsKey("Threshold"))
-            {
-                gve = new GVEntry();
-                gve.Description = "Capturing threshold in microV/sec";
-                head.GroupVars.Add("Threshold", gve);
-                newGVList[9] = gve;
-            }
-            else
-                newGVList[9] = head.GroupVars["Threshold"];
+                newGVList[9] = head.AddOrGetGroupVar("Threshold", "Capturing threshold in microV/sec");
 
             //GV 11
-            if (!head.GroupVars.ContainsKey("Minimum length"))
-            {
-                gve = new GVEntry();
-                gve.Description = "Minimum length of above-threshold filter signal in points";
-                head.GroupVars.Add("Minimum length", gve);
-                newGVList[10] = gve;
-            }
-            else
-                newGVList[10] = head.GroupVars["Minimum length"];
+                newGVList[10] = head.AddOrGetGroupVar("Minimum length",
+                    "Minimum length of above-threshold filter signal in points");
 
             //Create Event Dictionary entry for each new PK event/ChannelItem
             foreach (ChannelItem ci in ChannelEntries.Items)
             {
-                EventDictionaryEntry ede = new EventDictionaryEntry();
-                ede.Description = "PK detector events from PKDetectorAnalyzer based on channel " + ci.Channel.Text;
+                EventDictionaryEntry ede = head.AddNewEvent(ci.ImpliedEventName,
+                    "PK detector events from PKDetectorAnalyzer based on channel " + ci.Channel.Text, newGVList);
                 ede.BDFBased = true; //naked Event with clock BDF-based
-                ede.GroupVars = new List<GVEntry>(newGVList);
-                head.Events.Add(ci.ImpliedEventName, ede);
             }
 
             head.Comment += (head.Comment == "" ? "" : Environment.NewLine) +
@@ -614,8 +533,15 @@ namespace PKDetectorAnalyzer
             }
         }
 
-        private static bool fitSignal(double[] d, int beforeTime, eventTime current, int afterTime, double samplingRate)
+        private static bool fitSignal(double[] d, int beforeTime, eventTime current, int afterTime,
+            double samplingRate, double minD, double maxD)
         {
+            LevenbergMarquardt LM = new LevenbergMarquardt(func, Jfunc,
+                new LinearAlgebra.NVector(new double[] { minD, 2 * minD, 2 * minD, 0.25, 0.005, -0.25 }),
+                new LinearAlgebra.NVector(new double[] { maxD, 2 * maxD, 2 * maxD, 40, 0.1, 0.5 }), null,
+                new double[] { 0.0001, 0.00001, 0.00001, 0.01 },
+                LevenbergMarquardt.UpdateType.Marquardt); //set up LM processor
+
             //determine subset of data around the detection signal
             int start = Math.Max(0, Math.Min(current.startTime - (beforeTime + (int)(deadtimeSecsAfter * samplingRate)), (int)(maxSecsBefore * samplingRate))); //up to 5 seconds before
             double newTOffset = (double)start / samplingRate;
@@ -638,7 +564,7 @@ namespace PKDetectorAnalyzer
                     4D, /* alpha */
                     0.04, /* beta */
                     0D }), /* t0 */
-                t, y); //fitsignal using Levenberg-Marquardt algorithm
+                t, y); //fit signal using Levenberg-Marquardt algorithm
 
             current.A = p[0]; //parse estimated parameters out
             current.B = p[1];
