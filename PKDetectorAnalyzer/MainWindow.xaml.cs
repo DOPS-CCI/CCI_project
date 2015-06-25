@@ -547,7 +547,11 @@ namespace PKDetectorAnalyzer
                         Status.Text = "Cancelled writing new dataset";
                         return false;
                     }
-                    if (!(bool)OK)
+                    if ((bool)OK)
+                    {
+                        fs = new FileStream(System.IO.Path.Combine(directory, newFileName + ".hdr"), FileMode.Create, FileAccess.Write);
+                    }
+                    else
                         this.FNExtension.Text = rd.NewExtension.Text; //this will also change newFileName
                 }
             }
