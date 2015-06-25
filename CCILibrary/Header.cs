@@ -17,6 +17,7 @@ namespace Header
         public EventDictionary.EventDictionary Events { get; set; }
         int _status;
         uint _mask = 0;
+
         public int Status
         {
             get
@@ -31,6 +32,7 @@ namespace Header
                 _mask = 0xFFFFFFFF >> (32 - _status);
             }
         }
+
         public uint Mask
         {
             get { return _mask; }
@@ -46,6 +48,60 @@ namespace Header
         public string EventFile { get; set; }
         public string ElectrodeFile { get; set; }
         public string Comment { get; set; }
+
+        /// <summary>
+        /// Add a new GV to the Header or return previously entered one
+        /// </summary>
+        /// <param name="name">Name of the GV</param>
+        /// <param name="description">Description of the GV</param>
+        /// <param name="valueName"></param>
+        /// <param name="val"></param>
+        /// <returns></returns>
+        public GVEntry AddOrGetGroupVar(string name, string description = "", string[] valueName = null, int[] val = null)
+        {
+            if (!GroupVars.ContainsKey(name))
+            {
+                GVEntry gve = new GVEntry();
+                gve.Description = description;
+                if (valueName != null && valueName.Length > 0)
+                {
+                    gve.GVValueDictionary = new Dictionary<string, int>(valueName.Length);
+                    for (int i = 0; i < valueName.Length; i++)
+                        gve.GVValueDictionary.Add(valueName[i], val == null ? i + 1 : val[i]);
+                }
+                GroupVars.Add(name, gve);
+                return gve;
+            }
+            else
+                return GroupVars[name];
+        }
+
+        /// <summary>
+        /// Adds new Event to EventDictionary
+        /// </summary>
+        /// <param name="name">Event Name</param>
+        /// <param name="description">Event Description</param>
+        /// <param name="GVList">List or array of GV entries</param>
+        /// <returns>New EventDictionaryEntry</returns>
+        /// <remarks>EDE returned has default assumptions: intrinsic Event with Absolute clock time</remarks>
+        public EventDictionaryEntry AddNewEvent(string name, string description, IEnumerable<GVEntry> GVList)
+        {
+            EventDictionaryEntry ede = new EventDictionaryEntry();
+            ede.Description = description;
+            if (GVList != null)
+            {
+                ede.GroupVars = new List<GVEntry>();
+                foreach (GVEntry gve in GVList)
+                {
+                    if (!this.GroupVars.ContainsKey(gve.Name))
+                        throw new Exception("Attempt to create Event entry \"" + name +
+                            "\"with GV \"" + gve.Name + "\" not in GV dictionary");
+                    ede.GroupVars.Add(gve);
+                }
+            }
+            Events.Add(name, ede); //will throw exception if duplicate
+            return ede;
+        }
 
         public override string ToString()
         {

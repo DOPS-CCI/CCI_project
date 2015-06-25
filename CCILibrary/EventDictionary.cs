@@ -20,7 +20,14 @@ namespace EventDictionary
         public new void Add(string name, EventDictionaryEntry entry)
         {
             entry.m_name = name; //Assure name in entry matches key
-            base.Add(name, entry);
+            try
+            {
+                base.Add(name, entry);
+            }
+            catch (ArgumentException)
+            {
+                throw new Exception("Attempt to add duplicate Event definition \"" + name + "\" to EventDictionary");
+            }
         }
     }
 

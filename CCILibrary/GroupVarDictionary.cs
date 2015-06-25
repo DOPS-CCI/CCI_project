@@ -16,7 +16,7 @@ namespace GroupVarDictionary
         {
 
             entry.m_name = name; //Assure name in entry matches key
-            entry.m_index = GVindex++; //Allow reverse lookup with index, too
+            entry.m_index = GVindex++; //Allow reverse lookup with index, too **this won't work!**
             base.Add(name, entry);
         }
     }
