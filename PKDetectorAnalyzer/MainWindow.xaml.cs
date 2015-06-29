@@ -323,7 +323,8 @@ namespace PKDetectorAnalyzer
             int pc = e.ProgressPercentage;
             string phase = (string)e.UserState;
             string chanName = (string)((ComboBoxItem)((ChannelItem)ChannelEntries.Items[currentChannel]).Channel.SelectedValue).Content;
-            StringBuilder sb = new StringBuilder("Processing channel " + chanName + ": " + phase);
+            StringBuilder sb = new StringBuilder("Entry " + (currentChannel + 1).ToString("0") +
+                ": processing channel " + chanName + ": " + phase);
             if (phase == "")
                 sb.Append("fitting " + pc.ToString("0") + "%");
             Status.Text = sb.ToString();
@@ -537,10 +538,10 @@ namespace PKDetectorAnalyzer
             double samplingRate, double minD, double maxD)
         {
             LevenbergMarquardt LM = new LevenbergMarquardt(func, Jfunc,
-                new LinearAlgebra.NVector(new double[] { minD, 2 * minD, 2 * minD, 0.25, 0.005, -0.25 }),
-                new LinearAlgebra.NVector(new double[] { maxD, 2 * maxD, 2 * maxD, 40, 0.1, 0.5 }), null,
+                new LinearAlgebra.NVector(new double[] { minD - maxD, 2 * minD, 2 * minD, 0.25, 0.005, -0.25 }),
+                new LinearAlgebra.NVector(new double[] { maxD - minD, 2 * maxD, 2 * maxD, 40, 0.1, 0.5 }), null,
                 new double[] { 0.0001, 0.00001, 0.00001, 0.01 },
-                LevenbergMarquardt.UpdateType.Marquardt); //set up LM processor
+                LevenbergMarquardt.UpdateType.Marquardt); //set up LM processor, parameters and limits
 
             //determine subset of data around the detection signal
             int start = Math.Max(0, Math.Min(current.startTime - (beforeTime + (int)(deadtimeSecsAfter * samplingRate)), (int)(maxSecsBefore * samplingRate))); //up to 5 seconds before
