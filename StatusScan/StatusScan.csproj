@@ -55,7 +55,7 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <PropertyGroup>
-    <ManifestCertificateThumbprint>EAD664C968E990CA42685111BAA22B3544266E91</ManifestCertificateThumbprint>
+    <ManifestCertificateThumbprint>13904AA78599E5641DBFAFC507729448469A87CC</ManifestCertificateThumbprint>
   </PropertyGroup>
   <PropertyGroup>
     <ManifestKeyFile>StatusScan_TemporaryKey.pfx</ManifestKeyFile>
@@ -65,6 +65,12 @@
   </PropertyGroup>
   <PropertyGroup>
     <SignManifests>true</SignManifests>
+  </PropertyGroup>
+  <PropertyGroup>
+    <SignAssembly>true</SignAssembly>
+  </PropertyGroup>
+  <PropertyGroup>
+    <AssemblyOriginatorKeyFile>StatusScan_TemporaryKey.pfx</AssemblyOriginatorKeyFile>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="CCILibrary">
