@@ -352,7 +352,9 @@ namespace Event
                 if (EDE.IsCovered) //covered Event => try to find Status mark nearby to use as actual Event time
                 {
                     double offset;
-                    if ((offset = bdf.findGCNear(new GrayCode((uint)GC, head.Status), (double)_relativeTime)) >= 0D)
+                    GrayCode gc = new GrayCode(head.Status);
+                    gc.Value = (uint)GC;
+                    if ((offset = bdf.findGCNear(gc, (double)_relativeTime)) >= 0D)
                         _relativeTime = offset; //use actual offset to Status mark
                 }
             }

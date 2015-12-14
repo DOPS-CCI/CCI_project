@@ -193,14 +193,15 @@ namespace ASCtoFMConverter
             //read in list of Events
             bw.ReportProgress(0, "Reading Events, synchronizing clocks, and calculating Event offsets from BDF file");
             List<InputEvent> EventList = new List<InputEvent>();
-            InputEvent.LinkEventsToDataset(head, bdf); //link InputEvents to this specific dataset
-            foreach (InputEvent ie in new EventFileReader(
+            EventFileReader efr=new EventFileReader(
                     new FileStream(System.IO.Path.Combine(directory, head.EventFile),
-                    FileMode.Open, FileAccess.Read)))
+                    FileMode.Open, FileAccess.Read));
+            InputEvent.LinkEventsToDataset(head, bdf); //link InputEvents to this specific dataset
+            foreach (InputEvent ie in efr)
             {
                 EventList.Add(ie);
             }
-            IEnumerator<InputEvent> EventEnumerator; //Enumerator for stepping through Event file
+            IEnumerator<InputEvent> EventEnumerator = EventList.GetEnumerator(); //Enumerator for stepping through Event file
 
  //******** Synchronize clocks
             //Need to synchronize clocks by setting the BDF.zeroTime value
@@ -211,7 +212,7 @@ namespace ASCtoFMConverter
             else
             { //Need to find a covered (intrisic or extrinsic) Event to use as an indicial Event
                 bool found = false;
-                EventEnumerator = EventList.GetEnumerator();
+                EventEnumerator.Reset();
                 if (syncToFirst || ignoreStatus)
                     while (!found && EventEnumerator.MoveNext())
                     {
@@ -276,7 +277,7 @@ namespace ASCtoFMConverter
                     //permit different exclusion criteria for each EpisodeDescription
 
                     ExclusionDescription ed = currentEpisode.Exclude;
-                    EventEnumerator = EventList.GetEnumerator();
+                    EventEnumerator.Reset();
                     EventDictionaryEntry startEDE = ed.startEvent;
                     bool t = ed.endEvent != null && ed.endEvent.GetType() == typeof(EventDictionaryEntry);
                     EventDictionaryEntry endEDE = null;
@@ -311,7 +312,7 @@ namespace ASCtoFMConverter
                 // generally permitted (in a given specification) except when caused by offsets.
 
 //************* Event file loop
-                EventEnumerator = EventList.GetEnumerator();
+                EventEnumerator.Reset();
                 bool found;
 
                 do

@@ -29,7 +29,7 @@
     <InstallUrl>http://zoomlenz.net/CCI/publish/ASCtoFMConverter/</InstallUrl>
     <CreateWebPageOnPublish>true</CreateWebPageOnPublish>
     <WebPage>publish.htm</WebPage>
-    <ApplicationRevision>18</ApplicationRevision>
+    <ApplicationRevision>19</ApplicationRevision>
     <ApplicationVersion>1.0.0.%2a</ApplicationVersion>
     <UseApplicationTrust>false</UseApplicationTrust>
     <CreateDesktopShortcut>true</CreateDesktopShortcut>
@@ -51,7 +51,7 @@
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
@@ -63,10 +63,10 @@
   </PropertyGroup>
   <PropertyGroup />
   <PropertyGroup>
-    <ManifestCertificateThumbprint>03DC2BC0DC08F854878AB4DC9AF7DBDA049CE414</ManifestCertificateThumbprint>
+    <ManifestCertificateThumbprint>C1FA14642FA7D59092EE86B1C56904C1091F62A7</ManifestCertificateThumbprint>
   </PropertyGroup>
   <PropertyGroup>
-    <ManifestKeyFile>ASCtoFMConverter_2_TemporaryKey.pfx</ManifestKeyFile>
+    <ManifestKeyFile>ASCtoFMConverter_TemporaryKey.pfx</ManifestKeyFile>
   </PropertyGroup>
   <PropertyGroup>
     <SignManifests>true</SignManifests>
@@ -79,7 +79,10 @@
     <SignAssembly>true</SignAssembly>
   </PropertyGroup>
   <PropertyGroup>
-    <AssemblyOriginatorKeyFile>ASCtoFMConverter_2_TemporaryKey.pfx</AssemblyOriginatorKeyFile>
+    <AssemblyOriginatorKeyFile>ASCtoFMConverter_TemporaryKey.pfx</AssemblyOriginatorKeyFile>
+  </PropertyGroup>
+  <PropertyGroup>
+    <StartupObject>ASCtoFMConverter.App</StartupObject>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="CCILibrary, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
@@ -117,6 +120,7 @@
     <Compile Include="PKDetectorEventCounter.xaml.cs">
       <DependentUpon>PKDetectorEventCounter.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Settings.cs" />
     <Compile Include="SetUpIgnoreStatus.xaml.cs">
       <DependentUpon>SetUpIgnoreStatus.xaml</DependentUpon>
     </Compile>
@@ -147,7 +151,7 @@
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
     </EmbeddedResource>
     <None Include="app.config" />
-    <None Include="ASCtoFMConverter_2_TemporaryKey.pfx" />
+    <None Include="ASCtoFMConverter_TemporaryKey.pfx" />
     <None Include="Properties\app.manifest" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>

@@ -49,6 +49,7 @@ namespace ASCtoFMConverter
                     logStream.WriteAttributeString("Value", ED.Start._GV.ConvertGVValueIntegerToString(ED.Start._GVVal));
                     logStream.WriteEndElement(/* GVCriterium */);
                 }
+                logStream.WriteElementString("Offset", ED.Start._offset.ToString("0"));
                 logStream.WriteEndElement(/* Start */);
                 logStream.WriteStartElement("End");
                 logStream.WriteElementString("Event", ED.End.EventName());
@@ -60,6 +61,7 @@ namespace ASCtoFMConverter
                     logStream.WriteAttributeString("Value", ED.End._GV.ConvertGVValueIntegerToString(ED.End._GVVal));
                     logStream.WriteEndElement(/* GVCriterium */);
                 }
+                logStream.WriteElementString("Offset", ED.End._offset.ToString("0"));
                 logStream.WriteEndElement(/* End */);
 
                 if(ED.PKCounter!=null)

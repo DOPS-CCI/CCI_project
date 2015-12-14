@@ -398,7 +398,7 @@ namespace PKDetectorAnalyzer
 
             //GV 7
                 newGVList[6] = head.AddOrGetGroupVar("Serial number",
-                    "Serial number for this channel/filter combonation");
+                    "Serial number for this channel/filter combination");
 
             //GV 8
                 newGVList[7] = head.AddOrGetGroupVar("Trend degree",
