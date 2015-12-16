@@ -32,7 +32,7 @@ namespace CreateBDFFile
             gv.Name = name.Text;
             gv.NValues = nValues;
             if (p == null)
-                gv.poly = new Polynominal("1", 'v');
+                gv.poly = new Polynomial("1", 'v');
             else
                 gv.poly = this.p;
             if ((bool)Cyclic.IsChecked) gv.Type = GV.GVType.Cyclic;
@@ -72,7 +72,7 @@ namespace CreateBDFFile
             }
         }
 
-        Polynominal p = new Polynominal("v", 'v');
+        Polynomial p = new Polynomial("v", 'v');
 //        double a = 0D;
 //        double b = 1D;
         private void Map_TextChanged(object sender, TextChangedEventArgs e)
@@ -83,7 +83,7 @@ namespace CreateBDFFile
             string str = tb.Text;
             try
             {
-                p = new Polynominal(str, 'v');
+                p = new Polynomial(str, 'v');
                 w.RemoveError(tb);
             }
             catch

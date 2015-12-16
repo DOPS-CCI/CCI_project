@@ -457,7 +457,7 @@ namespace CreateBDFFile
         internal GVType Type;
         internal int lastValue;
         internal DependencyType dType;
-        internal Polynominal poly;
+        internal Polynomial poly;
 //        internal double a;
 //        internal double b;
 
