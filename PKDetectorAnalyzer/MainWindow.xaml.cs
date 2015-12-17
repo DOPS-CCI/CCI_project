@@ -8,8 +8,6 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using CCIUtilities;
-using CCILibrary;
-using Header;
 using HeaderFileStream;
 using EventDictionary;
 using BDFEDFFileStream;
@@ -167,6 +165,7 @@ namespace PKDetectorAnalyzer
 
         List<eventTime> eventTimeList;
         BackgroundWorker bw;
+        LogFile lf;
         int currentChannel;
         private void ProcessChannels_Click(object sender, RoutedEventArgs e)
         {
@@ -182,6 +181,8 @@ namespace PKDetectorAnalyzer
             bw.ProgressChanged += ProcessChannel_ProgressChanged;
             bw.RunWorkerCompleted += ProcessChannel_Completed;
             currentChannel = 0;
+            lf = new LogFile(System.IO.Path.Combine(directory, newFileName), head.BDFFile);
+            lf.logChannelItem((ChannelItem)ChannelEntries.Items[0]);
             bw.RunWorkerAsync(new workerArguments((ChannelItem)ChannelEntries.Items[0], this)); //start first channel processing
         }
 
@@ -289,6 +290,7 @@ namespace PKDetectorAnalyzer
                             ev.minimumLength = args.minLength;
                             filtered = new List<double>(64); //need new filtered array for signal
                             eventList.Add(ev);
+                            lf.registerPKEvent();
                         }
                         else
                             filtered.Clear();
@@ -300,21 +302,21 @@ namespace PKDetectorAnalyzer
             double samplingRate = args.samplingRate;
             double t0 = (double)filterN / (2D * samplingRate); //fixed initial estimate of t0
             int nEvents = eventList.Count;
-            if(nEvents!=0)
-                if(nEvents!=1)
-                    if (nEvents >= 2) //at least two Events
+            if (nEvents != 0)
+                if (nEvents == 1)
+                    eventList[0].foundFit = fitSignal(d, 0, eventList[0], d.Length, samplingRate, minD, maxD);
+                else
+                {
+                    eventList[0].foundFit = fitSignal(d, 0, eventList[0], eventList[1].startTime, samplingRate, minD, maxD);
+                    for (int i = 1; i < eventList.Count - 1; i++)
                     {
-                        eventList[0].foundFit = fitSignal(d, 0, eventList[0], eventList[1].startTime, samplingRate, minD, maxD);
-                        for (int i = 1; i < eventList.Count - 1; i++)
-                        {
-                            if (bw.CancellationPending) { e.Cancel = true; return; } //look for cancellation
-                            bw.ReportProgress((int)((100D * i) / eventList.Count), "");
-                            eventList[i].foundFit = fitSignal(d, eventList[i - 1].endTime, eventList[i], eventList[i + 1].startTime, samplingRate, minD, maxD);
-                        }
-                        eventList[eventList.Count - 1].foundFit = fitSignal(d, eventList[eventList.Count - 2].endTime, eventList[eventList.Count - 1], d.Length, samplingRate, minD, maxD);
+                        if (bw.CancellationPending) { e.Cancel = true; return; } //look for cancellation
+                        bw.ReportProgress((int)((100D * i) / eventList.Count), "");
+                        eventList[i].foundFit = fitSignal(d, eventList[i - 1].endTime, eventList[i], eventList[i + 1].startTime, samplingRate, minD, maxD);
                     }
-                    else //must be single Event
-                        eventList[0].foundFit = fitSignal(d, 0, eventList[0], d.Length, samplingRate, minD, maxD);
+                    eventList[eventList.Count - 1].foundFit = fitSignal(d, eventList[eventList.Count - 2].endTime, eventList[eventList.Count - 1], d.Length, samplingRate, minD, maxD);
+                }
+            
             e.Result = eventList;
         }
 
@@ -337,9 +339,11 @@ namespace PKDetectorAnalyzer
                 List<eventTime> et = (List<eventTime>)e.Result;
                 ChannelItem ci = (ChannelItem)ChannelEntries.Items[currentChannel];
                 eventTimeList.AddRange(et);
+                lf.endChannelItem();
                 currentChannel++;
                 if (currentChannel < ChannelEntries.Items.Count) //then we run another one
                 {
+                    lf.logChannelItem((ChannelItem)ChannelEntries.Items[currentChannel]);
                     bw.RunWorkerAsync(new workerArguments((ChannelItem)ChannelEntries.Items[currentChannel], this)); //process next channel
                     return;
                 }
@@ -508,6 +512,7 @@ namespace PKDetectorAnalyzer
             foreach (Event.OutputEvent ev in events)
                 efw.writeRecord(ev);
             efw.Close();
+            lf.Close(); //close out log file
             return true;
         }
 
