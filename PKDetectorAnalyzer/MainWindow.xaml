@@ -2,22 +2,40 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:PKDetectorAnalyzer"
-       Title="MainWindow" Height="500" Width="890" ResizeMode="NoResize" Closed="Window_Closed">
+       Title="MainWindow" Height="540" Width="890" ResizeMode="NoResize" Closed="Window_Closed">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
-        <TextBox Grid.Row="0" FontSize="15" Margin="6,6,6,1" FontWeight="Bold" Name="TitleLine" IsReadOnly="True" TextAlignment="Center"></TextBox>
-        <GroupBox Grid.Row="1" Header="Channel descriptions" BorderBrush="DarkBlue" Margin="6,0,6,0" FontSize="14">
+        <Menu Grid.Row="0">
+            <MenuItem Header="File" >
+                <MenuItem Name="miOpenPFile" Header="Open parameter file..." Command="Open"/>
+                <MenuItem Name ="miSavePFile" Header="Save parameter file..." Command="Save"/>
+                <Separator/>
+                <MenuItem Name="miProcess" Header="Process" ></MenuItem>
+                <MenuItem Name="miExit" Header="Exit" ></MenuItem>
+            </MenuItem>
+            <MenuItem Header="Edit" >
+                <MenuItem Header="Undo" Command="ApplicationCommands.Undo"/>
+                <MenuItem Header="Redo" Command="ApplicationCommands.Redo"/>
+                <Separator/>
+                <MenuItem Header="Cut" Command="ApplicationCommands.Cut"/>
+                <MenuItem Header="Copy" Command="ApplicationCommands.Copy"/>
+                <MenuItem Header="Paste" Command="ApplicationCommands.Paste"/>
+            </MenuItem>
+        </Menu>
+        <TextBox Grid.Row="1" FontSize="15" Margin="6,6,6,1" FontWeight="Bold" Name="TitleLine" IsReadOnly="True" TextAlignment="Center"></TextBox>
+        <GroupBox Grid.Row="2" Header="Channel descriptions" BorderBrush="DarkBlue" Margin="6,0,6,0" FontSize="14">
             <StackPanel Orientation="Vertical">
-                <ListBox Name="ChannelEntries" VerticalContentAlignment="Top" Height="300" SelectionChanged="ChannelEntries_SelectionChanged" />
+                <ListBox Name="ChannelEntries" VerticalContentAlignment="Top" Height="300" />
                 <Button Name="AddSpec" Grid.Row="1" Width="24" Height="24" FontSize="13" FontWeight="Bold" HorizontalAlignment="Left" Margin="4" Click="AddSpec_Click">+</Button>
             </StackPanel>
         </GroupBox>
-        <Grid Grid.Row="2" HorizontalAlignment="Stretch" Margin="4">
+        <Grid Grid.Row="3" HorizontalAlignment="Stretch" Margin="4">
             <Grid.Resources>
                 <Style TargetType="Button">
                     <Setter Property="Width" Value="80"/>
@@ -26,7 +44,7 @@
                 </Style>
             </Grid.Resources>
             <StackPanel Orientation="Horizontal" Margin="4" HorizontalAlignment="Left">
-                <TextBlock FontWeight="Bold" Text="Filename extension: " VerticalAlignment="Center" HorizontalAlignment="Left"/>
+                <TextBlock FontWeight="Bold" Text="Output filename extension: " VerticalAlignment="Center" HorizontalAlignment="Left"/>
                 <TextBox Name="FNExtension" VerticalContentAlignment="Center" Height="24" Width="120" TextChanged="FNExtension_TextChanged"/>
                 <TextBlock FontWeight="Bold" Text=" --> " VerticalAlignment="Center" HorizontalAlignment="Left"/>
                 <TextBlock Name="NewFileName" FontWeight="Normal" VerticalAlignment="Center" HorizontalAlignment="Left"
@@ -38,7 +56,7 @@
                 <Button Name="Process" Click="ProcessChannels_Click">Process</Button>
             </StackPanel>
         </Grid>
-        <Border Grid.Row="3" BorderThickness="1" BorderBrush="DarkBlue" Margin="4">
+        <Border Grid.Row="4" BorderThickness="1" BorderBrush="DarkBlue" Margin="4">
             <TextBlock Name="Status" HorizontalAlignment="Center" Margin="4" FontWeight="Bold">Setting up</TextBlock>
         </Border>
     </Grid>

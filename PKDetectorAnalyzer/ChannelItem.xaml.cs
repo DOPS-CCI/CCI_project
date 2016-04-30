@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Windows;
 using System.Windows.Controls;
+using System.Xml;
 
 namespace PKDetectorAnalyzer
 {
@@ -49,6 +50,22 @@ namespace PKDetectorAnalyzer
                 cbi.Content = co.name;
                 Channel.Items.Add(cbi);
             }
+        }
+
+        public void SaveCurrentSettings(XmlWriter xml)
+        {
+            xml.WriteStartElement("EventDescription");
+            xml.WriteAttributeString("EventNameExt", EventNameExt.Text);
+            xml.WriteStartElement("SourceChannel");
+            xml.WriteElementString("Name", (string)((ComboBoxItem)Channel.SelectedValue).Content);
+            xml.WriteElementString("Detrend", (string)((ComboBoxItem)TrendDegree.SelectedValue).Content);
+            xml.WriteEndElement(/* Channel */);
+            xml.WriteStartElement("Filter");
+            xml.WriteElementString("Length", FilterSize.Text);
+            xml.WriteElementString("Threshold", Threshold.Text);
+            xml.WriteElementString("MinimumLength", MinimumLength.Text);
+            xml.WriteEndElement(/* Filter */);
+            xml.WriteEndElement(/* ChannelDescription */);
         }
 
         private void Channel_SelectionChanged(object sender, SelectionChangedEventArgs e)

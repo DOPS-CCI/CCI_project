@@ -5,8 +5,10 @@ using System.Linq;
 using System.IO;
 using System.Text;
 using System.Windows;
+using System.Windows.Input;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Xml;
 using CCIUtilities;
 using HeaderFileStream;
 using EventDictionary;
@@ -27,7 +29,7 @@ namespace PKDetectorAnalyzer
         const double deadtimeSecsAfter = 2D;
         const double deadtimeSecsBefore = 0.5D;
         public event PropertyChangedEventHandler PropertyChanged;
-        public void OnPropertyChanged(PropertyChangedEventArgs e)
+        private void OnPropertyChanged(PropertyChangedEventArgs e)
         {
             if (PropertyChanged != null)
                 PropertyChanged(this, e);
@@ -66,6 +68,8 @@ namespace PKDetectorAnalyzer
         
         public MainWindow()
         {
+            CCIUtilities.Log.writeToLog("Starting PKDetectorAnalyzer " + CCIUtilities.Utilities.getVersionNumber());
+
             Microsoft.Win32.OpenFileDialog dlg = new Microsoft.Win32.OpenFileDialog();
             dlg.Title = "Open Header file ...";
             dlg.DefaultExt = ".hdr"; // Default file extension
@@ -73,11 +77,8 @@ namespace PKDetectorAnalyzer
             Nullable<bool> result = dlg.ShowDialog();
             if (result == null || result == false) Environment.Exit(0);
 
-            CCIUtilities.Log.writeToLog("Starting PKDetectorAnalyzer " + CCIUtilities.Utilities.getVersionNumber());
-
             directory = System.IO.Path.GetDirectoryName(dlg.FileName);
             headerFileName = System.IO.Path.GetFileNameWithoutExtension(dlg.FileName);
-
 
             head = (new HeaderFileReader(dlg.OpenFile())).read();
 
@@ -94,6 +95,11 @@ namespace PKDetectorAnalyzer
 
             InitializeComponent();
 
+            CommandBinding cbOpen = new CommandBinding(ApplicationCommands.Open, cbOpenHandler);
+            miOpenPFile.CommandBindings.Add(cbOpen);
+            CommandBinding cbSave = new CommandBinding(ApplicationCommands.Save, cbSaveHandler);
+            miSavePFile.CommandBindings.Add(cbSave);
+
             Title = headerFileName;
             TitleLine.Text = directory + System.IO.Path.DirectorySeparatorChar + headerFileName;
             FNExtension.Text = "PKDetection";
@@ -103,6 +109,42 @@ namespace PKDetectorAnalyzer
             ChannelEntries.Items.Add(ci);
             ci.Channel.SelectedIndex = 0;
             Process.IsEnabled = true; //have to reenable here -- like checkError(); values are guarenteed valid however
+        }
+
+        private void cbOpenHandler(object sender, ExecutedRoutedEventArgs e)
+        {
+            if (sender == miOpenPFile)
+                MessageBox.Show("Open file command");
+        }
+
+        private void cbSaveHandler(object sender, ExecutedRoutedEventArgs e)
+        {
+            if (sender == miSavePFile)
+                PerformSavePFile();
+        }
+
+        private void PerformSavePFile()
+        {
+            Microsoft.Win32.SaveFileDialog dlg = new Microsoft.Win32.SaveFileDialog();
+            dlg.Title = "Save parameter file ...";
+            dlg.DefaultExt = ".par"; // Default file extension
+            dlg.Filter = "PAR Files (.par)|*.par"; // Filter files by extension
+            Nullable<bool> result = dlg.ShowDialog();
+            if (result == null || result == false) return;
+
+            XmlWriterSettings xws = new XmlWriterSettings();
+            xws.Indent = true;
+            XmlWriter xml = XmlWriter.Create(new FileStream(dlg.FileName, FileMode.Create, FileAccess.Write), xws);
+            xml.WriteStartDocument();
+            xml.WriteStartElement("PKDAParameters");
+            xml.WriteElementString("OutputFilenameExt", FNExtension.Text);
+            xml.WriteStartElement("CreatedEvents");
+            foreach (ChannelItem ci in ChannelEntries.Items)
+                ci.SaveCurrentSettings(xml);
+            xml.WriteEndElement(/* CreatedEvents */);
+            xml.WriteEndElement(/* PKDAParameters */);
+            xml.WriteEndDocument();
+            xml.Close();
         }
 
         private void AddSpec_Click(object sender, RoutedEventArgs e)
@@ -132,6 +174,8 @@ namespace PKDetectorAnalyzer
 
             }
             Process.IsEnabled = result;
+            miProcess.IsEnabled = result;
+            miSavePFile.IsEnabled = result;
         }
 
         private void Quit_Click(object sender, RoutedEventArgs e)
@@ -653,9 +697,5 @@ namespace PKDetectorAnalyzer
             CCIUtilities.Log.writeToLog("End PKDetectorAnalyzer");
         }
 
-        private void ChannelEntries_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-
-        }
     }
 }
