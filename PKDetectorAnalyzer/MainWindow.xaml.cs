@@ -114,7 +114,7 @@ namespace PKDetectorAnalyzer
         private void cbOpenHandler(object sender, ExecutedRoutedEventArgs e)
         {
             if (sender == miOpenPFile)
-                MessageBox.Show("Open file command");
+                PerformOpenPFile();
         }
 
         private void cbSaveHandler(object sender, ExecutedRoutedEventArgs e)
@@ -145,6 +145,35 @@ namespace PKDetectorAnalyzer
             xml.WriteEndElement(/* PKDAParameters */);
             xml.WriteEndDocument();
             xml.Close();
+        }
+
+        private void PerformOpenPFile()
+        {
+            Microsoft.Win32.OpenFileDialog dlg = new Microsoft.Win32.OpenFileDialog();
+            dlg.Title = "Open parameter file ...";
+            dlg.DefaultExt = ".par"; // Default file extension
+            dlg.Filter = "PAR Files (.par)|*.par"; // Filter files by extension
+            Nullable<bool> result = dlg.ShowDialog();
+            if (result == null || result == false) return;
+
+            XmlReaderSettings xrs = new XmlReaderSettings();
+            xrs.CloseInput = true;
+            xrs.IgnoreWhitespace = true;
+            XmlReader xml = XmlReader.Create(new FileStream(dlg.FileName, FileMode.Open, FileAccess.Read), xrs);
+            xml.ReadStartElement("PKDAParameters");
+            FNExtension.Text = xml.ReadElementString("OutputFilenameExt");
+            xml.ReadStartElement("CreatedEvents");
+            while (!ChannelEntries.Items.IsEmpty) ChannelEntries.Items.RemoveAt(0);
+            while (xml.Name == "EventDescription")
+            {
+                ChannelItem ci = new ChannelItem(this);
+                if (ci.ReadNewSettings(xml))
+                    ChannelEntries.Items.Add(ci);
+            } 
+            xml.ReadEndElement(/* CreatedEvents */);
+            xml.ReadEndElement(/* PKDAParameters */);
+            xml.Close();
+            checkError();
         }
 
         private void AddSpec_Click(object sender, RoutedEventArgs e)

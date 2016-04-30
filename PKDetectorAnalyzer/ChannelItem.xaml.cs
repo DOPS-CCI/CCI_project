@@ -59,13 +59,55 @@ namespace PKDetectorAnalyzer
             xml.WriteStartElement("SourceChannel");
             xml.WriteElementString("Name", (string)((ComboBoxItem)Channel.SelectedValue).Content);
             xml.WriteElementString("Detrend", (string)((ComboBoxItem)TrendDegree.SelectedValue).Content);
-            xml.WriteEndElement(/* Channel */);
+            xml.WriteEndElement(/* SourceChannel */);
             xml.WriteStartElement("Filter");
             xml.WriteElementString("Length", FilterSize.Text);
             xml.WriteElementString("Threshold", Threshold.Text);
             xml.WriteElementString("MinimumLength", MinimumLength.Text);
             xml.WriteEndElement(/* Filter */);
             xml.WriteEndElement(/* ChannelDescription */);
+        }
+
+        public bool ReadNewSettings(XmlReader xml)
+        {
+            string s;
+            
+            EventNameExt.Text = xml["EventNameExt"];
+            xml.ReadStartElement(/* EventDescription */);
+            xml.ReadStartElement("SourceChannel");
+            s = xml.ReadElementContentAsString("Name", "");
+            bool t = false;
+            int i;
+            for (i = 0; i < mw.channels.Count;i++ )
+                if (s == mw.channels[i].name)
+                {
+                    t = true;
+                    break;
+                }
+            if (t)
+                Channel.SelectedIndex = i;
+            else
+                Channel.SelectedIndex = -1;
+            s = xml.ReadElementString("Detrend");
+            bool u = false;
+            for (i = 0; i < TrendDegree.Items.Count; i++)
+                if (s == (string)((ComboBoxItem)TrendDegree.Items[i]).Content)
+                {
+                    u = true;
+                    break;
+                }
+            if (u)
+                TrendDegree.SelectedIndex = i;
+            else
+                TrendDegree.SelectedIndex = -1;
+            xml.ReadEndElement(/* SourceChannel */);
+            xml.ReadStartElement("Filter");
+            FilterSize.Text = xml.ReadElementString("Length");
+            Threshold.Text = xml.ReadElementString("Threshold");
+            MinimumLength.Text = xml.ReadElementString("MinimumLength");
+            xml.ReadEndElement(/* Filter */);
+            xml.ReadEndElement(/* EventDescription */);
+            return t && u;
         }
 
         private void Channel_SelectionChanged(object sender, SelectionChangedEventArgs e)
