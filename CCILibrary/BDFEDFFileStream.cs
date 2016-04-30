@@ -678,6 +678,7 @@ namespace BDFEDFFileStream
         /// </summary>
         /// <param name="ie">The Event to locate</param>
         /// <returns>Time to Event</returns>
+        /// <exception cref="Exception">zeroTime not initialized</exception>
         public double timeFromBeginningOfFileTo(Event.Event ie)
         {
             if (ie.BDFBased) return ie.Time;

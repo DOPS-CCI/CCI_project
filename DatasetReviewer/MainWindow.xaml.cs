@@ -107,7 +107,7 @@ namespace DatasetReviewer
                         ew.ShowDialog();
                         continue;
                     }
-                    int samplingRate = (int)((double)bdf.NSamp / bdf.RecordDurationDouble);
+//                    int samplingRate = (int)((double)bdf.NSamp / bdf.RecordDurationDouble);
                     BDFLength = (double)bdf.NumberOfRecords * bdf.RecordDurationDouble;
 
                     Window1 w = new Window1(this);
@@ -157,7 +157,7 @@ namespace DatasetReviewer
                         events.Add(ie);
                     else if (events.Count(e => e.GC == ie.GC) == 0) //quietly skip duplicates
                     {
-                        if (!z)
+                        if (!z) //use first found covered Event to synchronize clocks
                             z = bdf.setZeroTime(ie);
                         events.Add(ie);
                     }
@@ -167,7 +167,7 @@ namespace DatasetReviewer
             catch (Exception e)
             {
                 ErrorWindow ew = new ErrorWindow();
-                ew.Message = "Error reading Event file : " + e.Message + ". Exitting DatasetReviewer.";
+                ew.Message = "Error reading Event file : " + e.Message + ". Exiting DatasetReviewer.";
                 ew.ShowDialog();
                 Log.writeToLog(Environment.NewLine +  e.StackTrace);
                 Environment.Exit(0);
