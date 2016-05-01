@@ -65,7 +65,12 @@ namespace PKDetectorAnalyzer
         }
 
         GVEntry[] newGVList = new GVEntry[11];
-        
+
+        public static RoutedUICommand OpenPCommand = new RoutedUICommand("OpenP", "OpenP", typeof(MainWindow));
+        public static RoutedUICommand SavePCommand = new RoutedUICommand("SaveP", "SaveP", typeof(MainWindow));
+        public static RoutedUICommand ProcessCommand = new RoutedUICommand("Process", "Process", typeof(MainWindow));
+        public static RoutedUICommand ExitCommand = new RoutedUICommand("Exit", "Exit", typeof(MainWindow));
+
         public MainWindow()
         {
             CCIUtilities.Log.writeToLog("Starting PKDetectorAnalyzer " + CCIUtilities.Utilities.getVersionNumber());
@@ -93,12 +98,31 @@ namespace PKDetectorAnalyzer
                     channels.Add(new channelOptions(i, bdf.channelLabel(i)));
             AnalogChannelCount = channels.Count;
 
+            OpenPCommand.InputGestures.Add(
+                new KeyGesture(Key.O, ModifierKeys.Control | ModifierKeys.Shift, "Ctrl+Shift+O"));
+            SavePCommand.InputGestures.Add(
+                new KeyGesture(Key.S, ModifierKeys.Control, "Crtl+S"));
+            ProcessCommand.InputGestures.Add(
+                new KeyGesture(Key.P, ModifierKeys.Control, "Crtl+P"));
+            ExitCommand.InputGestures.Add(new KeyGesture(Key.Q, ModifierKeys.Control, "Crtl+Q"));
+
             InitializeComponent();
 
-            CommandBinding cbOpen = new CommandBinding(ApplicationCommands.Open, cbOpenHandler);
-            miOpenPFile.CommandBindings.Add(cbOpen);
-            CommandBinding cbSave = new CommandBinding(ApplicationCommands.Save, cbSaveHandler);
-            miSavePFile.CommandBindings.Add(cbSave);
+            //***** Set up menu commands and short cuts
+
+            CommandBinding cbOpenP = new CommandBinding(OpenPCommand, cbOpen_Execute, cbOpen_CanExecute);
+            this.CommandBindings.Add(cbOpenP);
+
+            CommandBinding cbSaveP = new CommandBinding(SavePCommand, cbSave_Execute, validParams_CanExecute);
+            this.CommandBindings.Add(cbSaveP);
+
+            CommandBinding cbProcess = new CommandBinding(ProcessCommand, ProcessChannels_Click, validParams_CanExecute);
+            this.CommandBindings.Add(cbProcess);
+
+            CommandBinding cbExit = new CommandBinding(ExitCommand, Quit_Click, cbExit_CanExecute);
+            this.CommandBindings.Add(cbExit);
+
+            //***** Set up defaults and other housekeeping
 
             Title = headerFileName;
             TitleLine.Text = directory + System.IO.Path.DirectorySeparatorChar + headerFileName;
@@ -111,16 +135,30 @@ namespace PKDetectorAnalyzer
             Process.IsEnabled = true; //have to reenable here -- like checkError(); values are guarenteed valid however
         }
 
-        private void cbOpenHandler(object sender, ExecutedRoutedEventArgs e)
+        private void cbOpen_Execute(object sender, ExecutedRoutedEventArgs e)
         {
-            if (sender == miOpenPFile)
                 PerformOpenPFile();
         }
 
-        private void cbSaveHandler(object sender, ExecutedRoutedEventArgs e)
+        private void cbOpen_CanExecute(object sender, CanExecuteRoutedEventArgs e)
         {
-            if (sender == miSavePFile)
+            e.CanExecute = true;
+        }
+
+
+        private void cbSave_Execute(object sender, ExecutedRoutedEventArgs e)
+        {
                 PerformSavePFile();
+        }
+
+        private void validParams_CanExecute(object sender, CanExecuteRoutedEventArgs e)
+        {
+            e.CanExecute = Process.IsEnabled;
+        }
+
+        private void cbExit_CanExecute(object sender, CanExecuteRoutedEventArgs e)
+        {
+            e.CanExecute = Quit.Visibility == Visibility.Visible;
         }
 
         private void PerformSavePFile()

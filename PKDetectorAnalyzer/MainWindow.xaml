@@ -13,11 +13,11 @@
         </Grid.RowDefinitions>
         <Menu Grid.Row="0">
             <MenuItem Header="File" >
-                <MenuItem Name="miOpenPFile" Header="Open parameter file..." Command="Open"/>
-                <MenuItem Name ="miSavePFile" Header="Save parameter file..." Command="Save"/>
+                <MenuItem Name="miOpenPFile" Header="Open parameter file..." Command="local:MainWindow.OpenPCommand"/>
+                <MenuItem Name="miSavePFile" Header="Save parameter file..." Command="local:MainWindow.SavePCommand"/>
                 <Separator/>
-                <MenuItem Name="miProcess" Header="Process" ></MenuItem>
-                <MenuItem Name="miExit" Header="Exit" ></MenuItem>
+                <MenuItem Name="miProcess" Header="Process" Command="local:MainWindow.ProcessCommand" />
+                <MenuItem Name="miExit" Header="Exit" Command="local:MainWindow.ExitCommand" />
             </MenuItem>
             <MenuItem Header="Edit" >
                 <MenuItem Header="Undo" Command="ApplicationCommands.Undo"/>
@@ -29,7 +29,7 @@
             </MenuItem>
         </Menu>
         <TextBox Grid.Row="1" FontSize="15" Margin="6,6,6,1" FontWeight="Bold" Name="TitleLine" IsReadOnly="True" TextAlignment="Center"></TextBox>
-        <GroupBox Grid.Row="2" Header="Channel descriptions" BorderBrush="DarkBlue" Margin="6,0,6,0" FontSize="14">
+        <GroupBox Grid.Row="2" Header="New Event descriptions" BorderBrush="DarkBlue" Margin="6,0,6,0" FontSize="14">
             <StackPanel Orientation="Vertical">
                 <ListBox Name="ChannelEntries" VerticalContentAlignment="Top" Height="300" />
                 <Button Name="AddSpec" Grid.Row="1" Width="24" Height="24" FontSize="13" FontWeight="Bold" HorizontalAlignment="Left" Margin="4" Click="AddSpec_Click">+</Button>
