@@ -3,22 +3,21 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Forms;
+using System.Windows.Input;
 using System.Windows.Media;
+using System.Xml;
+using System.Xml.Linq;
 using BDFEDFFileStream;
-using CCILibrary;
 using CCIUtilities;
-using Event;
 using EventDictionary;
 using GroupVarDictionary;
 using HeaderFileStream;
-using Microsoft.Win32;
 
 namespace ASCtoFMConverter
 {
@@ -63,14 +62,19 @@ namespace ASCtoFMConverter
             }
         }
 
+        public static RoutedUICommand OpenPCommand = new RoutedUICommand("OpenP", "OpenP", typeof(Window2));
+        public static RoutedUICommand SavePCommand = new RoutedUICommand("SaveP", "SaveP", typeof(Window2));
+        public static RoutedUICommand ProcessCommand = new RoutedUICommand("Process", "Process", typeof(Window2));
+        public static RoutedUICommand ExitCommand = new RoutedUICommand("Exit", "Exit", typeof(Window2));
+
         public Window2()
         {
-            Microsoft.Win32.OpenFileDialog dlg = new Microsoft.Win32.OpenFileDialog();
+            OpenFileDialog dlg = new OpenFileDialog();
             dlg.Title = "Open Header file ...";
             dlg.DefaultExt = ".hdr"; // Default file extension
             dlg.Filter = "HDR Files (.hdr)|*.hdr"; // Filter files by extension
-            Nullable<bool> result = dlg.ShowDialog();
-            if (result == null || result == false) Environment.Exit(0);
+            bool result = dlg.ShowDialog() == System.Windows.Forms.DialogResult.OK;
+            if (!result) Environment.Exit(0);
 
             CCIUtilities.Log.writeToLog("Starting ASCtoFMConverter " + CCIUtilities.Utilities.getVersionNumber());
 
@@ -85,7 +89,29 @@ namespace ASCtoFMConverter
                     FileMode.Open, FileAccess.Read));
             samplingRate = (int)((double)bdf.NSamp / bdf.RecordDurationDouble);
 
+            OpenPCommand.InputGestures.Add(
+                new KeyGesture(Key.O, ModifierKeys.Control | ModifierKeys.Shift, "Ctrl+Shift+O"));
+            SavePCommand.InputGestures.Add(
+                new KeyGesture(Key.S, ModifierKeys.Control, "Crtl+S"));
+            ProcessCommand.InputGestures.Add(
+                new KeyGesture(Key.P, ModifierKeys.Control, "Crtl+P"));
+            ExitCommand.InputGestures.Add(new KeyGesture(Key.Q, ModifierKeys.Control, "Crtl+Q"));
+
             InitializeComponent();
+
+            //***** Set up menu commands and short cuts
+
+            CommandBinding cbOpenP = new CommandBinding(OpenPCommand, cbOpen_Execute, cbOpen_CanExecute);
+            this.CommandBindings.Add(cbOpenP);
+
+            CommandBinding cbSaveP = new CommandBinding(SavePCommand, cbSave_Execute, validParams_CanExecute);
+            this.CommandBindings.Add(cbSaveP);
+
+            CommandBinding cbProcess = new CommandBinding(ProcessCommand, ConvertFM_Click, validParams_CanExecute);
+            this.CommandBindings.Add(cbProcess);
+
+            CommandBinding cbExit = new CommandBinding(ExitCommand, Done_Click, cbExit_CanExecute);
+            this.CommandBindings.Add(cbExit);
 
             this.MinHeight = SystemInformation.WorkingArea.Height - 240;
             this.EpisodeEntries.Items.Add(new EpisodeDescriptionEntry(head, this)); //include initial episode description
@@ -115,6 +141,119 @@ namespace ASCtoFMConverter
             {
                 PropertyChanged(this, new PropertyChangedEventArgs(info));
             }
+        }
+
+        private void cbOpen_Execute(object sender, ExecutedRoutedEventArgs e)
+        {
+            PerformOpenPFile();
+        }
+
+        private void cbOpen_CanExecute(object sender, CanExecuteRoutedEventArgs e)
+        {
+            e.CanExecute = true;
+        }
+
+
+        private void cbSave_Execute(object sender, ExecutedRoutedEventArgs e)
+        {
+            PerformSavePFile();
+        }
+
+        private void validParams_CanExecute(object sender, CanExecuteRoutedEventArgs e)
+        {
+            e.CanExecute = ConvertFM.IsEnabled;
+        }
+
+        private void cbExit_CanExecute(object sender, CanExecuteRoutedEventArgs e)
+        {
+            e.CanExecute = Done.Visibility == Visibility.Visible;
+        }
+
+        private void PerformSavePFile()
+        {
+            SaveFileDialog dlg = new SaveFileDialog();
+            dlg.Title = "Save parameter file ...";
+            dlg.DefaultExt = ".par"; // Default file extension
+            dlg.Filter = "PAR Files (.par)|*.par"; // Filter files by extension
+            bool result = dlg.ShowDialog() == System.Windows.Forms.DialogResult.OK;
+            if (!result) return;
+
+            string s;
+            XmlWriterSettings xws = new XmlWriterSettings();
+            xws.Indent = true;
+            xws.CloseOutput = true;
+            XmlWriter xml = XmlWriter.Create(new FileStream(dlg.FileName, FileMode.Create, FileAccess.Write), xws);
+            xml.WriteStartDocument();
+
+            xml.WriteStartElement("ASCtoFMParameters");
+            s = "Middle covered Event";
+            if ((bool)SyncToFirst.IsChecked) s = "First covered Event";
+            if ((bool)NoSyncToStatus.IsChecked) s = "None";
+            xml.WriteAttributeString("ClockSync", s);
+
+            xml.WriteStartElement("EpisodeDescriptions");
+            foreach (EpisodeDescriptionEntry ede in EpisodeEntries.Items)
+                ede.SaveCurrentSettings(xml);
+            xml.WriteEndElement(/* EpisodeDescriptions */);
+
+            IEnumerable<GVEntry> GVs = listView2.SelectedItems.OfType<GVEntry>();
+            if (GVs != null && GVs.Count() > 0)
+            {
+                xml.WriteStartElement("GroupVariables");
+                foreach (GVEntry gv in GVs)
+                    xml.WriteElementString("GV", gv.Name);
+                xml.WriteEndElement(/* GroupVariables */);
+            }
+
+            xml.WriteElementString("Channels", SelChan.Text);
+            xml.WriteStartElement("Samples");
+            s = "None";
+            if ((bool)removeOffsets.IsChecked) s = "Offsets";
+            if ((bool)removeTrends.IsChecked) s = "Trends";
+            xml.WriteAttributeString("Remove", s);
+            xml.WriteElementString("Decimation", Decimation.Text);
+            xml.WriteElementString("RecordLength", RecLength.Text);
+            if ((bool)Radin.IsChecked)
+            {
+                xml.WriteStartElement("RadinReference");
+                xml.WriteElementString("From", RadinLow.Text);
+                xml.WriteElementString("To", RadinHigh.Text);
+                xml.WriteEndElement(/* RadinReference */);
+            }
+            xml.WriteEndElement(/* Samples */);
+
+            xml.WriteStartElement("Reference");
+            s = "None";
+            if ((bool)radioButton2.IsChecked) s = "SelectedChannels";
+            if ((bool)radioButton4.IsChecked) s = "Expression";
+            xml.WriteAttributeString("Type", s);
+            if (s != "None")
+                if (s == "Expression") xml.WriteString(RefChanExpression.Text);
+                else xml.WriteString(RefChan.Text);
+            xml.WriteEndElement(/* Reference */);
+
+            xml.WriteEndElement(/* ASCtoFMParameters */);
+            xml.WriteEndDocument();
+            xml.Close();
+        }
+
+        private void PerformOpenPFile()
+        {
+            Microsoft.Win32.OpenFileDialog dlg = new Microsoft.Win32.OpenFileDialog();
+            dlg.Title = "Open parameter file ...";
+            dlg.DefaultExt = ".par"; // Default file extension
+            dlg.Filter = "PAR Files (.par)|*.par"; // Filter files by extension
+            Nullable<bool> result = dlg.ShowDialog();
+            if (result == null || result == false) return;
+
+            XmlReaderSettings xrs = new XmlReaderSettings();
+            xrs.CloseInput = true;
+            xrs.IgnoreWhitespace = true;
+            XmlReader xml = XmlReader.Create(new FileStream(dlg.FileName, FileMode.Open, FileAccess.Read), xrs);
+            xml.ReadStartElement("PKDAParameters");
+            xml.ReadEndElement(/* PKDAParameters */);
+            xml.Close();
+            Validate();
         }
 
         private void AddSpec_Click(object sender, RoutedEventArgs e)

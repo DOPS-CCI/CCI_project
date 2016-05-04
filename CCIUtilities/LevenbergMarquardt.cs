@@ -1,5 +1,4 @@
 ﻿using System;
-using LinearAlgebra;
 
 namespace CCIUtilities
 {
@@ -76,7 +75,7 @@ namespace CCIUtilities
         {
             get
             {
-                NVector Sp = (DOF * (NMMatrix.I(n) / JtJ).Diag()).Apply((LinearAlgebra.F)Math.Sqrt);
+                NVector Sp = (DOF * (NMMatrix.I(n) / JtJ).Diag()).Apply((F)Math.Sqrt);
                 return Sp;
             }
         }

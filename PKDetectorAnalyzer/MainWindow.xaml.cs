@@ -172,6 +172,7 @@ namespace PKDetectorAnalyzer
 
             XmlWriterSettings xws = new XmlWriterSettings();
             xws.Indent = true;
+            xws.CloseOutput = true;
             XmlWriter xml = XmlWriter.Create(new FileStream(dlg.FileName, FileMode.Create, FileAccess.Write), xws);
             xml.WriteStartDocument();
             xml.WriteStartElement("PKDAParameters");
@@ -654,8 +655,8 @@ namespace PKDetectorAnalyzer
             double samplingRate, double minD, double maxD)
         {
             LevenbergMarquardt LM = new LevenbergMarquardt(func, Jfunc,
-                new LinearAlgebra.NVector(new double[] { minD - maxD, 2 * minD, 2 * minD, 0.25, 0.005, -0.25 }),
-                new LinearAlgebra.NVector(new double[] { maxD - minD, 2 * maxD, 2 * maxD, 40, 0.1, 0.5 }), null,
+                new NVector(new double[] { minD - maxD, 2 * minD, 2 * minD, 0.25, 0.005, -0.25 }),
+                new NVector(new double[] { maxD - minD, 2 * maxD, 2 * maxD, 40, 0.1, 0.5 }), null,
                 new double[] { 0.0001, 0.00001, 0.00001, 0.01 },
                 LevenbergMarquardt.UpdateType.Marquardt); //set up LM processor, parameters and limits
 
@@ -667,15 +668,15 @@ namespace PKDetectorAnalyzer
             double max = double.MinValue;
             for (int v = current.startTime; v < current.startTime + current.length; v++) max = Math.Max(max, Math.Abs(d[v]));
 
-            LinearAlgebra.NVector t = new LinearAlgebra.NVector(dataLength);
+            NVector t = new NVector(dataLength);
             for (int ti = 0; ti < dataLength; ti++) t[ti] = (double)ti / samplingRate - newTOffset; //create independent variable array
-            LinearAlgebra.NVector y = new LinearAlgebra.NVector(dataLength);
+            NVector y = new NVector(dataLength);
             start = current.startTime - start;
             for (int i = 0; i < dataLength; i++) y[i] = d[start + i]; //create dependent variable array
 
-            LinearAlgebra.NVector p =
+            NVector p =
                 LM.Calculate(
-                new LinearAlgebra.NVector(new double[] { current.sign * max, /* A */
+                new NVector(new double[] { current.sign * max, /* A */
                     d[current.startTime], /* B */
                     d[current.startTime], /* C */
                     4D, /* alpha */
@@ -694,10 +695,10 @@ namespace PKDetectorAnalyzer
             return LM.Result > 0;
         }
 
-        static LinearAlgebra.NVector func(LinearAlgebra.NVector t, LinearAlgebra.NVector p)
+        static NVector func(NVector t, NVector p)
         {
             //parameters: A, B, C, a, b, t0
-            LinearAlgebra.NVector y = new LinearAlgebra.NVector(t.N);
+            NVector y = new NVector(t.N);
             for (int i = 0; i < t.N; i++)
             {
                 double t0 = t[i] - p[5];
@@ -711,11 +712,11 @@ namespace PKDetectorAnalyzer
             return y;
         }
 
-        static LinearAlgebra.NMMatrix Jfunc(LinearAlgebra.NVector t, LinearAlgebra.NVector p)
+        static NMMatrix Jfunc(NVector t, NVector p)
         {
             double eat;
             double ebt;
-            LinearAlgebra.NMMatrix J = new LinearAlgebra.NMMatrix(t.N, p.N);
+            NMMatrix J = new NMMatrix(t.N, p.N);
             for (int i = 0; i < t.N; i++)
             {
                 double t0 = t[i] - p[5];

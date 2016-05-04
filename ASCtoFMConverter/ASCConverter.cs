@@ -250,7 +250,11 @@ namespace ASCtoFMConverter
                     }
                 }
                 if (!found)
+                {
+                    log.Close();
+                    FMStream.Close();
                     throw (new Exception("No valid synchronizing (covered) Event found; use manual synchronization"));
+                }
             }
             Log.writeToLog("\tinto FM file " + dlg.FileName);
 

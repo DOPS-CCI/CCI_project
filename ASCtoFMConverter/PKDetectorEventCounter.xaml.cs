@@ -11,6 +11,8 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using System.Xml;
+using System.Xml.Linq;
 using CCILibrary;
 using CCIUtilities;
 using Event;
@@ -31,27 +33,20 @@ namespace ASCtoFMConverter
 
         public PKDetectorEventCounter(Header.Header hdr, IValidate v)
         {
-            bool test = false;
-            foreach(string e in hdr.Events.Keys)
-                if (e.Substring(0, 7) == "**PKDet") { test = true; break; } //make sure there are PK detector Events present
+            this.header = hdr;
+            this.validate = v;
 
-            if (test) //then dataset has appropriate PK detector Events
-            {
-                this.header = hdr;
-                this.validate = v;
+            InitializeComponent();
 
-                InitializeComponent();
-
-                foreach (string str in hdr.Events.Keys)
-                    if (str.Substring(0, 7) == "**PKDet") EventSelection.Items.Add(str.Substring(7)); //Add to Event selection list
-                EventSelection.SelectedIndex = 0;
-                Comp1.Items.Add("<");
-                Comp1.Items.Add(">");
-                Comp1.SelectedIndex = 0;
-                Comp2.Items.Add(">");
-                Comp2.Items.Add("<");
-                Comp2.SelectedIndex = 0;
-            }
+            foreach (string str in hdr.Events.Keys)
+                if (str.Substring(0, 7) == "**PKDet") EventSelection.Items.Add(str.Substring(7)); //Add to Event selection list
+            EventSelection.SelectedIndex = 0;
+            Comp1.Items.Add("<");
+            Comp1.Items.Add(">");
+            Comp1.SelectedIndex = 0;
+            Comp2.Items.Add(">");
+            Comp2.Items.Add("<");
+            Comp2.SelectedIndex = 0;
         }
 
         private void Chi2TB_TextChanged(object sender, TextChangedEventArgs e)
@@ -131,6 +126,37 @@ namespace ASCtoFMConverter
             if (EventSelection.SelectedItems.Count < 1) EventSelection.BorderBrush = Brushes.Red;
             else EventSelection.BorderBrush = Brushes.DarkBlue;
             validate.Validate();
+        }
+
+        internal void SaveCurrentSettings(XmlWriter xml)
+        {
+            string s;
+            xml.WriteStartElement("PKDetectorCounter");
+            xml.WriteStartElement("Events");
+            foreach (string lbi in EventSelection.SelectedItems)
+                xml.WriteElementString("Name", lbi);
+            xml.WriteEndElement(/* Events */);
+            XElement xe = new XElement("SelectionCriteria");
+            s =Found.Text;
+            if (s != "Either") xe.SetElementValue("Found", s);
+
+            s = Sign.Text;
+            if(s!="Either") xe.SetElementValue("Sign", s);
+
+            if ((bool)Magnitude.IsChecked)
+            {
+                xe.SetElementValue("Magnitude",
+                   Comp2.Text + MagnitudeValue.Text);
+            }
+
+            if ((bool)Chi2.IsChecked)
+            {
+                xe.SetElementValue("Chi2",
+                   Comp1.Text + Chi2Value.Text);
+            }
+
+            if (xe.HasElements) xe.WriteTo(xml);
+            xml.WriteEndElement(/* PKDetectorCounter */);
         }
     }
 }

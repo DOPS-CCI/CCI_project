@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Text;
 
-namespace LinearAlgebra
+namespace CCIUtilities
 {
     public delegate double F(double e);
 

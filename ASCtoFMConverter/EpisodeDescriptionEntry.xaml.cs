@@ -1,19 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
-using HeaderFileStream;
+using System.Text;
+using System.Xml;
+using System.Xml.Linq;
 using EventDictionary;
-using Event;
 using GroupVarDictionary;
 using CCIUtilities;
 
@@ -382,15 +376,83 @@ namespace ASCtoFMConverter
             validate.Validate();
         }
 
-        private void TabItem_PreviewMouseDown(object sender, MouseButtonEventArgs e)
+        private void AddCounterEvent_PreviewMouseDown(object sender, MouseButtonEventArgs e)
         {
-            PKDetectorEventCounter pkd = new PKDetectorEventCounter(hdr, validate);
-            if (pkd != null) //returns null if no **PKDet Events defined
+            bool test = false;
+            foreach(string ev in hdr.Events.Keys)
+                if (ev.Substring(0, 7) == "**PKDet") { test = true; break; } //make sure there are PK detector Events present
+
+            if (test) //then dataset has appropriate PK detector Events
             {
+                PKDetectorEventCounter pkd = new PKDetectorEventCounter(hdr, validate);
                 EpisodeDescriptionPanel.Items.Insert(EpisodeDescriptionPanel.Items.Count - 1, pkd); //
-                AddCounter.IsEnabled = false; //allow only singleton PK Counter
+                AddCounterEvent.IsEnabled = false; //allow only singleton PK Counter
             }
             e.Handled = true;
+        }
+
+        public void SaveCurrentSettings(XmlWriter xml)
+        {
+            string s;
+            xml.WriteStartElement("EpisodeDescription");
+            xml.WriteAttributeString("NewGVValue", GVSpec.Text);
+            xml.WriteAttributeString("MayUseEOF", (bool)useEOF.IsChecked ? "True" : "False");
+
+            xml.WriteStartElement("FromEvent");
+            xml.WriteElementString("Name", Event1.Text);
+            xml.WriteElementString("Offset", Offset1.Text);
+            if (GV1.IsEnabled) //if disabled, skip entry
+            {
+                s = GV1.Text;
+                if (s != "*None*") //if None, skip entry
+                {
+                    xml.WriteStartElement("GVCriterium");
+                    StringBuilder sb = new StringBuilder(s);
+                    sb.Append(Comp1.Text);
+                    if (GVValue1TB.Visibility == Visibility.Visible)
+                        sb.Append(GVValue1TB.Text);
+                    else
+                        sb.Append(GVValue1CB.Text);
+                    xml.WriteString("\"" + sb.ToString() + "\"");
+                    xml.WriteEndElement(/* GVCriterium */);
+                }
+            }
+            xml.WriteEndElement(/* FromEvent */);
+
+            xml.WriteStartElement("ToEvent");
+            xml.WriteElementString("Name", Event2.Text);
+            xml.WriteElementString("Offset", Offset2.Text);
+            if (GV2.IsEnabled) //if disabled, skip entry
+            {
+                s = GV2.Text;
+                if (s != "*None*") //if None, skip entry
+                {
+                    xml.WriteStartElement("GVCriterium");
+                    StringBuilder sb = new StringBuilder(s);
+                    sb.Append(Comp2.Text);
+                    if (GVValue2TB.Visibility == Visibility.Visible)
+                        sb.Append(GVValue2TB.Text);
+                    else
+                        sb.Append(GVValue2CB.Text);
+                    xml.WriteString("\"" + sb.ToString() + "\"");
+                    xml.WriteEndElement(/* GVCriterium */);
+                }
+            }
+            xml.WriteEndElement(/* ToEvent */);
+
+            s = Event3.Text;
+            if (s != "None") //if None, skip entry
+            {
+                xml.WriteStartElement("ExcludeRegion");
+                xml.WriteElementString("From", Event3.Text);
+                xml.WriteElementString("To", Event4.Text);
+                xml.WriteEndElement(/* ExcludeRegion */);
+            }
+
+            if (EpisodeDescriptionPanel.Items.Count > 2)
+                ((PKDetectorEventCounter)EpisodeDescriptionPanel.Items[1]).SaveCurrentSettings(xml);
+
+            xml.WriteEndElement(/* EpisodeDescription */);
         }
     }
 }

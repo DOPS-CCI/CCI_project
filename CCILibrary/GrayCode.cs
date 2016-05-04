@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace CCIUtilities
+namespace CCILibrary
 {
     /// <summary>
     /// This class encapsulates Gray codes and their use in the Status channel of a BDF file per
@@ -104,7 +104,7 @@ namespace CCIUtilities
             if (i < 0) throw new Exception("Attempt to add a negative number to a GrayCode");
             GrayCode gc1 = new GrayCode(gc);
             if (gc1._GC != 0 || i > 0)
-                gc1._GC = Utilities.uint2GC((gc1.Decode() + (uint)i - 1) % gc1._indexMax + 1);
+                gc1._GC = uint2GC((gc1.Decode() + (uint)i - 1) % gc1._indexMax + 1);
             return gc1;
         }
 
@@ -116,7 +116,7 @@ namespace CCIUtilities
         public static GrayCode operator ++(GrayCode gc)
         {
             uint n = gc.Decode() + 1;
-            gc._GC = n > gc._indexMax ? 1 : Utilities.uint2GC(n);
+            gc._GC = n > gc._indexMax ? 1 : uint2GC(n);
             return gc;
         }
 
@@ -160,7 +160,7 @@ namespace CCIUtilities
         {
             if (gc._status != this._status)
                 throw new ArgumentException("Incompatable comparison: number of Status bits not equal");
-            return Utilities.modComp(this.Decode(), gc.Decode(), _status);
+            return modComp(this.Decode(), gc.Decode(), _status);
         }
 
         /// <summary>
@@ -171,7 +171,7 @@ namespace CCIUtilities
         /// <exception cref="ArgumentException">Throws if number of Status bits not equal</exception>
         public int CompareTo(int statusValue)
         {
-            return Utilities.modComp(this.Decode(), Utilities.GC2uint((uint)statusValue & (0xFFFFFFFF >> (32 - _status))), _status);
+            return modComp(this.Decode(), GC2uint((uint)statusValue & (0xFFFFFFFF >> (32 - _status))), _status);
         }
 
         /// <summary>
@@ -182,12 +182,67 @@ namespace CCIUtilities
         /// <exception cref="ArgumentException">Throws if number of Status bits not equal</exception>
         public int CompareTo(uint gc)
         {
-            return Utilities.modComp(this.Decode(), Utilities.GC2uint(gc), _status);
+            return modComp(this.Decode(), GC2uint(gc), _status);
         }
 
         public override string ToString()
         {
             return Value.ToString("0") + "(" + this.Decode().ToString("0") + ")";
+        }
+
+        //NOTE: must assure that n is in the correct range
+        private static uint uint2GC(uint n)
+        {
+            return n ^ (n >> 1);
+        }
+
+        private static uint GC2uint(uint gc)
+        {
+            //this works for up to 32 bit Gray code; see
+            //algorithm in GrayCode class for more efficient
+            //technique if number of bits is known
+            uint b = gc;
+            b ^= (b >> 16);
+            b ^= (b >> 8);
+            b ^= (b >> 4);
+            b ^= (b >> 2);
+            b ^= (b >> 1);
+            return b;
+        }
+
+        /// <summary>
+        /// Makes comparisons between two status codes, modulus 2^(number of Status bits)
+        /// Note that valid status values are between 1 and 2^(number of Status bits)-2
+        /// For example, here are the returned results for status = 3:
+        ///         <-------- i1 --------->
+        ///        | 1 | 2 | 3 | 4 | 5 | 6 |
+        ///    ----|---|---|---|---|---|---|
+        ///  ^   1 | 0 | 1 | 1 | 1 |-1 |-1 |
+        ///  | ----|---|---|---|---|---|---|
+        ///  |   2 |-1 | 0 | 1 | 1 | 1 |-1 |
+        ///  | ----|---|---|---|---|---|---|
+        ///  |   3 |-1 |-1 | 0 | 1 | 1 | 1 |
+        /// i2 ----|---|---|---|---|---|---|
+        ///  |   4 |-1 |-1 |-1 | 0 | 1 | 1 |
+        ///  | ----|---|---|---|---|---|---|
+        ///  |   5 | 1 |-1 |-1 |-1 | 0 | 1 |
+        ///  | ----|---|---|---|---|---|---|
+        ///  v   6 | 1 | 1 |-1 |-1 |-1 | 0 |
+        ///    ----|---|---|---|---|---|---|
+        /// </summary>
+        /// <param name="i1">first Status value</param>
+        /// <param name="i2">second Status value</param>
+        /// <param name="status">number of Status bits</param>
+        /// <returns>0 if i1 = i2; -1 if i1 < i2; +1 if i1 > i2</returns>
+        private static int modComp(uint i1, uint i2, int status)
+        {
+            if (i1 == i2) return 0;
+            int comp = 1 << (status - 1);
+            if (i1 < i2)
+                if (i2 - i1 < comp) return -1;
+                else return 1;
+            if (i1 - i2 < comp) return 1;
+            return -1;
         }
     }
 }

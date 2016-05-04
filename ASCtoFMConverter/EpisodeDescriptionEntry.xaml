@@ -71,7 +71,7 @@
     </StackPanel>
     </Border>
         </TabItem>
-        <TabItem Name="AddCounter" PreviewMouseDown="TabItem_PreviewMouseDown">
+        <TabItem Name="AddCounterEvent" PreviewMouseDown="AddCounterEvent_PreviewMouseDown">
             <TabItem.Header>
                 <TextBlock FontSize="14" FontWeight="Bold" Text="+"/>
             </TabItem.Header>

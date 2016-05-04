@@ -198,6 +198,5 @@ namespace PKDetectorAnalyzer
         {
             return !ci1.Equals(ci2);
         }
-
     }
 }

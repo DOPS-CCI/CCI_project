@@ -64,7 +64,7 @@
     <SignManifests>true</SignManifests>
   </PropertyGroup>
   <PropertyGroup>
-    <ManifestCertificateThumbprint>055FD3EEAB01D47F4134FD16E55C8D2B0A562243</ManifestCertificateThumbprint>
+    <ManifestCertificateThumbprint>FB83119C214F5E520DD9D1DC18C440A77439E387</ManifestCertificateThumbprint>
   </PropertyGroup>
   <PropertyGroup>
     <ManifestKeyFile>DatasetReviewer_1_TemporaryKey.pfx</ManifestKeyFile>
@@ -73,7 +73,7 @@
     <SignAssembly>true</SignAssembly>
   </PropertyGroup>
   <PropertyGroup>
-    <AssemblyOriginatorKeyFile>DatasetReviewer_TemporaryKey.pfx</AssemblyOriginatorKeyFile>
+    <AssemblyOriginatorKeyFile>DatasetReviewer_1_TemporaryKey.pfx</AssemblyOriginatorKeyFile>
   </PropertyGroup>
   <PropertyGroup>
     <TargetZone>LocalIntranet</TargetZone>
@@ -127,6 +127,7 @@
     </Page>
   </ItemGroup>
   <ItemGroup>
+    <None Include="DatasetReviewer_1_TemporaryKey.pfx" />
     <None Include="DatasetReviewer_TemporaryKey.pfx" />
     <None Include="Properties\app.manifest">
       <SubType>Designer</SubType>
