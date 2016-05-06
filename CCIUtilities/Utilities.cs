@@ -102,7 +102,7 @@ namespace CCIUtilities
 
         public static string getVersionNumber()
         {
-            return Assembly.GetExecutingAssembly().GetName().Version.ToString();
+            return Assembly.GetCallingAssembly().GetName().Version.ToString();
         }
 
         //NOTE: must assure that n is in the correct range
