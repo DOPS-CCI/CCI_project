@@ -5,6 +5,7 @@ using System.Linq;
 using System.IO;
 using System.Text;
 using System.Windows;
+using System.Windows.Forms;
 using System.Windows.Input;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -73,17 +74,19 @@ namespace PKDetectorAnalyzer
 
         public MainWindow()
         {
-            CCIUtilities.Log.writeToLog("Starting PKDetectorAnalyzer " + CCIUtilities.Utilities.getVersionNumber());
 
-            Microsoft.Win32.OpenFileDialog dlg = new Microsoft.Win32.OpenFileDialog();
+            OpenFileDialog dlg = new OpenFileDialog();
             dlg.Title = "Open Header file ...";
             dlg.DefaultExt = ".hdr"; // Default file extension
             dlg.Filter = "HDR Files (.hdr)|*.hdr"; // Filter files by extension
-            Nullable<bool> result = dlg.ShowDialog();
-            if (result == null || result == false) Environment.Exit(0);
+            DialogResult result = dlg.ShowDialog();
+            if (result != System.Windows.Forms.DialogResult.OK) Environment.Exit(0);
 
             directory = System.IO.Path.GetDirectoryName(dlg.FileName);
             headerFileName = System.IO.Path.GetFileNameWithoutExtension(dlg.FileName);
+
+            CCIUtilities.Log.writeToLog("Starting PKDetectorAnalyzer " + CCIUtilities.Utilities.getVersionNumber() +
+                " on " + headerFileName);
 
             head = (new HeaderFileReader(dlg.OpenFile())).read();
 
@@ -137,7 +140,7 @@ namespace PKDetectorAnalyzer
 
         private void cbOpen_Execute(object sender, ExecutedRoutedEventArgs e)
         {
-                PerformOpenPFile();
+            PerformOpenPFile();
         }
 
         private void cbOpen_CanExecute(object sender, CanExecuteRoutedEventArgs e)
@@ -148,7 +151,7 @@ namespace PKDetectorAnalyzer
 
         private void cbSave_Execute(object sender, ExecutedRoutedEventArgs e)
         {
-                PerformSavePFile();
+            PerformSavePFile();
         }
 
         private void validParams_CanExecute(object sender, CanExecuteRoutedEventArgs e)
@@ -163,12 +166,12 @@ namespace PKDetectorAnalyzer
 
         private void PerformSavePFile()
         {
-            Microsoft.Win32.SaveFileDialog dlg = new Microsoft.Win32.SaveFileDialog();
+            SaveFileDialog dlg = new SaveFileDialog();
             dlg.Title = "Save parameter file ...";
             dlg.DefaultExt = ".par"; // Default file extension
             dlg.Filter = "PAR Files (.par)|*.par"; // Filter files by extension
-            Nullable<bool> result = dlg.ShowDialog();
-            if (result == null || result == false) return;
+            bool result = dlg.ShowDialog() == System.Windows.Forms.DialogResult.OK;
+            if (!result) return;
 
             XmlWriterSettings xws = new XmlWriterSettings();
             xws.Indent = true;
@@ -188,29 +191,37 @@ namespace PKDetectorAnalyzer
 
         private void PerformOpenPFile()
         {
-            Microsoft.Win32.OpenFileDialog dlg = new Microsoft.Win32.OpenFileDialog();
+            OpenFileDialog dlg = new OpenFileDialog();
             dlg.Title = "Open parameter file ...";
             dlg.DefaultExt = ".par"; // Default file extension
             dlg.Filter = "PAR Files (.par)|*.par"; // Filter files by extension
-            Nullable<bool> result = dlg.ShowDialog();
-            if (result == null || result == false) return;
+            bool result = dlg.ShowDialog() == System.Windows.Forms.DialogResult.OK;
+            if (!result) return;
 
             XmlReaderSettings xrs = new XmlReaderSettings();
             xrs.CloseInput = true;
             xrs.IgnoreWhitespace = true;
             XmlReader xml = XmlReader.Create(new FileStream(dlg.FileName, FileMode.Open, FileAccess.Read), xrs);
-            xml.ReadStartElement("PKDAParameters");
-            FNExtension.Text = xml.ReadElementString("OutputFilenameExt");
-            xml.ReadStartElement("CreatedEvents");
-            while (!ChannelEntries.Items.IsEmpty) ChannelEntries.Items.RemoveAt(0);
-            while (xml.Name == "EventDescription")
+            try
             {
-                ChannelItem ci = new ChannelItem(this);
-                if (ci.ReadNewSettings(xml))
-                    ChannelEntries.Items.Add(ci);
-            } 
-            xml.ReadEndElement(/* CreatedEvents */);
-            xml.ReadEndElement(/* PKDAParameters */);
+                xml.ReadStartElement("PKDAParameters");
+                FNExtension.Text = xml.ReadElementString("OutputFilenameExt");
+                xml.ReadStartElement("CreatedEvents");
+                while (!ChannelEntries.Items.IsEmpty) ChannelEntries.Items.RemoveAt(0);
+                while (xml.Name == "EventDescription")
+                {
+                    ChannelItem ci = new ChannelItem(this);
+                    if (ci.ReadNewSettings(xml))
+                        ChannelEntries.Items.Add(ci);
+                }
+                xml.ReadEndElement(/* CreatedEvents */);
+                xml.ReadEndElement(/* PKDAParameters */);
+                Status.Text = "Parameter file successfully imported";
+            }
+            catch (XmlException e)
+            {
+                Status.Text = "Parameter file error: " + e.Message;
+            }
             xml.Close();
             checkError();
         }
@@ -293,8 +304,10 @@ namespace PKDetectorAnalyzer
             bw.ProgressChanged += ProcessChannel_ProgressChanged;
             bw.RunWorkerCompleted += ProcessChannel_Completed;
             currentChannel = 0;
+            ChannelItem ci = (ChannelItem)ChannelEntries.Items[0];
+            CCIUtilities.Log.writeToLog("     Processing " + ci.Channel.Text);
             lf = new LogFile(System.IO.Path.Combine(directory, newFileName), head.BDFFile);
-            lf.logChannelItem((ChannelItem)ChannelEntries.Items[0]);
+            lf.logChannelItem(ci);
             bw.RunWorkerAsync(new workerArguments((ChannelItem)ChannelEntries.Items[0], this)); //start first channel processing
         }
 
@@ -325,12 +338,13 @@ namespace PKDetectorAnalyzer
 
         private void ProcessChannel_Worker(object sender, DoWorkEventArgs e)
         {
+
             List<eventTime> eventList = new List<eventTime>(); //holds list of potential new Events for this channel
             workerArguments args = (workerArguments)e.Argument;
             double[] d = args.data; //channel data to be analyzed
             int N = d.Length;
             int degree = args.trendDegree;
-            if (degree >= 0) //the perform polynomial detrending
+            if (degree >= 0) //then perform polynomial detrending
             {
                 bw.ReportProgress(0, "detrending with " + degree.ToString("0") + " degree polynomial");
                 removeTrend(d, degree);
@@ -455,7 +469,9 @@ namespace PKDetectorAnalyzer
                 currentChannel++;
                 if (currentChannel < ChannelEntries.Items.Count) //then we run another one
                 {
-                    lf.logChannelItem((ChannelItem)ChannelEntries.Items[currentChannel]);
+                    ci = (ChannelItem)ChannelEntries.Items[currentChannel];
+                    CCIUtilities.Log.writeToLog("     Processing " + ci.Channel.Text);
+                    lf.logChannelItem(ci);
                     bw.RunWorkerAsync(new workerArguments((ChannelItem)ChannelEntries.Items[currentChannel], this)); //process next channel
                     return;
                 }
