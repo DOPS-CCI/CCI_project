@@ -413,7 +413,7 @@ namespace ASCtoFMConverter
                         sb.Append(GVValue1TB.Text);
                     else
                         sb.Append(GVValue1CB.Text);
-                    xml.WriteString("\"" + sb.ToString() + "\"");
+                    xml.WriteString(sb.ToString());
                     xml.WriteEndElement(/* GVCriterium */);
                 }
             }
@@ -434,7 +434,7 @@ namespace ASCtoFMConverter
                         sb.Append(GVValue2TB.Text);
                     else
                         sb.Append(GVValue2CB.Text);
-                    xml.WriteString("\"" + sb.ToString() + "\"");
+                    xml.WriteString(sb.ToString());
                     xml.WriteEndElement(/* GVCriterium */);
                 }
             }
@@ -453,6 +453,88 @@ namespace ASCtoFMConverter
                 ((PKDetectorEventCounter)EpisodeDescriptionPanel.Items[1]).SaveCurrentSettings(xml);
 
             xml.WriteEndElement(/* EpisodeDescription */);
+        }
+
+        public bool ReadNewSettings(XmlReader xml)
+        {
+            string s;
+            bool t = true;
+            GVSpec.Text = xml["NewGVValue"];
+            useEOF.IsChecked = xml["MayUseEOF"] == "True";
+            xml.ReadStartElement("EpisodeDescription");
+
+            //From Event
+            xml.ReadStartElement("FromEvent");
+            t &= Window2.SelectByValue(Event1,xml.ReadElementString("Name"));
+            Offset1.Text = xml.ReadElementString("Offset");
+            GV1.SelectedIndex = 0; //assume *None*
+            if (xml.Name == "GVCriterium")
+            {
+                s = xml.ReadElementString(/* GVCriterium */);
+                if (s != "*None*") //if None, skip lookup
+                {   //parse criteria string
+                    int opPosition = s.IndexOfAny(new char[] { '=', '<', '>', '!' });
+                    int opLength = s.Substring(opPosition, 1) == "!" ? 2 : 1;
+                    string value = s.Substring(opPosition + opLength);
+                    t &= Window2.SelectByValue(GV1, s.Substring(0, opPosition));
+                    t &= Window2.SelectByValue(Comp1, s.Substring(opPosition, opLength));
+                    if (GVValue1CB.Visibility == Visibility.Visible) //=> ComboBox of GVValues
+                        t &= Window2.SelectByValue(GVValue1CB, value);
+                    else //=> TextBox
+                        GVValue1TB.Text = value;
+                }
+            }
+            xml.ReadEndElement(/* FromEvent */);
+
+            //To Event
+            xml.ReadStartElement("ToEvent");
+            t &= Window2.SelectByValue(Event2, xml.ReadElementString("Name"));
+            Offset2.Text = xml.ReadElementString("Offset");
+            GV2.SelectedIndex = 0; //assume *None*
+            if (xml.Name == "GVCriterium")
+            {
+                s = xml.ReadElementString(/* GVCriterium */);
+                if (s != "*None*") //if None, skip lookup
+                {   //parse criteria string
+                    int opPosition = s.IndexOfAny(new char[] { '=', '<', '>', '!' });
+                    string GVname = s.Substring(0, opPosition);
+                    int opLength = s.Substring(opPosition, 1) == "!" ? 2 : 1;
+                    string op = s.Substring(opPosition, opLength);
+                    string value = s.Substring(opPosition + opLength);
+                    t &= Window2.SelectByValue(GV2, s.Substring(0, opPosition));
+                    t &= Window2.SelectByValue(Comp2, s.Substring(opPosition, opLength));
+                    if (GVValue2CB.Visibility == Visibility.Visible) //=> ComboBox of GVValues
+                        t &= Window2.SelectByValue(GVValue2CB, value);
+                    else //=> TextBox
+                        GVValue2TB.Text = value;
+                }
+            }
+            xml.ReadEndElement(/* FromEvent */);
+
+            //Exclude Event
+            Event3.SelectedIndex = 0; //None by default
+            Event4.SelectedIndex = 0;
+            if (xml.Name == "ExcludeRegion")
+            {
+                xml.ReadStartElement(/* ExcludeRegion */);
+                s = xml.ReadElementString("From");
+                if (s != "None") //if None, skip entry
+                    t &= Window2.SelectByValue(Event3, s);
+                s = xml.ReadElementString("To");
+                if (s != "Same Event") //if Same Event, skip entry
+                    t &= Window2.SelectByValue(Event4,s);
+                xml.ReadEndElement(/* ExcludeRegion */);
+            }
+
+            if (xml.Name == "PKDetectorCounter")
+            {
+                PKDetectorEventCounter pkd = new PKDetectorEventCounter(hdr, this);
+                if(pkd.ReadNewSettings(xml))
+                    EpisodeDescriptionPanel.Items.Insert(1,pkd);
+            }
+
+            xml.ReadEndElement(/* EpisodeDescription */);
+            return t;
         }
     }
 }

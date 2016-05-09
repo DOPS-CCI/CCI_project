@@ -206,11 +206,15 @@ namespace ASCtoFMConverter
             }
 
             xml.WriteElementString("Channels", SelChan.Text);
+
             xml.WriteStartElement("Samples");
-            s = "None";
-            if ((bool)removeOffsets.IsChecked) s = "Offsets";
-            if ((bool)removeTrends.IsChecked) s = "Trends";
-            xml.WriteAttributeString("Remove", s);
+            if (!(bool)Radin.IsChecked) //only valid if not using Radin reference
+            {
+                s = "None";
+                if ((bool)removeOffsets.IsChecked) s = "Offsets";
+                if ((bool)removeTrends.IsChecked) s = "Trends";
+                xml.WriteAttributeString("Remove", s);
+            }
             xml.WriteElementString("Decimation", Decimation.Text);
             xml.WriteElementString("RecordLength", RecLength.Text);
             if ((bool)Radin.IsChecked)
@@ -239,21 +243,116 @@ namespace ASCtoFMConverter
 
         private void PerformOpenPFile()
         {
-            Microsoft.Win32.OpenFileDialog dlg = new Microsoft.Win32.OpenFileDialog();
+            string s;
+            OpenFileDialog dlg = new OpenFileDialog();
             dlg.Title = "Open parameter file ...";
             dlg.DefaultExt = ".par"; // Default file extension
             dlg.Filter = "PAR Files (.par)|*.par"; // Filter files by extension
-            Nullable<bool> result = dlg.ShowDialog();
-            if (result == null || result == false) return;
+            bool result = dlg.ShowDialog() == System.Windows.Forms.DialogResult.OK;
+            if (!result) return;
 
             XmlReaderSettings xrs = new XmlReaderSettings();
             xrs.CloseInput = true;
             xrs.IgnoreWhitespace = true;
             XmlReader xml = XmlReader.Create(new FileStream(dlg.FileName, FileMode.Open, FileAccess.Read), xrs);
-            xml.ReadStartElement("PKDAParameters");
-            xml.ReadEndElement(/* PKDAParameters */);
+            try
+            {
+                if(!xml.ReadToFollowing("ASCtoFMParameters")) throw new XmlException("No ASCtoFMParameters element found");
+                s = xml["ClockSync"];
+                if (s == "First covered Event")
+                    SyncToFirst.IsChecked = true;
+                else
+                    if (s == "None")
+                        NoSyncToStatus.IsChecked = true;
+                    else
+                        SyncToMiddle.IsChecked = true;
+                xml.ReadStartElement("ASCtoFMParameters");
+
+                xml.ReadStartElement("EpisodeDescriptions");
+                while (EpisodeEntries.Items.Count > 0) EpisodeEntries.Items.RemoveAt(0);
+                while (xml.Name == "EpisodeDescription")
+                {
+                    EpisodeDescriptionEntry ede = new EpisodeDescriptionEntry(head, this);
+                    if (ede.ReadNewSettings(xml))
+                        EpisodeEntries.Items.Add(ede);
+                }
+                xml.ReadEndElement(/* EpisodeDescriptions */);
+
+                listView2.SelectedItem = null;
+                xml.ReadStartElement("GroupVariables");
+                while (xml.Name == "GV")
+                {
+                    s = xml.ReadElementContentAsString();
+                    for (int i = 0; i < listView2.Items.Count; i++)
+                    {
+                        if (((GVEntry)listView2.Items[i]).Name == s)
+                        {
+                            listView2.SelectedItems.Add(listView2.Items[i]);
+                            break;
+                        }
+                    } //silently skip GVs not in current dataset
+                }
+                xml.ReadEndElement(/* GroupVariables */);
+
+                SelChan.Text = xml.ReadElementString("Channels");
+
+                s = xml["Remove"];
+                if (s != null) //may not exist if using Radin reference
+                    if (s == "Offsets") removeOffsets.IsChecked = true;
+                    else
+                        if (s == "Trends") removeTrends.IsChecked = true;
+                        else
+                            noneOffsets.IsChecked = true;
+                xml.ReadStartElement("Samples");
+                Decimation.Text = xml.ReadElementString("Decimation");
+                RecLength.Text = xml.ReadElementString("RecordLength");
+                if (xml.Name == "RadinReference")
+                {
+                    Radin.IsChecked = true;
+                    xml.ReadStartElement();
+                    RadinLow.Text = xml.ReadElementString("From");
+                    RadinHigh.Text = xml.ReadElementString("To");
+                    xml.ReadEndElement(/* RadinReference */);
+                }
+                else
+                    Radin.IsChecked = false;
+                xml.ReadEndElement(/* Samples */);
+
+                s = xml["Type"];
+                if (s == "SelectedChannels") radioButton2.IsChecked = true;
+                else
+                    if (s == "Expression") radioButton4.IsChecked = true;
+                    else
+                        radioButton3.IsChecked = true;
+                xml.ReadStartElement("Reference");
+                if (s != "None")
+                    if (s == "Expression") RefChanExpression.Text = xml.ReadString();
+                    else RefChan.Text = xml.ReadString();
+                xml.ReadEndElement(/* Reference */);
+                
+                xml.ReadEndElement(/* ASCtoFMParameters */);
+            }
+            catch (XmlException)
+            {
+
+            }
             xml.Close();
             Validate();
+        }
+
+        internal static bool SelectByValue(System.Windows.Controls.ComboBox cb, string value)
+        {
+            bool found = false;
+            for (int i = 0; i < cb.Items.Count; i++)
+            {
+                if (cb.Items[i].ToString() == value)
+                {
+                    cb.SelectedIndex = i;
+                    found = true;
+                    break;
+                }
+            }
+            return found;
         }
 
         private void AddSpec_Click(object sender, RoutedEventArgs e)
@@ -658,20 +757,23 @@ namespace ASCtoFMConverter
             else if ((bool)radioButton4.IsChecked && (_refChanExp == null || _refChanExp.Count == 0))
                 result = false;
 
-            foreach (EpisodeDescriptionEntry ede in EpisodeEntries.Items)
-            {
-                result &= ede.Validate();
-                //also assure unique GV numbers
-                int cnt = 0;
-                foreach (EpisodeDescriptionEntry ede1 in EpisodeEntries.Items) if (ede1.GVValue == ede.GVValue) cnt++;
-                if (cnt > 1) //non-unique name
+            if (EpisodeEntries.Items.Count == 0) result = false;
+            else
+                foreach (EpisodeDescriptionEntry ede in EpisodeEntries.Items)
                 {
-                    ede.GVSpec.Foreground = Brushes.Red;
-                    result = false;
+                    result &= ede.Validate();
+                    //also assure unique GV numbers
+                    int cnt = 0;
+                    foreach (EpisodeDescriptionEntry ede1 in EpisodeEntries.Items) if (ede1.GVValue == ede.GVValue) cnt++;
+                    if (cnt > 1) //non-unique name
+                    {
+                        ede.GVSpec.Foreground = Brushes.Red;
+                        result = false;
+                    }
+                    else
+                        ede.GVSpec.Foreground = Brushes.Black;
                 }
-                else
-                    ede.GVSpec.Foreground = Brushes.Black;
-            }
+
             ConvertFM.IsEnabled = result;
             return result;
         }

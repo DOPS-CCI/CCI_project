@@ -137,7 +137,7 @@ namespace ASCtoFMConverter
                 xml.WriteElementString("Name", lbi);
             xml.WriteEndElement(/* Events */);
             XElement xe = new XElement("SelectionCriteria");
-            s =Found.Text;
+            s = Found.Text;
             if (s != "Either") xe.SetElementValue("Found", s);
 
             s = Sign.Text;
@@ -157,6 +157,70 @@ namespace ASCtoFMConverter
 
             if (xe.HasElements) xe.WriteTo(xml);
             xml.WriteEndElement(/* PKDetectorCounter */);
+        }
+
+        internal bool ReadNewSettings(XmlReader xml)
+        {
+            bool t = true;
+            string s;
+            xml.ReadStartElement("PKDetectorCounter");
+            xml.ReadStartElement("Events");
+            do
+            {
+                bool found = false;
+                s = xml.ReadElementString("Name");
+                for (int i = 0; i < EventSelection.Items.Count; i++)
+                {
+                    if ((string)EventSelection.Items[i] == s)
+                    {
+                        EventSelection.SelectedItems.Add(EventSelection.Items[i]);
+                        found = true;
+                        break;
+                    }
+                }
+                t &= found;
+            } while (xml.Name == "Name");
+            xml.ReadEndElement(/* Events */);
+
+            if (xml.Name == "SelectionCriteria")
+            {
+                xml.ReadStartElement(/* SelectionCriteria */);
+
+                if (xml.Name == "Found")
+                    t &= Window2.SelectByValue(Found, xml.ReadElementContentAsString());
+                else
+                    Found.SelectedIndex = 0;
+
+                if (xml.Name == "Sign")
+                    t &= Window2.SelectByValue(Found, xml.ReadElementContentAsString());
+                else
+                    Found.SelectedIndex = 0;
+
+                if (xml.Name == "Magnitude")
+                {
+                    Magnitude.IsChecked = true;
+                    s = xml.ReadElementContentAsString();
+                    t &= Window2.SelectByValue(Comp1, s.Substring(0, 1));
+                    MagnitudeValue.Text = s.Substring(1);
+                }
+                else
+                    Magnitude.IsChecked = false;
+
+                if (xml.Name == "Chi2")
+                {
+                    Chi2.IsChecked = true;
+                    s = xml.ReadElementContentAsString();
+                    t &= Window2.SelectByValue(Comp2, s.Substring(0, 1));
+                    Chi2Value.Text = s.Substring(1);
+                }
+                else
+                    Chi2.IsChecked = false;
+
+                xml.ReadEndElement(/* SelectionCriteria */);
+            }
+
+            xml.ReadEndElement(/* PKDetectorCounter */);
+            return t;
         }
     }
 }
