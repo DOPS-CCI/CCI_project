@@ -74,8 +74,8 @@ namespace CCIUtilities
             _matrix = new double[A.N, A.M];
             _n = A.N;
             _m = A.M;
-            for (int i = 0; i < A.N; i++)
-                for (int j = 0; j < A.M; j++)
+            for (int i = 0; i < _n; i++)
+                for (int j = 0; j < _m; j++)
                     _matrix[i, j] = A[i, j];
         }
 
@@ -107,23 +107,28 @@ namespace CCIUtilities
 
         public static NMMatrix operator -(NMMatrix A, NMMatrix B)
         {
-            if (A.N != B.N || A.M != B.M) throw new Exception("NMMatrix.Add: incompatable sizes");
+            int l1 = A.N;
+            int l2 = A.M;
+            if (l1 != B.N || l2 != B.M) throw new Exception("NMMatrix.Subtract: incompatable sizes");
             NMMatrix C = new NMMatrix(A);
-            for (int i = 0; i < A.N; i++)
-                for (int j = 0; j < A.M; j++)
+            for (int i = 0; i < l1; i++)
+                for (int j = 0; j < l2; j++)
                     C._matrix[i, j] -= B[i, j];
             return C;
         }
 
         public static NMMatrix operator *(NMMatrix A, NMMatrix B)
         {
-            if (A.M != B.N ) throw new Exception("NMMatrix.Mul: incompatable sizes");
-            NMMatrix C = new NMMatrix(A.N, B.M);
-            for (int i = 0; i < A.N; i++)
-                for (int j = 0; j < B.M; j++)
+            int l1 = A.N;
+            int l2 = B.M;
+            int l3 = A.M;
+            if (l3 != B.N ) throw new Exception("NMMatrix.Mul: incompatable sizes");
+            NMMatrix C = new NMMatrix(l1, l2);
+            for (int i = 0; i < l1; i++)
+                for (int j = 0; j < l2; j++)
                 {
                     double c = 0D;
-                    for (int k = 0; k < A.M; k++)
+                    for (int k = 0; k < l3; k++)
                         c += A[i, k] * B[k, j];
                     C._matrix[i, j] = c;
                 }
@@ -132,9 +137,11 @@ namespace CCIUtilities
 
         public static NMMatrix operator /(NMMatrix A, double b)
         {
-            NMMatrix C = new NMMatrix(A.N, A.M);
-            for (int i = 0; i < A.N; i++)
-                for (int j = 0; j < A.M; j++)
+            int l1 = A.N;
+            int l2 = A.M;
+            NMMatrix C = new NMMatrix(l1,l2);
+            for (int i = 0; i < l1; i++)
+                for (int j = 0; j < l2; j++)
                     C._matrix[i, j] = A[i, j] / b;
             return C;
         }
@@ -146,9 +153,11 @@ namespace CCIUtilities
 
         public static NMMatrix operator *(double a, NMMatrix B)
         {
+            int l1 = B.N;
+            int l2 = B.M;
             NMMatrix C = new NMMatrix(B);
-            for (int i = 0; i < B.N; i++)
-                for (int j = 0; j < B.M; j++)
+            for (int i = 0; i < l1; i++)
+                for (int j = 0; j < l2; j++)
                     C._matrix[i, j] *= a;
             return C;
         }
@@ -179,7 +188,7 @@ namespace CCIUtilities
 
         public NVector ExtractColumn(int col)
         {
-            if (col < 0 || col >= this.M) throw new Exception("NMMatrix.ReplaceColumn: invalid column number");
+            if (col < 0 || col >= this.M) throw new Exception("NMMatrix.ExtractColumn: invalid column number");
             NVector V = new NVector(N);
             for (int j = 0; j < _n; j++)
                 V[j] = this[j, col];
@@ -197,7 +206,7 @@ namespace CCIUtilities
 
         public NMMatrix Augment(NVector V)
         {
-            if (N != V.N) throw new Exception("NMMatrix.Concatenate: incompatable sizes");
+            if (N != V.N) throw new Exception("NMMatrix.Augment(Vector): incompatable sizes");
             NMMatrix B = new NMMatrix(N, M + 1);
             for (int i = 0; i < N; i++)
             {
@@ -210,7 +219,7 @@ namespace CCIUtilities
 
         public NMMatrix Augment(NMMatrix A)
         {
-            if (N != A.N) throw new Exception("NMMatrix.Concatenate: incompatable sizes");
+            if (N != A.N) throw new Exception("NMMatrix.Augment(Matrix): incompatable sizes");
             NMMatrix B = new NMMatrix(N, M + A.M);
             for (int i = 0; i < N; i++)
             {
@@ -249,8 +258,8 @@ namespace CCIUtilities
         public double Max()
         {
             double max=double.MinValue;
-            for (int i = 0; i < N; i++)
-                for (int j = 0; j < M; j++)
+            for (int i = 0; i < _n; i++)
+                for (int j = 0; j < _m; j++)
                     max = Math.Max(_matrix[i, j], max);
             return max;
         }
@@ -258,8 +267,8 @@ namespace CCIUtilities
         public NMMatrix Apply(F func)
         {
             NMMatrix A = new NMMatrix(this);
-            for (int i = 0; i < A.N; i++)
-                for (int j = 0; j < A.M; j++)
+            for (int i = 0; i < _n; i++)
+                for (int j = 0; j < _m; j++)
                     A[i, j] = func(A[i, j]);
             return A;
         }

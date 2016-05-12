@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Deployment.Application;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -102,6 +103,8 @@ namespace CCIUtilities
 
         public static string getVersionNumber()
         {
+            if (ApplicationDeployment.IsNetworkDeployed)
+                return ApplicationDeployment.CurrentDeployment.CurrentVersion.ToString();
             return Assembly.GetCallingAssembly().GetName().Version.ToString();
         }
 

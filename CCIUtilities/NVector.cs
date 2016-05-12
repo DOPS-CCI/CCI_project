@@ -118,12 +118,14 @@ namespace CCIUtilities
 
         public static NVector operator *(NMMatrix A, NVector B)
         {
-            if (A.M != B._n) throw new Exception("NVector.Mul: incompatable sizes");
-            NVector C = new NVector(A.N);
-            for (int i = 0; i < A.N; i++)
+            int l1 = A.N;
+            int l2 = A.M;
+            if (l2 != B._n) throw new Exception("NVector.Mul: incompatable sizes");
+            NVector C = new NVector(l1);
+            for (int i = 0; i < l1; i++)
             {
                 double c = 0D;
-                for (int j = 0; j < A.M; j++)
+                for (int j = 0; j < l2; j++)
                     c += A[i, j] * B._vector[j];
                 C._vector[i] = c;
             }
