@@ -79,10 +79,12 @@ namespace PKDetectorAnalyzer
             dlg.Title = "Open Header file ...";
             dlg.DefaultExt = ".hdr"; // Default file extension
             dlg.Filter = "HDR Files (.hdr)|*.hdr"; // Filter files by extension
+            dlg.InitialDirectory = Properties.Settings.Default.LastDataset;
             DialogResult result = dlg.ShowDialog();
             if (result != System.Windows.Forms.DialogResult.OK) Environment.Exit(0);
 
             directory = System.IO.Path.GetDirectoryName(dlg.FileName);
+            Properties.Settings.Default.LastDataset = directory;
             headerFileName = System.IO.Path.GetFileNameWithoutExtension(dlg.FileName);
 
             CCIUtilities.Log.writeToLog("Starting PKDetectorAnalyzer " + CCIUtilities.Utilities.getVersionNumber() +
@@ -170,8 +172,11 @@ namespace PKDetectorAnalyzer
             dlg.Title = "Save parameter file ...";
             dlg.DefaultExt = ".par"; // Default file extension
             dlg.Filter = "PAR Files (.par)|*.par"; // Filter files by extension
+            dlg.InitialDirectory = Properties.Settings.Default.LastParFile;
             bool result = dlg.ShowDialog() == System.Windows.Forms.DialogResult.OK;
             if (!result) return;
+
+            Properties.Settings.Default.LastParFile = System.IO.Path.GetDirectoryName(dlg.FileName);
 
             XmlWriterSettings xws = new XmlWriterSettings();
             xws.Indent = true;
@@ -195,8 +200,11 @@ namespace PKDetectorAnalyzer
             dlg.Title = "Open parameter file ...";
             dlg.DefaultExt = ".par"; // Default file extension
             dlg.Filter = "PAR Files (.par)|*.par"; // Filter files by extension
+            dlg.InitialDirectory = Properties.Settings.Default.LastParFile;
             bool result = dlg.ShowDialog() == System.Windows.Forms.DialogResult.OK;
             if (!result) return;
+
+            Properties.Settings.Default.LastParFile = System.IO.Path.GetDirectoryName(dlg.FileName);
 
             XmlReaderSettings xrs = new XmlReaderSettings();
             xrs.CloseInput = true;
@@ -240,10 +248,11 @@ namespace PKDetectorAnalyzer
             foreach (ChannelItem ci in ChannelEntries.Items) //check each ChannelItem
             {
                 string ciName = ci.NewEventName.Text;
-                result &= ci._filterN > 0 && ci._minimumL > 0 && ci._threshold > 0D && !head.Events.ContainsKey(ciName);
+                bool t = head.Events.ContainsKey(ciName);
+                result &= ci._filterN > 0 && ci._minimumL > 0 && ci._threshold > 0D && !t;
                 int cnt = 0;
                 foreach (ChannelItem c in ChannelEntries.Items) if (c.NewEventName.Text == ciName) cnt++;
-                if (cnt > 1) //non-unique name
+                if (cnt > 1 || t) //non-unique name
                 {
                     ci.NewEventName.Foreground = Brushes.Red;
                     result = false;
@@ -289,10 +298,14 @@ namespace PKDetectorAnalyzer
         List<eventTime> eventTimeList;
         BackgroundWorker bw;
         LogFile lf;
+        MemoryStream logStream;
         int currentChannel;
         private void ProcessChannels_Click(object sender, RoutedEventArgs e)
         {
             Process.IsEnabled = false;
+            miOpenPFile.IsEnabled = false;
+            miSavePFile.IsEnabled = false;
+            miProcess.IsEnabled = false;
             Quit.Visibility = Visibility.Collapsed;
             Cancel.Visibility = Visibility.Visible;
 
@@ -306,7 +319,8 @@ namespace PKDetectorAnalyzer
             currentChannel = 0;
             ChannelItem ci = (ChannelItem)ChannelEntries.Items[0];
             CCIUtilities.Log.writeToLog("     Processing " + ci.Channel.Text);
-            lf = new LogFile(System.IO.Path.Combine(directory, newFileName), head.BDFFile);
+            logStream = new MemoryStream();
+            lf = new LogFile(logStream, headerFileName);
             lf.logChannelItem(ci);
             bw.RunWorkerAsync(new workerArguments((ChannelItem)ChannelEntries.Items[0], this)); //start first channel processing
         }
@@ -482,7 +496,7 @@ namespace PKDetectorAnalyzer
                 Status.Text = "Setting up";
             Cancel.Visibility = Visibility.Collapsed;
             Quit.Visibility = Visibility.Visible;
-            Process.IsEnabled = true;
+            Process.Visibility = Visibility.Hidden; //not ready to reprocess the same file
         }
 
         //Process the PK events found: returns true if files succesfully written
@@ -579,8 +593,8 @@ namespace PKDetectorAnalyzer
 
             //write out new HDR file
             FileStream fs = null;
-            bool? OK = false;
-            while (!(bool)OK)
+            bool OK = false;
+            while (!OK)
             {
                 try
                 {
@@ -593,18 +607,24 @@ namespace PKDetectorAnalyzer
                     Replace_dataset rd = new Replace_dataset(newFileName, this.FNExtension.Text);
                     rd.WindowStartupLocation = WindowStartupLocation.CenterOwner;
                     rd.Owner = this;
-                    OK = (bool)rd.ShowDialog();
-                    if (OK == null)
+                    rd.ShowDialog();
+                    if (rd.Result > 0)
                     {
-                        Status.Text = "Cancelled writing new dataset";
-                        return false;
+                        if (rd.Result == 3) //Exit
+                        {
+                            Status.Text = "Cancelled writing new dataset";
+                            return false;
+                        }
+                        if (rd.Result == 1) //Yes
+                        {
+                            OK = true;
+                            fs = new FileStream(System.IO.Path.Combine(directory, newFileName + ".hdr"), FileMode.Create, FileAccess.Write);
+                        }
+                        else //N0: new extension, try again
+                        {
+                            this.FNExtension.Text = rd.NewExtension.Text; //this will also change newFileName
+                        }
                     }
-                    if ((bool)OK)
-                    {
-                        fs = new FileStream(System.IO.Path.Combine(directory, newFileName + ".hdr"), FileMode.Create, FileAccess.Write);
-                    }
-                    else
-                        this.FNExtension.Text = rd.NewExtension.Text; //this will also change newFileName
                 }
             }
             new HeaderFileWriter(fs, head);
@@ -641,6 +661,8 @@ namespace PKDetectorAnalyzer
                 efw.writeRecord(ev);
             efw.Close();
             lf.Close(); //close out log file
+            //and copy out to file
+            logStream.WriteTo(new FileStream(System.IO.Path.Combine(directory, newFileName + ".pkda.log.xml"), FileMode.Create, FileAccess.Write));
             return true;
         }
 
@@ -649,6 +671,7 @@ namespace PKDetectorAnalyzer
             if(bw.IsBusy) bw.CancelAsync();
             Cancel.Visibility = Visibility.Collapsed;
             Quit.Visibility = Visibility.Visible;
+            Process.Visibility = Visibility.Hidden;
         }
 
         static void removeTrend(double[] data, int degree)

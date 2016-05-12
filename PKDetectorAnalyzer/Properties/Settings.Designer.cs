@@ -22,5 +22,29 @@ namespace PKDetectorAnalyzer.Properties {
                 return defaultInstance;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute(".")]
+        public string LastDataset {
+            get {
+                return ((string)(this["LastDataset"]));
+            }
+            set {
+                this["LastDataset"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute(".")]
+        public string LastParFile {
+            get {
+                return ((string)(this["LastParFile"]));
+            }
+            set {
+                this["LastParFile"] = value;
+            }
+        }
     }
 }

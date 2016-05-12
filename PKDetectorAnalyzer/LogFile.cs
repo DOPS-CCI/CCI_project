@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Xml;
 
 namespace PKDetectorAnalyzer
@@ -7,12 +8,12 @@ namespace PKDetectorAnalyzer
     {
         XmlWriter logStream;
 
-        public LogFile(string fileName, string directory)
+        public LogFile(Stream s, string HDRfilename)
         {
             XmlWriterSettings settings = new XmlWriterSettings();
             settings.Indent = true;
             settings.Encoding = System.Text.Encoding.UTF8;
-            logStream = XmlWriter.Create(fileName + ".log.xml", settings);
+            logStream = XmlWriter.Create(s, settings);
             logStream.WriteStartDocument();
             logStream.WriteStartElement("LogEntries");
             DateTime dt = DateTime.Now;
@@ -20,7 +21,7 @@ namespace PKDetectorAnalyzer
             logStream.WriteElementString("Time", dt.ToString("T"));
             logStream.WriteElementString("Computer", Environment.MachineName);
             logStream.WriteElementString("User", Environment.UserName);
-            logStream.WriteElementString("Source", directory);
+            logStream.WriteElementString("SourceHDR", HDRfilename);
         }
 
         public void logChannelItem(ChannelItem c)

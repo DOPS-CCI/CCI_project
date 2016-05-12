@@ -19,6 +19,9 @@ namespace PKDetectorAnalyzer
     /// </summary>
     public partial class Replace_dataset : Window, INotifyPropertyChanged
     {
+        int _result = 0;
+        public int Result { get { return _result; } }
+        string oldExtension;
         string _extension;
         public string Extension
         {
@@ -42,21 +45,35 @@ namespace PKDetectorAnalyzer
             this.DataContext = this;
             FN.Text = fileName;
             Extension = extension;
+            oldExtension = extension.ToUpper();
         }
 
         void Button_Click(object sender, RoutedEventArgs e)
         {
             Control b = (Control)sender;
-            if (b.Name == "Yes") this.DialogResult = true;
-            else if (b.Name == "No") this.DialogResult = false;
-            else this.DialogResult = null;
+            if (b.Name == "Cancel") return; //closed automatically
+            if (b.Name == "Yes") _result = 1;
+            else if (b.Name == "No") _result = 2;
+            else if (b.Name == "Exit") _result = 3; //Exit
+            DialogResult = true;
             this.Close();
         }
 
         private void NewExtension_TextChanged(object sender, TextChangedEventArgs e)
         {
-            No.IsEnabled = true;
-            No.IsDefault = true;
+            if (!this.IsInitialized) return;
+            if (NewExtension.Text.ToUpper() == oldExtension)
+            {
+                No.IsEnabled = false;
+                No.IsDefault = false;
+                Yes.IsDefault = true;
+            }
+            else
+            {
+                No.IsEnabled = true;
+                No.IsDefault = true;
+                Yes.IsDefault = false;
+            }
         }
 
         public event PropertyChangedEventHandler PropertyChanged;
@@ -67,6 +84,5 @@ namespace PKDetectorAnalyzer
                 PropertyChanged(this, new PropertyChangedEventArgs(info));
             }
         }
-
     }
 }

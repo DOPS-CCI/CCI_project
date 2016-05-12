@@ -21,8 +21,8 @@
                 </Style>
             </StackPanel.Resources>
             <StackPanel Orientation="Horizontal">
-                <Button Name="Yes">Yes</Button>
-                <TextBlock>Replace existing datset</TextBlock>
+                <Button Name="Yes" IsDefault="True">Yes</Button>
+                <TextBlock Text="Replace existing dataset"/>
             </StackPanel>
             <StackPanel Orientation="Horizontal">
                 <Button Name="No" IsEnabled="False">No</Button>
@@ -30,8 +30,12 @@
                 <TextBox Name="NewExtension" Width="140" Height="30" Text="{Binding Extension, UpdateSourceTrigger=PropertyChanged}" TextChanged="NewExtension_TextChanged" />
             </StackPanel>
             <StackPanel Orientation="Horizontal">
-                <Button Name="Exit">Exit</Button>
-                <TextBlock>Do not save dataset</TextBlock>
+                <Button Name="Exit">Don't save</Button>
+                <TextBlock>Do not save new dataset</TextBlock>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal">
+            <Button Name="Cancel" IsCancel="True">Try again</Button>
+                <TextBlock>Try again with same name</TextBlock>
             </StackPanel>
         </StackPanel>
     </StackPanel>
