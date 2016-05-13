@@ -62,6 +62,10 @@ namespace ASCtoFMConverter
             _GVspec = ++EDcount;
             GVSpec.Text = _GVspec.ToString("0");
 
+            bool test = false;
+            foreach (string ev in hdr.Events.Keys)
+                if (ev.Substring(0, 7) == "**PKDet") { test = true; break; } //make sure there are PK detector Events present
+            if (!test) AddCounterEvent.IsEnabled = false;
         }
 
         private void GVSpec_TextChanged(object sender, TextChangedEventArgs e)
@@ -250,14 +254,12 @@ namespace ASCtoFMConverter
 
         private void Offset1_TextChanged(object sender, TextChangedEventArgs e)
         {
-            if (!this.IsLoaded) return;
             if (!double.TryParse(Offset1.Text, out _offset1)) _offset1 = double.NaN;
             validate.Validate();
         }
 
         private void Offset2_TextChanged(object sender, TextChangedEventArgs e)
         {
-            if (!this.IsLoaded) return;
             if (!double.TryParse(Offset2.Text, out _offset2)) _offset2 = double.NaN;
             validate.Validate();
         }
@@ -287,7 +289,7 @@ namespace ASCtoFMConverter
             }
             else Offset2.BorderBrush = Brushes.MediumBlue;
 
-            if (this.Event1.SelectedItem.GetType() == typeof(string) && ((string)Event1.SelectedItem) == "Beginning of file")
+            if (this.Event1.SelectedItem.GetType() == typeof(string) && Event1.Text == "Beginning of file")
             { //this is special case where we are referencing from beginning of file
                 if (valid &&
                     this.Event2.SelectedItem.GetType() == typeof(string) &&
@@ -317,8 +319,8 @@ namespace ASCtoFMConverter
             else GVSpec.Background = Brushes.White;
 
             if(!double.IsNaN(_offset1) && !double.IsNaN(_offset2))
-                if (Event2.SelectedItem.GetType().Name == "String" &&
-                    (string)Event2.SelectedItem == "Same Event")
+                if (Event2.SelectedItem.GetType() == typeof(string) &&
+                    Event2.Text == "Same Event")
                 {
                     if (_offset1 >= _offset2)
                     {
@@ -378,16 +380,9 @@ namespace ASCtoFMConverter
 
         private void AddCounterEvent_PreviewMouseDown(object sender, MouseButtonEventArgs e)
         {
-            bool test = false;
-            foreach(string ev in hdr.Events.Keys)
-                if (ev.Substring(0, 7) == "**PKDet") { test = true; break; } //make sure there are PK detector Events present
-
-            if (test) //then dataset has appropriate PK detector Events
-            {
-                PKDetectorEventCounter pkd = new PKDetectorEventCounter(hdr, validate);
-                EpisodeDescriptionPanel.Items.Insert(EpisodeDescriptionPanel.Items.Count - 1, pkd); //
-                AddCounterEvent.IsEnabled = false; //allow only singleton PK Counter
-            }
+            PKDetectorEventCounter pkd = new PKDetectorEventCounter(hdr, validate);
+            EpisodeDescriptionPanel.Items.Insert(EpisodeDescriptionPanel.Items.Count - 1, pkd); //
+            AddCounterEvent.IsEnabled = false; //allow only singleton PK Counter
             e.Handled = true;
         }
 
@@ -529,8 +524,11 @@ namespace ASCtoFMConverter
             if (xml.Name == "PKDetectorCounter")
             {
                 PKDetectorEventCounter pkd = new PKDetectorEventCounter(hdr, this);
-                if(pkd.ReadNewSettings(xml))
-                    EpisodeDescriptionPanel.Items.Insert(1,pkd);
+                if (pkd.ReadNewSettings(xml))
+                {
+                    EpisodeDescriptionPanel.Items.Insert(1, pkd);
+                    AddCounterEvent.IsEnabled = false;
+                }
             }
 
             xml.ReadEndElement(/* EpisodeDescription */);

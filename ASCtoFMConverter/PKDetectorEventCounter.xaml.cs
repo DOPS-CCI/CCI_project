@@ -192,7 +192,7 @@ namespace ASCtoFMConverter
                     Found.SelectedIndex = 0;
 
                 if (xml.Name == "Sign")
-                    t &= Window2.SelectByValue(Found, xml.ReadElementContentAsString());
+                    t &= Window2.SelectByValue(Sign, xml.ReadElementContentAsString());
                 else
                     Found.SelectedIndex = 0;
 

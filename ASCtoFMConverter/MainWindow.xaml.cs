@@ -12,7 +12,6 @@ using System.Windows.Forms;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Xml;
-using System.Xml.Linq;
 using BDFEDFFileStream;
 using CCIUtilities;
 using EventDictionary;
@@ -68,18 +67,21 @@ namespace ASCtoFMConverter
         public static RoutedUICommand ExitCommand = new RoutedUICommand("Exit", "Exit", typeof(Window2));
 
         public Window2()
-        {
+        {   
             OpenFileDialog dlg = new OpenFileDialog();
             dlg.Title = "Open Header file ...";
             dlg.DefaultExt = ".hdr"; // Default file extension
             dlg.Filter = "HDR Files (.hdr)|*.hdr"; // Filter files by extension
+            dlg.InitialDirectory = Properties.Settings.Default.LastDataset;
             bool result = dlg.ShowDialog() == System.Windows.Forms.DialogResult.OK;
             if (!result) Environment.Exit(0);
 
+            headerFileName = System.IO.Path.GetFileNameWithoutExtension(dlg.FileName);
+            directory = System.IO.Path.GetDirectoryName(dlg.FileName);
+            Properties.Settings.Default.LastDataset = directory;
+
             CCIUtilities.Log.writeToLog("Starting ASCtoFMConverter " + CCIUtilities.Utilities.getVersionNumber());
 
-            directory = System.IO.Path.GetDirectoryName(dlg.FileName);
-            headerFileName = System.IO.Path.GetFileNameWithoutExtension(dlg.FileName);
 
             head = (new HeaderFileReader(dlg.OpenFile())).read();
             ED = head.Events;
@@ -175,8 +177,11 @@ namespace ASCtoFMConverter
             dlg.Title = "Save parameter file ...";
             dlg.DefaultExt = ".par"; // Default file extension
             dlg.Filter = "PAR Files (.par)|*.par"; // Filter files by extension
+            dlg.InitialDirectory = Properties.Settings.Default.LastParFile;
             bool result = dlg.ShowDialog() == System.Windows.Forms.DialogResult.OK;
             if (!result) return;
+
+            Properties.Settings.Default.LastParFile = System.IO.Path.GetDirectoryName(dlg.FileName);
 
             string s;
             XmlWriterSettings xws = new XmlWriterSettings();
@@ -248,13 +253,17 @@ namespace ASCtoFMConverter
             dlg.Title = "Open parameter file ...";
             dlg.DefaultExt = ".par"; // Default file extension
             dlg.Filter = "PAR Files (.par)|*.par"; // Filter files by extension
+            dlg.InitialDirectory = Properties.Settings.Default.LastParFile;
+
             bool result = dlg.ShowDialog() == System.Windows.Forms.DialogResult.OK;
             if (!result) return;
+
+            Properties.Settings.Default.LastParFile = System.IO.Path.GetDirectoryName(dlg.FileName);
 
             XmlReaderSettings xrs = new XmlReaderSettings();
             xrs.CloseInput = true;
             xrs.IgnoreWhitespace = true;
-            XmlReader xml = XmlReader.Create(new FileStream(dlg.FileName, FileMode.Open, FileAccess.Read), xrs);
+            XmlReader xml = XmlReader.Create(dlg.OpenFile(), xrs);
             try
             {
                 if(!xml.ReadToFollowing("ASCtoFMParameters")) throw new XmlException("No ASCtoFMParameters element found");
@@ -269,7 +278,7 @@ namespace ASCtoFMConverter
                 xml.ReadStartElement("ASCtoFMParameters");
 
                 xml.ReadStartElement("EpisodeDescriptions");
-                while (EpisodeEntries.Items.Count > 0) EpisodeEntries.Items.RemoveAt(0);
+                while (EpisodeEntries.Items.Count > 0) EpisodeEntries.Items.RemoveAt(0); //remove old entries
                 while (xml.Name == "EpisodeDescription")
                 {
                     EpisodeDescriptionEntry ede = new EpisodeDescriptionEntry(head, this);
@@ -318,26 +327,27 @@ namespace ASCtoFMConverter
                     Radin.IsChecked = false;
                 xml.ReadEndElement(/* Samples */);
 
-                s = xml["Type"];
+                s = xml["Type"]; //Type must be present
                 if (s == "SelectedChannels") radioButton2.IsChecked = true;
                 else
                     if (s == "Expression") radioButton4.IsChecked = true;
                     else
                         radioButton3.IsChecked = true;
-                xml.ReadStartElement("Reference");
+                string v = xml.ReadElementString("Reference");
                 if (s != "None")
-                    if (s == "Expression") RefChanExpression.Text = xml.ReadString();
-                    else RefChan.Text = xml.ReadString();
-                xml.ReadEndElement(/* Reference */);
+                    if (s == "Expression") RefChanExpression.Text = v;
+                    else RefChan.Text = v; //SelectedChannels case
                 
                 xml.ReadEndElement(/* ASCtoFMParameters */);
             }
-            catch (XmlException)
+            catch (XmlException e)
             {
-
+                ErrorWindow er = new ErrorWindow();
+                er.Message = "Error in parameter file at line number " + e.LineNumber.ToString("0") + ". Unable to continue.";
+                er.ShowDialog();
             }
             xml.Close();
-            Validate();
+            RemoveSpec.IsEnabled = EpisodeEntries.Items.Count > 1;
         }
 
         internal static bool SelectByValue(System.Windows.Controls.ComboBox cb, string value)
