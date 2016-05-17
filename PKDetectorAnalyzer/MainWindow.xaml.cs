@@ -705,14 +705,15 @@ namespace PKDetectorAnalyzer
             int start = Math.Max(0, Math.Min(current.startTime - (beforeTime + (int)(deadtimeSecsAfter * samplingRate)), (int)(maxSecsBefore * samplingRate))); //up to 5 seconds before
             double newTOffset = (double)start / samplingRate;
             int dataLength = start + Math.Max(current.filterLength, Math.Min(afterTime - current.filterLength - current.startTime, (int)(maxSecsAfter * samplingRate))); //up to 40 seconds after
+            start = current.startTime - start;
+            dataLength = Math.Min(dataLength, d.Length - start); //watch for overrun past end of data array
 
             double max = double.MinValue;
-            for (int v = current.startTime; v < current.startTime + current.length; v++) max = Math.Max(max, Math.Abs(d[v]));
+            for (int v = current.startTime; v < current.startTime + current.length; v++) max = Math.Max(max, Math.Abs(d[v])); //Get signal max for initial estimate of A
 
             NVector t = new NVector(dataLength);
             for (int ti = 0; ti < dataLength; ti++) t[ti] = (double)ti / samplingRate - newTOffset; //create independent variable array
             NVector y = new NVector(dataLength);
-            start = current.startTime - start;
             for (int i = 0; i < dataLength; i++) y[i] = d[start + i]; //create dependent variable array
 
             NVector p =
