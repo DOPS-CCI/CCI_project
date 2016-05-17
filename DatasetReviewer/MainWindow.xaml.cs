@@ -15,7 +15,6 @@ using System.Windows.Media;
 using System.Windows.Media.Effects;
 using System.Windows.Shapes;
 using System.Windows.Xps;
-using Microsoft.Win32;
 using CCILibrary;
 using Header;
 using HeaderFileStream;
@@ -41,7 +40,6 @@ namespace DatasetReviewer
         public double oldDisplayWidthInSecs = 10D;
         public double oldDisplayOffsetInSecs = -10D;
         public BDFEDFFileStream.BDFEDFFileReader bdf;
-//        public BDFEDFFileReader bdf;
         Header.Header head;
         internal string directory;
         internal string headerFileName;
@@ -71,12 +69,12 @@ namespace DatasetReviewer
                 bool r;
                 do
                 {
-                    OpenFileDialog dlg = new OpenFileDialog();
+                    System.Windows.Forms.OpenFileDialog dlg = new System.Windows.Forms.OpenFileDialog();
                     dlg.Title = "Open Header file to be displayed...";
                     dlg.DefaultExt = ".hdr"; // Default file extension
                     dlg.Filter = "HDR Files (.hdr)|*.hdr"; // Filter files by extension
-                    Nullable<bool> result = dlg.ShowDialog();
-                    if (result == null || result == false) Environment.Exit(0);
+                    bool result = dlg.ShowDialog() == System.Windows.Forms.DialogResult.OK;
+                    if (!result) Environment.Exit(0);
 
                     directory = System.IO.Path.GetDirectoryName(dlg.FileName); //will use to find other files in dataset
                     headerFileName = System.IO.Path.GetFileNameWithoutExtension(dlg.FileName);
@@ -107,7 +105,6 @@ namespace DatasetReviewer
                         ew.ShowDialog();
                         continue;
                     }
-//                    int samplingRate = (int)((double)bdf.NSamp / bdf.RecordDurationDouble);
                     BDFLength = (double)bdf.NumberOfRecords * bdf.RecordDurationDouble;
 
                     Window1 w = new Window1(this);
