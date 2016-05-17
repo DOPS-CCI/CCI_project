@@ -165,6 +165,7 @@ namespace ASCtoFMConverter
             string s;
             xml.ReadStartElement("PKDetectorCounter");
             xml.ReadStartElement("Events");
+            EventSelection.SelectedItem = null;
             do
             {
                 bool found = false;

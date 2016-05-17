@@ -133,6 +133,8 @@ namespace ASCtoFMConverter
             }
             else
                 GVList = new List<GVEntry>(0);
+
+            this.Activate();
         }
 
         public event PropertyChangedEventHandler PropertyChanged;

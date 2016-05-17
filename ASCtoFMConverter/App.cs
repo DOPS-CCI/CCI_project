@@ -7,12 +7,15 @@ namespace ASCtoFMConverter
     /// <summary>
     /// Interaction logic for App.xaml
     /// </summary>
-    public partial class App : Application
+    class App : Application
     {
-        public App()
+        [STAThread]
+        static public void Main()
         {
+            App app = new App();
             AppDomain currentDomain = AppDomain.CurrentDomain;
-            currentDomain.UnhandledException += new UnhandledExceptionEventHandler(DefaultHandler);
+            currentDomain.UnhandledException += new UnhandledExceptionEventHandler(app.DefaultHandler);
+            app.Run(new Window2());
         }
 
         private void DefaultHandler(object sender, UnhandledExceptionEventArgs args)
@@ -24,7 +27,7 @@ namespace ASCtoFMConverter
             sb.Append("SOURCE: " + e.Source + Environment.NewLine +
                 "TARGET SITE: " + e.TargetSite + Environment.NewLine + Environment.NewLine +
                 "TRACE:" + Environment.NewLine + e.StackTrace);
-            MessageBox.Show(sb.ToString(), "Unhandled Error: PLEASE SAVE THIS INFORMATION!", MessageBoxButton.OK);
+            MessageBox.Show(sb.ToString(), "Unhandled Error in ASCtoFMConverter: PLEASE SAVE THIS INFORMATION!", MessageBoxButton.OK);
         }
     }
 }

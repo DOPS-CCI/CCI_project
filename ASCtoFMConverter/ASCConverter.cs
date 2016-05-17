@@ -65,7 +65,8 @@ namespace ASCtoFMConverter
             dlg.DefaultExt = ".fmn"; // Default file extension
             dlg.Filter = "FILMAN Files (.fmn)|*.fmn"; // Filter files by extension
             dlg.FileName = headerFileName;
-            Nullable<bool> result = dlg.ShowDialog();
+            dlg.InitialDirectory = ASCtoFMConverter.Properties.Settings.Default.LastDataset; //Use dataset default, but don't save if new location
+            bool? result = dlg.ShowDialog();
             if (result == null || !(bool)result)
             {
                 bw.ReportProgress(0, "Conversion cancelled before FM file created.");
