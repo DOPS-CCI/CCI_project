@@ -138,6 +138,8 @@ namespace PKDetectorAnalyzer
             ChannelEntries.Items.Add(ci);
             ci.Channel.SelectedIndex = 0;
             Process.IsEnabled = true; //have to reenable here -- like checkError(); values are guarenteed valid however
+
+            this.Activate();
         }
 
         private void cbOpen_Execute(object sender, ExecutedRoutedEventArgs e)
