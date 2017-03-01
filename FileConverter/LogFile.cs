@@ -50,10 +50,10 @@ namespace FileConverter
             logStream.WriteElementString("Source", c.directory);
             logStream.WriteStartElement("Event");
             logStream.WriteAttributeString("Name", c.EDE.Name);
-            logStream.WriteElementString("Type", c.EDE.intrinsic ? "intrinsic" : "extrinsic");
+            logStream.WriteElementString("Type", c.EDE.IsIntrinsic ? "intrinsic" : "extrinsic");
             logStream.WriteElementString("Continuous", c.continuousSearch ? "Yes" : "No");
             logStream.WriteElementString("ExactMatch", c.equalStatusOnly ? "Yes" : "No");
-            if (!c.EDE.intrinsic)
+            if (c.EDE.IsExtrinsic)
             {
                 logStream.WriteElementString("Channel", c.EDE.channelName);
                 logStream.WriteElementString("Edge", c.EDE.rise ? "rising" : "falling");

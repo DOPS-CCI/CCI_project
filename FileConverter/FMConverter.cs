@@ -122,7 +122,7 @@ namespace FileConverter
                 new FileStream(Path.Combine(directory, eventHeader.EventFile), FileMode.Open, FileAccess.Read));
 
             BDFLoc stp = BDF.LocationFactory.New();
-            if (!EDE.intrinsic)
+            if (EDE.IsExtrinsic)
                 if (risingEdge) threshold = EDE.channelMin + (EDE.channelMax - EDE.channelMin) * threshold;
                 else threshold = EDE.channelMax - (EDE.channelMax - EDE.channelMin) * threshold;
 

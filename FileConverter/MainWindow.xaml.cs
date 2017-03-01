@@ -125,7 +125,7 @@ namespace FileConverter
                 ancillarydata.Visibility = Visibility.Visible;
             }
             else ancillarydata.Visibility = Visibility.Hidden;
-            if (ede.intrinsic)
+            if (ede.IsIntrinsic)
                 ExtRow.Visibility = Visibility.Hidden;
             else /* extrinsic Event */
             {
@@ -593,7 +593,7 @@ namespace FileConverter
             if (ExtSearch.IsVisible && ExtSearch.Text != null && _extSearch == 0D) { ConvertBDF.IsEnabled = ConvertFM.IsEnabled = false; return; }
 
             EventDictionaryEntry ede = (EventDictionaryEntry)listView1.SelectedItem;
-            if (!ede.intrinsic && ede.channel < 0) { ConvertBDF.IsEnabled = ConvertFM.IsEnabled = false; return; }
+            if (ede.IsExtrinsic && ede.channel < 0) { ConvertBDF.IsEnabled = ConvertFM.IsEnabled = false; return; }
 
             ConvertBDF.IsEnabled = true;
             ConvertFM.IsEnabled = true;

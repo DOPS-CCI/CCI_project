@@ -90,7 +90,7 @@ namespace FileConverter
                 actualT.Pt = stp.Pt;
             }
 
-            if (!EDE.intrinsic)
+            if (EDE.IsExtrinsic)
                 if (!findExtrinsicEvent(ref stp, maxSearch))
                 {
                     log.registerError("No extrinsic event found for Event " + EDE.Name, ie);

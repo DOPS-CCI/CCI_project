@@ -99,7 +99,7 @@ namespace FileConverter
 
             BDFLoc stp = BDF.LocationFactory.New();
             BDFLoc lastEvent = BDF.LocationFactory.New();
-            if (!EDE.intrinsic) //set threshold
+            if (EDE.IsExtrinsic) //set threshold
                 if (risingEdge) threshold = EDE.channelMin + (EDE.channelMax - EDE.channelMin) * threshold;
                 else threshold = EDE.channelMax - (EDE.channelMax - EDE.channelMin) * threshold;
 
