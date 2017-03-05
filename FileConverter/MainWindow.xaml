@@ -27,6 +27,7 @@
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
                 <ListView VerticalAlignment="Stretch" Margin="8,4" Name="listView1" SelectionMode="Single" SelectedIndex="0"
                       SelectionChanged="listView1_SelectionChanged" HorizontalAlignment="Stretch" Grid.ColumnSpan="3">
@@ -39,16 +40,19 @@
                     </ListView.View>
                     <ListView.ToolTip>Select the Event to perform file conversion around</ListView.ToolTip>
                 </ListView>
-                <StackPanel Grid.Row="1" Grid.ColumnSpan="3" Orientation="Horizontal">
-                    <TextBlock Margin="8,0,0,0" FontSize="13" FontWeight="Bold">Event search: </TextBlock>
-                    <CheckBox Name="ContinuousSearch" IsChecked="True" Margin="8,0,0,0" FontSize="13">
+                    <StackPanel Grid.Row="1" Grid.ColumnSpan="3" Orientation="Horizontal" Visibility="Collapsed">
+                        <TextBlock Margin="8,0,0,0" FontSize="13" FontWeight="Bold">Exclude from </TextBlock>
+                    </StackPanel>
+                    <StackPanel Grid.Row="2" Grid.ColumnSpan="3" Orientation="Horizontal">
+                        <TextBlock Margin="8,0,0,0" FontSize="13" FontWeight="Bold">Event search: </TextBlock>
+                        <CheckBox Name="ContinuousSearch" IsChecked="True" Margin="8,0,0,0" FontSize="13">
                         <CheckBox.ToolTip>Select continuous or "jump" seach of Status markers</CheckBox.ToolTip>
-                        Use continuous search (slower)</CheckBox>
-                    <CheckBox Name="ExactStatus" Margin="16,0,0,0" IsChecked="True" FontSize="13">
+                            Use continuous search (slower)</CheckBox>
+                        <CheckBox Name="ExactStatus" Margin="16,0,0,0" IsChecked="True" FontSize="13">
                         <CheckBox.ToolTip>Select exact match or "close" match of Status values</CheckBox.ToolTip>
-                        Use exact Status match (no event "collisions")</CheckBox>
+                            Use exact Status match (no event "collisions")</CheckBox>
                 </StackPanel>
-                <Grid Grid.Row="2" Name="ExtRow" VerticalAlignment="Center" Height="Auto" Visibility="Hidden" Grid.ColumnSpan="3">
+                <Grid Grid.Row="3" Name="ExtRow" VerticalAlignment="Center" Height="Auto" Visibility="Collapsed" Grid.ColumnSpan="3">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="19*" />
                         <ColumnDefinition Width="615*" />
@@ -78,7 +82,7 @@
                         <TextBlock FontSize="13" VerticalAlignment="Center" Margin="2,0,0,0">milliseconds</TextBlock>
                     </StackPanel>
                 </Grid>
-                <StackPanel Name="SMType" Orientation="Horizontal" Grid.Row="4" Grid.ColumnSpan="3">
+                <StackPanel Name="SMType" Orientation="Horizontal" Grid.Row="5" Grid.ColumnSpan="3">
                     <TextBlock FontSize="13" FontWeight="Bold" VerticalAlignment="Center" Margin="8,0,0,0">Status Marker (BDF epochs only):</TextBlock>
                     <RadioButton Name="SMType1" IsChecked="True" Margin="8,0">Episode</RadioButton>
                     <RadioButton Name="SMType2" IsChecked="False" Margin="4,0">Event</RadioButton>
