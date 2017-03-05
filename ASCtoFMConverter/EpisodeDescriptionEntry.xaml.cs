@@ -65,7 +65,7 @@ namespace ASCtoFMConverter
             bool test = false;
             foreach (string ev in hdr.Events.Keys)
                 if (ev.Substring(0, 7) == "**PKDet") { test = true; break; } //make sure there are PK detector Events present
-            if (!test) AddCounterEvent.IsEnabled = false;
+            if (!test) AddCounterEvent.Visibility = Visibility.Hidden;
         }
 
         private void GVSpec_TextChanged(object sender, TextChangedEventArgs e)
@@ -382,7 +382,7 @@ namespace ASCtoFMConverter
         {
             PKDetectorEventCounter pkd = new PKDetectorEventCounter(hdr, validate);
             EpisodeDescriptionPanel.Items.Insert(EpisodeDescriptionPanel.Items.Count - 1, pkd); //
-            AddCounterEvent.IsEnabled = false; //allow only singleton PK Counter
+            AddCounterEvent.Visibility = Visibility.Hidden; //allow only singleton PK Counter
             e.Handled = true;
         }
 
@@ -527,7 +527,7 @@ namespace ASCtoFMConverter
                 if (pkd.ReadNewSettings(xml))
                 {
                     EpisodeDescriptionPanel.Items.Insert(1, pkd);
-                    AddCounterEvent.IsEnabled = false;
+                    AddCounterEvent.Visibility = Visibility.Hidden;
                 }
             }
 

@@ -2,6 +2,7 @@ using System;
 using System.Xml;
 using Event;
 using GroupVarDictionary;
+using EventDictionary;
 
 namespace ASCtoFMConverter
 {
@@ -63,6 +64,21 @@ namespace ASCtoFMConverter
                 }
                 logStream.WriteElementString("Offset", ED.End._offset.ToString("0"));
                 logStream.WriteEndElement(/* End */);
+
+                if (ED.Exclude != null)
+                {
+                    logStream.WriteStartElement("ExcludeEvents");
+                    ExclusionDescription exd = ED.Exclude;
+                    object end = exd.endEvent;
+                    if (end != null && end.GetType() == typeof(EventDictionaryEntry))
+                    {
+                        logStream.WriteAttributeString("From", exd.startEvent.Name);
+                        logStream.WriteAttributeString("To", ((EventDictionaryEntry)end).Name);
+                    }
+                    else
+                        logStream.WriteAttributeString("Including", exd.startEvent.Name);
+                    logStream.WriteEndElement(/* ExcludeEvents */);
+                }
 
                 if(ED.PKCounter!=null)
                 {

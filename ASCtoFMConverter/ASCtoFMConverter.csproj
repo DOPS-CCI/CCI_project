@@ -63,10 +63,10 @@
   </PropertyGroup>
   <PropertyGroup />
   <PropertyGroup>
-    <ManifestCertificateThumbprint>C1FA14642FA7D59092EE86B1C56904C1091F62A7</ManifestCertificateThumbprint>
+    <ManifestCertificateThumbprint>B729D95E56E9B4925CE1FED8074FAEF601923979</ManifestCertificateThumbprint>
   </PropertyGroup>
   <PropertyGroup>
-    <ManifestKeyFile>ASCtoFMConverter_TemporaryKey.pfx</ManifestKeyFile>
+    <ManifestKeyFile>ASCtoFMConverter_1_TemporaryKey.pfx</ManifestKeyFile>
   </PropertyGroup>
   <PropertyGroup>
     <SignManifests>true</SignManifests>
@@ -79,7 +79,7 @@
     <SignAssembly>true</SignAssembly>
   </PropertyGroup>
   <PropertyGroup>
-    <AssemblyOriginatorKeyFile>ASCtoFMConverter_TemporaryKey.pfx</AssemblyOriginatorKeyFile>
+    <AssemblyOriginatorKeyFile>ASCtoFMConverter_1_TemporaryKey.pfx</AssemblyOriginatorKeyFile>
   </PropertyGroup>
   <PropertyGroup>
     <StartupObject>ASCtoFMConverter.App</StartupObject>
@@ -144,6 +144,7 @@
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
     </EmbeddedResource>
     <None Include="app.config" />
+    <None Include="ASCtoFMConverter_1_TemporaryKey.pfx" />
     <None Include="ASCtoFMConverter_TemporaryKey.pfx" />
     <None Include="Properties\app.manifest" />
     <None Include="Properties\Settings.settings">
