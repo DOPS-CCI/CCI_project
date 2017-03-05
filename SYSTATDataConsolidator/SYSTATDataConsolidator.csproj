@@ -76,10 +76,16 @@
     <ApplicationManifest>Properties\app.manifest</ApplicationManifest>
   </PropertyGroup>
   <PropertyGroup>
-    <ManifestCertificateThumbprint>6A96AA5F9D4272A836256BC324A93229169DED6C</ManifestCertificateThumbprint>
+    <ManifestCertificateThumbprint>811F00F983340B13C873A4E004930376E0272B1F</ManifestCertificateThumbprint>
   </PropertyGroup>
   <PropertyGroup>
-    <ManifestKeyFile>SYSTATDataConsolidator_TemporaryKey.pfx</ManifestKeyFile>
+    <ManifestKeyFile>SYSTATDataConsolidator_1_TemporaryKey.pfx</ManifestKeyFile>
+  </PropertyGroup>
+  <PropertyGroup>
+    <SignAssembly>true</SignAssembly>
+  </PropertyGroup>
+  <PropertyGroup>
+    <AssemblyOriginatorKeyFile>SYSTATDataConsolidator_1_TemporaryKey.pfx</AssemblyOriginatorKeyFile>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="CCILibrary">
@@ -146,6 +152,7 @@
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
     </None>
     <AppDesigner Include="Properties\" />
+    <None Include="SYSTATDataConsolidator_1_TemporaryKey.pfx" />
     <None Include="SYSTATDataConsolidator_TemporaryKey.pfx" />
   </ItemGroup>
   <ItemGroup>
