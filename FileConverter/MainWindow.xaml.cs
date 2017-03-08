@@ -1,15 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.Drawing;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
-using System.Windows.Documents;
 using System.Windows.Forms;
 using System.Windows.Media;
 using BDFEDFFileStream;
@@ -17,7 +14,8 @@ using CCIUtilities;
 using EventDictionary;
 using GroupVarDictionary;
 using HeaderFileStream;
-using Microsoft.Win32;
+using System.Windows.Input;
+using System.Xml;
 
 namespace FileConverter
 {
@@ -71,18 +69,25 @@ namespace FileConverter
             }
         }
 
+        public static RoutedUICommand OpenPCommand = new RoutedUICommand("OpenP", "OpenP", typeof(Window2));
+        public static RoutedUICommand SavePCommand = new RoutedUICommand("SaveP", "SaveP", typeof(Window2));
+        public static RoutedUICommand ProcessCommand = new RoutedUICommand("Process", "Process", typeof(Window2));
+        public static RoutedUICommand ExitCommand = new RoutedUICommand("Exit", "Exit", typeof(Window2));
+
         public Window2()
         {
-            Log.writeToLog("Starting FileConverter " + Utilities.getVersionNumber());
-
-            Microsoft.Win32.OpenFileDialog dlg = new Microsoft.Win32.OpenFileDialog();
-            dlg.Title = "Open Header file for conversion...";
+            OpenFileDialog dlg = new OpenFileDialog();
+            dlg.Title = "Open Header file for conversion ...";
             dlg.DefaultExt = ".hdr"; // Default file extension
             dlg.Filter = "HDR Files (.hdr)|*.hdr"; // Filter files by extension
-            Nullable<bool> result = dlg.ShowDialog();
-            if (result == null || result == false) { this.Close(); Environment.Exit(0); }
+            dlg.InitialDirectory = Properties.Settings.Default.LastDataset;
+            bool result = dlg.ShowDialog() == System.Windows.Forms.DialogResult.OK;
+            if (!result) { this.Close(); Environment.Exit(0); }
+
+            Log.writeToLog("Starting FileConverter " + Utilities.getVersionNumber());
 
             directory = System.IO.Path.GetDirectoryName(dlg.FileName);
+            Properties.Settings.Default.LastDataset = directory;
 
             head = (new HeaderFileReader(dlg.OpenFile())).read();
             ED = head.Events;
@@ -94,7 +99,29 @@ namespace FileConverter
             oldNP = bdf.NSamp;
             oldNS = bdf.RecordDurationDouble;
 
+            OpenPCommand.InputGestures.Add(
+                new KeyGesture(Key.O, ModifierKeys.Control | ModifierKeys.Shift, "Ctrl+Shift+O"));
+            SavePCommand.InputGestures.Add(
+                new KeyGesture(Key.S, ModifierKeys.Control, "Crtl+S"));
+            ProcessCommand.InputGestures.Add(
+                new KeyGesture(Key.P, ModifierKeys.Control, "Crtl+P"));
+            ExitCommand.InputGestures.Add(new KeyGesture(Key.Q, ModifierKeys.Control, "Crtl+Q"));
+
             InitializeComponent();
+
+            //***** Set up menu commands and short cuts
+
+            CommandBinding cbOpenP = new CommandBinding(OpenPCommand, cbOpen_Execute, cbOpen_CanExecute);
+            this.CommandBindings.Add(cbOpenP);
+
+            CommandBinding cbSaveP = new CommandBinding(SavePCommand, cbSave_Execute, validParams_CanExecute);
+            this.CommandBindings.Add(cbSaveP);
+
+            CommandBinding cbProcess = new CommandBinding(ProcessCommand, ConvertFM_Click, validParams_CanExecute);
+            this.CommandBindings.Add(cbProcess);
+
+            CommandBinding cbExit = new CommandBinding(ExitCommand, Cancel_Click, cbExit_CanExecute);
+            this.CommandBindings.Add(cbExit);
 
             this.MinHeight = SystemInformation.WorkingArea.Height - 240;
             this.Title = "Convert " + System.IO.Path.GetFileNameWithoutExtension(dlg.FileName);
@@ -104,6 +131,13 @@ namespace FileConverter
             listView1.SelectedItem = 0;
             listView1.Focus();
             listView1.ItemsSource = EDEList;
+            foreach (EventDictionaryEntry ed in EDEList)
+            {
+                ExcludeFrom.Items.Add(ed);
+                ExcludeTo.Items.Add(ed);
+            }
+            ExcludeTo.SelectedItem = 0;
+            ExcludeFrom.SelectedItem = 0;
 
             System.Windows.Data.Binding GVBinding = new System.Windows.Data.Binding();
             GVBinding.Source = this;
@@ -126,7 +160,7 @@ namespace FileConverter
             }
             else ancillarydata.Visibility = Visibility.Hidden;
             if (ede.IsIntrinsic)
-                ExtRow.Visibility = Visibility.Hidden;
+                ExtRow.Visibility = Visibility.Collapsed;
             else /* extrinsic Event */
             {
                 if (ede.channel == -1) //then need to look up channel number
@@ -156,6 +190,293 @@ namespace FileConverter
             {
                 PropertyChanged(this, new PropertyChangedEventArgs(info));
             }
+        }
+
+        private void cbOpen_Execute(object sender, ExecutedRoutedEventArgs e)
+        {
+            PerformOpenPFile();
+        }
+
+        private void cbOpen_CanExecute(object sender, CanExecuteRoutedEventArgs e)
+        {
+            e.CanExecute = true;
+        }
+
+
+        private void cbSave_Execute(object sender, ExecutedRoutedEventArgs e)
+        {
+            PerformSavePFile();
+        }
+
+        private void validParams_CanExecute(object sender, CanExecuteRoutedEventArgs e)
+        {
+            e.CanExecute = ConvertFM.IsEnabled;
+        }
+
+        private void cbExit_CanExecute(object sender, CanExecuteRoutedEventArgs e)
+        {
+            e.CanExecute = Cancel.Visibility == Visibility.Visible;
+        }
+
+        private void PerformSavePFile()
+        {
+            SaveFileDialog dlg = new SaveFileDialog();
+            dlg.Title = "Save parameter file ...";
+            dlg.DefaultExt = ".par"; // Default file extension
+            dlg.Filter = "PAR Files (.par)|*.par"; // Filter files by extension
+            dlg.InitialDirectory = Properties.Settings.Default.LastParFile;
+            bool result = dlg.ShowDialog() == System.Windows.Forms.DialogResult.OK;
+            if (!result) return;
+
+            Properties.Settings.Default.LastParFile = System.IO.Path.GetDirectoryName(dlg.FileName);
+
+            string s;
+            XmlWriterSettings xws = new XmlWriterSettings();
+            xws.Indent = true;
+            xws.CloseOutput = true;
+            XmlWriter xml = XmlWriter.Create(new FileStream(dlg.FileName, FileMode.Create, FileAccess.Write), xws);
+            xml.WriteStartDocument();
+
+            xml.WriteStartElement("FileConverterParameters");
+            xml.WriteAttributeString("Type", (bool)AllSamples.IsChecked ? "BDF" : "FILMAN");
+
+            xml.WriteStartElement("EpisodeDescription");
+            EventDictionaryEntry ede = (EventDictionaryEntry)listView1.SelectedItem;
+            xml.WriteAttributeString("Event", ede.Name);
+            if (ExcludeDef.Visibility == Visibility.Visible)
+            {
+                if (ExcludeFrom.SelectedIndex != 0)
+                {
+                    xml.WriteStartElement("Excluding");
+                    xml.WriteAttributeString("From", ((EventDictionaryEntry)ExcludeFrom.SelectedItem).Name);
+                    if (ExcludeTo.SelectedIndex != 0)
+                        xml.WriteAttributeString("To", ((EventDictionaryEntry)ExcludeTo.SelectedItem).Name);
+                    xml.WriteEndElement(/* Excluding */);
+                }
+            }
+            xml.WriteStartElement("Search");
+            xml.WriteAttributeString("Continuous", (bool)ContinuousSearch.IsChecked ? "true" : "false");
+            xml.WriteAttributeString("Exact", (bool)ExactStatus.IsChecked ? "true" : "false");
+            xml.WriteEndElement(/* Search */);
+
+            if (ede.IsExtrinsic)
+            {
+                xml.WriteStartElement("ExtrinsicEvent");
+                xml.WriteElementString("Threshold", ExtThreshold.Text);
+                xml.WriteElementString("MaxSearch", ExtSearch.Text);
+                xml.WriteEndElement(/* ExtrinsicEvent */);
+            }
+
+            if ((bool)AllSamples.IsChecked)
+            {
+                xml.WriteStartElement("StatusMark");
+                xml.WriteAttributeString("Location", (bool)SMType1.IsChecked ? "Episode" : "Event");
+                xml.WriteEndElement(/* StatusMark */);
+            }
+            xml.WriteEndElement(/* EpisodeDescription */);
+
+            IEnumerable<GVEntry> GVs = listView2.SelectedItems.OfType<GVEntry>();
+            if (GVs != null && GVs.Count() > 0)
+            {
+                xml.WriteStartElement("GroupVariables");
+                foreach (GVEntry gv in GVs)
+                    xml.WriteElementString("GV", gv.Name);
+                xml.WriteEndElement(/* GroupVariables */);
+            }
+
+            xml.WriteElementString("Channels", SelChan.Text);
+
+            xml.WriteStartElement("Samples");
+            if (!(bool)Radin.IsChecked) //only valid if not using Radin reference
+            {
+                s = "None";
+                if ((bool)removeOffsets.IsChecked) s = "Offsets";
+                if ((bool)removeTrends.IsChecked) s = "Trends";
+                xml.WriteAttributeString("Remove", s);
+            }
+            xml.WriteElementString("Decimation", Decimation.Text);
+            xml.WriteElementString("RecordLength", RecLength.Text);
+            if ((bool)Radin.IsChecked)
+            {
+                xml.WriteStartElement("RadinReference");
+                xml.WriteElementString("From", RadinLow.Text);
+                xml.WriteElementString("To", RadinHigh.Text);
+                xml.WriteEndElement(/* RadinReference */);
+            }
+            xml.WriteEndElement(/* Samples */);
+
+            xml.WriteStartElement("Reference");
+            s = "None";
+            if ((bool)radioButton2.IsChecked) s = "SelectedChannels";
+            if ((bool)radioButton4.IsChecked) s = "Expression";
+            xml.WriteAttributeString("Type", s);
+            if (s != "None")
+                if (s == "Expression") xml.WriteString(RefChanExpression.Text);
+                else xml.WriteString(RefChan.Text);
+            xml.WriteEndElement(/* Reference */);
+
+            xml.WriteEndElement(/* FileConverterParameters */);
+            xml.WriteEndDocument();
+            xml.Close();
+        }
+
+        private void PerformOpenPFile()
+        {
+            string s;
+            bool found;
+            System.Windows.Forms.OpenFileDialog dlg = new System.Windows.Forms.OpenFileDialog();
+            dlg.Title = "Open parameter file ...";
+            dlg.DefaultExt = ".par"; // Default file extension
+            dlg.Filter = "PAR Files (.par)|*.par"; // Filter files by extension
+            dlg.InitialDirectory = Properties.Settings.Default.LastParFile;
+
+            bool result = dlg.ShowDialog() == System.Windows.Forms.DialogResult.OK;
+            if (!result) return;
+
+            Properties.Settings.Default.LastParFile = System.IO.Path.GetDirectoryName(dlg.FileName);
+
+            XmlReaderSettings xrs = new XmlReaderSettings();
+            xrs.CloseInput = true;
+            xrs.IgnoreWhitespace = true;
+            XmlReader xml = XmlReader.Create(dlg.OpenFile(), xrs);
+            try
+            {
+                if (!xml.ReadToFollowing("FileConverterParameters")) throw new XmlException("No FileConverterParameters element found");
+                AllSamples.IsChecked = xml["Type"] == "BDF";
+                xml.ReadStartElement("FileConverterParameters");
+
+                s = xml["Event"];
+                xml.ReadStartElement("EpisodeDescription");
+                found = false;
+                for (int i = 0; i < listView1.Items.Count; i++)
+                    if (((EventDictionaryEntry)listView1.Items[i]).Name == s)
+                    {
+                        listView1.SelectedIndex = i;
+                        found = true;
+                        break;
+                    }
+                if (!found) throw new Exception();
+
+                if (xml.Name == "Excluding")
+                {
+                    s = xml["From"];
+                    found = false;
+                    for (int i = 1; i < ExcludeFrom.Items.Count; i++)
+                        if (((EventDictionaryEntry)ExcludeFrom.Items[i]).Name == s)
+                        {
+                            ExcludeFrom.SelectedIndex = i;
+                            found = true;
+                            break;
+                        }
+                    if (!found) throw new Exception();
+                    s = xml["To"];
+                    found = false;
+                    if (s != null)
+                    {
+                        for (int i = 1; i < ExcludeTo.Items.Count; i++)
+                            if (((EventDictionaryEntry)ExcludeTo.Items[i]).Name == s)
+                            {
+                                ExcludeTo.SelectedIndex = i;
+                                found = true;
+                                break;
+                            }
+                        throw new Exception();
+                    }
+                    else
+                        ExcludeTo.SelectedIndex = 0;
+                    if (!xml.Read()) throw new Exception();
+                }
+                else
+                {
+                    ExcludeFrom.SelectedIndex = 0;
+                    ExcludeTo.SelectedIndex = 0;
+                }
+
+                if (xml.Name != "Search") throw new Exception();
+                ContinuousSearch.IsChecked = xml["Continuous"] == "true";
+                ExactStatus.IsChecked = xml["Exact"] == "true";
+
+                if (!xml.Read()) throw new Exception();
+                if (xml.Name == "ExtrinsicEvent")
+                {
+                    if (!xml.Read()) throw new Exception();
+                    ExtThreshold.Text = xml.ReadElementString("Threshold");
+                    ExtSearch.Text = xml.ReadElementString("MaxSearch");
+                    if (!xml.Read()) throw new Exception();
+                }
+
+                if (xml.Name == "StatusMark")
+                {
+                    found = xml["Location"] == "Episode";
+                    SMType1.IsChecked = found;
+                    SMType2.IsChecked = !found;
+                    if (!xml.Read()) throw new Exception();
+                }
+                xml.ReadEndElement(/* EpisodeDescription */);
+
+                listView2.SelectedItem = null;
+                xml.ReadStartElement("GroupVariables");
+                while (xml.Name == "GV")
+                {
+                    s = xml.ReadElementContentAsString();
+                    for (int i = 0; i < listView2.Items.Count; i++)
+                    {
+                        if (((GVEntry)listView2.Items[i]).Name == s)
+                        {
+                            if ((bool)AllSamples.IsChecked)
+                                listView2.SelectedIndex = i;
+                            else
+                                listView2.SelectedItems.Add(listView2.Items[i]);
+                            break;
+                        }
+                    } //silently skip GVs not in current dataset
+                }
+                xml.ReadEndElement(/* GroupVariables */);
+
+                SelChan.Text = xml.ReadElementString("Channels");
+
+                s = xml["Remove"];
+                if (s != null) //may not exist if using Radin reference
+                    if (s == "Offsets") removeOffsets.IsChecked = true;
+                    else
+                        if (s == "Trends") removeTrends.IsChecked = true;
+                    else
+                        noneOffsets.IsChecked = true;
+                xml.ReadStartElement("Samples");
+                Decimation.Text = xml.ReadElementString("Decimation");
+                RecLength.Text = xml.ReadElementString("RecordLength");
+                if (xml.Name == "RadinReference")
+                {
+                    Radin.IsChecked = true;
+                    xml.ReadStartElement();
+                    RadinLow.Text = xml.ReadElementString("From");
+                    RadinHigh.Text = xml.ReadElementString("To");
+                    xml.ReadEndElement(/* RadinReference */);
+                }
+                else
+                    Radin.IsChecked = false;
+                xml.ReadEndElement(/* Samples */);
+
+                s = xml["Type"]; //Type must be present
+                if (s == "SelectedChannels") radioButton2.IsChecked = true;
+                else
+                    if (s == "Expression") radioButton4.IsChecked = true;
+                else
+                    radioButton3.IsChecked = true;
+                string v = xml.ReadElementString("Reference");
+                if (s != "None")
+                    if (s == "Expression") RefChanExpression.Text = v;
+                    else RefChan.Text = v; //SelectedChannels case
+
+                xml.ReadEndElement(/* ASCtoFMParameters */);
+            }
+            catch (XmlException e)
+            {
+                ErrorWindow er = new ErrorWindow();
+                er.Message = "Error in parameter file at line number " + e.LineNumber.ToString("0") + ". Unable to continue.";
+                er.ShowDialog();
+            }
+            xml.Close();
         }
 
         private void All_Click(object sender, RoutedEventArgs e)
@@ -357,6 +678,8 @@ namespace FileConverter
             Radin.IsChecked = false;
             Radin.IsEnabled = false;
             ConvertFM.Visibility = Visibility.Hidden;
+            SMType.Visibility = Visibility.Visible;
+            ExcludeDef.Visibility = Visibility.Collapsed;
             listView2.SelectionMode = System.Windows.Controls.SelectionMode.Single;
             removeTrends.IsChecked = false;
             removeTrends.IsEnabled = false;
@@ -383,6 +706,8 @@ namespace FileConverter
             RecLengthPts.IsEnabled = true;
             Radin.IsEnabled = true;
             ConvertFM.Visibility = Visibility.Visible;
+            SMType.Visibility = Visibility.Collapsed;
+            ExcludeDef.Visibility = Visibility.Visible;
             listView2.SelectionMode = System.Windows.Controls.SelectionMode.Multiple;
             removeOffsets.IsEnabled = true;
             removeTrends.IsEnabled = true;

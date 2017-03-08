@@ -1,6 +1,7 @@
 using System;
 using System.ComponentModel;
 using System.IO;
+using System.Windows.Forms;
 using BDFEDFFileStream;
 using ElectrodeFileStream;
 using Event;
@@ -34,18 +35,19 @@ namespace FileConverter
                 new FileStream(Path.Combine(directory, eventHeader.ElectrodeFile), FileMode.Open, FileAccess.Read));
 
             /***** Open BDF file *****/
-            Microsoft.Win32.SaveFileDialog dlg = new Microsoft.Win32.SaveFileDialog();
+            SaveFileDialog dlg = new SaveFileDialog();
             dlg.Title = "Save as BDF file ...";
             dlg.AddExtension = true;
             dlg.DefaultExt = ".bdf"; // Default file extension
             dlg.Filter = "BDF Files (.bdf)|*.bdf"; // Filter files by extension
             dlg.FileName = Path.GetFileNameWithoutExtension(eventHeader.BDFFile);
-            bool? result = dlg.ShowDialog();
-            if (result == false)
+            bool result = dlg.ShowDialog() == System.Windows.Forms.DialogResult.OK;
+            if (!result)
             {
                 e.Result = new int[] { 0, 0 };
                 return;
             }
+
             samplingRate = BDF.NSamp / BDF.RecordDuration; //Old sampling rate; exact as number of samples and duration are always an exact multiple
             oldOffsetInPts = Convert.ToInt32(offset * samplingRate);
             int newSamplingRate = (int)((double)samplingRate / (double)decimation + 0.5); //Make best estimate possible with integers
@@ -106,7 +108,9 @@ namespace FileConverter
             nominalT = BDF.LocationFactory.New(); //nominal Event time based on Event.Time
             actualT = BDF.LocationFactory.New(); //actual Event time in Status channel
             //Note: these should be the same if the two clocks run the same rate (DAQ and computer)
+
             /***** MAIN LOOP *****/
+
             foreach (InputEvent ie in EventFR) //Loop through Event file
             {
                 bw.ReportProgress(0, "Processing event " + ie.Index.ToString("0")); //Report progress
