@@ -150,10 +150,11 @@ namespace CCILibrary
         {
             return this._rec > pt._rec || this._rec == pt._rec && this._pt >= pt._pt;
         }
+
         /// <summary>
-        /// Convert a BDFPoint to seconds of length
+        /// Convert a BDFPoint to seconds from beginning of BDF file
         /// </summary>
-        /// <returns>number of seconds in BDFPoint</returns>
+        /// <returns>number of seconds to BDFPoint</returns>
         public double ToSecs()
         {
             return ((double)this._rec + (double)this._pt / (double)_recSize) * _sec;

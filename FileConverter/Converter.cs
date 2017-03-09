@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.IO;
 using BDFEDFFileStream;
 using Event;
+using EventFile;
 using EventDictionary;
 using GroupVarDictionary;
 using CCIUtilities;
@@ -32,8 +34,11 @@ namespace FileConverter
         public int maxSearch;
         public bool continuousSearch;
         public List<GVEntry> GV;
+        public EventDictionaryEntry ExcludeEvent1;
+        public EventDictionaryEntry ExcludeEvent2;
 
-        protected int newRecordLength;
+        protected List<InputEvent> candidateEvents = new List<InputEvent>();
+        protected int newRecordLength; //this is actually the length of the trial data to be saved (FILMAN) or marked (BDF)
         protected BackgroundWorker bw;
         protected float[,] bigBuff;
         protected int[] status;
@@ -45,10 +50,39 @@ namespace FileConverter
 
         bool setEpoch = false;
         double epoch;
+        List<double?> ExcludeEventTimes = null;
 
+        public Converter()
+        {
+            /***** Open Event file for reading *****/
+            EventFactory.Instance(eventHeader.Events); // set up the factory
+            EventFileReader EventFR = new EventFileReader(
+                new FileStream(Path.Combine(directory, eventHeader.EventFile), FileMode.Open, FileAccess.Read));
+
+            bool foundStart = false;
+            foreach (InputEvent ie in EventFR) //sort Events
+            {
+                if (ie.Name == EDE.Name) candidateEvents.Add(ie); //add candidate Event for processing
+                else if (ExcludeEvent1 != null) //here we assume that one doesn't "exclude" based on Event one is processing!
+                    if (ie.Name == ExcludeEvent1.Name)
+                    {
+                        if (foundStart) ExcludeEventTimes.Add(null);
+                        ExcludeEventTimes.Add(ie.Time); //naked Event, relative time
+                        foundStart = true;
+                    }
+                    else if (ExcludeEvent2 != null && ie.Name == ExcludeEvent2.Name)
+                    {
+                        if (foundStart) { ExcludeEventTimes.Add(ie.Time); foundStart = false; }
+                        else if(ExcludeEventTimes.Count > 1) //make sure we have an entry to update!
+                            ExcludeEventTimes[ExcludeEventTimes.Count - 1] = ie.Time; // this shouldn't happen, but update last end time if it does
+                    }
+            }
+            EventFR.Close();
+        }
         protected bool findEvent(ref BDFLoc stp, InputEvent ie)
         {
-            if (!setEpoch) //First Event of this type: calculate start time (epoch) of the first point in the BDF file
+            if (!setEpoch) //First Event of this type: calculate start time (epoch) of the first point
+                           //in the BDF file, based on this Event
             {
                 if (!findEvent(ie.GC, ref stp))
                 {
@@ -133,6 +167,23 @@ namespace FileConverter
             } while (true);
         }
 
+        protected bool IsExcluded(double startTime, double endTime)
+        {
+            if (ExcludeEventTimes == null || ExcludeEventTimes.Count == 0) return false;
+
+            while (ExcludeEventTimes[1] == null ?
+                ExcludeEventTimes[0] < startTime :
+                ExcludeEventTimes[1] < startTime)
+            {
+                ExcludeEventTimes.RemoveAt(0);
+                ExcludeEventTimes.RemoveAt(0);
+                if(ExcludeEventTimes.Count==0) return false;
+            }
+
+            if (ExcludeEventTimes[0] < endTime) return true;
+
+            return false;
+        }
         /// <summary>
         /// Finds the first "edge" in analog channel marking an extrinsic Event;
         /// search goes "backwards" for leading Event and "forwards" for lagging Event from given point in datastream;

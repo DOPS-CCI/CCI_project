@@ -116,11 +116,6 @@ namespace FileConverter
 
             log.registerHeader(this);
 
-            /***** Open Event file for reading *****/
-            EventFactory.Instance(eventHeader.Events); // set up the factory
-            EventFileReader EventFR = new EventFileReader(
-                new FileStream(Path.Combine(directory, eventHeader.EventFile), FileMode.Open, FileAccess.Read));
-
             BDFLoc stp = BDF.LocationFactory.New();
             if (EDE.IsExtrinsic)
                 if (risingEdge) threshold = EDE.channelMin + (EDE.channelMax - EDE.channelMin) * threshold;
@@ -129,20 +124,20 @@ namespace FileConverter
             nominalT = BDF.LocationFactory.New(); //nominal Event time based on Event.Time
             actualT = BDF.LocationFactory.New(); //actual Event time in Status channel
             //Note: these should be the same if the two clocks run the same rate (BioSemi DAQ and computer)
+
             /***** MAIN LOOP *****/
-            foreach (InputEvent ie in EventFR) //Loop through Event file
+            foreach (InputEvent ie in candidateEvents) //Loop through Event file
             {
                 bw.ReportProgress(0, "Processing event " + ie.Index.ToString("0")); //Report progress
 
-                if (ie.Name == EDE.Name) // Event match found in Event file
+                if (findEvent(ref stp, ie))
                 {
-                    if (findEvent(ref stp, ie))
-                        createFILMANRecord(stp, ie); //Create FILMAN recordset around this found point
+
+                    createFILMANRecord(stp, ie); //Create FILMAN recordset around this found point
                 }
             }
             e.Result = new int[] { FMStream.NR, FMStream.NR / FMStream.NC };
             FMStream.Close();
-            EventFR.Close();
             log.Close();
         }
 
@@ -152,6 +147,8 @@ namespace FileConverter
             if (startingPt.Rec < 0) return; //start of record outside of file coverage; so skip it
             BDFLoc endPt = startingPt + Convert.ToInt32(length * samplingRate); //calculate ending point
             if (endPt.Rec >= BDF.NumberOfRecords) return; //end of record outside of file coverage
+
+            if (IsExcluded(startingPt.ToSecs(), endPt.ToSecs())) return; //excluded
 
             /***** Read correct portion of BDF file and decimate *****/
             int pt = 0;

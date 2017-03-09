@@ -18,10 +18,10 @@ namespace FileConverter
         GVEntry GV0;
         public BDFEDFFileWriter BDFWriter;
 
-        int[] newStatus;
-        int lastStatus = 0;
+        int[] StatusChannel;
         int oldOffsetInPts;
         int newOffsetInPts;
+        int oldTrialLengthInPts;
 
         public void Execute(object sender, DoWorkEventArgs e)
         {
@@ -48,15 +48,25 @@ namespace FileConverter
                 return;
             }
 
-            samplingRate = BDF.NSamp / BDF.RecordDuration; //Old sampling rate; exact as number of samples and duration are always an exact multiple
-            oldOffsetInPts = Convert.ToInt32(offset * samplingRate);
+            samplingRate = BDF.NSamp / BDF.RecordDuration; //Old sampling rate; exact integer -- number of samples always an exact multiple of duration 
+            if (StatusMarkerType == 1) //marked segment or trial
+            {
+                oldOffsetInPts = Convert.ToInt32(offset * samplingRate);
+                oldTrialLengthInPts = Convert.ToInt32(newRecordLength * samplingRate);
+            }
+            else //marked Event only
+            {
+                oldOffsetInPts = 0;
+                oldTrialLengthInPts = 1;
+            }
             int newSamplingRate = (int)((double)samplingRate / (double)decimation + 0.5); //Make best estimate possible with integers
             newOffsetInPts = Convert.ToInt32(offset * newSamplingRate);
             newRecordLength = length * newSamplingRate; //new record length must be exact multiple of the sampling rate in BDF
-            newStatus = new int[newRecordLength];
+            StatusChannel = new int[newRecordLength];
             status = new int[BDF.NSamp];
             GV0 = GV[0];
 
+            /***** Ready to create new BDF file *****/
             BDFWriter = new BDFEDFFileWriter(File.Open(dlg.FileName, FileMode.Create, FileAccess.ReadWrite),
                 channels.Count + 1, /* Extra channel will have group variable value in it */
                 length, /* Record length in seconds, must be integer */
@@ -64,7 +74,7 @@ namespace FileConverter
                 true);
 
             log = new LogFile(dlg.FileName + ".log.xml");
-            bigBuff = new float[BDF.NumberOfChannels - 1, newRecordLength];   //have to dimension to old channels rather than new
+            bigBuff = new float[BDF.NumberOfChannels - 1, newRecordLength];   //have to dimension to all old channels rather than new
                                                                                 //in case we need for reference calculations later
             /***** Create BDF header record *****/
             BDFWriter.LocalRecordingId = BDF.LocalRecordingId;
@@ -94,14 +104,9 @@ namespace FileConverter
 
             log.registerHeader(this);
 
-            /***** Open Event file for reading *****/
-            EventFactory.Instance(eventHeader.Events); // set up the factory
-            EventFileReader EventFR = new EventFileReader(
-                new FileStream(Path.Combine(directory, eventHeader.EventFile), FileMode.Open, FileAccess.Read));
-
-            BDFLoc stp = BDF.LocationFactory.New();
-            BDFLoc lastEvent = BDF.LocationFactory.New();
-            if (EDE.IsExtrinsic) //set threshold
+            BDFLoc EventPoint = BDF.LocationFactory.New();
+            BDFLoc lastBDFPoint = BDF.LocationFactory.New();
+            if (EDE.IsExtrinsic) //set threshold in analog channel scale
                 if (risingEdge) threshold = EDE.channelMin + (EDE.channelMax - EDE.channelMin) * threshold;
                 else threshold = EDE.channelMax - (EDE.channelMax - EDE.channelMin) * threshold;
 
@@ -111,54 +116,66 @@ namespace FileConverter
 
             /***** MAIN LOOP *****/
 
-            foreach (InputEvent ie in EventFR) //Loop through Event file
+            foreach (InputEvent ie in candidateEvents) //Loop through Event file
             {
                 bw.ReportProgress(0, "Processing event " + ie.Index.ToString("0")); //Report progress
 
-                if (ie.Name == EDE.Name) // Event match found in Event file
+                if (findEvent(ref EventPoint, ie))
                 {
-                    if(findEvent(ref stp, ie))
+                    BDFLoc startSegment = EventPoint; //copied because it's a struct
+                    startSegment += oldOffsetInPts;
+                    if (!startSegment.lessThan(lastBDFPoint))
+                    {
+                        BDFLoc endSegment = startSegment;
+                        endSegment += oldTrialLengthInPts;
                         if (allSamps) //this is a continuous copy, not Event generated episodic conversion
                         {
-                            runBDFtoEvent(lastEvent, ref stp, ie);
-                            lastEvent = BDF.LocationFactory.New();
+                            runToNextPoint(lastBDFPoint, ref startSegment, 0);
+                            runToNextPoint(startSegment, ref endSegment, getStatusValue(ie));
+                            lastBDFPoint = endSegment;
                         }
-                        else createBDFRecord(stp, ie); //Create BDF recordset around this point; i.e. Event generated episodic conversion
+                        else createBDFRecord(EventPoint, ie); //Create BDF recordset around this point; i.e. Event generated episodic conversion
+                    }
                 }
             }
-            if (allSamps) //copy out to end of file
-            {
-                stp.Rec = BDF.NumberOfRecords;
-                stp.Pt = 0;
-                runBDFtoEvent(lastEvent, ref stp, null);
-            }
+
+            //copy out to end of file
+            EventPoint.Rec = BDF.NumberOfRecords;
+            EventPoint.Pt = 0;
+            runToNextPoint(lastBDFPoint, ref EventPoint, 0);
+
             e.Result = new int[] { BDFWriter.NumberOfRecords, BDFWriter.NumberOfRecords };
             BDFWriter.Close();
-            EventFR.Close();
             log.Close();
         }
 
-        private void runBDFtoEvent(BDFLoc lastEventLocation, ref BDFLoc nextEventLocation, InputEvent evt)
+        private void runToNextPoint(BDFLoc startLocation, ref BDFLoc endLocation, uint GVvalue)
         {
-            nextEventLocation += decimation - 1; //correct location so we know where to stop; warning: it's tricky!
-            nextEventLocation.Pt /= decimation; //location should be next after actual Event to keep decimation on track
-            nextEventLocation.Pt *= decimation; //this also works because decimation must be a factor of the record length
-            int pt = lastEventLocation.Pt / decimation;
-            int j = lastEventLocation.Pt;
+            //First correct the ending location to account for decimation; this will be the first point used in the nex round of output
+            endLocation += decimation - 1; //It's tricky! Can cross record boundary!
+            endLocation.Pt /= decimation; //location should be next after actual Event to keep decimation on track
+            endLocation.Pt *= decimation; //this also works because decimation must be a factor of the record length
+
+            int pt = startLocation.Pt / decimation;
+            int j = startLocation.Pt;
             int k;
             int p = 0;
             double[] buff = new double[BDF.NumberOfChannels-1];
             double[] references = null;
             if (referenceChannels != null) references = new double[referenceChannels.Count];
-            for (int rec = lastEventLocation.Rec; rec <= nextEventLocation.Rec; rec++)
+
+            for (int rec = startLocation.Rec; rec <= endLocation.Rec; rec++)
             {
                 if (BDF.read(rec) == null) return; // only happen on last call to fill out record
-                if (rec == nextEventLocation.Rec) k = nextEventLocation.Pt;
+
+                if (rec == endLocation.Rec) k = endLocation.Pt;
                 else k = BDF.NSamp;
-                for (p = j; p < k; p += decimation, pt++)
+                for (p = j; p < k; p += decimation, pt++) //up to, but not including last point (on last record)
                 {
-                    for (int c = 0; c < BDF.NumberOfChannels - 1; c++)
-                        buff[c] = BDF.getSample(c, p);
+                    for (int c = 0; c < BDF.NumberOfChannels - 1; c++) //fill buffer with input file points;
+                        buff[c] = BDF.getSample(c, p);                 //need all channels for refence calculation
+
+                    //now we can calculate and offset for reference
                     if (referenceChannels != null) // then some channels need reference correction
                     {
                         //First calculate all needed references for this point
@@ -177,28 +194,38 @@ namespace FileConverter
                             for (int i2 = 0; i2 < referenceGroups[i1].Count; i2++) buff[referenceGroups[i1][i2]] -= refer;
                         }
                     }
+
+                    //Fill the ouput buffer with the selected channels
                     for (int c = 0; c < BDFWriter.NumberOfChannels - 1; c++)
                         BDFWriter.putSample(c, pt, (float)(buff[channels[c]]));
-                    newStatus[pt] = lastStatus;
-                }
-                if (rec != nextEventLocation.Rec)
+                    //and add the Status value
+                    StatusChannel[pt] = (int)GVvalue;
+                } //for each point in this record
+                
+                //If this isn't the last record for this segment, we can write it out
+                //NOTE: endLocation is actually the next point to be handled, so we don't have to 
+                //  worry about record boundary issues
+                if (rec != endLocation.Rec)
                 {
-                    BDFWriter.putStatus(newStatus);
+                    BDFWriter.putStatus(StatusChannel);
                     BDFWriter.write();
                 }
                 j = 0; // OK because decimation has to be integer divisor of the sampling rate
                 pt = 0; // so that these two remain in lock-step => no offset to calculate
             }
 
-            /***** Get group variable for this record *****/
-            string s = evt.GVValue[EDE.GroupVars.FindIndex(n => n.Equals(GV0))]; //Find value for this GV
-            if (GV0.GVValueDictionary != null)
-                lastStatus = GV0.GVValueDictionary[s]; //Lookup in GV value dictionary to convert to integer
-            else
-                lastStatus = Convert.ToInt32(s); //Or not; value of GV numnber representing itself
-
         }
 
+        private uint getStatusValue(InputEvent ie)
+        {
+            /***** Get group variable for this record *****/
+            string s = ie.GVValue[EDE.GroupVars.FindIndex(n => n.Equals(GV0))]; //Find value for this GV
+            if (GV0.GVValueDictionary != null)
+                return (uint)GV0.GVValueDictionary[s]; //Lookup in GV value dictionary to convert to integer
+            else
+                return Convert.ToUInt32(s); //Or not; value of GV numnber representing itself
+
+        }
         private void createBDFRecord(BDFLoc eventLocation, InputEvent evt)
         {
             BDFLoc startingPt = eventLocation + oldOffsetInPts; //calculate starting point
@@ -225,10 +252,10 @@ namespace FileConverter
 
             /***** Get group variable for this record and set Status channel values *****/
             string s = evt.GVValue[EDE.GroupVars.FindIndex(n => n.Equals(GV0))]; //Find value for this GV
-            newStatus[StatusMarkerType == 1 ? 0 : -newOffsetInPts] = GV0.ConvertGVValueStringToInteger(s);
+            StatusChannel[StatusMarkerType == 1 ? 0 : -newOffsetInPts] = GV0.ConvertGVValueStringToInteger(s);
             // then propagate throughout Status channel
-            for (int i = (StatusMarkerType == 1 ? 1 : 1 - newOffsetInPts); i < newRecordLength; i++) newStatus[i] = newStatus[i - 1];
-            BDFWriter.putStatus(newStatus);
+            for (int i = (StatusMarkerType == 1 ? 1 : 1 - newOffsetInPts); i < newRecordLength; i++) StatusChannel[i] = StatusChannel[i - 1];
+            BDFWriter.putStatus(StatusChannel);
 
             /***** Calculate referenced data *****/
             calculateReferencedData();

@@ -70,8 +70,8 @@ namespace FileConverter
             logStream.WriteEndElement(/* GroupVars */);
             logStream.WriteElementString("Channels", CCIUtilities.Utilities.intListToString(c.channels, true));
             logStream.WriteStartElement("Record");
-            if (conversionType == "BDF")
-                logStream.WriteElementString("BDFContinuous", ((BDFConverter)c).allSamps?"true":"false");
+//            if (conversionType == "BDF")
+//                logStream.WriteElementString("BDFContinuous", ((BDFConverter)c).allSamps?"true":"false");
             logStream.WriteElementString("Start", c.offset.ToString("0.00") + "secs");
             logStream.WriteElementString("Length", recordLength.ToString("0.00") + "secs");
             logStream.WriteElementString("Decimation", c.decimation.ToString("0"));
