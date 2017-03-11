@@ -56,7 +56,7 @@ namespace FileConverter
                 if (value == _GVList) return;
                 _GVList = value;
                 NotifyPropertyChanged("GVList");
-                if (_GVList == null || _GVList.Count == 0)
+                if (!(bool)ConvertToFM.IsChecked || _GVList == null || _GVList.Count == 0)
                 {
                     All.IsEnabled = false;
                     None.IsEnabled = false;
@@ -666,11 +666,7 @@ namespace FileConverter
             RecordLabel.Visibility = Visibility.Collapsed;
             TrialLabel.Visibility = Visibility.Visible;
 
-            label6.IsEnabled = false;
-            label7.IsEnabled = false;
-            label8.IsEnabled = false;
-            Radin.IsChecked = false;
-            Radin.IsEnabled = false;
+            changeRadinState(Visibility.Collapsed);
 
             ConvertFM.Visibility = Visibility.Hidden;
             SMType.Visibility = Visibility.Visible;
@@ -679,11 +675,21 @@ namespace FileConverter
             None.IsEnabled = false;
             All.IsEnabled = false;
 
-            removeTrends.IsChecked = false;
-            removeTrends.IsEnabled = false;
-            removeOffsets.IsChecked = false;
-            removeOffsets.IsEnabled = false;
+            Offsets.Visibility = Visibility.Collapsed;
+
             checkError();
+        }
+
+        private void changeRadinState(Visibility newState)
+        {
+            label6.Visibility = newState;
+            label7.Visibility = newState;
+            label8.Visibility = newState;
+            Radin.Visibility = newState;
+            RadinLow.Visibility = newState;
+            RadinLowPts.Visibility = newState;
+            RadinHigh.Visibility = newState;
+            RadinHighPts.Visibility = newState;
         }
 
         private void FILMAN_Checked(object sender, RoutedEventArgs e)
@@ -695,13 +701,11 @@ namespace FileConverter
             RecordLabel.Visibility = Visibility.Visible;
             TrialLabel.Visibility = Visibility.Collapsed;
 
-            label6.IsEnabled = true;
-            label7.IsEnabled = true;
-            label8.IsEnabled = true;
-            Radin.IsEnabled = true;
+            changeRadinState(Visibility.Visible);
 
             ConvertFM.Visibility = Visibility.Visible;
             SMType.Visibility = Visibility.Collapsed;
+            SMType1.IsChecked = true;
 
             listView2.SelectionMode = System.Windows.Controls.SelectionMode.Multiple;
             None.IsEnabled = true;
@@ -872,10 +876,22 @@ namespace FileConverter
 
             createConverterBase(bdfc);
 
+            bdfc.recordLength = bdf.RecordDuration;
             bdfc.allSamps = true; //***** force collection of all samples in BDF file; i.e. no episodic BDF file
-            bdfc.StatusMarkerType = (bool)SMType1.IsChecked ? 1 : 2;
-            bdfc.length = bdfc.allSamps ? bdf.RecordDuration : (int)_newNS;
-            bdfc.offset = bdfc.allSamps ? 0F : _recOffset;
+            if ((bool)SMType1.IsChecked)
+                //mark each trial segment completely
+            {
+                bdfc.StatusMarkerType = 1;
+                bdfc.trialLength = _newNS;
+                bdfc.offset = _recOffset;
+            }
+            else
+                //mark only the underlying Event
+            {
+                bdfc.StatusMarkerType = 2;
+                bdfc.trialLength = 0;
+                bdfc.offset = 0F;
+            }
 
             // Execute conversion in background
 
@@ -939,18 +955,20 @@ namespace FileConverter
                     RecLengthPts.Text = "Error";
                 }
 
-                if (_recOffset != double.MinValue) // valid record offset
-                    RecOffsetPts.Text = System.Convert.ToInt32(_recOffset * (double)oldSR / (double)_decimation).ToString("0");
-                else
-                {
-                    RecOffsetPts.Text = "Error";
-                    ConvertBDF.IsEnabled = ConvertFM.IsEnabled = false;
-                }
+                if (RecOffset.IsVisible)
+                    if (_recOffset != double.MinValue) // valid record offset
+                        RecOffsetPts.Text = System.Convert.ToInt32(_recOffset * (double)oldSR / (double)_decimation).ToString("0");
+                    else
+                    {
+                        RecOffsetPts.Text = "Error";
+                        ConvertBDF.IsEnabled = ConvertFM.IsEnabled = false;
+                    }
 
-                if (_newNS != 0D)
-                    RecLengthPts.Text = System.Convert.ToInt32(Math.Ceiling(_newNS * (double)oldSR / (double)_decimation)).ToString("0");
-                else
-                    ConvertBDF.IsEnabled = ConvertFM.IsEnabled = false;
+                if (RecLength.IsVisible)
+                    if (_newNS != 0D)
+                        RecLengthPts.Text = System.Convert.ToInt32(Math.Ceiling(_newNS * (double)oldSR / (double)_decimation)).ToString("0");
+                    else
+                        ConvertBDF.IsEnabled = ConvertFM.IsEnabled = false;
             }
             else
             {
@@ -960,7 +978,7 @@ namespace FileConverter
                 RecOffsetPts.Text = "Error";
             }
 
-            if ((bool)Radin.IsChecked)
+            if (Radin.IsVisible && (bool)Radin.IsChecked)
             {
                 if (_decimation != 0 && _radinLow >= 0 && _radinLow < _newNS)
                     RadinLowPts.Text = System.Convert.ToInt32(_radinLow * oldSR / (float)_decimation).ToString("0");
@@ -1097,7 +1115,7 @@ namespace FileConverter
                 conv.referenceGroups = null;
                 conv.referenceChannels = null;
             }
-            conv.BDF = bdf;
+            conv.BDFReader = bdf;
         }
 
         private void refChans_Click(object sender, RoutedEventArgs e)
@@ -1137,6 +1155,39 @@ namespace FileConverter
 
             if (ExcludeFrom.SelectedIndex == 0) { ExcludeTo.SelectedIndex = 0; ExcludeTo.IsEnabled = false; }
             else { ExcludeTo.IsEnabled = true; }
+        }
+
+        private void SMType1_Checked(object sender, RoutedEventArgs e) //Mark entire seqment in Status
+        {
+            if (!this.IsLoaded) return;
+
+            label1.Visibility = Visibility.Visible;
+            label2.Visibility = Visibility.Visible;
+            label3.Visibility = Visibility.Visible;
+            label4.Visibility = Visibility.Visible;
+            RecOffset.Visibility = Visibility.Visible;
+            RecOffsetPts.Visibility = Visibility.Visible;
+            RecLength.Visibility = Visibility.Visible;
+            RecLengthPts.Visibility = Visibility.Visible;
+
+            checkError();
+        }
+
+        private void SMType2_Checked(object sender, RoutedEventArgs e) //Mark only the underlying Event in Status
+        {
+            if (!this.IsLoaded) return;
+
+            label1.Visibility = Visibility.Collapsed;
+            label2.Visibility = Visibility.Collapsed;
+            label3.Visibility = Visibility.Collapsed;
+            label4.Visibility = Visibility.Collapsed;
+            RecOffset.Visibility = Visibility.Collapsed;
+            RecOffsetPts.Visibility = Visibility.Collapsed;
+            RecLength.Visibility = Visibility.Collapsed;
+            RecLengthPts.Visibility = Visibility.Collapsed;
+            RecLength.Text = "1";
+            RecOffset.Text = "0";
+            //errorCheck called from above text settings
         }
     }
 }

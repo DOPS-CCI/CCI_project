@@ -117,8 +117,8 @@
                 </Grid>
                 <StackPanel Name="SMType" Orientation="Horizontal" Grid.Row="5" Grid.ColumnSpan="3" Visibility="Collapsed">
                     <TextBlock FontSize="13" FontWeight="Bold" VerticalAlignment="Center" Margin="8,0,0,0"><Run Text="Status Marker location (BDF epochs only): "/></TextBlock>
-                    <RadioButton Name="SMType1" IsChecked="True" Margin="4,0">Beginning of episode</RadioButton>
-                    <RadioButton Name="SMType2" IsChecked="False" Margin="4,0">At underlying Event</RadioButton>
+                    <RadioButton Name="SMType1" IsChecked="True" Margin="4,0" Checked="SMType1_Checked">Whole episode</RadioButton>
+                    <RadioButton Name="SMType2" IsChecked="False" Margin="4,0" Checked="SMType2_Checked">At underlying Event</RadioButton>
                 </StackPanel>
             </Grid>
         </GroupBox>
@@ -177,13 +177,14 @@
                         <TextBox.ToolTip>Enter decimation factor (integer)</TextBox.ToolTip>
                     </TextBox>
                     <Label Grid.Row="0" Grid.Column="3" HorizontalAlignment="Left" Margin="0">samples/sec</Label>
+                        
                     <Label Grid.Row="1" Grid.Column="0" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="8,0,0,0" Name="label1" Width="Auto" FontSize="14" Height="27" VerticalContentAlignment="Top">Starting offset(sec)</Label>
                     <TextBox Grid.Row="1" Grid.Column="2" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="4,0,4,0" Name="RecOffsetPts" Width="120" Height="24" IsReadOnly="True" HorizontalContentAlignment="Right" IsTabStop="False" IsUndoEnabled="False"></TextBox>
                     <TextBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="4,0,4,0" Name="RecOffset" Height="24" Width="120" TextAlignment="Right" TextChanged="RecOffset_TextChanged" Text="0">
                         <TextBox.ToolTip>Enter number of seconds offset from Event to begin ouput records</TextBox.ToolTip>
                     </TextBox>
                     <Label Grid.Row="1" Grid.Column="3" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="0" Name="label3" Width="Auto" FontSize="14">points</Label>
-                    <Label Grid.Row="2" Grid.Column="0" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="8,0,0,0" Width="Auto" Height="27" FontSize="14" VerticalContentAlignment="Top">
+                    <Label Name="label2" Grid.Row="2" Grid.Column="0" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="8,0,0,0" Width="Auto" Height="27" FontSize="14" VerticalContentAlignment="Top">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Name="TrialLabel" Visibility="Collapsed">Trial</TextBlock>
                                 <TextBlock Name="RecordLabel">Record</TextBlock>
@@ -194,7 +195,7 @@
                     <TextBox Grid.Row="2" Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="4,0,4,0" Name="RecLength" Width="120" Height="24" TextAlignment="Right" HorizontalContentAlignment="Right" TextChanged="RecLength_TextChanged" Text="4">
                         <TextBox.ToolTip>Enter length of records in seconds</TextBox.ToolTip>
                     </TextBox>
-                    <Label Grid.Row="2" Grid.Column="3" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="0" Width="Auto" FontSize="14">points</Label>
+                    <Label Name="label4" Grid.Row="2" Grid.Column="3" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="0" Width="Auto" FontSize="14">points</Label>
                         <CheckBox Grid.Row="3" Grid.Column="0" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="12,0,0,0" Name="Radin" Width="Auto" Height="17" FontSize="14" Padding="2,0,4,0" Checked="Radin_Checked" Unchecked="Radin_Checked" VerticalContentAlignment="Top" IsEnabled="{Binding ElementName=ConvertToFM, Path=IsChecked}">Radin reference: from</CheckBox>
                     <TextBox Grid.Row="3" Grid.Column="2" IsEnabled="{Binding ElementName=Radin, Path=IsChecked}" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="4,0,4,0" Name="RadinLowPts" Width="120"  Height="24" HorizontalContentAlignment="Right" IsReadOnly="True" IsTabStop="False" IsUndoEnabled="False" VerticalContentAlignment="Center"></TextBox>
                     <TextBox Grid.Row="3" Grid.Column="1" IsEnabled="{Binding ElementName=Radin, Path=IsChecked}" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="4,0,4,0" Name="RadinLow" Width="120" Height="24" TextAlignment="Right" HorizontalContentAlignment="Right" TextChanged="RadLow_TextChanged" Text="0">

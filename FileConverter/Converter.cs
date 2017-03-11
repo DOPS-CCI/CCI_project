@@ -29,7 +29,7 @@ namespace FileConverter
         public List<int> channels;
         public List<List<int>> referenceGroups = null;
         public List<List<int>> referenceChannels = null;
-        public BDFEDFFileReader BDF;
+        public BDFEDFFileReader BDFReader;
         public bool equalStatusOnly;
         public int maxSearch;
         public bool continuousSearch;
@@ -50,31 +50,28 @@ namespace FileConverter
 
         bool setEpoch = false;
         double epoch;
-        List<double?> ExcludeEventTimes = null;
+        List<double?> ExcludeEventTimes = new List<double?>();
 
-        public Converter()
+        public void parseEventFile()
         {
             /***** Open Event file for reading *****/
             EventFactory.Instance(eventHeader.Events); // set up the factory
             EventFileReader EventFR = new EventFileReader(
                 new FileStream(Path.Combine(directory, eventHeader.EventFile), FileMode.Open, FileAccess.Read));
 
-            bool foundStart = false;
             foreach (InputEvent ie in EventFR) //sort Events
             {
                 if (ie.Name == EDE.Name) candidateEvents.Add(ie); //add candidate Event for processing
                 else if (ExcludeEvent1 != null) //here we assume that one doesn't "exclude" based on Event one is processing!
                     if (ie.Name == ExcludeEvent1.Name)
                     {
-                        if (foundStart) ExcludeEventTimes.Add(null);
-                        ExcludeEventTimes.Add(ie.Time); //naked Event, relative time
-                        foundStart = true;
+                        ExcludeEventTimes.Add(ie.Time); //naked Event, so relative time
+                        ExcludeEventTimes.Add(null); //always in pairs
                     }
                     else if (ExcludeEvent2 != null && ie.Name == ExcludeEvent2.Name)
                     {
-                        if (foundStart) { ExcludeEventTimes.Add(ie.Time); foundStart = false; }
-                        else if(ExcludeEventTimes.Count > 1) //make sure we have an entry to update!
-                            ExcludeEventTimes[ExcludeEventTimes.Count - 1] = ie.Time; // this shouldn't happen, but update last end time if it does
+                        if(ExcludeEventTimes.Count > 1) //make sure we have an entry to update! Skip otherwise
+                            ExcludeEventTimes[ExcludeEventTimes.Count - 1] = ie.Time; //always extend end if no intervening start
                     }
             }
             EventFR.Close();
@@ -92,16 +89,16 @@ namespace FileConverter
                 }
                 nominalT.Rec = actualT.Rec = stp.Rec;
                 nominalT.Pt = actualT.Pt = stp.Pt;
-                epoch = ie.Time - ((double)stp.Rec + (double)stp.Pt / (double)BDF.NSamp)
-                    * (double)BDF.RecordDuration;
+                epoch = ie.Time - ((double)stp.Rec + (double)stp.Pt / (double)BDFReader.NSamp)
+                    * (double)BDFReader.RecordDuration;
                 log.registerEpochSet(epoch, ie);
                 setEpoch = true;
             }
             else //calculate Status search starting point
             {
                 double t = ie.Time - epoch; //Calculate seconds from starting epoch
-                nominalT.Rec = (int)(t / (double)BDF.RecordDuration); //Record number
-                nominalT.Pt = (int)((t - (double)(nominalT.Rec * BDF.RecordDuration)) * (double)samplingRate); //Sample number
+                nominalT.Rec = (int)(t / (double)BDFReader.RecordDuration); //Record number
+                nominalT.Pt = (int)((t - (double)(nominalT.Rec * BDFReader.RecordDuration)) * (double)samplingRate); //Sample number
                 if (continuousSearch)
                 {
                     stp.Rec = actualT.Rec; //start at last found Event
@@ -151,9 +148,9 @@ namespace FileConverter
             bool first = equalStatusOnly;
             do
             {
-                BDFEDFRecord BDFrec = BDF.read(rec++);
+                BDFEDFRecord BDFrec = BDFReader.read(rec++);
                 if (BDFrec == null) return false;
-                status = BDF.getStatus();
+                status = BDFReader.getStatus();
                 log.registerHiOrderStatus(status[0]); // check for any change
                 if (first && Utilities.GC2uint((uint)(status[stp.Pt] & eventHeader.Mask)) == b) return false; //make sure there's a change, if equal search
                 first = false;
@@ -203,7 +200,7 @@ namespace FileConverter
                     if (l++ > limit) return false;
                     if (risingEdge == EDE.rise) //concordant edges -- edge in channel is directly related to Status event
                     {
-                        double samp = BDF.getSample(EDE.channel, sp.Pt);
+                        double samp = BDFReader.getSample(EDE.channel, sp.Pt);
                         if (risingEdge == EDE.location ? samp > threshold : samp < threshold) return true;
                         sp = sp + (EDE.location ? 1 : -1);
                     }
@@ -212,7 +209,7 @@ namespace FileConverter
                         //Not implemented
                     }
                 }
-                if (BDF.read(sp.Rec) == null) return false;
+                if (BDFReader.read(sp.Rec) == null) return false;
                 rec = sp.Rec;
             } while (true);
         }

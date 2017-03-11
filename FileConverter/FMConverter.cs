@@ -31,6 +31,8 @@ namespace FileConverter
             ElectrodeInputFileStream etrFile = new ElectrodeInputFileStream(
                 new FileStream(Path.Combine(directory, eventHeader.ElectrodeFile), FileMode.Open, FileAccess.Read));
 
+            parseEventFile(); //get list of Events required for conversion
+
             /***** Open FILMAN file *****/
             SaveFileDialog dlg = new SaveFileDialog();
             dlg.Title = "Save as FILMAN file ...";
@@ -44,7 +46,7 @@ namespace FileConverter
                 e.Result = new int[] { 0, 0 };
                 return;
             }
-            samplingRate = BDF.NSamp / BDF.RecordDuration;
+            samplingRate = BDFReader.NSamp / BDFReader.RecordDuration;
             offsetInPts = Convert.ToInt32(offset * samplingRate);
             newRecordLength = Convert.ToInt32(Math.Ceiling(length * samplingRate / (float)decimation));
 
@@ -55,7 +57,7 @@ namespace FileConverter
                 FILMANFileStream.FILMANFileStream.Format.Real);
             log = new LogFile(dlg.FileName + ".log.xml");
             FMStream.IS = Convert.ToInt32( (double)samplingRate/(double)decimation);
-            bigBuff = new float[BDF.NumberOfChannels - 1, FMStream.ND]; //have to dimension to BDF rather than FMStream
+            bigBuff = new float[BDFReader.NumberOfChannels - 1, FMStream.ND]; //have to dimension to BDF rather than FMStream
                                                                         //in case we need for reference calculations
 
             /***** Create FILMAN header records *****/
@@ -66,7 +68,7 @@ namespace FileConverter
 
             for (i = 0; i < FMStream.NC; i++) //generate channel labels
             {
-                string s = BDF.channelLabel(channels[i]);
+                string s = BDFReader.channelLabel(channels[i]);
                 ElectrodeFileStream.ElectrodeRecord p;
                 if (etrFile.etrPositions.TryGetValue(s, out p))   //add electrode location information, if available
                     FMStream.ChannelNames(i, s.PadRight(16, ' ') + p.projectPhiTheta().ToString("0"));
@@ -92,9 +94,9 @@ namespace FileConverter
             {
                 sb.Append(" Single ref group with");
                 if (referenceGroups[0].Count >= FMStream.NC)
-                    if (referenceChannels[0].Count == BDF.NumberOfChannels) sb.Append(" common average ref");
+                    if (referenceChannels[0].Count == BDFReader.NumberOfChannels) sb.Append(" common average ref");
                     else if (referenceChannels[0].Count == 1)
-                        sb.Append(" ref channel " + referenceChannels[0][0].ToString("0") + "=" + BDF.channelLabel(referenceChannels[0][0]));
+                        sb.Append(" ref channel " + referenceChannels[0][0].ToString("0") + "=" + BDFReader.channelLabel(referenceChannels[0][0]));
                     else sb.Append(" multiple ref channels=" + referenceChannels[0].Count.ToString("0"));
             }
             else // complex reference expression
@@ -110,19 +112,19 @@ namespace FileConverter
             sb.Append(" Samp rate=" + FMStream.IS.ToString("0"));
             FMStream.Description(4, sb.ToString());
 
-            FMStream.Description(5, BDF.LocalRecordingId);
+            FMStream.Description(5, BDFReader.LocalRecordingId);
 
             FMStream.writeHeader();
 
             log.registerHeader(this);
 
-            BDFLoc stp = BDF.LocationFactory.New();
+            BDFLoc stp = BDFReader.LocationFactory.New();
             if (EDE.IsExtrinsic)
                 if (risingEdge) threshold = EDE.channelMin + (EDE.channelMax - EDE.channelMin) * threshold;
                 else threshold = EDE.channelMax - (EDE.channelMax - EDE.channelMin) * threshold;
 
-            nominalT = BDF.LocationFactory.New(); //nominal Event time based on Event.Time
-            actualT = BDF.LocationFactory.New(); //actual Event time in Status channel
+            nominalT = BDFReader.LocationFactory.New(); //nominal Event time based on Event.Time
+            actualT = BDFReader.LocationFactory.New(); //actual Event time in Status channel
             //Note: these should be the same if the two clocks run the same rate (BioSemi DAQ and computer)
 
             /***** MAIN LOOP *****/
@@ -146,7 +148,7 @@ namespace FileConverter
             BDFLoc startingPt = stp + offsetInPts; //calculate starting point
             if (startingPt.Rec < 0) return; //start of record outside of file coverage; so skip it
             BDFLoc endPt = startingPt + Convert.ToInt32(length * samplingRate); //calculate ending point
-            if (endPt.Rec >= BDF.NumberOfRecords) return; //end of record outside of file coverage
+            if (endPt.Rec >= BDFReader.NumberOfRecords) return; //end of record outside of file coverage
 
             if (IsExcluded(startingPt.ToSecs(), endPt.ToSecs())) return; //excluded
 
@@ -157,14 +159,14 @@ namespace FileConverter
             int p = 0; //set to avoid compiler complaining about uninitialized variable!
             for (int rec = startingPt.Rec; rec <= endPt.Rec; rec++)
             {
-                if (BDF.read(rec) == null) throw new Exception("Unable to read BDF record #" + rec.ToString("0"));
+                if (BDFReader.read(rec) == null) throw new Exception("Unable to read BDF record #" + rec.ToString("0"));
                 if (rec == startingPt.Rec) j = startingPt.Pt;
-                else j = p - BDF.NSamp; // calculate point offset at beginning of new record
+                else j = p - BDFReader.NSamp; // calculate point offset at beginning of new record
                 if (rec == endPt.Rec) k = endPt.Pt;
-                else k = BDF.NSamp;
+                else k = BDFReader.NSamp;
                 for (p = j; p < k; p += decimation, pt++)
-                    for (int c = 0; c < BDF.NumberOfChannels - 1; c++)
-                        bigBuff[c, pt] = (float)BDF.getSample(c, p);
+                    for (int c = 0; c < BDFReader.NumberOfChannels - 1; c++)
+                        bigBuff[c, pt] = (float)BDFReader.getSample(c, p);
             }
 
             //NOTE: after this point bigBuff containes all channels in BDF file,

@@ -41,7 +41,7 @@ namespace FileConverter
             else //BDFConverter
             {
                 conversionType = "BDF";
-                recordLength = (double)((BDFConverter)c).length;
+                recordLength = (double)((BDFConverter)c).recordLength;
             }
             logStream.WriteStartElement("Conversion");
             logStream.WriteAttributeString("Type", conversionType);
@@ -58,8 +58,8 @@ namespace FileConverter
                 logStream.WriteElementString("Channel", c.EDE.channelName);
                 logStream.WriteElementString("Edge", c.EDE.rise ? "rising" : "falling");
                 logStream.WriteElementString("Location", c.EDE.location ? "after" : "before");
-                logStream.WriteElementString("Min", c.EDE.channelMin.ToString("G6") + c.BDF.dimension(c.EDE.channel));
-                logStream.WriteElementString("Max", c.EDE.channelMax.ToString("G6") + c.BDF.dimension(c.EDE.channel));
+                logStream.WriteElementString("Min", c.EDE.channelMin.ToString("G6") + c.BDFReader.dimension(c.EDE.channel));
+                logStream.WriteElementString("Max", c.EDE.channelMax.ToString("G6") + c.BDFReader.dimension(c.EDE.channel));
                 logStream.WriteElementString("Threshold", (c.threshold * 100D).ToString("0.0") + "%");
                 logStream.WriteElementString("MaxSearch", c.maxSearch.ToString("0") + "pts");
             }
