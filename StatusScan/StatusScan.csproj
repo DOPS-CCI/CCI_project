@@ -55,10 +55,10 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <PropertyGroup>
-    <ManifestCertificateThumbprint>13904AA78599E5641DBFAFC507729448469A87CC</ManifestCertificateThumbprint>
+    <ManifestCertificateThumbprint>400094E2C1A6C51F6B26B7BEFB3DC15AA7131A12</ManifestCertificateThumbprint>
   </PropertyGroup>
   <PropertyGroup>
-    <ManifestKeyFile>StatusScan_TemporaryKey.pfx</ManifestKeyFile>
+    <ManifestKeyFile>StatusScan_1_TemporaryKey.pfx</ManifestKeyFile>
   </PropertyGroup>
   <PropertyGroup>
     <GenerateManifests>true</GenerateManifests>
@@ -70,7 +70,7 @@
     <SignAssembly>true</SignAssembly>
   </PropertyGroup>
   <PropertyGroup>
-    <AssemblyOriginatorKeyFile>StatusScan_TemporaryKey.pfx</AssemblyOriginatorKeyFile>
+    <AssemblyOriginatorKeyFile>StatusScan_1_TemporaryKey.pfx</AssemblyOriginatorKeyFile>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="CCILibrary">
@@ -148,6 +148,7 @@
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
     </None>
     <AppDesigner Include="Properties\" />
+    <None Include="StatusScan_1_TemporaryKey.pfx" />
     <None Include="StatusScan_TemporaryKey.pfx" />
   </ItemGroup>
   <ItemGroup>
