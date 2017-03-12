@@ -8,8 +8,7 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
-        <TextBlock TextWrapping="Wrap" FontSize="18">You have modified an existing dataset which has previously had artifacts removed. Do you want to replace the existing files
-            or create a new file? This affects only the HDR and EVT files in the original dataset.</TextBlock>
+        <TextBlock TextWrapping="Wrap" FontSize="18" Text="You have modified an existing dataset which has previously had artifacts marked. Do you want to replace the existing files or create a new file? This affects only the HDR and EVT files in the original dataset."/>
         <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right">
             <StackPanel.Resources>
                 <Style TargetType="Button">
