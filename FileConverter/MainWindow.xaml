@@ -80,10 +80,10 @@
                         <TextBlock Margin="8,0,0,0" FontSize="13" FontWeight="Bold"><Run Text="Event search: "/></TextBlock>
                         <CheckBox Name="ContinuousSearch" IsChecked="True" FontSize="13">
                         <CheckBox.ToolTip>Select continuous or "jump" seach of Status markers</CheckBox.ToolTip>
-                            Use continuous search (slower)</CheckBox>
+                            Continuous (slower, but recommended)</CheckBox>
                         <CheckBox Name="ExactStatus" Margin="16,0,0,0" IsChecked="True" FontSize="13">
                         <CheckBox.ToolTip>Select exact match or "close" match of Status values</CheckBox.ToolTip>
-                            Use exact Status match (no event "collisions")</CheckBox>
+                            Exact Status match (no event "collisions" present)</CheckBox>
                 </StackPanel>
                     <Grid Grid.Row="3" Name="ExtRow" VerticalAlignment="Center" Height="Auto" Grid.ColumnSpan="3" Visibility="Collapsed">
                     <Grid.ColumnDefinitions>

@@ -52,14 +52,14 @@ namespace FileConverter
         double epoch;
         List<double?> ExcludeEventTimes = new List<double?>();
 
-        public void parseEventFile()
+        protected void parseEventFile()
         {
             /***** Open Event file for reading *****/
             EventFactory.Instance(eventHeader.Events); // set up the factory
             EventFileReader EventFR = new EventFileReader(
                 new FileStream(Path.Combine(directory, eventHeader.EventFile), FileMode.Open, FileAccess.Read));
 
-            foreach (InputEvent ie in EventFR) //sort Events
+            foreach (InputEvent ie in EventFR) //find and save Events used in Event selection and exclusion
             {
                 if (ie.Name == EDE.Name) candidateEvents.Add(ie); //add candidate Event for processing
                 else if (ExcludeEvent1 != null) //here we assume that one doesn't "exclude" based on Event one is processing!
@@ -76,6 +76,7 @@ namespace FileConverter
             }
             EventFR.Close();
         }
+
         protected bool findEvent(ref BDFLoc stp, InputEvent ie)
         {
             if (!setEpoch) //First Event of this type: calculate start time (epoch) of the first point
