@@ -668,7 +668,8 @@ namespace FileConverter
 
             changeRadinState(Visibility.Collapsed);
 
-            ConvertFM.Visibility = Visibility.Hidden;
+            ConvertFM.Visibility = Visibility.Collapsed;
+            ConvertBDF.Visibility = Visibility.Visible;
             SMType.Visibility = Visibility.Visible;
 
             listView2.SelectionMode = System.Windows.Controls.SelectionMode.Single;
@@ -704,6 +705,7 @@ namespace FileConverter
             changeRadinState(Visibility.Visible);
 
             ConvertFM.Visibility = Visibility.Visible;
+            ConvertBDF.Visibility = Visibility.Collapsed;
             SMType.Visibility = Visibility.Collapsed;
             SMType1.IsChecked = true;
 
@@ -713,6 +715,7 @@ namespace FileConverter
 
             removeOffsets.IsEnabled = true;
             removeTrends.IsEnabled = true;
+
             checkError();
         }
 
@@ -876,22 +879,20 @@ namespace FileConverter
 
             createConverterBase(bdfc);
 
-            bdfc.recordLength = bdf.RecordDuration;
+            bdfc.recordLength = bdf.RecordDuration; //unchanged BDF output record length
             bdfc.allSamps = true; //***** force collection of all samples in BDF file; i.e. no episodic BDF file
             if ((bool)SMType1.IsChecked)
                 //mark each trial segment completely
             {
                 bdfc.StatusMarkerType = 1;
-                bdfc.trialLength = _newNS;
-                bdfc.offset = _recOffset;
             }
             else
                 //mark only the underlying Event
             {
                 bdfc.StatusMarkerType = 2;
-                bdfc.trialLength = 0;
-                bdfc.offset = 0F;
             }
+            bdfc.trialLength = _newNS;
+            bdfc.offset = _recOffset;
 
             // Execute conversion in background
 
@@ -1161,32 +1162,32 @@ namespace FileConverter
         {
             if (!this.IsLoaded) return;
 
-            label1.Visibility = Visibility.Visible;
-            label2.Visibility = Visibility.Visible;
-            label3.Visibility = Visibility.Visible;
-            label4.Visibility = Visibility.Visible;
-            RecOffset.Visibility = Visibility.Visible;
-            RecOffsetPts.Visibility = Visibility.Visible;
-            RecLength.Visibility = Visibility.Visible;
-            RecLengthPts.Visibility = Visibility.Visible;
+            //label1.Visibility = Visibility.Visible;
+            //label2.Visibility = Visibility.Visible;
+            //label3.Visibility = Visibility.Visible;
+            //label4.Visibility = Visibility.Visible;
+            //RecOffset.Visibility = Visibility.Visible;
+            //RecOffsetPts.Visibility = Visibility.Visible;
+            //RecLength.Visibility = Visibility.Visible;
+            //RecLengthPts.Visibility = Visibility.Visible;
 
-            checkError();
+            //checkError();
         }
 
         private void SMType2_Checked(object sender, RoutedEventArgs e) //Mark only the underlying Event in Status
         {
             if (!this.IsLoaded) return;
 
-            label1.Visibility = Visibility.Collapsed;
-            label2.Visibility = Visibility.Collapsed;
-            label3.Visibility = Visibility.Collapsed;
-            label4.Visibility = Visibility.Collapsed;
-            RecOffset.Visibility = Visibility.Collapsed;
-            RecOffsetPts.Visibility = Visibility.Collapsed;
-            RecLength.Visibility = Visibility.Collapsed;
-            RecLengthPts.Visibility = Visibility.Collapsed;
-            RecLength.Text = "1";
-            RecOffset.Text = "0";
+            //label1.Visibility = Visibility.Collapsed;
+            //label2.Visibility = Visibility.Collapsed;
+            //label3.Visibility = Visibility.Collapsed;
+            //label4.Visibility = Visibility.Collapsed;
+            //RecOffset.Visibility = Visibility.Collapsed;
+            //RecOffsetPts.Visibility = Visibility.Collapsed;
+            //RecLength.Visibility = Visibility.Collapsed;
+            //RecLengthPts.Visibility = Visibility.Collapsed;
+            //RecLength.Text = "1";
+            //RecOffset.Text = "0";
             //errorCheck called from above text settings
         }
     }

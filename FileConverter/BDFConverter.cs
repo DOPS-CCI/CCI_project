@@ -21,6 +21,7 @@ namespace FileConverter
         int[] StatusChannel;
         int OffsetInPts;
         int TrialLengthInPts;
+        int StatusMarkLengthInPts;
 
         public void Execute(object sender, DoWorkEventArgs e)
         {
@@ -52,6 +53,7 @@ namespace FileConverter
             {
                 OffsetInPts = Convert.ToInt32(offset * samplingRate);
                 TrialLengthInPts = Convert.ToInt32(trialLength * samplingRate);
+                StatusMarkLengthInPts = TrialLengthInPts;
             }
             else //marked Event only
             {
@@ -116,26 +118,40 @@ namespace FileConverter
 
             /***** MAIN LOOP *****/
 
+            BDFLoc endTrialSegment = BDFReader.LocationFactory.New();
             foreach (InputEvent ie in candidateEvents) //Loop through Event file
             {
                 bw.ReportProgress(0, "Processing event " + ie.Index.ToString("0")); //Report progress
 
                 if (findEvent(ref EventPoint, ie))
                 {
-                    BDFLoc startSegment = EventPoint; //copied because it's a struct
-                    startSegment += OffsetInPts;
-                    if (!startSegment.lessThan(lastBDFPoint))
+                    BDFLoc startTrialSegment = EventPoint; //copied because it's a struct
+                    startTrialSegment += OffsetInPts;
+                    if (!startTrialSegment.lessThan(endTrialSegment)) //then trial segment doesn't overlap previous trial segment
                     {
                         if (allSamps) //this is a continuous copy, not Event generated episodic conversion
                         {
-                            runToNextPoint(lastBDFPoint, ref startSegment, 0);
-                            BDFLoc endSegment = startSegment;
-                            endSegment += TrialLengthInPts;
-                            runToNextPoint(startSegment, ref endSegment,
-                                IsExcluded(startSegment.ToSecs(), endSegment.ToSecs()) ? 0 : getStatusValue(ie));
-                            lastBDFPoint = endSegment;
+                            if (StatusMarkerType == 1)
+                            {
+                                runToNextPoint(lastBDFPoint, ref startTrialSegment, 0);
+                                endTrialSegment = startTrialSegment;
+                                endTrialSegment += TrialLengthInPts;
+                                runToNextPoint(startTrialSegment, ref endTrialSegment,
+                                    IsExcluded(startTrialSegment.ToSecs(), endTrialSegment.ToSecs()) ? 0 : getStatusValue(ie)); //mark whole trial segment, if included
+                                lastBDFPoint = endTrialSegment;
+                            }
+                            else //mark only underlying Event, using trial segment only for elimination of trial by overlap or artifact exclusion
+                            {
+                                runToNextPoint(lastBDFPoint, ref EventPoint, 0);
+                                lastBDFPoint = EventPoint;
+                                lastBDFPoint++;
+                                endTrialSegment = startTrialSegment;
+                                endTrialSegment += TrialLengthInPts;
+                                runToNextPoint(EventPoint, ref lastBDFPoint,
+                                    IsExcluded(startTrialSegment.ToSecs(), endTrialSegment.ToSecs()) ? 0 : getStatusValue(ie)); //mark one point, if trial included
+                            }
                         }
-//                        else createBDFRecord(EventPoint, ie); //Create BDF recordset around this point; i.e. Event generated episodic conversion
+//                        else createBDFRecord(EventPoint, ie); //Create BDF recordset around this point; i.e. Event driven episodic conversion
                     }
                 }
             }
