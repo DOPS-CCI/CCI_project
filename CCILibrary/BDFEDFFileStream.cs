@@ -759,6 +759,27 @@ namespace BDFEDFFileStream
             return -1D;
         }
 
+        /// <summary>
+        /// Returns next GrayCode indicated after the BDF point p or null if none exists
+        /// </summary>
+        /// <param name="p">Starting location; returned as location of next GrayCode</param>
+        /// <param name="statusBits">Number of Status bits indicated in associated Header file</param>
+        /// <returns></returns>
+        public GrayCode? findNextGC(ref BDFLoc p, int statusBits)
+        {
+            int u;
+            int statusMask = -1 << statusBits ^ -1;
+            int v = getStatusSample(p) & statusMask; //# Status bits unknown to BDF
+            while ((++p).IsInFile)
+            {
+                u = getStatusSample(p) & statusMask;
+                if (u != v)
+                    return new GrayCode((uint)u, statusBits);
+            }
+
+            return null;
+        }
+
         public new void Dispose()
         {
             Close();
