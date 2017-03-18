@@ -763,6 +763,30 @@ namespace EEGArtifactEditor
 #if DEBUG
             Console.WriteLine("In ViewerContextMenu_Opened with graph " + graphNumber.ToString("0") + " and X " + rightMouseClickLoc.X);
 #endif
+            if (graphNumber < channelList.Count)
+            {
+                //set up context menu about to be displayed
+                string channelName = bdf.channelLabel(channelList[graphNumber]);
+                if (channelList.Count <= 1)
+                    ((MenuItem)(Viewer.ContextMenu.Items[4])).IsEnabled = false;
+                else
+                    ((MenuItem)(Viewer.ContextMenu.Items[4])).IsEnabled = true;
+                Viewer.ContextMenu.Visibility = Visibility.Visible;
+                AddChannel.Items.Clear();
+                if (channelList.Count < bdf.NumberOfChannels)
+                {
+                    ((MenuItem)Viewer.ContextMenu.Items[0]).IsEnabled = true;
+                    ((MenuItem)Viewer.ContextMenu.Items[1]).IsEnabled = true;
+                    for (int i = 0; i < bdf.NumberOfChannels; i++)
+                    {
+                        if (channelList.Contains(i)) continue;
+                        MenuItem mi1 = new MenuItem();
+                        mi1.Header = bdf.channelLabel(i);
+                        mi1.Click += new RoutedEventHandler(MenuItemAdd_Click);
+                        AddChannel.Items.Add(mi1);
+                    }
+                }
+            }
         }
 
         private void MenuItemMakeNote_Click(object sender, RoutedEventArgs e)
@@ -794,6 +818,32 @@ namespace EEGArtifactEditor
         {
             MarkerRectangle mr = MarkerCanvas.FindRegion(rightMouseClickLoc.X);
             if (mr != null) MarkerCanvas.Remove(mr);
+        }
+
+        private void MenuItemAdd_Click(object sender, RoutedEventArgs e)
+        {
+            int offset = ((Control)sender).Parent == AddBefore ? 0 : 1;
+            int chan = bdf.ChannelNumberFromLabel((string)((MenuItem)sender).Header);
+            channelList.Insert(graphNumber + offset, chan);
+            GraphCanvas.Children.Insert(graphNumber + offset, new ChannelGraph(this, chan));
+            ChannelGraph.CanvasHeight = (Viewer.ViewportHeight - ScrollBarSize - EventChannelHeight) / channelList.Count;
+            ChannelGraph.decimateOld = -1;
+            reDrawChannelLabels();
+            reDrawChannels();
+        }
+
+        private void MenuItemRemove_Click(object sender, RoutedEventArgs e)
+        {
+            if (graphNumber < channelList.Count && channelList.Count > 1)
+            {
+                channelList.RemoveAt(graphNumber);
+                ChannelGraph cg = (ChannelGraph)GraphCanvas.Children[graphNumber];
+                cg.baseline.Visibility = Visibility.Hidden;
+                GraphCanvas.Children.Remove(cg);
+                ChannelGraph.CanvasHeight = (Viewer.ViewportHeight - ScrollBarSize - EventChannelHeight) / channelList.Count;
+                reDrawChannelLabels();
+                reDrawChannels();
+            }
         }
 
         private void MenuItemPrint_Click(object sender, RoutedEventArgs e)

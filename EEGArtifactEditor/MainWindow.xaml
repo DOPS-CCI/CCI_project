@@ -39,8 +39,11 @@
                 <Grid Name="ViewerGrid" HorizontalAlignment="Left" VerticalAlignment="Stretch" Background="#00000000">
                     <Grid.ContextMenu>
                         <ContextMenu Opened="ViewerGridContextMenu_Opened">
-                            <MenuItem Header="Begin marking segment" Click="MenuItemBeginMark_Click"/>
+                            <MenuItem Header="Start marking segment" Click="MenuItemBeginMark_Click"/>
                             <MenuItem Name="RemoveSeg" Header="Remove marked segment" Click="MenuItemRemoveMark_Click"/>
+                            <Separator/>
+                            <MenuItem Name="AddChannel" Header="Add channel to display "/>
+                            <MenuItem Header="Remove channel from display" Click="MenuItemRemove_Click" />
                             <Separator/>
                             <MenuItem Header="Create entry note" Click="MenuItemMakeNote_Click"/>
                             <Separator/>
