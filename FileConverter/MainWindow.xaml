@@ -39,7 +39,7 @@
             <StackPanel Grid.Row="2" Orientation="Horizontal">
                 <TextBlock FontSize="16" FontWeight="Bold" VerticalAlignment="Top" Margin="8,-1,0,0">Conversion to:</TextBlock>
                 <RadioButton Name="ConvertToFM" IsChecked="True" Margin="8,0,0,0" FontSize="16" FontWeight="Bold" Checked="FILMAN_Checked">FILMAN</RadioButton>
-                <RadioButton IsChecked="False" Margin="8,0,0,0" FontSize="16" FontWeight="Bold" Checked="BDF_Checked">BDF</RadioButton>
+                <RadioButton Name="ConvertToBDF" IsChecked="False" Margin="8,0,0,0" FontSize="16" FontWeight="Bold" Checked="BDF_Checked">BDF</RadioButton>
             </StackPanel>
         <GroupBox Grid.Row="3" Header="Event selection" BorderBrush="Black" Margin="6,0,6,0" FontSize="14">
             <Grid>

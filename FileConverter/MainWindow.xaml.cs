@@ -238,22 +238,22 @@ namespace FileConverter
             xml.WriteStartDocument();
 
             xml.WriteStartElement("FileConverterParameters");
-            xml.WriteAttributeString("Type", (bool)ConvertToFM.IsChecked ? "FILMAN" : "BDF");
+            bool FMConversion = (bool)ConvertToFM.IsChecked;
+            xml.WriteAttributeString("Type", FMConversion ? "FILMAN" : "BDF");
 
             xml.WriteStartElement("EpisodeDescription");
             EventDictionaryEntry ede = (EventDictionaryEntry)listView1.SelectedItem;
             xml.WriteAttributeString("Event", ede.Name);
-            if (ExcludeDef.Visibility == Visibility.Visible)
+
+            if (ExcludeFrom.SelectedIndex != 0)
             {
-                if (ExcludeFrom.SelectedIndex != 0)
-                {
-                    xml.WriteStartElement("Excluding");
-                    xml.WriteAttributeString("From", ((EventDictionaryEntry)ExcludeFrom.SelectedItem).Name);
-                    if (ExcludeTo.SelectedIndex != 0)
-                        xml.WriteAttributeString("To", ((EventDictionaryEntry)ExcludeTo.SelectedItem).Name);
-                    xml.WriteEndElement(/* Excluding */);
-                }
+                xml.WriteStartElement("Excluding");
+                xml.WriteAttributeString("From", ((EventDictionaryEntry)ExcludeFrom.SelectedItem).Name);
+                if (ExcludeTo.SelectedIndex != 0)
+                    xml.WriteAttributeString("To", ((EventDictionaryEntry)ExcludeTo.SelectedItem).Name);
+                xml.WriteEndElement(/* Excluding */);
             }
+
             xml.WriteStartElement("Search");
             xml.WriteAttributeString("Continuous", (bool)ContinuousSearch.IsChecked ? "true" : "false");
             xml.WriteAttributeString("Exact", (bool)ExactStatus.IsChecked ? "true" : "false");
@@ -267,7 +267,7 @@ namespace FileConverter
                 xml.WriteEndElement(/* ExtrinsicEvent */);
             }
 
-            if ((bool)ConvertToFM.IsChecked)
+            if (!FMConversion) //BDF conversion
             {
                 xml.WriteStartElement("StatusMark");
                 xml.WriteAttributeString("Location", (bool)SMType1.IsChecked ? "Episode" : "Event");
@@ -287,21 +287,27 @@ namespace FileConverter
             xml.WriteElementString("Channels", SelChan.Text);
 
             xml.WriteStartElement("Samples");
-            if (!(bool)Radin.IsChecked) //only valid if not using Radin reference
+            if (!FMConversion || !(bool)Radin.IsChecked)
             {
                 s = "None";
                 if ((bool)removeOffsets.IsChecked) s = "Offsets";
                 if ((bool)removeTrends.IsChecked) s = "Trends";
                 xml.WriteAttributeString("Remove", s);
             }
+
             xml.WriteElementString("Decimation", Decimation.Text);
-            xml.WriteElementString("RecordLength", RecLength.Text);
-            if ((bool)Radin.IsChecked)
+            xml.WriteElementString("StartingOffset", RecOffset.Text);
+            xml.WriteElementString(FMConversion ? "RecordLength" : "TrialLength", RecLength.Text);
+
+            if (FMConversion && (bool)Radin.IsChecked)
             {
                 xml.WriteStartElement("RadinReference");
                 xml.WriteElementString("From", RadinLow.Text);
                 xml.WriteElementString("To", RadinHigh.Text);
                 xml.WriteEndElement(/* RadinReference */);
+            }
+            else //only valid if not using Radin reference
+            {
             }
             xml.WriteEndElement(/* Samples */);
 
@@ -342,7 +348,9 @@ namespace FileConverter
             try
             {
                 if (!xml.ReadToFollowing("FileConverterParameters")) throw new XmlException("No FileConverterParameters element found");
-                ConvertToFM.IsChecked = xml["Type"] == "FILMAN";
+                bool FMConversion = xml["Type"] == "FILMAN";
+                ConvertToFM.IsChecked = FMConversion;
+                ConvertToBDF.IsChecked = !FMConversion;
                 xml.ReadStartElement("FileConverterParameters");
 
                 s = xml["Event"];
@@ -355,7 +363,7 @@ namespace FileConverter
                         found = true;
                         break;
                     }
-                if (!found) throw new Exception();
+                if (!found) throw new Exception("Invalid conversion Event name " + s);
 
                 if (xml.Name == "Excluding")
                 {
@@ -368,7 +376,7 @@ namespace FileConverter
                             found = true;
                             break;
                         }
-                    if (!found) throw new Exception();
+                    if (!found) throw new Exception("Invalid excluding From Event name " + s);
                     s = xml["To"];
                     found = false;
                     if (s != null)
@@ -380,7 +388,7 @@ namespace FileConverter
                                 found = true;
                                 break;
                             }
-                        throw new Exception();
+                        throw new Exception("Invalid excluding To Event name " + s);
                     }
                     else
                         ExcludeTo.SelectedIndex = 0;
@@ -405,13 +413,16 @@ namespace FileConverter
                     if (!xml.Read()) throw new Exception();
                 }
 
-                if (xml.Name == "StatusMark")
-                {
-                    found = xml["Location"] == "Episode";
-                    SMType1.IsChecked = found;
-                    SMType2.IsChecked = !found;
-                    if (!xml.Read()) throw new Exception();
-                }
+                if (!FMConversion)
+                    if (xml.Name == "StatusMark")
+                    {
+                        found = xml["Location"] == "Episode";
+                        SMType1.IsChecked = found;
+                        SMType2.IsChecked = !found;
+                        if (!xml.Read()) throw new Exception();
+                    }
+                    else throw new Exception();
+
                 xml.ReadEndElement(/* EpisodeDescription */);
 
                 listView2.SelectedItem = null;
@@ -442,9 +453,15 @@ namespace FileConverter
                         if (s == "Trends") removeTrends.IsChecked = true;
                     else
                         noneOffsets.IsChecked = true;
+
                 xml.ReadStartElement("Samples");
                 Decimation.Text = xml.ReadElementString("Decimation");
-                RecLength.Text = xml.ReadElementString("RecordLength");
+                RecOffset.Text = xml.ReadElementString("StartingOffset");
+                if (FMConversion)
+                    RecLength.Text = xml.ReadElementString("RecordLength");
+                else
+                    RecLength.Text = xml.ReadElementString("TrialLength");
+
                 if (xml.Name == "RadinReference")
                 {
                     Radin.IsChecked = true;
@@ -713,8 +730,7 @@ namespace FileConverter
             None.IsEnabled = true;
             All.IsEnabled = true;
 
-            removeOffsets.IsEnabled = true;
-            removeTrends.IsEnabled = true;
+            Offsets.Visibility = Visibility.Visible;
 
             checkError();
         }
