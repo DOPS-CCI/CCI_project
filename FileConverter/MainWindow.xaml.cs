@@ -163,10 +163,7 @@ namespace FileConverter
                 ExtRow.Visibility = Visibility.Collapsed;
             else /* extrinsic Event */
             {
-                if (ede.channel == -1) //then need to look up channel number
-                    for (int i = 0; i < bdf.NumberOfChannels; i++)
-                        if (bdf.channelLabel(i) == ede.channelName) { ede.channel = i; break; }
-                if (ede.channel == -1) //channel name not found
+                if (!bdf.setExtrinsicChannelNumber(ede)) //channel name not found
                 {
                     extChannel.Foreground = System.Windows.Media.Brushes.Red;
                     extChannel.Text = ede.channelName + "(unknown)";
