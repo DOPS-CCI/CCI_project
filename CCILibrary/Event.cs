@@ -46,8 +46,7 @@ namespace Event
         /// <param name="ed">EventDictionary on which all Events are based</param>
         public static EventFactory Instance(EventDictionary.EventDictionary newED)
         {
-            if (instance == null) instance = new EventFactory(newED);
-            else if (newED != ed) throw new Exception("Attempt to create second EventFactory");
+            if (instance == null || newED != ed) instance = new EventFactory(newED);
             return instance;
         }
 
@@ -58,7 +57,7 @@ namespace Event
         public static EventFactory Instance()
         {
             if (instance != null) return instance;
-            throw new Exception("Parameterless Instance() can only be called after FactoryEvent instance created");
+            throw new Exception("Parameterless Instance() can only be called after FactoryEvent object created");
         }
 
         //
@@ -270,19 +269,31 @@ namespace Event
             }
             GVValue = null;
         }
+
         /// <summary>
-        /// Stand-alone constructor for use creating naked events based on BDF
+        /// Stand-alone constructor for use creating ouput events based on BDF time
         /// </summary>
         /// <param name="entry">EventDictionaryEntry describing the Event</param>
         /// <param name="time">time of Event, seconds since start of BDF file</param>
-        public OutputEvent(EventDictionaryEntry entry, double time)
+        /// <param name="index">index of new Event; may be zero only if naked Event</param>
+        public OutputEvent(EventDictionaryEntry entry, double time, int index = 0)
             : base(entry)
         {
-            if (!entry.BDFBased) throw new Exception("OutputEvent constructor(EDE, double) only for BDF-based Events");
+            if (!entry.BDFBased) throw new Exception("OutputEvent constructor(EDE, double, int) only for BDF-based Events");
+            if (entry.IsCovered)
+            {
+                if (index == 0)
+                    throw new Exception("OutputEvent constructor: attempt to create a covered OutputEvent with GC = 0");
+                m_index = (uint)index;
+                m_gc = EventFactory.grayCode(m_index);
+            }
+            else if (index != 0)
+                throw new Exception("OutputEvent constructor(EDE,double,int) has non-zero index for naked Event");
             ede = entry;
             m_time = time;
             GVValue = null;
         }
+
         /// <summary>
         /// Copy constructor converting an InputEvent to OutputEvent to permit copying
         /// of Event file entries to create a new Event file

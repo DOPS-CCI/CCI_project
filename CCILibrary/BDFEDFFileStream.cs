@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Event;
 using CCILibrary;
+using EventDictionary;
 
 namespace BDFEDFFileStream
 {
@@ -684,7 +685,15 @@ namespace BDFEDFFileStream
             return ie.Time - zeroTime;
         }
 
-        public bool findGCAtOrAfter(GrayCode gc, ref BDFLoc p)
+        public bool setExtrinsicChannelNumber(EventDictionaryEntry ede)
+        {
+            if (ede.channel == -1 && ede.IsExtrinsic) //then need to look up channel number
+                for (int i = 0; i < NumberOfChannels; i++)
+                    if (channelLabel(i) == ede.channelName) { ede.channel = i; return true; }
+            return ede.IsIntrinsic;
+        }
+
+    public bool findGCAtOrAfter(GrayCode gc, ref BDFLoc p)
         {
             while (p.IsInFile)
             {
@@ -762,22 +771,25 @@ namespace BDFEDFFileStream
         /// <summary>
         /// Returns next GrayCode indicated after the BDF point p or null if none exists
         /// </summary>
-        /// <param name="p">Starting location; returned as location of next GrayCode</param>
+        /// <param name="p">Starting location; updated as location of next GrayCode</param>
+        /// <param name="gc">Last GC in Staus channel</param>
         /// <param name="statusBits">Number of Status bits indicated in associated Header file</param>
-        /// <returns></returns>
-        public GrayCode? findNextGC(ref BDFLoc p, int statusBits)
+        /// <returns>true if new GC found</returns>
+        public bool findNextGC(ref BDFLoc p, ref GrayCode gc, int statusBits)
         {
             int u;
             int statusMask = -1 << statusBits ^ -1;
-            int v = getStatusSample(p) & statusMask; //# Status bits unknown to BDF
             while ((++p).IsInFile)
             {
                 u = getStatusSample(p) & statusMask;
-                if (u != v)
-                    return new GrayCode((uint)u, statusBits);
+                if (u != gc.Value)
+                {
+                    gc.Value = (uint)u;
+                    return true;
+                }
             }
 
-            return null;
+            return false;
         }
 
         public new void Dispose()

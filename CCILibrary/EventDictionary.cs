@@ -47,15 +47,15 @@ namespace EventDictionary
             get { return m_bdfBased; }
             set
             {
-                if (value) intrinsic = null; //must be naked Event if BDF-based time
+//                if (value) intrinsic = null; //must be naked Event if BDF-based time
                 m_bdfBased = value;
             }
         }
         public string IE { get { return IsCovered ? (bool)intrinsic ? "I" : "E" : "*"; } }
         public bool IsCovered { get { return intrinsic != null; } }
         public bool IsNaked { get { return intrinsic == null; } }
-        public bool IsIntrinsic { get { return intrinsic == null || (bool)intrinsic; } }
-        public bool IsExtrinsic { get { return intrinsic == null || !(bool)intrinsic; } }
+        public bool IsIntrinsic { get { return intrinsic != null && (bool)intrinsic; } }
+        public bool IsExtrinsic { get { return intrinsic != null && !(bool)intrinsic; } }
 
         public string channelName;
         public int channel = -1; //specifies channel number that contains the extrinsic Event data (AIB) -- only used for extrinsic Events

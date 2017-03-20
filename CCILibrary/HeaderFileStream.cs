@@ -135,7 +135,7 @@ namespace HeaderFileStream
                                 ede.BDFBased = false;
                             else if (s == "BDF-based")
                             {
-                                if (ede.IsCovered) throw new Exception("Incompatible Type and Clock attributes in Event");
+//                                if (ede.IsCovered) throw new Exception("Incompatible Type and Clock attributes in Event");
                                 ede.BDFBased = true;
                             }
                             else throw new Exception("Invalid Clock attribute in Event");
@@ -147,7 +147,7 @@ namespace HeaderFileStream
                         xr.ReadStartElement("Description", nameSpace);
                         ede.Description = xr.ReadContentAsString();
                         xr.ReadEndElement(/* Description */);
-                        if (ede.IsCovered && !(bool)ede.intrinsic)
+                        if (ede.IsCovered && ede.IsExtrinsic)
                         {
                             xr.ReadStartElement("Channel", nameSpace);
                             ede.channelName = xr.ReadContentAsString();
