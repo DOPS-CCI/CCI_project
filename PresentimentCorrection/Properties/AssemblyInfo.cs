@@ -10,9 +10,9 @@ using System.Windows;
 [assembly: AssemblyTitle("PresentimentCorrection")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("Microsoft")]
+[assembly: AssemblyCompany("Cedar Creek Institute")]
 [assembly: AssemblyProduct("PresentimentCorrection")]
-[assembly: AssemblyCopyright("Copyright © Microsoft 2017")]
+[assembly: AssemblyCopyright("Copyright © Cedar Creek Institute 2017")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
