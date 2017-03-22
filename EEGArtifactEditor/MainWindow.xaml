@@ -42,9 +42,9 @@
                             <MenuItem Header="Start marking segment" Click="MenuItemBeginMark_Click"/>
                             <MenuItem Name="RemoveSeg" Header="Remove marked segment" Click="MenuItemRemoveMark_Click"/>
                             <Separator/>
-                            <MenuItem Name="AddChannel" Header="Add channel to display "/>
+                            <!--<MenuItem Name="AddChannel" Header="Add channel to display "/>
                             <MenuItem Header="Remove channel from display" Click="MenuItemRemove_Click" />
-                            <Separator/>
+                            <Separator/>-->
                             <MenuItem Header="Create entry note" Click="MenuItemMakeNote_Click"/>
                             <Separator/>
                             <MenuItem Header="Print window" Click="MenuItemPrint_Click" />
