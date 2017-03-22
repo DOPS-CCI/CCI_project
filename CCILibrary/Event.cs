@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Text;
 using System.Threading;
 using EventDictionary;
@@ -220,9 +221,19 @@ namespace Event
     }
 
     //********** Class: OutputEvent **********
-    public class OutputEvent : Event
+    public class OutputEvent : Event, IComparable<OutputEvent>
     {
         public string[] GVValue; //stored as strings
+        double _BDFTime = -1D;
+        public double BDFTime
+        {
+            get { return _BDFTime; }
+            set
+            {
+                if (value < 0D) _BDFTime = -1D;
+                else _BDFTime = value;
+            }
+        }
 
         internal OutputEvent(EventDictionaryEntry entry): base(entry)
         {
@@ -291,6 +302,7 @@ namespace Event
                 throw new Exception("OutputEvent constructor(EDE,double,int) has non-zero index for naked Event");
             ede = entry;
             m_time = time;
+            _BDFTime = time;
             GVValue = null;
         }
 
@@ -302,6 +314,7 @@ namespace Event
         public OutputEvent(InputEvent ie) : base(ie.EDE)
         {
             m_time = ie.Time;
+            if (ie.EDE.BDFBased) _BDFTime = m_time;
             m_index = ie.m_index;
             m_gc = ie.m_gc;
             if (ie.GVValue != null)
@@ -313,6 +326,13 @@ namespace Event
             }
             else
                 GVValue = null;
+        }
+
+        public int CompareTo(OutputEvent y)
+        {
+            if (_BDFTime < y._BDFTime) return -1;
+            else if (_BDFTime > y._BDFTime) return 1;
+            return 0;
         }
     }
 
@@ -357,7 +377,7 @@ namespace Event
 
         public void setRelativeTime() //need this post-processor because zeroTime isn't set when Events being read in
         {
-            if (!EDE.BDFBased)
+            if (!EDE.BDFBased) //absolute time Event
             {
                 _relativeTime = m_time - bdf.zeroTime;
                 if (EDE.IsCovered) //covered Event => try to find Status mark nearby to use as actual Event time
@@ -370,7 +390,7 @@ namespace Event
                 }
             }
             else
-                _relativeTime = m_time;
+                _relativeTime = m_time; //relative time Event
         }
         
         public override string ToString()

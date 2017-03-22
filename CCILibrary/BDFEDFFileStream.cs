@@ -673,6 +673,14 @@ namespace BDFEDFFileStream
         }
 
         /// <summary>
+        /// Returns true if zeroTiem has been previously set, false if it has not
+        /// </summary>
+        public bool IsZeroTimeSet
+        {
+            get { return _zeroTime != null; }
+        }
+
+        /// <summary>
         /// Calculates number of seconds from beginning of file to an Event; if Event is Absolute,
         /// uses zeroTime to synchonize clocks; zeroTime must be previously set.
         /// </summary>
