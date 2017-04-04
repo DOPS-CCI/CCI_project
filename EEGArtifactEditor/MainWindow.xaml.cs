@@ -117,14 +117,14 @@ namespace EEGArtifactEditor
 
                 //now set zeroTime for this BDF file, after finding an appropriate covered Event
                 bool ok = false;
-                foreach (OutputEvent ev in events)
+                foreach (OutputEvent ev in events) //find first covered Event to synchronize against
                     if (header.Events[ev.Name].IsCovered)
                     {
                         bdf.setZeroTime(ev);
                         ok = true;
                         break;
                     }
-                if (!ok)
+                if (!ok) //no covered Events, unable to synchronize
                 {
                     ErrorWindow ew = new ErrorWindow();
                     ew.Message = "Unable to find a covered Event in this dataset on which to synchronize clocks. Exiting.";
@@ -133,21 +133,21 @@ namespace EEGArtifactEditor
                     this.Close();
                 }
 
-                if (updateFlag) //re-editing this dataset for artifacts
+                if (updateFlag) //re-editing this dataset for artifacts; start with currently marked regions
                 {
                     Event.EventFactory.Instance(header.Events); // set up the factory, based on this Event dictionary
                     //and read them in
                     OutputEvent ev;
                     int i = 0;
                     double left;
-                    while (i < events.Count)
+                    while (i < events.Count) //find next begin-artifact Event
                     {
                         ev = events[i];
                         if (ev.Name == "**ArtifactBegin")
                         {
                             left = bdf.timeFromBeginningOfFileTo(ev);
                             events.Remove(ev);
-                            while (i < events.Count)
+                            while (i < events.Count) //find next end-artifact Event
                             {
                                 ev = events[i];
                                 if (ev.Name == "**ArtifactEnd")
@@ -935,7 +935,7 @@ namespace EEGArtifactEditor
 
         private void Finish_Click(object sender, RoutedEventArgs e)
         {
-            if (MarkerCanvas.markedRegions.Count != 0)
+            if (MarkerCanvas.markedRegions.Count != 0) //then we have some marked regions to process
             {
                 EventDictionaryEntry ede1;
                 EventDictionaryEntry ede2;
@@ -957,8 +957,10 @@ namespace EEGArtifactEditor
                 header.Comment = sb.ToString();
                 if (updateFlag) //then, this dataset is based on another one; need to find out if this is an update of current dataset only, or if a new file is to be created
                 {
-                    if (!header.Events.TryGetValue("**ArtifactBegin", out ede1) || !header.Events.TryGetValue("**ArtifactEnd", out ede2) || !ede1.BDFBased || !ede2.BDFBased)
-                        throw new Exception("Error in attempted update of previously marked dataset; may be update of old-form dataset");
+                    if (!header.Events.TryGetValue("**ArtifactBegin", out ede1) || !header.Events.TryGetValue("**ArtifactEnd", out ede2)) //get the EDEs for the marking Events
+                        throw new Exception("Error in attempted update of previously marked dataset -- incorrect marking Events");
+                    ede1.BDFBased = true; //make sure they are BDF-based!
+                    ede2.BDFBased = true;
                     Window3 w = new Window3();
                     w.Owner = this;
                     w.ShowDialog();
