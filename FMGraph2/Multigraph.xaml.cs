@@ -245,6 +245,7 @@ namespace FMGraph2
                     bool superimposed = false;
                     foreach(displayChannel dch in displayedChannels )
                     {
+                        if (dc == dch) continue;
                         double xi = Math.Abs(x - dch.graphs[0].x);
                         double yi = Math.Abs(y - dch.graphs[0].y);
                         double d = Math.Sqrt(xi * xi + yi * yi); //***** need to check for zero here => two graphlets have same location; need to remove this one to "no location" list
