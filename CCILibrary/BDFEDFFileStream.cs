@@ -695,10 +695,14 @@ namespace BDFEDFFileStream
 
         public bool setExtrinsicChannelNumber(EventDictionaryEntry ede)
         {
-            if (ede.channel == -1 && ede.IsExtrinsic) //then need to look up channel number
+            if (ede.IsExtrinsic && ede.channel == -1) //need to perform channel look-up
+            {
                 for (int i = 0; i < NumberOfChannels; i++)
                     if (channelLabel(i) == ede.channelName) { ede.channel = i; return true; }
-            return ede.IsIntrinsic;
+                return false; //failed to find matching channel
+            }
+            else
+                return true;
         }
 
     public bool findGCAtOrAfter(GrayCode gc, ref BDFLoc p)

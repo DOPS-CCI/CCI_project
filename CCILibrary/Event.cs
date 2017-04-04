@@ -140,6 +140,23 @@ namespace Event
         public string Name { get { return m_name; } }
         internal double m_time;
         public virtual double Time { get { return m_time; } }
+        //this item added to include concept of relativeTime, where all Event locations are w.r.t. BDF file origin
+        protected double? _relativeTime = null;
+        public double relativeTime
+        {
+            get
+            {
+                if (ede.BDFBased) return m_time; //if it's already relative, don't have to set it
+                try
+                {
+                    return (double)_relativeTime; //will throw exception if relativeTime hasn't been set
+                }
+                catch
+                {
+                    throw new Exception("Relative (BDF-based) time not available in Event "+ ede.Name);
+                }
+            }
+        }
         internal uint m_index;
         public virtual int Index { get { return (int)m_index; } }
         internal uint m_gc;
@@ -224,16 +241,6 @@ namespace Event
     public class OutputEvent : Event, IComparable<OutputEvent>
     {
         public string[] GVValue; //stored as strings
-        double _BDFTime = -1D;
-        public double BDFTime
-        {
-            get { return _BDFTime; }
-            set
-            {
-                if (value < 0D) _BDFTime = -1D;
-                else _BDFTime = value;
-            }
-        }
 
         internal OutputEvent(EventDictionaryEntry entry): base(entry)
         {
@@ -252,11 +259,12 @@ namespace Event
         public OutputEvent(EventDictionaryEntry entry, DateTime time, int index = 0)
             : base(entry)
         {
+            if (entry.BDFBased) throw new Exception("OutputEvent constructor(EDE, DateTime, int) only for absolute Events");
             ede = entry;
             m_time = (double)(time.Ticks) / 1E7;
             if (entry.IsCovered)
             {
-                if (index == 0) throw new Exception("Event.OutputEvent: attempt to create a covered OutputEvent with GC = 0");
+                if (index == 0) throw new Exception("Event.OutputEvent(EDE, DateTime, int): attempt to create a covered OutputEvent with GC = 0");
                 m_index = (uint)index;
                 m_gc = EventFactory.grayCode(m_index);
             }
@@ -271,6 +279,7 @@ namespace Event
         public OutputEvent(EventDictionaryEntry entry, long time, int index)
             : base(entry)
         {
+            if (entry.BDFBased) throw new Exception("OutputEvent constructor(EDE, long, int) only for absolute Events");
             ede = entry;
             m_time = (double)(time) / 1E7;
             if (entry.IsCovered)
@@ -294,7 +303,7 @@ namespace Event
             if (entry.IsCovered)
             {
                 if (index == 0)
-                    throw new Exception("OutputEvent constructor: attempt to create a covered OutputEvent with GC = 0");
+                    throw new Exception("OutputEvent constructor(EDE, double, int): attempt to create a covered OutputEvent with GC = 0");
                 m_index = (uint)index;
                 m_gc = EventFactory.grayCode(m_index);
             }
@@ -302,7 +311,7 @@ namespace Event
                 throw new Exception("OutputEvent constructor(EDE,double,int) has non-zero index for naked Event");
             ede = entry;
             m_time = time;
-            _BDFTime = time;
+            _relativeTime = time;
             GVValue = null;
         }
 
@@ -314,9 +323,7 @@ namespace Event
         public OutputEvent(InputEvent ie) : base(ie.EDE)
         {
             m_time = ie.Time;
-            if (ie.EDE.BDFBased) _BDFTime = m_time;
-            m_index = ie.m_index;
-            m_gc = ie.m_gc;
+            _relativeTime = ie.relativeTime;
             if (ie.GVValue != null)
             {//do a full copy to protect values
                 GVValue = new string[ie.EDE.GroupVars.Count]; //go back to HDR definition
@@ -330,8 +337,8 @@ namespace Event
 
         public int CompareTo(OutputEvent y)
         {
-            if (_BDFTime < y._BDFTime) return -1;
-            else if (_BDFTime > y._BDFTime) return 1;
+            if (relativeTime < y.relativeTime) return -1;
+            else if (relativeTime > y.relativeTime) return 1;
             return 0;
         }
     }
@@ -342,12 +349,6 @@ namespace Event
         public string EventTime; //optional; string translation of Time
         public string[] GVValue;
 
-        //these items added to include concept of relativeTime, where all Event locations are w.r.t. BDF file origin
-        public double? _relativeTime;
-        public double relativeTime
-        {
-            get { return (double)_relativeTime; } //will throw exception if relativeTime hasn't been set
-        }
         static BDFEDFFileReader bdf = null;
         static Header.Header head = null;
 
@@ -377,20 +378,21 @@ namespace Event
 
         public void setRelativeTime() //need this post-processor because zeroTime isn't set when Events being read in
         {
-            if (!EDE.BDFBased) //absolute time Event
-            {
-                _relativeTime = m_time - bdf.zeroTime;
-                if (EDE.IsCovered) //covered Event => try to find Status mark nearby to use as actual Event time
-                {
+            if (EDE.BDFBased) //relative time Event
+                _relativeTime = m_time; //relative time Event
+            else
+                if (EDE.IsCovered) //covered, absolute Event
+                { // => try to find Status mark nearby to use as actual Event time
                     double offset;
                     GrayCode gc = new GrayCode(head.Status);
                     gc.Value = (uint)GC;
                     if ((offset = bdf.findGCNear(gc, (double)_relativeTime)) >= 0D)
                         _relativeTime = offset; //use actual offset to Status mark
+                    else
+                        _relativeTime = null;
                 }
-            }
-            else
-                _relativeTime = m_time; //relative time Event
+                else
+                    _relativeTime = m_time - bdf.zeroTime; //naked absolute case
         }
         
         public override string ToString()
