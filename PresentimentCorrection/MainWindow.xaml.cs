@@ -62,7 +62,7 @@ namespace PresentimentCorrection
                 DoIt.IsEnabled = true;
                 return;
             }
-
+            
             HeaderFileReader hfr = new HeaderFileReader(dlg.OpenFile());
             string directory = System.IO.Path.GetDirectoryName(dlg.FileName);
 
@@ -212,6 +212,8 @@ namespace PresentimentCorrection
                 System.IO.Path.Combine(directory, head.EventFile), FileMode.Create, FileAccess.Write));
             foreach (OutputEvent oe in outputList) efw.writeRecord(oe);
 
+
+            //Clean up
             dlg.Dispose();
             hfr.Dispose();
             efw.Close();
