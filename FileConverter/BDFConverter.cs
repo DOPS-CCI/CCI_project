@@ -34,6 +34,8 @@ namespace FileConverter
             ElectrodeInputFileStream etrFile = new ElectrodeInputFileStream(
                 new FileStream(Path.Combine(directory, eventHeader.ElectrodeFile), FileMode.Open, FileAccess.Read));
 
+            parseEventFile(); //get list of Events required for conversion
+
             /***** Open BDF file *****/
             SaveFileDialog dlg = new SaveFileDialog();
             dlg.Title = "Save as BDF file ...";
@@ -65,8 +67,6 @@ namespace FileConverter
             StatusChannel = new int[newRecordLengthInPts];
             status = new int[BDFReader.NSamp];
             GV0 = GV[0];
-
-            parseEventFile(); //get list of Events required for conversion
 
             /***** Ready to create new BDF file *****/
             BDFWriter = new BDFEDFFileWriter(File.Open(dlg.FileName, FileMode.Create, FileAccess.ReadWrite),

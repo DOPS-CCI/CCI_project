@@ -46,6 +46,7 @@ namespace FileConverter
                 e.Result = new int[] { 0, 0 };
                 return;
             }
+
             samplingRate = BDFReader.NSamp / BDFReader.RecordDuration;
             offsetInPts = Convert.ToInt32(offset * samplingRate);
             newRecordLength = Convert.ToInt32(Math.Ceiling(length * samplingRate / (float)decimation));

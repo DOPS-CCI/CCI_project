@@ -27,7 +27,7 @@ namespace FileConverter
         Header.Header head;
         EventDictionary.EventDictionary ED;
         BDFEDFFileReader bdf;
-        List<EventDictionaryEntry> _EDEList;
+        List<EventDictionaryEntry> _EDEList = new List<EventDictionaryEntry>();
         public List<EventDictionaryEntry> EDEList { get { return _EDEList; } }
         List<GVEntry> _GVList;
         string directory;
@@ -127,15 +127,17 @@ namespace FileConverter
             this.Title = "Convert " + System.IO.Path.GetFileNameWithoutExtension(dlg.FileName);
             this.TitleLine.Text = head.Title + " - " + head.Date + " " + head.Time + " S=" + head.Subject.ToString("0000");
 
-            _EDEList = ED.Values.ToList<EventDictionaryEntry>();
+            foreach (EventDictionaryEntry ed in ED.Values)
+                if (ed.IsCovered) _EDEList.Add(ed); //include only covered Events
             listView1.SelectedItem = 0;
             listView1.Focus();
             listView1.ItemsSource = EDEList;
-            foreach (EventDictionaryEntry ed in EDEList)
-            {
-                ExcludeFrom.Items.Add(ed);
-                ExcludeTo.Items.Add(ed);
-            }
+            foreach (EventDictionaryEntry ed in ED.Values)
+                if (ed.IsCovered || ed.BDFBased) //exclude absolute naked Events = old-style artifact Events
+                {
+                    ExcludeFrom.Items.Add(ed);
+                    ExcludeTo.Items.Add(ed);
+                }
             ExcludeTo.SelectedItem = 0;
             ExcludeFrom.SelectedItem = 0;
 
@@ -159,9 +161,7 @@ namespace FileConverter
                 ancillarydata.Visibility = Visibility.Visible;
             }
             else ancillarydata.Visibility = Visibility.Hidden;
-            if (ede.IsIntrinsic)
-                ExtRow.Visibility = Visibility.Collapsed;
-            else /* extrinsic Event */
+            if (ede.IsExtrinsic)
             {
                 if (!bdf.setExtrinsicChannelNumber(ede)) //channel name not found
                 {
@@ -176,6 +176,8 @@ namespace FileConverter
                 ExtDescription.Text = (ede.location ? "lagging" : "leading") + ", " + (ede.rise ? "rising" : "falling") + " edge:";
                 ExtRow.Visibility = Visibility.Visible;
             }
+            else /* intrinsic or naked Event */
+                ExtRow.Visibility = Visibility.Collapsed;
             checkError(); // check in case ExtRow visibility changed -- masking or unmasking an error!
         }
 

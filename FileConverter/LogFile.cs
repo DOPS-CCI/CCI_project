@@ -131,6 +131,11 @@ namespace FileConverter
             gatherStats(t0, nominalOffset);
         }
 
+        internal void ExcludedEvent()
+        {
+            logStream.WriteElementString("Excluded", "***** Event excluded *****");
+        }
+
         public void registerEpochSet(double epoch, InputEvent ie)
         {
             logStream.WriteStartElement("EpochSet");

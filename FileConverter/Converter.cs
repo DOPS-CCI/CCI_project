@@ -59,19 +59,25 @@ namespace FileConverter
             EventFileReader EventFR = new EventFileReader(
                 new FileStream(Path.Combine(directory, eventHeader.EventFile), FileMode.Open, FileAccess.Read));
 
+            InputEvent.LinkEventsToDataset(eventHeader, BDFReader);
+
             foreach (InputEvent ie in EventFR) //find and save Events used in Event selection and exclusion
             {
                 if (ie.Name == EDE.Name) candidateEvents.Add(ie); //add candidate Event for processing
                 else if (ExcludeEvent1 != null) //here we assume that one doesn't "exclude" based on Event one is processing!
                     if (ie.Name == ExcludeEvent1.Name)
                     {
-                        ExcludeEventTimes.Add(ie.Time); //naked Event, so relative time
-                        ExcludeEventTimes.Add(null); //always in pairs
+                        ie.setRelativeTime(); //assure relative time set
+                        ExcludeEventTimes.Add(ie.relativeTime); //must use relative time
+                        ExcludeEventTimes.Add(null); //always in pairs; assume no "closing" Event
                     }
                     else if (ExcludeEvent2 != null && ie.Name == ExcludeEvent2.Name)
                     {
-                        if(ExcludeEventTimes.Count > 1) //make sure we have an entry to update! Skip otherwise
-                            ExcludeEventTimes[ExcludeEventTimes.Count - 1] = ie.Time; //always extend end if no intervening start
+                        if (ExcludeEventTimes.Count > 1) //make sure we have an entry to update! Skip otherwise
+                        {
+                            ie.setRelativeTime(); //must use relative time
+                            ExcludeEventTimes[ExcludeEventTimes.Count - 1] = ie.relativeTime; //always extend end if no intervening start
+                        }
                     }
             }
             EventFR.Close();
@@ -178,7 +184,11 @@ namespace FileConverter
                 if(ExcludeEventTimes.Count==0) return false;
             }
 
-            if (ExcludeEventTimes[0] < endTime) return true;
+            if (ExcludeEventTimes[0] < endTime)
+            {
+                log.ExcludedEvent();
+                return true;
+            }
 
             return false;
         }
