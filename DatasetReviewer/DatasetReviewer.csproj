@@ -130,7 +130,6 @@
     </Page>
   </ItemGroup>
   <ItemGroup>
-    <None Include="DatasetReviewer_1_TemporaryKey.pfx" />
     <None Include="DatasetReviewer_TemporaryKey.pfx" />
     <None Include="Properties\app.manifest">
       <SubType>Designer</SubType>
