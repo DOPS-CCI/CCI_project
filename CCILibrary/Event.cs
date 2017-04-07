@@ -349,7 +349,7 @@ namespace Event
         public string EventTime; //optional; string translation of Time
         public string[] GVValue;
 
-        static BDFEDFFileReader bdf = null;
+        static BDFEDFFileReader bdf = null; //attach Events to dataset
         static Header.Header head = null;
 
 
@@ -376,7 +376,7 @@ namespace Event
             bdf = BDF;
         }
 
-        public void setRelativeTime() //need this post-processor because zeroTime isn't set when Events being read in
+        public void setRelativeTime() //need this post-processor because zeroTime hasn't been set when Events read in
         {
             if (EDE.BDFBased) //relative time Event
                 _relativeTime = m_time; //relative time Event
@@ -386,13 +386,13 @@ namespace Event
                     double offset;
                     GrayCode gc = new GrayCode(head.Status);
                     gc.Value = (uint)GC;
-                    if ((offset = bdf.findGCNear(gc, (double)_relativeTime)) >= 0D)
+                    if ((offset = bdf.findGCNear(gc, m_time - bdf.zeroTime)) >= 0) //start at estimate of location
                         _relativeTime = offset; //use actual offset to Status mark
                     else
-                        _relativeTime = null;
+                        _relativeTime = null; //error: no Status mark for Covered Event
                 }
                 else
-                    _relativeTime = m_time - bdf.zeroTime; //naked absolute case
+                    _relativeTime = m_time - bdf.zeroTime; //naked, absolute Evemnt; best we can do
         }
         
         public override string ToString()
