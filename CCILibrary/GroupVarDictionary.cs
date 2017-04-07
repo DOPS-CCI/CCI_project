@@ -49,10 +49,9 @@ namespace GroupVarDictionary
 
         public string ConvertGVValueIntegerToString(int val)
         {
-            if (GVValueDictionary == null)
-                return val.ToString("0");
-            foreach (KeyValuePair<string, int> entry in GVValueDictionary)
-                if (entry.Value == val) return entry.Key;
+            if (GVValueDictionary != null)
+                foreach (KeyValuePair<string, int> entry in GVValueDictionary)
+                    if (entry.Value == val) return entry.Key;
             return val.ToString("0");
         }
 
