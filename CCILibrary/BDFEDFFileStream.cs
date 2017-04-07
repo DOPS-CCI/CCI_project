@@ -705,6 +705,8 @@ namespace BDFEDFFileStream
                 return true;
         }
 
+// ***** Find GrayCodes in Status channel *****
+
     public bool findGCAtOrAfter(GrayCode gc, ref BDFLoc p)
         {
             while (p.IsInFile)
@@ -755,6 +757,11 @@ namespace BDFEDFFileStream
 
         public bool findGCNear(GrayCode gc, ref BDFLoc p)
         {
+            if (!p.IsInFile)
+            {
+                if (p.Rec > 0) { p = p.EOF(); return findGCBefore(gc, ref p); } //after EOF
+                else { p.Rec = 0; p.Pt = 0; return findGCAfter(gc, ref p); } //before BOF
+            }
             if (gc.CompareTo(getStatusSample(p)) <= 0) return findGCBefore(gc, ref p);
             else return findGCAfter(gc, ref p);
         }
