@@ -153,7 +153,6 @@
     </None>
     <AppDesigner Include="Properties\" />
     <None Include="SYSTATDataConsolidator_1_TemporaryKey.pfx" />
-    <None Include="SYSTATDataConsolidator_TemporaryKey.pfx" />
   </ItemGroup>
   <ItemGroup>
     <Page Include="CSVFileListItem.xaml">
