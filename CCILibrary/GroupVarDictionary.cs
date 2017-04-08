@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Linq;
 
 namespace GroupVarDictionary
 {
@@ -50,8 +51,7 @@ namespace GroupVarDictionary
         public string ConvertGVValueIntegerToString(int val)
         {
             if (GVValueDictionary != null)
-                foreach (KeyValuePair<string, int> entry in GVValueDictionary)
-                    if (entry.Value == val) return entry.Key;
+                return GVValueDictionary.First(v => v.Value == val).Key;
             return val.ToString("0");
         }
 

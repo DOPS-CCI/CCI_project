@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using GroupVarDictionary;
 
 namespace SPSSFile
@@ -97,7 +98,7 @@ namespace SPSSFile
                 else //IsString
                 {
                     int l = v.length;
-                    WriteVariableRecord(v._name, l, v.IsGV ? v.Description : null);
+                    WriteVariableRecord(v._name, l, v.Description);
                     for (int i = l - 8; i > 0; i -= 8)
                         WriteVariableRecord("A" + Variable.nextVC, -1); //ignored anyway
                 }
@@ -144,14 +145,15 @@ namespace SPSSFile
             writer.Write((Int32)2); //record type
             writer.Write(type); //numeric = 0 or string length > 0
             writer.Write(label == null ? (Int32)0 : (Int32)1); //has variable label
-            writer.Write((Int32)0); //missing values
             if (type == 0) //numeric format
             {
+                writer.Write((Int32)1); //missing values -- SYSTAT down't handle apparently
                 writer.Write(FFormat);
                 writer.Write(FFormat);
             }
             else //string format
             {
+                writer.Write((Int32)0); //missing values
                 AFormat[1] = (byte)type;
                 writer.Write(AFormat);
                 writer.Write(AFormat);
@@ -162,6 +164,8 @@ namespace SPSSFile
                 writer.Write(Encoding.ASCII.GetByteCount(label));
                 writer.Write(Encoding.ASCII.GetBytes(label));
             }
+            if (type == 0) //missing values
+                writer.Write(double.PositiveInfinity);
         }
     }
 
@@ -175,23 +179,42 @@ namespace SPSSFile
 
         internal string _name; //internal name
         public string NameActual { get; private set; }
-        public string Description { get; protected set; }
-        internal GVEntry GV = null;
-        public bool IsGV { get { return GV != null; } }
 
+        string _description = null;
+        static char[] c = new char[] { '\'', '\"' }; //remove these characters
+        public string Description
+        {
+            get { return _description; }
+            set
+            {
+                _description = value;
+                if (_description == null) return;
+                int p = 0;
+                while ((p = _description.IndexOfAny(c, p)) >= 0) _description = _description.Remove(p, 1);
+                p = _description.Length;
+                if (p == 0) { _description = null; return; }
+                p = (((p - 1) >> 2) + 1) << 2; //needs to be multiple of 4 bytes
+                _description = _description.PadRight(p);
+            }
+        }
+
+        static Regex rNum = new Regex(@"^[A-Z][A-Za-z0-9_]*(\(\d+\))?$");
+        static Regex rAlpha = new Regex(@"^[A-Z][A-Za-z0-9_]*\$?$");
         protected Variable(string name, VarType dataType)
         {
-            NameActual = name; //external name
             switch (dataType) //generate internal name
             {
                 case VarType.Number: // numeric
                     _name = "N" + nextVC;
+                    NameActual = rNum.IsMatch(name) ? name : _name;
                     break;
                 case VarType.NumString: //numeral string
-                    _name = "@" + nextVC;
+                    _name = "S" + nextVC;
+                    NameActual = rAlpha.IsMatch(name) ? name : _name;
                     break;
                 case VarType.Alpha: //general string
                     _name = "A" + nextVC;
+                    NameActual = rAlpha.IsMatch(name) ? name : _name;
                     break;
             }
         }
@@ -214,7 +237,16 @@ namespace SPSSFile
 
         public override void setValue(object value)
         {
-            _value = (double)value;
+            Type t = value.GetType();
+            if (t == typeof(double))
+                _value = (double)value;
+            else if (t == typeof(int))
+                _value = Convert.ToDouble(value); //can't be cast directly for some reason
+            else //string
+            {
+                double d;
+                _value = Double.TryParse(value.ToString(), out d) ? d : double.NaN; //use as missing value?
+            }
         }
 
         internal override object Write()
@@ -234,17 +266,26 @@ namespace SPSSFile
         public StringVariable(string name, int maxLength)
             : base(name, VarType.Alpha)
         {
-            _maxLength = ((maxLength - 1) / 8 + 1) << 3;
+            _maxLength = (((maxLength - 1) >> 3) + 1) << 3;
         }
 
         public override void setValue(object value)
         {
-            _value = (string)value;
+            Type t = value.GetType();
+            if (t == typeof(string))
+            {
+                string s = (string)value;
+                _value = s.Length > _maxLength ? s.Substring(0, _maxLength) : s;
+            }
+            else if (t == typeof(int))
+                _value = ((int)value).ToString("0");
+            else
+                _value = Convert.ToInt32(value).ToString("0");
         }
 
         internal override object Write()
         {
-            return ((string)_value).PadRight(_maxLength);
+            return _value.PadRight(_maxLength);
         }
     }
 
@@ -253,6 +294,7 @@ namespace SPSSFile
         object _value;
         int _maxLength;
         VarType _vType;
+        Dictionary<string, int> GVLookUp = null;
 
         internal override int length { get { return _maxLength; } }
         internal override bool IsNumeric { get { return _vType == VarType.Number; } }
@@ -260,52 +302,86 @@ namespace SPSSFile
         public GroupVariable(string name, GVEntry gv, VarType type = VarType.Alpha)
             : base(name, type)
         {
-            _vType = type;
-            GV = gv;
-            if (_vType == VarType.Alpha && GV.GVValueDictionary != null) //find maximum mapped string length
+            Description = gv.Description; //automatically save description of GV
+            GVLookUp = gv.GVValueDictionary;
+            if (GVLookUp == null)
             {
-                _maxLength = 0;
-                foreach (string s in GV.GVValueDictionary.Keys)
-                    if (_maxLength < s.Length) _maxLength = s.Length;
-                _maxLength = (((_maxLength - 1) >> 3) + 1) << 3; //make it a multiple of 8
+                _vType = VarType.NumString; // force to NumString, no lookup possible
             }
-            else _maxLength = 8;
+            else
+            {
+                _vType = type;
+                if (_vType == VarType.Alpha) //Plan on using lookup -> find maximum mapped string length from dictionary
+                {
+                    _maxLength = 0;
+                    foreach (string s in GVLookUp.Keys)
+                        if (_maxLength < s.Length) _maxLength = s.Length;
+                    _maxLength = (((_maxLength - 1) >> 3) + 1) << 3; //make it a multiple of 8 bytes
+                    return;
+                }
+            }
+            _maxLength = 8; //either Num or NumString
 
-            String d = gv.Description;
-            int p = 0;
-            char[] c = new char[]{'\'','\"'}; //reove these cahracters
-            while ((p = d.IndexOfAny(c, p)) >= 0)
-                d = d.Remove(p, 1);
-            int l = d.Length;
-            l = (((l - 1) >> 2) + 1) << 2;
-            Description = d.PadRight(l);
         }
 
         public override void setValue(object value)
         {
+            int i;
             Type t = value.GetType();
-            if (t == typeof(int) || t == typeof(double))
+            if (t == typeof(string))
             {
-                int i = (int)value; //must be an integer, if we use lookup or number string
-                if (_vType == VarType.Alpha)
-                    _value = GV.ConvertGVValueIntegerToString(i).PadRight(_maxLength);
-                else if (_vType == VarType.NumString)
-                    _value = i.ToString("00000000"); //pad left here
-                else
-                    _value = (double)_value;
+                if (_vType == VarType.Alpha) //see if there is a corresponding entry in GVValueDictionary
+                {
+                    string s = (string)value;
+                    if (GVLookUp.TryGetValue(s, out i)) { } //first see if it's in GVValueDictionary; if so do nothing
+                    else if (Int32.TryParse(s, out i)) //next see if it's and integer string
+                        //if so, try looking it up in dictionary to get corresponding string; otherwise return 0
+                        s = reverseLookup(i);
+                    else //otherwise it's a rogue string; set to 0
+                        s = "0";
+                    _value = s.PadRight(_maxLength); 
+                }
+                else //need to convert to an integer
+                {
+                    if (GVLookUp == null) //try for a direct conversion; otherwise use 0
+                    {
+                        double d; //parse as a Double to get both integers and doubles, but convert back to integer
+                        i = Double.TryParse((string)value, out d) ? Math.Max((int)d, 0) : 0;
+                    }
+                    else //look up string in GVValueDictionary; otherwise use 0;
+                        i = GVLookUp.TryGetValue((string)value, out i) ? i : 0;
+                    if (_vType == VarType.Number) _value = (double)i;
+                    else _value = i.ToString("0").PadRight(8);
+                }
             }
-            else //already a string, 
-            {
-                if (_vType == VarType.Number) //need to look it up in GVValueDictionary
-                    _value = (double)GV.ConvertGVValueStringToInteger((string)value); //lookup and convert to double
+            else //numeric
+            { //first, convert to integer
+                if (t == typeof(int))
+                    i = (int)value; //GV must be an integer, if we use lookup or number string
+                else if (t == typeof(double))
+                    i = Convert.ToInt32(value);
                 else
-                    _value = ((string)value).PadRight(_maxLength); //just use it; assume to be in GVValueDictionary
+                    i = 0;
+
+                if (_vType == VarType.Alpha)
+                    _value = reverseLookup(i);
+                else if (_vType == VarType.NumString) //this is forced type if GVValueDictionary == null
+                    _value = i.ToString("0").PadRight(8); //pad right here
+                else //_vType == VarType.Num
+                    _value = (double)i; //use integer value double
             }
         }
 
         internal override object Write()
         {
             return _value;
+        }
+
+        private string reverseLookup(int v)
+        {
+            KeyValuePair<string, int> kvp = GVLookUp.FirstOrDefault(g => g.Value == v);
+            return (kvp.Key == null ? "0" : kvp.Key).PadRight(_maxLength);
+
         }
     }
 
