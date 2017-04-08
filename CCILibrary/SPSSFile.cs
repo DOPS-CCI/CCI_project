@@ -12,10 +12,12 @@ namespace SPSSFile
     /// These classes are used to create SPSS files for input to most statistical packages.
     /// Here's an outline of steps to create the file:
     /// 1. Create an SPSS object giving the name of the file to be created -- extension of .SAV
-    /// 2. Create Variables and AddVariable to the SPSS object; String, Numeric, and GV variables
-    ///     can be created; formats include numeric, string, and numbers represented as strings
+    /// 2. Create Variable, then AddVariable to the SPSS object; String, Numeric, and GV variables
+    ///     can be created; formats include numeric, string, and numbers represented as strings;
+    ///     repeat this step for each variable to be created
     /// 3. Call setValue on each of the Variables
-    /// 4. Call WriteRecord on the SPSS object
+    /// 4. Call WriteRecord on the SPSS object; this writes the header with the first call and
+    ///     writes a data record (case) on this and subsequent calls
     /// 5. Repeat 3 and 4 for each case to be included in the file
     /// 6. Close SPSS object
     /// </summary>
