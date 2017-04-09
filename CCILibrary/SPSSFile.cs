@@ -54,6 +54,8 @@ namespace SPSSFile
 
         public void AddVariable(Variable v)
         {
+            if (VariableList.Contains(v))
+                throw new Exception("SPSSFile: Attempt to add duplicate variable named: " + v.NameActual);
             VariableList.Add(v);
         }
 
@@ -171,7 +173,7 @@ namespace SPSSFile
         }
     }
 
-    public abstract class Variable
+    public abstract class Variable : IEquatable<Variable>
     {
         static int _variableCount = 0;
         internal static string nextVC
@@ -201,24 +203,28 @@ namespace SPSSFile
         }
 
         static Regex rNum = new Regex(@"^[A-Z][A-Za-z0-9_]*(\(\d+\))?$");
-        static Regex rAlpha = new Regex(@"^[A-Z][A-Za-z0-9_]*\$?$");
+        static Regex rAlpha = new Regex(@"^(?<strName>[A-Z][A-Za-z0-9_]*)\$?$");
         protected Variable(string name, VarType dataType)
         {
-            switch (dataType) //generate internal name
+            if (dataType == VarType.Number) // numeric
             {
-                case VarType.Number: // numeric
-                    _name = "N" + nextVC;
-                    NameActual = rNum.IsMatch(name) ? name : _name;
-                    break;
-                case VarType.NumString: //numeral string
-                    _name = "S" + nextVC;
-                    NameActual = rAlpha.IsMatch(name) ? name : _name;
-                    break;
-                case VarType.Alpha: //general string
-                    _name = "A" + nextVC;
-                    NameActual = rAlpha.IsMatch(name) ? name : _name;
-                    break;
+                _name = "N" + nextVC; //create unique local name
+                NameActual = rNum.IsMatch(name) ? name : _name;
             }
+            else //string
+            {
+                _name = (dataType == VarType.Alpha ? "A" : "S") + nextVC; //create unique local name
+                Match m;
+                if ((m = rAlpha.Match(name)).Success) //valid name?
+                    NameActual = m.Groups["strName"] + "$"; //make sure there's a single $ on end
+                else
+                    NameActual = _name + "$";
+            }
+        }
+
+        public bool Equals(Variable v)
+        {
+            return NameActual == v.NameActual;
         }
 
         abstract internal int length { get; }
