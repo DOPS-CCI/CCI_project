@@ -95,7 +95,7 @@ namespace SYSTATDataConsolidator
 
         public event PropertyChangedEventHandler PropertyChanged;
 
-        public static SYSTATNameStringParser GVNameParser = new SYSTATNameStringParser("FfGg");
+        public static SYSTATNameStringParser GVNameParser = new SYSTATNameStringParser("FfGg","Nn");
         public static SYSTATNameStringParser PointNameParser = new SYSTATNameStringParser("FfCcPp", "N");
 
         int numberOfFMChannels;
@@ -128,11 +128,11 @@ namespace SYSTATDataConsolidator
             this.ToolTip = tt;
 
             int ng = fis.NG;
-            for (int i = 2; i < ng; i++)
+            for (int i = 2; i < ng; i++) //skip channel number and montage
             {
                 GroupVar gv = new GroupVar();
-                gv.FM_GVName = fis.GVNames(i).Trim();
-                gv.GVName = gv.FM_GVName.Substring(0, Math.Min(gv.FM_GVName.Length, 11)); //Make default a legal SYSTAT name
+                gv.FM_GVName = fis.GVNames(i).Trim(); //name from FILMAN header
+                gv.GVName = "&N";
                 gv.Format = NSEnum.String;
                 gv.namingConvention = GVNameParser.Parse(gv.GVName);
                 gv.Index = i;
@@ -283,6 +283,7 @@ namespace SYSTATDataConsolidator
             FILMANFileRecord ffr = new FILMANFileRecord();
             ffr.stream = fmTemp;
             ffr.path = ofd.FileName;
+
             //Now check to see if there is a Header file available
             string directory = ffr.path;
             IEnumerable<string> hdrFiles;
@@ -488,6 +489,7 @@ namespace SYSTATDataConsolidator
 
         public string FM_GVName { get; internal set; }
 
+        // GV variable type drop downs
         public static NSEnum[] _comboUnmapped = { NSEnum.Number, NSEnum.String };
         public NSEnum[] comboUnmapped
         {
@@ -500,7 +502,7 @@ namespace SYSTATDataConsolidator
         }
 
         NSEnum _Format;
-        public NSEnum Format
+        public NSEnum Format //currently selected variable type
         {
             get { return _Format; }
             set
@@ -510,6 +512,8 @@ namespace SYSTATDataConsolidator
                 Notify("GVNameError");
             }
         }
+
+        //string to encode GV name to SYSTAT variable
         string _GVName;
         public string GVName
         {
@@ -530,7 +534,8 @@ namespace SYSTATDataConsolidator
                 return _namingConvention == null || _namingConvention.MinimumLength > (_Format == NSEnum.Number ? 12 : 11);
             }
         }
-        public GVEntry GVE { get; internal set; }
+
+        public GVEntry GVE { get; internal set; } //GV definition from HDR file, if available
         public bool HasGVValueMapping
         {
             get

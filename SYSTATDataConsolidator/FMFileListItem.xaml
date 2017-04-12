@@ -129,7 +129,7 @@
                 <GroupBox.Header>
                     <TextBlock>Group Variables</TextBlock>
                 </GroupBox.Header>
-                <ListView Name="GVs" ItemsSource="{Binding GroupVars}">
+                <ListView Name="GVs" ItemsSource="{Binding GroupVars}" ScrollViewer.VerticalScrollBarVisibility="Visible" MaxHeight="250" HorizontalAlignment="Right" Width="324">
                     <ListView.View>
                         <GridView>
                             <GridViewColumn>
@@ -137,7 +137,7 @@
                                     <StackPanel Orientation="Horizontal" Margin="16,0,0,0">
                                         <TextBlock Width="98" Text="FMName" />
                                         <TextBlock Width="98" Text="Name" />
-                                        <TextBlock Width="78" Text="N/S" />
+                                        <TextBlock Width="78" Text="Type" />
                                     </StackPanel>
                                 </GridViewColumn.Header>
                             </GridViewColumn>
@@ -157,7 +157,7 @@
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Width="170" Text="Channels" HorizontalAlignment="Center" />
                                         <TextBlock Width="250" Text="Points" HorizontalAlignment="Center" />
-                                        <TextBlock Width="145" Text="Names" HorizontalAlignment="Center"/>
+                                        <TextBlock Width="145" Text="Naming" HorizontalAlignment="Center"/>
                                     </StackPanel>
                                 </GridViewColumn.Header>
                             </GridViewColumn>

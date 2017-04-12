@@ -227,7 +227,7 @@ namespace SYSTATDataConsolidator
                 {
                     for (int i = 0; i < fr.NumberOfFiles; i++)
                         Log.writeToLog("     " + fr[i].path);
-                    if (fr.GetType() == typeof(FMFileListItem)) //process FILMAN file
+                    if (fr.GetType() == typeof(FMFileListItem)) //process FILMAN variables
                     {
                         for (int i = 0; i < fr.NumberOfFiles; i++)
                         {
@@ -237,16 +237,20 @@ namespace SYSTATDataConsolidator
                         }
                         systat.AddCommentLine(new string('*', 72)); //LAST comment line to mark end
                         fli = (FMFileListItem)fr;
-                        object[] GVcodes = new object[4] { fli.FileUID, ++fNum, 2, 0 }; //FfGg
+                        object[] GVcodes = new object[] { fli.FileUID, ++fNum, 2, 0, "", "" }; //FfGgNn
                         // F is the FileUID
                         // G is the old GV number from FILMAN
                         // g is the renumbering of GVs
+                        // N is the GV name from FM header with ' ' => '_'
+                        // n is GV name from HDR file, if found
                         foreach (GroupVar gv in fli.GroupVars) //first the GVs
                         {
                             GVcodes[2] = (int)GVcodes[2] + 1;
                             if (gv.IsSel)
                             {
                                 GVcodes[3] = (int)GVcodes[3] + 1;
+                                GVcodes[4] = gv.FM_GVName.Replace(' ', '_');
+                                GVcodes[5] = gv.GVE != null ? gv.GVE.Name.Replace(' ', '_') : "";
                                 s = FMFileListItem.GVNameParser.Encode(GVcodes, gv.namingConvention);
                                 SYSTAT.SYSTATFileStream.Variable v;
                                 v = new SYSTAT.SYSTATFileStream.Variable(s,
@@ -254,7 +258,7 @@ namespace SYSTATDataConsolidator
                                 systat.AddVariable(v);
                             }
                         }
-                        object[] Pcodes = new object[7] { fli.FileUID, fNum, 0, 0, 0, 0, "" }; //FfCcPpN
+                        object[] Pcodes = new object[] { fli.FileUID, fNum, 0, 0, 0, 0, "" }; //FfCcPpN
                         // F is the FileUID
                         // f is the index of file (1-based)
                         // C is the original channel number from FILMAN (1-based)
