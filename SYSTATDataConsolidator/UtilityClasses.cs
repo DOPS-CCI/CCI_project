@@ -112,15 +112,17 @@ namespace SYSTATDataConsolidator
         {
             if (acodes == "")
             {
-                ok = new Regex(@"^[A-Za-z_]([A-Za-z0-9_]+|%\d?[" + ncodes + @"]|\(%\d?[" + ncodes + @"]\))*$");
-                parser = new Regex(@"^((?'chars'[A-Za-z0-9_]*)((%(?'lead'\d)?(?'code'[" + ncodes +
-                    @"])|(\(%(?'lead'\d)?(?'pcode'[" + ncodes + @"])\))))|(?'chars'[A-Za-z0-9_]+))");
+                ok = new Regex(@"^[A-Z]([A-Za-z0-9_]*|%\d*[" + ncodes + @"])*(\((%\d*[" + ncodes + @"]|\d+)\))?$");
+                parser = new Regex(@"^((?'chars'[A-Za-z0-9_]*)((%(?'lead'\d*)(?'code'[" + ncodes + @"])|(\((%(?'lead'\d*)(?'pcode'[" +
+                    ncodes + @"])|(?'pcodeN'\d+))\))))|(?'chars'[A-Za-z0-9_]+))");
             }
             else
             {
-                ok = new Regex(@"^([A-Za-z_]|&[" + acodes + @"])([A-Za-z0-9_]+|%\d?[" + ncodes + @"]|\(%\d?[" + ncodes + @"]\)|&[" + acodes + @"])*$");
-                parser = new Regex(@"^((?'chars'[A-Za-z0-9_]*)((%(?'lead'\d)?(?'code'[" + ncodes +
-                    @"])|(\(%(?'lead'\d)?(?'pcode'[" + ncodes + @"])\))|&(?'code'[" + acodes + @"])))|(?'chars'[A-Za-z0-9_]+))");
+                ok = new Regex(@"^([A-Z]|&\d*[" + acodes + @"])([A-Za-z0-9_]+|%\d*[" + ncodes + @"]|&\d*[" + acodes +
+                    @"])*(\((%\d*[" + ncodes + @"]|\d+)\))?$");
+                parser = new Regex(@"^((?'chars'[A-Za-z0-9_]*)((%(?'lead'\d*)(?'code'[" + ncodes +
+                    @"])|(\((%(?'lead'\d*)(?'pcode'[" + ncodes + @"])|(?'pcodeN'\d+))\))|&(?'lead'\d*)(?'code'[" + acodes +
+                    @"])))|(?'chars'[A-Za-z0-9_]+))");
             }
             _codes = ncodes + acodes;
         }
@@ -145,16 +147,21 @@ namespace SYSTATDataConsolidator
                 Char_CodePairs ccp = new Char_CodePairs();
                 Match m = parser.Match(cs);
                 cs = cs.Substring(m.Length); //update remaining code string
-                ccp.chars = m.Groups["chars"].Value;
+                ccp.chars = m.Groups["chars"].Value; //characters before next macro code
                 if (m.Groups["code"].Length > 0)
-                    ccp.code = m.Groups["code"].Value[0];
-                else
-                    if (m.Groups["pcode"].Length > 0)
-                    {
-                        ccp.code = m.Groups["pcode"].Value[0];
-                        ccp.paren = true;
-                    }
-                if (m.Groups["lead"].Length > 0)
+                    ccp.code = m.Groups["code"].Value[0]; //macro code, if any
+                else if (m.Groups["pcode"].Length > 0) //parenthesized macro code
+                {
+                    ccp.code = m.Groups["pcode"].Value[0];
+                    ccp.paren = true;
+                }
+                else if (m.Groups["pcodeN"].Length > 0) //parenthesized integer
+                {
+                    ccp.code = '1';
+                    ccp.paren = true;
+                    ccp.leading = Convert.ToInt32(m.Groups["pcodeN"].Value);
+                }
+                if (m.Groups["lead"].Length > 0) //macro code length parameter
                     ccp.leading = Convert.ToInt32(m.Groups["lead"].Value);
                 encoding.Add(ccp);
             }
@@ -174,16 +181,19 @@ namespace SYSTATDataConsolidator
             foreach (Char_CodePairs ccp in encoding)
             {
                 sb.Append(ccp.chars + (ccp.paren ? "(" : ""));
-                if (ccp.code == ' ') continue;
-                int icode = _codes.IndexOf(ccp.code);
+                if (ccp.code == ' ') continue; //null code
+                if (ccp.code == '1') { sb.Append(ccp.leading.ToString("0") + ")"); continue; } //special parenthesized fixed number only
+                int icode = _codes.IndexOf(ccp.code); //general macro code
                 if (values[icode].GetType() == typeof(int))
                 {
-                    f = new string('0', ccp.leading); //format for number
+                    f = new string('0', Math.Max(1, ccp.leading)); //format for number to force leading zeros, unless leading = 0
                     sb.Append(((int)values[icode]).ToString(f) + (ccp.paren ? ")" : ""));
                 }
-                else
+                else //
                 {
-                    sb.Append((string)values[icode] + (ccp.paren ? ")" : ""));
+                    f = (string)values[icode]; //assured to be a string
+                    int l = ccp.leading > 0 ? Math.Min(f.Length, ccp.leading) : f.Length; //0 => all of string; else up to leading long
+                    sb.Append(f.Substring(0, l).Replace(' ', '_')); //string macro; cannot be parenthesized
                 }
             }
 
@@ -199,7 +209,13 @@ namespace SYSTATDataConsolidator
                     int sum = 0;
                     foreach (Char_CodePairs cc in this)
                     {
-                        sum += cc.chars.Length + (cc.code != ' ' ? cc.leading + (cc.paren ? 2 : 0) : 0);
+                        sum += cc.chars.Length + (cc.paren ? 2 : 0);
+                        if (cc.code == '1')
+                        {
+                            int d = cc.leading;
+                            do { sum++; } while ((d /= 10) > 0);
+                        }
+                        else if (cc.code != ' ') sum += Math.Max(1, cc.leading); //assume at least one character
                     }
                     return sum;
                 }
@@ -211,7 +227,7 @@ namespace SYSTATDataConsolidator
             internal string chars;
             internal char code = ' ';
             internal bool paren = false;
-            internal int leading = 1;
+            internal int leading = 0;
         }
     }
 
