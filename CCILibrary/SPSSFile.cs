@@ -36,7 +36,7 @@ namespace SPSSFile
             }
         }
 
-        List<string> DocumentRecord = new List<string>();
+        List<string> _documentRecord = new List<string>();
 
         protected List<Variable> VariableList = new List<Variable>();
 
@@ -57,6 +57,18 @@ namespace SPSSFile
             if (VariableList.Contains(v))
                 throw new Exception("SPSSFile: Attempt to add duplicate variable named: " + v.NameActual);
             VariableList.Add(v);
+        }
+
+        public void AddDocumentRecord(string s)
+        {
+            _documentRecord.Add(s);
+        }
+
+        public void SetVariableValue(int index, object value)
+        {
+            if (index < 0 || index >= VariableList.Count)
+                throw new ArgumentException("SPSS.SetVariableValue: invalid index = " + index.ToString("0"));
+            VariableList[index].setValue(value);
         }
 
         public void WriteRecord()
@@ -108,11 +120,11 @@ namespace SPSSFile
                 }
             }
 
-            if (DocumentRecord.Count() > 0)
+            if (_documentRecord.Count() > 0)
             {
                 writer.Write((Int32)6); //Document Record B.5
-                writer.Write(DocumentRecord.Count());
-                foreach (string s in DocumentRecord)
+                writer.Write(_documentRecord.Count());
+                foreach (string s in _documentRecord)
                 {
                     if (s.Length >= 80)
                         writer.Write(Encoding.ASCII.GetBytes(s.Substring(0, 80)));
@@ -310,15 +322,13 @@ namespace SPSSFile
         public GroupVariable(string name, GVEntry gv, VarType type = VarType.Alpha)
             : base(name, type)
         {
+            _vType = type;
             Description = gv.Description; //automatically save description of GV
             GVLookUp = gv.GVValueDictionary;
-            if (GVLookUp == null)
-            {
-                _vType = VarType.NumString; // force to NumString, no lookup possible
-            }
+            if (GVLookUp == null && type == VarType.Alpha)
+                _vType = VarType.NumString; // change to NumString, no lookup possible
             else
             {
-                _vType = type;
                 if (_vType == VarType.Alpha) //Plan on using lookup -> find maximum mapped string length from dictionary
                 {
                     _maxLength = 0;
