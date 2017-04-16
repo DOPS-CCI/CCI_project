@@ -100,7 +100,7 @@ namespace CSVStream
 
     public class Variable: INotifyPropertyChanged
     {
-        internal const double MissingNumber = -1E36D;
+        internal const double MissingNumber = double.NaN;
         internal const string MissingString = "";
 
         string _OriginalName; //this property doesn't change if type changes
@@ -113,6 +113,29 @@ namespace CSVStream
         public string Name
         {
             get { return _Name + (IsNum ? "" : "$"); }
+        }
+
+        private int _MaxLength;
+        public int MaxLength
+        {
+            set
+            {
+                if (value == _MaxLength) return;
+                _MaxLength = value;
+                Notify("MaxLength");
+            }
+            get { return _MaxLength; }
+        }
+
+        bool _lengthError;
+        public bool LengthError
+        {
+            set
+            {
+                _lengthError = value;
+                Notify("LengthError");
+            }
+            get { return _lengthError; }
         }
 
         public string BaseName //this property doesn't change and doesn't include any terminating $
@@ -148,6 +171,7 @@ namespace CSVStream
             _Name = name;
             _Type = type;
             _OriginalName = Name;
+            _MaxLength = type == SYSTAT.SYSTATFileStream.SVarType.Number ? 8 : 16;
         }
 
         //Items used to display combobox selections
@@ -163,7 +187,8 @@ namespace CSVStream
         }
 
         public override string ToString(){
-            return (IsSel ? "*" : "") + Name + "=" + (Value == null ? "null" : Value.ToString());
+            return (IsSel ? "*" : "") + Name + "=" + (Value == null ? "null" : Value.ToString()) +
+                "(" + MaxLength.ToString("0") + ")";
         }
 
         public event PropertyChangedEventHandler PropertyChanged;
