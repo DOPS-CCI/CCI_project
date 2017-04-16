@@ -77,7 +77,7 @@ namespace Event
                 e.m_index = nextIndex();
                 e.m_gc = grayCode((uint)e.Index);
             }
-//            markBDFstatus((uint)e.GC); //***** this is needed only if used for real-time application this BIOSEMI
+//            markBDFstatus((uint)e.GC); //***** this is needed only if used for real-time application with BIOSEMI
             return e;
         }
 
