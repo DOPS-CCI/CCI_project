@@ -15,6 +15,7 @@ using CSV = CSVStream;
 using Header;
 using GroupVarDictionary;
 using CCIUtilities;
+using SPSSFile;
 
 namespace SPSSDataConsolidator
 {
@@ -23,11 +24,11 @@ namespace SPSSDataConsolidator
     /// </summary>
     public partial class MainWindow : Window
     {
-        const int SYSTATMaxPoints = int.MaxValue; //maximum number of data points allowed by SYSTAT
+        const int SPSSMaxPoints = int.MaxValue; //maximum number of data points allowed by SYSTAT
 
         BackgroundWorker bw;
 
-        public SYSTAT.SYSTATFileStream systat;
+        public SPSSFile.SPSS spss;
 
         public List<IFilePointSelector> FilePointSelectors { get; set; }
 
@@ -80,27 +81,27 @@ namespace SPSSDataConsolidator
             checkForError(null, null);
         }
 
-        private string OpenSYSTATFile(string directory)
+        private string OpenSPSSFile(string directory)
         {
             SaveFileDialog sfd = new SaveFileDialog();
-            sfd.Title = "Create a SYSTAT file ...";
+            sfd.Title = "Create a SPSS file ...";
             if (directory != null)
                 sfd.InitialDirectory = directory;
             sfd.AddExtension = false;
             sfd.OverwritePrompt = false; //we'll ask later if file duplicate, when we know final format
             sfd.DefaultExt = ".sys"; // Default file extension
-            sfd.Filter = "SYSTAT files (.sys or .syd)|*.sys;*.syd|All files|*.*"; // Filter files by extension
+            sfd.Filter = "SPSS files (.sav)|*.sav|All files|*.*"; // Filter files by extension
             Nullable<bool> result = sfd.ShowDialog();
-            if (result == false) return "SYSTATfile";
-            return Path.ChangeExtension(sfd.FileName, GetCurrentSYSTATExtension());
+            if (result == false) return "SPSSfile";
+            return Path.ChangeExtension(sfd.FileName, "sav");
         }
 
-        private string GetCurrentSYSTATExtension()
-        {
-            if (SYS == null) return "sys";
-            if ((bool)SYS.IsChecked) return "sys";
-            else return "syd";
-        }
+        //private string GetCurrentSYSTATExtension()
+        //{
+        //    if (SYS == null) return "sys";
+        //    if ((bool)SYS.IsChecked) return "sys";
+        //    else return "syd";
+        //}
 
         private void checkForError(object sender, EventArgs e)
         {
@@ -118,7 +119,7 @@ namespace SPSSDataConsolidator
             foreach (IFilePointSelector ffr in FilePointSelectors)
                 if (ffr.IsError) Create.IsEnabled = false;
             int sum = TotalDataPoints();
-            if (sum == 0 || sum > SYSTATMaxPoints)
+            if (sum == 0 || sum > SPSSMaxPoints)
             {
                 NumberOfDataPoints.Foreground = Brushes.Red;
                 Create.IsEnabled = false;
@@ -153,22 +154,22 @@ namespace SPSSDataConsolidator
             return sum;
         }
 
-        private void BrowseSYSTAT_Click(object sender, RoutedEventArgs e)
+        private void BrowseSPSS_Click(object sender, RoutedEventArgs e)
         {
             if (FilePointSelectors.Count != 0)
-                SYSTATFileName.Text = OpenSYSTATFile(FilePointSelectors[0][0].path);
+                SPSSFileName.Text = OpenSPSSFile(FilePointSelectors[0][0].path);
             else
-                SYSTATFileName.Text = OpenSYSTATFile(null);
+                SPSSFileName.Text = OpenSPSSFile(null);
         }
 
-        private void Format_Checked(object sender, RoutedEventArgs e)
-        {
-            SYSTATFileName.Text = Path.ChangeExtension(SYSTATFileName.Text, GetCurrentSYSTATExtension());
-        }
+        //private void Format_Checked(object sender, RoutedEventArgs e)
+        //{
+        //    SPSSFileName.Text = Path.ChangeExtension(SPSSFileName.Text, GetCurrentSYSTATExtension());
+        //}
 
-        private void SYSTATFileName_TextChanged(object sender, TextChangedEventArgs e)
+        private void SPSSFileName_TextChanged(object sender, TextChangedEventArgs e)
         {
-            SYSTATFileName.Text = Path.ChangeExtension(SYSTATFileName.Text, GetCurrentSYSTATExtension());
+            SPSSFileName.Text = Path.ChangeExtension(SPSSFileName.Text, "sav"); //assure that it has an sav extension
         }
 
         private void Cancel_Click(object sender, RoutedEventArgs e)
@@ -183,11 +184,12 @@ namespace SPSSDataConsolidator
             Progress.Visibility = Visibility.Visible;
             QuitButton.Visibility = Visibility.Collapsed;
             CancelButton.Visibility = Visibility.Visible;
-            Log.writeToLog("Beginning data consolidation to: " + SYSTATFileName.Text);
+            Log.writeToLog("Beginning data consolidation to: " + SPSSFileName.Text);
             try
             {
-                systat = new SYSTAT.SYSTATFileStream(SYSTATFileName.Text,
-                    ((bool)SYS.IsChecked) ? SYSTAT.SYSTATFileStream.SFileType.SYS : SYSTAT.SYSTATFileStream.SFileType.SYD);
+                //systat = new SYSTAT.SYSTATFileStream(SYSTATFileName.Text,
+                //    ((bool)SYS.IsChecked) ? SYSTAT.SYSTATFileStream.SFileType.SYS : SYSTAT.SYSTATFileStream.SFileType.SYD);
+                spss = new SPSSFile.SPSS(SPSSFileName.Text);
                 bw.RunWorkerAsync(this);
             }
             catch (Exception err)
@@ -195,13 +197,13 @@ namespace SPSSDataConsolidator
                 ErrorWindow ew = new ErrorWindow();
                 ew.Message = "***** ERROR ***** MainWindow: " + err.Message;
                 ew.ShowDialog();
-                if (systat != null) systat.CloseStream();
+                if (spss != null) spss.Close();
             }
         }
 
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
-            Log.writeToLog("Ending SYSTATDataConsolidator");
+            Log.writeToLog("Ending SPSSDataConsolidator");
         }
 
         private int rowsInColumn(int column)
@@ -231,11 +233,14 @@ namespace SPSSDataConsolidator
                     {
                         for (int i = 0; i < fr.NumberOfFiles; i++)
                         {
-                            systat.AddCommentLine(fr[i].path); //FIRST comment lines name files
+                            //systat.AddCommentLine(fr[i].path); //FIRST comment lines name files
+                            spss.AddDocumentRecord(fr[i].path); //FIRST comment lines name files
                             for (int j = 0; j < 6; j++)
-                                systat.AddCommentLine(((FILMANFileRecord)fr[i]).stream.Description(j));
+                                spss.AddDocumentRecord(((FILMANFileRecord)fr[i]).stream.Description(j));
+                            //    systat.AddCommentLine(((FILMANFileRecord)fr[i]).stream.Description(j));
                         }
-                        systat.AddCommentLine(new string('*', 72)); //LAST comment line to mark end
+                        //systat.AddCommentLine(new string('*', 72)); //LAST comment line to mark end
+                        spss.AddDocumentRecord(new string('*', 80)); //LAST comment line to mark end
                         fli = (FMFileListItem)fr;
                         object[] GVcodes = new object[] { fli.FileUID, ++fNum, 2, 0, "", "" }; //FfGgNn
                         // F is the FileUID
@@ -251,11 +256,11 @@ namespace SPSSDataConsolidator
                                 GVcodes[3] = (int)GVcodes[3] + 1;
                                 GVcodes[4] = gv.FM_GVName.Replace(' ', '_');
                                 GVcodes[5] = gv.GVE != null ? gv.GVE.Name.Replace(' ', '_') : "";
-                                s = FMFileListItem.GVNameParser.Encode(GVcodes, gv.namingConvention);
-                                SYSTAT.SYSTATFileStream.Variable v;
-                                v = new SYSTAT.SYSTATFileStream.Variable(s,
-                                    gv.Format == NSEnum.Number ? SYSTAT.SYSTATFileStream.SVarType.Number : SYSTAT.SYSTATFileStream.SVarType.String);
-                                systat.AddVariable(v);
+                                s = FMFileListItem.GVNameParser.Encode(GVcodes, gv.namingConvention); //generate name for this GV
+                                VarType t = gv.Format == NSEnum.Number ? VarType.Number :
+                                    (gv.Format == NSEnum.MappedString ? VarType.Alpha : VarType.NumString);
+                                GroupVariable v = new GroupVariable(s, gv.GVE, t);
+                                spss.AddVariable(v);
                             }
                         }
                         object[] Pcodes = new object[] { fli.FileUID, fNum, 0, 0, 0, 0, "" }; //FfCcPpN
@@ -279,8 +284,8 @@ namespace SPSSDataConsolidator
                                     Pcodes[4] = point + 1;
                                     Pcodes[5] = (int)Pcodes[5] + 1;
                                     s = FMFileListItem.PointNameParser.Encode(Pcodes, pg.namingConvention);
-                                    SYSTAT.SYSTATFileStream.Variable v = new SYSTAT.SYSTATFileStream.Variable(s.Substring(0, Math.Min(12, s.Length)));
-                                    systat.AddVariable(v);
+                                    SPSSFile.NumericVariable v = new NumericVariable(s);
+                                    spss.AddVariable(v);
                                 }
                             }
                         }
@@ -289,12 +294,16 @@ namespace SPSSDataConsolidator
                         foreach (CSV.Variable v in ((CSVFileRecord)fr[0]).stream.CSVVariables)
                             if (v.IsSel)
                             {
-                                SYSTAT.SYSTATFileStream.Variable var;
-                                var = new SYSTAT.SYSTATFileStream.Variable(v.Name, v.Type);
-                                systat.AddVariable(var);
+                                SPSSFile.Variable var;
+                                if (v.IsNum) var = new SPSSFile.NumericVariable(v.Name);
+                                else var = new SPSSFile.StringVariable(v.Name, 256); // ******PROBLEM: need max length of input string!
+                                spss.AddVariable(var);
+                                //SYSTAT.SYSTATFileStream.Variable var;
+                                //var = new SYSTAT.SYSTATFileStream.Variable(v.Name, v.Type);
+                                //systat.AddVariable(var);
                             }
                 } //end data variable capture; now we can write the SYSTAT header
-                systat.WriteHeader();
+                //systat.WriteHeader();
 
                 FILMANRecord FMRec;
                 int[] recordsPerFile = new int[rowsInColumn(0)];
@@ -316,13 +325,7 @@ namespace SPSSDataConsolidator
                                 foreach (GroupVar gv in ffr.GroupVars) //include GV values first
                                 {
                                     if (gv.IsSel) //is it selected?
-                                    {
-                                        int GVValue = FMRec.GV[gv.Index]; //GV integer value
-                                        if (gv.GVE == null || gv.Format == NSEnum.Number || gv.Format == NSEnum.String)
-                                            systat.SetVariableValue(pointNumber++, GVValue);
-                                        else //GVE != null & Format == NSEnum.MappingString
-                                            systat.SetVariableValue(pointNumber++, gv.GVE.ConvertGVValueIntegerToString(GVValue)); //look up dictionary entry, if any
-                                    }
+                                        spss.SetVariableValue(pointNumber++, FMRec.GV[gv.Index]);
                                 }
                                 foreach (PointGroup pg in ffr.PointGroups)
                                 {
@@ -330,9 +333,7 @@ namespace SPSSDataConsolidator
                                     {
                                         FMRec = ((FILMANFileRecord)ffr[rowFile]).stream.read(recNum, chan);
                                         foreach (int pt in pg.selectedPoints)
-                                        {
-                                            systat.SetVariableValue(pointNumber++, FMRec[pt]);
-                                        }
+                                            spss.SetVariableValue(pointNumber++, FMRec[pt]);
                                     }
                                 }
                             }
@@ -342,10 +343,11 @@ namespace SPSSDataConsolidator
                                 cfr.stream.Read();
                                 foreach (CSV.Variable v in cfr.stream.CSVVariables)
                                     if (v.IsSel)
-                                        systat.SetVariableValue(pointNumber++, v.Value);
+                                        spss.SetVariableValue(pointNumber++, v.Value);
+                                        //systat.SetVariableValue(pointNumber++, v.Value);
                             }
                         }
-                        systat.WriteDataRecord();
+                        spss.WriteRecord();
                         int prog = Convert.ToInt32(100D * ((double)(recordNumber++)) / ((double)(numberOfRecords)));
                         bw.ReportProgress(prog);
                         if (bw.CancellationPending) //check for abort
@@ -355,7 +357,7 @@ namespace SPSSDataConsolidator
                         }
                     }
 
-                systat.CloseStream();
+                spss.Close();
                 Log.writeToLog("Finished consolidation");
             }
             catch (Exception err)
@@ -373,7 +375,7 @@ namespace SPSSDataConsolidator
         {
             if (e.Cancelled)
             {
-                if (systat != null) systat.CloseStream();
+                if (spss != null) spss.Close();
                 Log.writeToLog("***** Cancelled *****");
             }
             else
@@ -383,7 +385,7 @@ namespace SPSSDataConsolidator
                     ErrorWindow ew = new ErrorWindow();
                     ew.Message = s;
                     ew.ShowDialog();
-                    if (systat != null) systat.CloseStream();
+                    if (spss != null) spss.Close();
                     Log.writeToLog(s);
                 }
             Progress.Visibility = Visibility.Collapsed;

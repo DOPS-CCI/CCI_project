@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:SPSSDataConsolidator"
         xmlns:cm="clr-namespace:System.ComponentModel;assembly=System"
-        Title="SYSTAT Data Consolidator" WindowStartupLocation="CenterScreen" VerticalAlignment="Top" 
+        Title="SPSS Data Consolidator" WindowStartupLocation="CenterScreen" VerticalAlignment="Top" 
         Height="920" Width="1050"
         DataContext="{Binding RelativeSource={RelativeSource Self}}" Closing="Window_Closing" ResizeMode="CanMinimize">
     <Window.Resources>
@@ -28,7 +28,7 @@
         </Grid.RowDefinitions>
         <GroupBox Grid.Row="0" BorderBrush="Blue">
             <GroupBox.Header>
-                <TextBlock FontSize="13">Source files -> SYSTAT variable groups</TextBlock>
+                <TextBlock FontSize="13">Source files -> SPSS variable groups</TextBlock>
             </GroupBox.Header>
             <StackPanel Orientation="Vertical">
                 <ListBox Name="Files" Height="700"/>
@@ -59,7 +59,7 @@
         </GroupBox>
         <GroupBox Grid.Row="1" BorderBrush="Blue">
             <GroupBox.Header>
-                <TextBlock FontSize="13">SYSTAT output file</TextBlock>
+                <TextBlock FontSize="13">SPSS output file</TextBlock>
             </GroupBox.Header>
             <Grid>
                 <Grid.ColumnDefinitions>
@@ -68,20 +68,20 @@
                 </Grid.ColumnDefinitions>
                 <Border Grid.Column="0" BorderBrush="Blue">
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
-                        <TextBox Name="SYSTATFileName" Height="24" Width="680" Margin="8" TextChanged="SYSTATFileName_TextChanged" BorderThickness="3">SYSTATfile.xxx</TextBox>
-                        <Button Click="BrowseSYSTAT_Click" Style="{StaticResource ResourceKey=Butt}">Browse...</Button>
+                        <TextBox Name="SPSSFileName" Height="24" Margin="8" TextChanged="SPSSFileName_TextChanged" BorderThickness="3" Width="800">SYSTATfile.xxx</TextBox>
+                        <Button Click="BrowseSPSS_Click" Style="{StaticResource ResourceKey=Butt}">Browse...</Button>
                     </StackPanel>
                 </Border>
-                <GroupBox Grid.Column="1" Header="Format" HorizontalAlignment="Right" VerticalAlignment="Center" BorderBrush="Blue" Margin="2">
+                <!--<GroupBox Grid.Column="1" Header="Format" HorizontalAlignment="Right" VerticalAlignment="Center" BorderBrush="Blue" Margin="2">
                     <StackPanel Orientation="Horizontal">
                         <RadioButton Name="SYS" IsChecked="True" Margin="4" Checked="Format_Checked">Single</RadioButton>
                         <RadioButton Margin="4" Checked="Format_Checked">Double</RadioButton>
                     </StackPanel>
-                </GroupBox>
+                </GroupBox>-->
             </Grid>
         </GroupBox>
         <StackPanel Orientation="Horizontal" Grid.Row="2" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="8">
-            <TextBlock Name="Temp" Text="Number of SYSTAT variables = "/>
+            <TextBlock Name="Temp" Text="Number of SPSS variables = "/>
             <TextBlock Name="NumberOfDataPoints" Foreground="Red">0</TextBlock>
         </StackPanel>
         <StackPanel Orientation="Horizontal" Grid.Row="2" HorizontalAlignment="Right" VerticalAlignment="Center">

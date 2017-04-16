@@ -8,15 +8,15 @@
     <ProjectGuid>{1116BA84-2741-440B-82B6-4D83AB94958A}</ProjectGuid>
     <OutputType>WinExe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>SYSTATDataConsolidator</RootNamespace>
-    <AssemblyName>SYSTATDataConsolidator</AssemblyName>
+    <RootNamespace>SPSSDataConsolidator</RootNamespace>
+    <AssemblyName>SPSSDataConsolidator</AssemblyName>
     <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
     <TargetFrameworkProfile>Client</TargetFrameworkProfile>
     <FileAlignment>512</FileAlignment>
     <ProjectTypeGuids>{60dc8134-eba5-43b8-bcc9-bb4bc16c2548};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
     <WarningLevel>4</WarningLevel>
     <IsWebBootstrapper>true</IsWebBootstrapper>
-    <PublishUrl>ftp://zoomlenz.net/public_html/CCI/publish/SYSTATDataConsolidator/</PublishUrl>
+    <PublishUrl>ftp://zoomlenz.net/public_html/CCI/publish/SPSSDataConsolidator/</PublishUrl>
     <Install>true</Install>
     <InstallFrom>Web</InstallFrom>
     <UpdateEnabled>true</UpdateEnabled>
@@ -26,7 +26,7 @@
     <UpdatePeriodically>false</UpdatePeriodically>
     <UpdateRequired>false</UpdateRequired>
     <MapFileExtensions>true</MapFileExtensions>
-    <InstallUrl>http://zoomlenz.net/CCI/publish/SYSTATDataConsolidator/</InstallUrl>
+    <InstallUrl>http://zoomlenz.net/CCI/publish/SPSSDataConsolidator/</InstallUrl>
     <CreateWebPageOnPublish>true</CreateWebPageOnPublish>
     <WebPage>newpub.html</WebPage>
     <ApplicationRevision>16</ApplicationRevision>
@@ -58,7 +58,7 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <PropertyGroup>
-    <StartupObject>SYSTATDataConsolidator.App</StartupObject>
+    <StartupObject>SPSSDataConsolidator.App</StartupObject>
   </PropertyGroup>
   <PropertyGroup>
     <ApplicationIcon>FMDC.ico</ApplicationIcon>
@@ -76,16 +76,16 @@
     <ApplicationManifest>Properties\app.manifest</ApplicationManifest>
   </PropertyGroup>
   <PropertyGroup>
-    <ManifestCertificateThumbprint>811F00F983340B13C873A4E004930376E0272B1F</ManifestCertificateThumbprint>
+    <ManifestCertificateThumbprint>CE6837DFC1F7FB5C70111B0FF60D655952089C45</ManifestCertificateThumbprint>
   </PropertyGroup>
   <PropertyGroup>
-    <ManifestKeyFile>SYSTATDataConsolidator_1_TemporaryKey.pfx</ManifestKeyFile>
+    <ManifestKeyFile>SPSSDataConsolidator_TemporaryKey.pfx</ManifestKeyFile>
   </PropertyGroup>
   <PropertyGroup>
     <SignAssembly>true</SignAssembly>
   </PropertyGroup>
   <PropertyGroup>
-    <AssemblyOriginatorKeyFile>SYSTATDataConsolidator_1_TemporaryKey.pfx</AssemblyOriginatorKeyFile>
+    <AssemblyOriginatorKeyFile>SPSSDataConsolidator_TemporaryKey.pfx</AssemblyOriginatorKeyFile>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="CCILibrary">
@@ -152,7 +152,7 @@
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
     </None>
     <AppDesigner Include="Properties\" />
-    <None Include="SYSTATDataConsolidator_1_TemporaryKey.pfx" />
+    <None Include="SPSSDataConsolidator_TemporaryKey.pfx" />
   </ItemGroup>
   <ItemGroup>
     <Page Include="CSVFileListItem.xaml">

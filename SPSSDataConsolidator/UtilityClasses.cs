@@ -97,18 +97,18 @@ namespace SPSSDataConsolidator
     /// <summary>
     /// Class for describing and parsing acceptable SYSTAT .sys variable names
     /// </summary>
-    public class SYSTATNameStringParser
+    public class NameStringParser
     {
         Regex ok;
         Regex parser;
         string _codes;
 
         /// <summary>
-        /// Primary constructor for SYSTANameStringParser
+        /// Primary constructor for NameStringParser
         /// </summary>
         /// <param name="ncodes">Letters that code for numerical strings</param>
         /// <param name="acodes">Letters that code for alphanumeric strings; default is none (empty string)</param>
-        public SYSTATNameStringParser(string ncodes, string acodes = "")
+        public NameStringParser(string ncodes, string acodes = "")
         {
             if (acodes == "")
             {
@@ -133,7 +133,7 @@ namespace SPSSDataConsolidator
         }
 
         /// <summary>
-        /// Parses codestring based on this SYSTATNameStringParser
+        /// Parses codestring based on this NameStringParser
         /// </summary>
         /// <param name="codeString">String describing naming convention for a group of SYSTAT data variables</param>
         /// <returns>NameEncoding for encoding data variable names; used to ultimately create SYSTAT names for this group of variables</returns>
@@ -169,7 +169,7 @@ namespace SPSSDataConsolidator
         }
 
         /// <summary>
-        /// Creates a name for the SYSTAT variable described
+        /// Creates a name for the variable described
         /// </summary>
         /// <param name="values"></param>
         /// <param name="encoding"></param>
@@ -201,7 +201,7 @@ namespace SPSSDataConsolidator
         }
 
         public class NameEncoding : List<Char_CodePairs>
-        {  //hides actual encoding format from user of SYSTATNameStringParser
+        {  //hides actual encoding format from user of NameStringParser
             public int MinimumLength
             {
                 get

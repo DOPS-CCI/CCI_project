@@ -95,8 +95,8 @@ namespace SPSSDataConsolidator
 
         public event PropertyChangedEventHandler PropertyChanged;
 
-        public static SYSTATNameStringParser GVNameParser = new SYSTATNameStringParser("FfGg","Nn");
-        public static SYSTATNameStringParser PointNameParser = new SYSTATNameStringParser("FfCcPp", "N");
+        public static NameStringParser GVNameParser = new NameStringParser("FfGg","Nn");
+        public static NameStringParser PointNameParser = new NameStringParser("FfCcPp", "N");
 
         int numberOfFMChannels;
         int numberOfFMDataPoints;
@@ -436,8 +436,8 @@ namespace SPSSDataConsolidator
             }
         }
 
-        SYSTATNameStringParser.NameEncoding _namingConvention;
-        internal SYSTATNameStringParser.NameEncoding namingConvention
+        NameStringParser.NameEncoding _namingConvention;
+        internal NameStringParser.NameEncoding namingConvention
         {
             get { return _namingConvention; }
             set
@@ -544,8 +544,8 @@ namespace SPSSDataConsolidator
             }
         }
 
-        SYSTATNameStringParser.NameEncoding _namingConvention;
-        internal SYSTATNameStringParser.NameEncoding namingConvention
+        NameStringParser.NameEncoding _namingConvention;
+        internal NameStringParser.NameEncoding namingConvention
         {
             get { return _namingConvention; }
             set

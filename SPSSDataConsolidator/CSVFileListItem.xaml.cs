@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Windows.Media;
 using System.IO;
 using System.Text;
 using System.Windows;
@@ -9,6 +10,7 @@ using System.Windows.Controls;
 using Microsoft.Win32;
 using CSVStream;
 using CCIUtilities;
+using SYSTAT = SYSTATFileStream;
 
 namespace SPSSDataConsolidator
 {
@@ -63,7 +65,13 @@ namespace SPSSDataConsolidator
 
         public bool IsError
         {
-            get { return false; }
+            get
+            {
+                bool b = false;
+                foreach (Variable v in CSVFileRecords[0].stream.CSVVariables)
+                    b |= v.IsSel && v.LengthError;
+                return b;
+            }
         }
 
         public CSVFileListItem(CSVFileRecord csv)
@@ -190,7 +198,41 @@ namespace SPSSDataConsolidator
 
         private void VarFormat_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
+            ComboBox cb = (ComboBox)sender;
+            TextBox tb = (TextBox)((StackPanel)cb.Parent).Children[4];
+            tb.IsEnabled =
+                (((SYSTAT.SYSTATFileStream.SVarType)cb.SelectedValue).ToString() == "String");
+            tb.Text = "8";
             synchVariableSelection();
+        }
+
+        private void TextBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            TextBox tb = (TextBox)sender;
+            string s = tb.Text;
+            Variables var = _CSVFileRecords[0].stream.CSVVariables;
+            foreach (Variable v in var)
+            {
+                if ((string)tb.Tag == v.Name)
+                {
+                    int l;
+                    if (Int32.TryParse(s, out l))
+                    {
+                        v.MaxLength = l;
+                        v.LengthError = false;
+                        tb.Background = Brushes.White;
+                        tb.Foreground = Brushes.Black;
+                    }
+                    else
+                    {
+                        v.LengthError = true;
+                        tb.Background = Brushes.Pink;
+                        tb.Foreground = Brushes.Red;
+                    }
+                    break;
+                }
+            }
+            ErrorCheckReq(this, null);
         }
     }
 

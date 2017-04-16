@@ -20,6 +20,8 @@
                     <CheckBox IsChecked="{Binding Path=IsSel}" Checked="VarSelection_Changed" Unchecked="VarSelection_Changed" VerticalAlignment="Center"  Margin="2"/>
                     <TextBlock Text="{Binding Path=Name, Mode=OneWay}" FontWeight="Bold" Margin="2" VerticalAlignment="Center" />
                     <ComboBox Name="VarFormat" Width="70" SelectedItem="{Binding Path=Type}" ItemsSource="{Binding Path=combo, Mode=OneTime}" Margin="2" SelectionChanged="VarFormat_SelectionChanged" />
+                    <TextBlock Text=" MaxL= " FontWeight="Bold" VerticalAlignment="Center"/>
+                    <TextBox Name="ML" Text="{Binding Path=MaxLength}" TextChanged="TextBox_TextChanged" Tag="{Binding Path=Name, Mode=OneWay}"/>
                 </StackPanel>
             </Border>
             <DataTemplate.Triggers>
