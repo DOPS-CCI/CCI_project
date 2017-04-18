@@ -152,6 +152,7 @@ namespace CSVStream
                 if (_Type == value) return;
                 _Type = value;
                 Notify("Name");
+                Notify("IsStr");
             }
         }
         public object Value { get; internal set; } //read only, input only
@@ -163,6 +164,14 @@ namespace CSVStream
             get
             {
                 return _Type == SYSTAT.SYSTATFileStream.SVarType.Number;
+            }
+        }
+
+        public bool IsStr
+        {
+            get
+            {
+                return _Type == SYSTAT.SYSTATFileStream.SVarType.String;
             }
         }
 
