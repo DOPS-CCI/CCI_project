@@ -296,16 +296,14 @@ namespace SPSSDataConsolidator
                             {
                                 SPSSFile.Variable var;
                                 if (v.IsNum) var = new SPSSFile.NumericVariable(v.Name);
-                                else var = new SPSSFile.StringVariable(v.Name, 256); // ******PROBLEM: need max length of input string!
+                                else var = new SPSSFile.StringVariable(v.Name, v.MaxLength); 
                                 spss.AddVariable(var);
-                                //SYSTAT.SYSTATFileStream.Variable var;
-                                //var = new SYSTAT.SYSTATFileStream.Variable(v.Name, v.Type);
-                                //systat.AddVariable(var);
                             }
                 } //end data variable capture; now we can write the SYSTAT header
                 //systat.WriteHeader();
 
                 FILMANRecord FMRec;
+                CSVFileRecord cfr;
                 int[] recordsPerFile = new int[rowsInColumn(0)];
                 for (int i = 0; i < recordsPerFile.Length; i++)
                     recordsPerFile[i] = recsInItem(i, 0);
@@ -313,6 +311,7 @@ namespace SPSSDataConsolidator
                 int numberOfRecords = FilePointSelectors[0].NumberOfRecords;
                 Log.writeToLog("Creating " + numberOfRecords.ToString("0") + " records of " + TotalDataPoints().ToString("0") + " points");
                 for (int rowFile = 0; rowFile < recordsPerFile.Length; rowFile++)
+                {
                     for (int recNum = 0; recNum < recordsPerFile[rowFile]; recNum++)
                     {
                         int pointNumber = 0;
@@ -321,7 +320,8 @@ namespace SPSSDataConsolidator
                             if (fr.GetType() == typeof(FMFileListItem))
                             {
                                 FMFileListItem ffr = (FMFileListItem)fr;
-                                FMRec = ((FILMANFileRecord)ffr[rowFile]).stream.read(recNum, 0); //read first channel to get GV values
+                                FILMANInputStream fis = ((FILMANFileRecord)ffr[rowFile]).stream;
+                                FMRec = fis.read(recNum, 0); //read first channel to get GV values
                                 foreach (GroupVar gv in ffr.GroupVars) //include GV values first
                                 {
                                     if (gv.IsSel) //is it selected?
@@ -331,7 +331,7 @@ namespace SPSSDataConsolidator
                                 {
                                     foreach (int chan in pg.selectedChannels)
                                     {
-                                        FMRec = ((FILMANFileRecord)ffr[rowFile]).stream.read(recNum, chan);
+                                        FMRec = fis.read(recNum, chan);
                                         foreach (int pt in pg.selectedPoints)
                                             spss.SetVariableValue(pointNumber++, FMRec[pt]);
                                     }
@@ -339,12 +339,11 @@ namespace SPSSDataConsolidator
                             }
                             else
                             {
-                                CSVFileRecord cfr = (CSVFileRecord)fr[rowFile];
+                                cfr = (CSVFileRecord)fr[rowFile];
                                 cfr.stream.Read();
                                 foreach (CSV.Variable v in cfr.stream.CSVVariables)
                                     if (v.IsSel)
                                         spss.SetVariableValue(pointNumber++, v.Value);
-                                        //systat.SetVariableValue(pointNumber++, v.Value);
                             }
                         }
                         spss.WriteRecord();
@@ -355,11 +354,12 @@ namespace SPSSDataConsolidator
                             e.Cancel = true;
                             return;
                         }
-                    }
+                    } //next recnum
 
+                } //next rowFile
                 spss.Close();
                 Log.writeToLog("Finished consolidation");
-            }
+            } //try
             catch (Exception err)
             {
                 throw new Exception("Source: " + err.Source + " Message: " + err.Message, err);
@@ -389,7 +389,7 @@ namespace SPSSDataConsolidator
                     Log.writeToLog(s);
                 }
             Progress.Visibility = Visibility.Collapsed;
-            Create.Visibility = Visibility.Visible;
+            Create.Visibility = Visibility.Hidden; //can't run it again; headers have to be reread in input files
             CancelButton.Visibility = Visibility.Collapsed;
             QuitButton.Visibility = Visibility.Visible;
         }
