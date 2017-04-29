@@ -10,7 +10,7 @@ using Microsoft.Win32;
 using CSVStream;
 using CCIUtilities;
 
-namespace SPSSDataConsolidator
+namespace SYSTATDataConsolidator
 {
     /// <summary>
     /// Interaction logic for CSVFileListItem.xaml

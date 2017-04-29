@@ -15,7 +15,7 @@ using HeaderFileStream;
 using CCIUtilities;
 using GroupVarDictionary;
 
-namespace SPSSDataConsolidator
+namespace SYSTATDataConsolidator
 {
     /// <summary>
     /// Interaction logic for FMFileListItem.xaml

@@ -8,7 +8,7 @@ using System.Text.RegularExpressions;
 using FILMANFileStream;
 using CSVStream;
 
-namespace SPSSDataConsolidator
+namespace SYSTATDataConsolidator
 {
     /// <summary>
     /// Base class for input files

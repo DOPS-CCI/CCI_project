@@ -8,8 +8,8 @@
     <ProjectGuid>{1116BA84-2741-440B-82B6-4D83AB94958A}</ProjectGuid>
     <OutputType>WinExe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>SPSSDataConsolidator</RootNamespace>
-    <AssemblyName>SPSSDataConsolidator</AssemblyName>
+    <RootNamespace>SYSTATDataConsolidator</RootNamespace>
+    <AssemblyName>SYSTATDataConsolidator</AssemblyName>
     <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
     <TargetFrameworkProfile>Client</TargetFrameworkProfile>
     <FileAlignment>512</FileAlignment>
@@ -58,7 +58,7 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <PropertyGroup>
-    <StartupObject>SPSSDataConsolidator.App</StartupObject>
+    <StartupObject>SYSTATDataConsolidator.App</StartupObject>
   </PropertyGroup>
   <PropertyGroup>
     <ApplicationIcon>FMDC.ico</ApplicationIcon>
@@ -76,16 +76,16 @@
     <ApplicationManifest>Properties\app.manifest</ApplicationManifest>
   </PropertyGroup>
   <PropertyGroup>
-    <ManifestCertificateThumbprint>CE6837DFC1F7FB5C70111B0FF60D655952089C45</ManifestCertificateThumbprint>
+    <ManifestCertificateThumbprint>E0854CD1A81B1D83CB56212C34BEB2144AA7CF9C</ManifestCertificateThumbprint>
   </PropertyGroup>
   <PropertyGroup>
-    <ManifestKeyFile>SPSSDataConsolidator_TemporaryKey.pfx</ManifestKeyFile>
+    <ManifestKeyFile>SigningKey.pfx</ManifestKeyFile>
   </PropertyGroup>
   <PropertyGroup>
     <SignAssembly>true</SignAssembly>
   </PropertyGroup>
   <PropertyGroup>
-    <AssemblyOriginatorKeyFile>SPSSDataConsolidator_TemporaryKey.pfx</AssemblyOriginatorKeyFile>
+    <AssemblyOriginatorKeyFile>SigningKey.pfx</AssemblyOriginatorKeyFile>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="CCILibrary">
@@ -152,7 +152,7 @@
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
     </None>
     <AppDesigner Include="Properties\" />
-    <None Include="SPSSDataConsolidator_TemporaryKey.pfx" />
+    <None Include="SigningKey.pfx" />
   </ItemGroup>
   <ItemGroup>
     <Page Include="CSVFileListItem.xaml">

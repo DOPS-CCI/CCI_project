@@ -16,7 +16,7 @@ using Header;
 using GroupVarDictionary;
 using CCIUtilities;
 
-namespace SPSSDataConsolidator
+namespace SYSTATDataConsolidator
 {
     /// <summary>
     /// Interaction logic for MainWindow.xaml
