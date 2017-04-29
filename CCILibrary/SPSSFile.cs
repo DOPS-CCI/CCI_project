@@ -323,8 +323,11 @@ namespace SPSSFile
             : base(name, type)
         {
             _vType = type;
-            Description = gv.Description; //automatically save description of GV
-            GVLookUp = gv.GVValueDictionary;
+            if (gv != null) //will be null if GV name lookup in associated HDR file was unsuccessful
+            {
+                Description = gv.Description; //automatically save description of GV
+                GVLookUp = gv.GVValueDictionary; //may be null if
+            }
             if (GVLookUp == null && type == VarType.Alpha)
                 _vType = VarType.NumString; // change to NumString, no lookup possible
             else

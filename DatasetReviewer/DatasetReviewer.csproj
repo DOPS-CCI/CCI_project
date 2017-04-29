@@ -65,16 +65,16 @@
     <SignManifests>true</SignManifests>
   </PropertyGroup>
   <PropertyGroup>
-    <ManifestCertificateThumbprint>17E57019CD3CC0713B46B3838671CDA0A396E912</ManifestCertificateThumbprint>
+    <ManifestCertificateThumbprint>E0854CD1A81B1D83CB56212C34BEB2144AA7CF9C</ManifestCertificateThumbprint>
   </PropertyGroup>
   <PropertyGroup>
-    <ManifestKeyFile>DatasetReviewer_TemporaryKey.pfx</ManifestKeyFile>
+    <ManifestKeyFile>SigningKey.pfx</ManifestKeyFile>
   </PropertyGroup>
   <PropertyGroup>
     <SignAssembly>true</SignAssembly>
   </PropertyGroup>
   <PropertyGroup>
-    <AssemblyOriginatorKeyFile>DatasetReviewer_TemporaryKey.pfx</AssemblyOriginatorKeyFile>
+    <AssemblyOriginatorKeyFile>SigningKey.pfx</AssemblyOriginatorKeyFile>
   </PropertyGroup>
   <PropertyGroup>
     <TargetZone>LocalIntranet</TargetZone>
@@ -130,10 +130,10 @@
     </Page>
   </ItemGroup>
   <ItemGroup>
-    <None Include="DatasetReviewer_TemporaryKey.pfx" />
     <None Include="Properties\app.manifest">
       <SubType>Designer</SubType>
     </None>
+    <None Include="SigningKey.pfx" />
   </ItemGroup>
   <ItemGroup>
     <BootstrapperPackage Include=".NETFramework,Version=v4.0,Profile=Client">

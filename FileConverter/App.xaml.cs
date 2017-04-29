@@ -29,7 +29,7 @@ namespace FileConverter
             sb.Append("SOURCE: " + e.Source + Environment.NewLine +
                 "TARGET SITE: " + e.TargetSite + Environment.NewLine + Environment.NewLine +
                 "TRACE:" + Environment.NewLine + e.StackTrace);
-            MessageBox.Show(sb.ToString(), "Unhandled Error in PKDetectorAnalyzer: PLEASE SAVE THIS INFORMATION!", MessageBoxButton.OK);
+            MessageBox.Show(sb.ToString(), "Unhandled Error in FileConverter: PLEASE SAVE THIS INFORMATION!", MessageBoxButton.OK);
         }
     }
 }

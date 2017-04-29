@@ -29,7 +29,7 @@
     <InstallUrl>http://zoomlenz.net/CCI/publish/FileConverter/</InstallUrl>
     <CreateWebPageOnPublish>true</CreateWebPageOnPublish>
     <WebPage>publish.htm</WebPage>
-    <ApplicationRevision>27</ApplicationRevision>
+    <ApplicationRevision>29</ApplicationRevision>
     <ApplicationVersion>1.0.0.%2a</ApplicationVersion>
     <UseApplicationTrust>false</UseApplicationTrust>
     <CreateDesktopShortcut>true</CreateDesktopShortcut>
@@ -57,10 +57,10 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <PropertyGroup>
-    <ManifestCertificateThumbprint>17E75ADC079F2BC196730BD84572865669F003F0</ManifestCertificateThumbprint>
+    <ManifestCertificateThumbprint>E0854CD1A81B1D83CB56212C34BEB2144AA7CF9C</ManifestCertificateThumbprint>
   </PropertyGroup>
   <PropertyGroup>
-    <ManifestKeyFile>FileConverter_TemporaryKey.pfx</ManifestKeyFile>
+    <ManifestKeyFile>SigningKey.pfx</ManifestKeyFile>
   </PropertyGroup>
   <PropertyGroup>
     <GenerateManifests>true</GenerateManifests>
@@ -72,7 +72,7 @@
     <SignAssembly>true</SignAssembly>
   </PropertyGroup>
   <PropertyGroup>
-    <AssemblyOriginatorKeyFile>FileConverter_TemporaryKey.pfx</AssemblyOriginatorKeyFile>
+    <AssemblyOriginatorKeyFile>SigningKey.pfx</AssemblyOriginatorKeyFile>
   </PropertyGroup>
   <PropertyGroup>
     <TargetZone>LocalIntranet</TargetZone>
@@ -134,12 +134,12 @@
     </Compile>
     <AppDesigner Include="Properties\" />
     <None Include="app.config" />
-    <None Include="FileConverter_TemporaryKey.pfx" />
     <None Include="Properties\app.manifest" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
     </None>
+    <None Include="SigningKey.pfx" />
   </ItemGroup>
   <ItemGroup>
     <Page Include="MainWindow.xaml">
