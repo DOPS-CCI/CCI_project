@@ -233,13 +233,10 @@ namespace SPSSDataConsolidator
                     {
                         for (int i = 0; i < fr.NumberOfFiles; i++)
                         {
-                            //systat.AddCommentLine(fr[i].path); //FIRST comment lines name files
                             spss.AddDocumentRecord(fr[i].path); //FIRST comment lines name files
                             for (int j = 0; j < 6; j++)
                                 spss.AddDocumentRecord(((FILMANFileRecord)fr[i]).stream.Description(j));
-                            //    systat.AddCommentLine(((FILMANFileRecord)fr[i]).stream.Description(j));
                         }
-                        //systat.AddCommentLine(new string('*', 72)); //LAST comment line to mark end
                         spss.AddDocumentRecord(new string('*', 80)); //LAST comment line to mark end
                         fli = (FMFileListItem)fr;
                         object[] GVcodes = new object[] { fli.FileUID, ++fNum, 2, 0, "", "" }; //FfGgNn
@@ -255,7 +252,7 @@ namespace SPSSDataConsolidator
                             {
                                 GVcodes[3] = (int)GVcodes[3] + 1;
                                 GVcodes[4] = gv.FM_GVName.Replace(' ', '_');
-                                GVcodes[5] = gv.GVE != null ? gv.GVE.Name.Replace(' ', '_') : "";
+                                GVcodes[5] = gv.GVE != null ? gv.GVE.Name.Replace(' ', '_') : GVcodes[4];
                                 s = FMFileListItem.GVNameParser.Encode(GVcodes, gv.namingConvention); //generate name for this GV
                                 VarType t = gv.Format == NSEnum.Number ? VarType.Number :
                                     (gv.Format == NSEnum.MappedString ? VarType.Alpha : VarType.NumString);
@@ -300,7 +297,6 @@ namespace SPSSDataConsolidator
                                 spss.AddVariable(var);
                             }
                 } //end data variable capture; now we can write the SYSTAT header
-                //systat.WriteHeader();
 
                 FILMANRecord FMRec;
                 CSVFileRecord cfr;

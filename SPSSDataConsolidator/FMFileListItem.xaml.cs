@@ -284,20 +284,41 @@ namespace SPSSDataConsolidator
             ffr.stream = fmTemp;
             ffr.path = ofd.FileName;
 
-            //Now check to see if there is a Header file available
+            //Now check to see if there is a Header file available; tries to find a HDR file whose name 
+            //matches the FM file name; otherwise uses the first HDR file it finds; this establishes
+            //a GV dictionary to be used; otherwise, if none found, GVDictionary will remain null and
+            //no GV value or original name lookup can occur
             string directory = ffr.path;
-            IEnumerable<string> hdrFiles;
-            int searchLevels = maxHDRSearchLevels; //Number of directory levels to search
-            while (searchLevels-- > 0 && (directory = Path.GetDirectoryName(directory)) != null) //loop through enclosing directory levels
+            //truncate FM file name to exclude all "extensions"; this will give our target HDR file name
+            string FMFileName;
+            string s = directory;
+            do
             {
-                hdrFiles = Directory.EnumerateFiles(directory, "*.hdr");
-                if (hdrFiles.Count() > 0) //there's a candidate Header file in the directory which contains the FILMAN file
+                FMFileName = s;
+                s = Path.GetFileNameWithoutExtension(s); //chop off extensions until there are no more
+            } while (s != FMFileName);
+
+            IEnumerable<string> hdrFiles;
+            bool first = true; //indicates that first HDR file has not been found
+            bool foundmatch = false; //indicates that the file names are exact match
+            int searchLevels = maxHDRSearchLevels; //Number of directory levels to search
+            //loop through enclosing directory levels until we find a match, up to a maximum depth
+            while (!foundmatch && searchLevels-- > 0 && (directory = Path.GetDirectoryName(directory)) != null) 
+            {
+                hdrFiles = Directory.EnumerateFiles(directory, "*.hdr"); //get list of potential HDR files
+                foreach (string HDRFilePath in hdrFiles)
                 {
-                    HeaderFileReader headerFile = new HeaderFileReader
-                        (new FileStream(hdrFiles.First(), FileMode.Open, FileAccess.Read)); //Use the first one found: we hope there's only one!
-                    ffr.GVDictionary = headerFile.read().GroupVars; //save the GroupVar dictionary
-                    headerFile.Dispose(); //closes file
-                    break;
+                    foundmatch = FMFileName == Path.GetFileNameWithoutExtension(HDRFilePath);
+                    if (first || foundmatch) //does it match FM base file name?
+                    {
+                        first = false;
+                        //if so, open it and grab GV dictionary 
+                        HeaderFileReader headerFile = new HeaderFileReader
+                            (new FileStream(HDRFilePath, FileMode.Open, FileAccess.Read));
+                        ffr.GVDictionary = headerFile.read().GroupVars; //save the GroupVar dictionary
+                        headerFile.Dispose(); //closes file
+                        if (foundmatch) break;
+                    }
                 }
             }
             return ffr;

@@ -68,7 +68,7 @@
                 </Grid.ColumnDefinitions>
                 <Border Grid.Column="0" BorderBrush="Blue">
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
-                        <TextBox Name="SPSSFileName" Height="24" Margin="8" TextChanged="SPSSFileName_TextChanged" BorderThickness="3" Width="800">SYSTATfile.xxx</TextBox>
+                        <TextBox Name="SPSSFileName" Height="24" Margin="8" TextChanged="SPSSFileName_TextChanged" BorderThickness="3" Width="800">SPSSfile.sav</TextBox>
                         <Button Click="BrowseSPSS_Click" Style="{StaticResource ResourceKey=Butt}">Browse...</Button>
                     </StackPanel>
                 </Border>
