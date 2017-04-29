@@ -9,10 +9,26 @@ namespace CCIUtilities
     public class Polynomial
     {
         List<termInfo> terms = new List<termInfo>();
+        string variable = "x";
+        public char Variable
+        {
+            get
+            {
+                return variable.ToCharArray()[0];
+            }
+            set
+            {
+                variable = value.ToString();
+            }
+        }
+        int _minPow = -1;
+        int _maxPow = -1;
 
         public Polynomial(string s, char x)
         {
-            Regex termRegex = new Regex(@"^(?<coef>(?:\+?|-)(?:\d+\.?\d*|\.\d+))?((?<v1>" + x + @")?|(?<v2>" + x + @"\^)(?<pow>\d+))?$");
+            variable = x.ToString();
+            if (s == "0") return;
+            Regex termRegex = new Regex(@"^(?<sign>(?:\+?|-))(?<coef>(?:\d+\.?\d*|\.\d+))?((?<v1>" + x + @")?|(?<vn>" + x + @"\^)(?<pow>\d+))?$");
             string[] term = Regex.Split(s, @"(?=[+-].)"); //split on signs to get terms, including sign
             for (int i = 0; i < term.Length; i++)
             {
@@ -23,42 +39,53 @@ namespace CCIUtilities
                     if (m.Length > 0)
                     {
                         termInfo t = new termInfo();
-                        if (m.Groups["coef"].Length > 0) t.coef = System.Convert.ToDouble(m.Groups["coef"].Value);
-                        else t.coef = 1D;
+                        double sign = (m.Groups["sign"].Length == 0 || m.Groups["sign"].Value == "+") ? 1D : -1D;
+                        if (m.Groups["coef"].Length > 0) t.coef = sign * System.Convert.ToDouble(m.Groups["coef"].Value);
+                        else t.coef = sign;
                         if (m.Groups["v1"].Length > 0) t.pow = 1;
-                        else if (m.Groups["v2"].Length > 0) t.pow = System.Convert.ToInt32(m.Groups["pow"].Value);
+                        else if (m.Groups["vn"].Length > 0) t.pow = System.Convert.ToInt32(m.Groups["pow"].Value);
                         else t.pow = 0;
                         terms.Add(t);
+                        if (t.pow > _maxPow) _maxPow = t.pow;
+                        if (t.pow < _minPow || _minPow < 0) _minPow = t.pow;
                     }
+                    else if (i != 0)
+                        throw new Exception("Two consecutive signs in Polnomial input string: " + s);
                 }
                 else throw new Exception("Invalid input polynomial on " + x + ": " + s + " term: " + term[i]);
             }
             terms.Sort(new termComparer());
         }
 
+        public Polynomial(string s) : this(s, 'x') { }
+
+        public Polynomial(Polynomial p) //copy construction
+        {
+            variable = p.variable;
+            foreach (termInfo t in p.terms)
+                terms.Add(t); //pass by value => copy made
+        }
+
         public Polynomial(double[] coefs)
         {
             for (int i = 0; i < coefs.Length; i++)
             {
-                termInfo t = new termInfo(i, coefs[i]);
-                terms.Add(t);
+                if (coefs[i] != 0D)
+                {
+                    termInfo t = new termInfo(i, coefs[i]);
+                    terms.Add(t);
+                    if (i > _maxPow) _maxPow = i;
+                    if (i < _minPow || _minPow < 0) _minPow = i;
+                }
             }
         }
 
-        private Polynomial() { }
-
-        /// <summary>
-        /// Evaluate Polynomial at a point
-        /// </summary>
-        /// <param name="x">Abscissa value at which to evaluate</param>
-        /// <returns>Ordinate value</returns>
-        public double evaluate(double x)
+        public Polynomial(double[] coefs, char x): this(coefs)
         {
-            double sum = 0D;
-            foreach(termInfo t in terms)
-                sum += t.coef * Math.Pow(x, t.pow);
-            return sum;
+            variable = x.ToString();
         }
+
+        private Polynomial() { }
 
         /// <summary>
         /// Minimum power of Polynomial
@@ -67,9 +94,12 @@ namespace CCIUtilities
         {
             get
             {
-                int minP = int.MaxValue;
-                foreach (termInfo t in terms) minP = Math.Min(minP, t.pow);
-                return minP;
+                if (_minPow < 0)
+                {
+                    _minPow = 0;
+                    foreach (termInfo t in terms) _minPow = Math.Min(_minPow, t.pow);
+                }
+                return _minPow;
             }
         }
 
@@ -80,9 +110,12 @@ namespace CCIUtilities
         {
             get
             {
-                int maxP = int.MinValue;
-                foreach (termInfo t in terms) maxP = Math.Max(maxP, t.pow);
-                return maxP;
+                if (_maxPow < 0)
+                {
+                    _maxPow = 0;
+                    foreach (termInfo t in terms) _maxPow = Math.Max(_maxPow, t.pow);
+                }
+                return _maxPow;
             }
         }
 
@@ -92,17 +125,7 @@ namespace CCIUtilities
         /// <returns>New, simplified polynomial; terms sorted minimum to maximum powers</returns>
         public Polynomial simplify()
         {
-            int min = minPower;
-            int max = maxPower;
-            Polynomial poly = new Polynomial();
-            for (int i = minPower; i < maxPower; i++)
-            {
-                double sum = 0;
-                foreach (termInfo t in terms)
-                    if (t.pow == i) sum += t.coef;
-                if (sum != 0D)
-                    poly.terms.Add(new termInfo(i, sum));
-            }
+            Polynomial poly = new Polynomial(this.convertToCoefficients(), variable.ToCharArray()[0]);
             return poly;
         }
 
@@ -114,11 +137,129 @@ namespace CCIUtilities
         {
             double[] coefs = new double[maxPower + 1];
             foreach (termInfo t in terms)
-            {
-                int i = t.pow;
-                coefs[i] += t.coef;
-            }
+                coefs[t.pow] += t.coef;
             return coefs;
+        }
+
+        public static Polynomial operator -(Polynomial A)
+        {
+            Polynomial B = new Polynomial(A);
+            for (int i = 0; i < B.terms.Count;i++ )
+            {
+                termInfo t1 = B.terms[i];
+                t1.coef = -t1.coef;
+                B.terms[i] = t1;
+            }
+            return B;
+        }
+
+        public static Polynomial operator +(Polynomial A)
+        {
+            return new Polynomial(A);
+        }
+
+        public static Polynomial operator +(double d, Polynomial A)
+        {
+            double[] b = A.convertToCoefficients();
+            b[0] += d;
+            return new Polynomial(b, A.Variable);
+        }
+
+        public static Polynomial operator +(Polynomial A, double d)
+        {
+            return d + A;
+        }
+
+        public static Polynomial operator -(Polynomial A, double d)
+        {
+            return -d + A;
+        }
+
+        public static Polynomial operator -(double d, Polynomial A)
+        {
+            return d + (-1) * A;
+        }
+
+        public static Polynomial operator +(Polynomial A, Polynomial B)
+        {
+            if (A.variable != B.variable)
+                throw new Exception("Incompatable variables in polynomial addition");
+            int Amp = A.maxPower;
+            int Bmp = B.maxPower;
+            double[] a = A.convertToCoefficients();
+            double[] b = B.convertToCoefficients();
+            double[] c = new double[Math.Max(Amp, Bmp) + 1];
+            for (int i = 0; i <= Amp; i++) c[i] = a[i];
+            for (int i = 0; i <= Bmp; i++) c[i] += b[i];
+            return new Polynomial(c, A.Variable);
+        }
+
+        public static Polynomial operator *(double d, Polynomial A)
+        {
+            if (d == 0) return new Polynomial("0", A.variable.ToCharArray()[0]);
+            Polynomial B = new Polynomial(A);
+            for (int i = 0; i < B.terms.Count; i++)
+            {
+                termInfo t = B.terms[i];
+                t.coef *= d;
+                B.terms[i] = t;
+            }
+            return B;
+        }
+
+        public static Polynomial operator *(Polynomial A, double d)
+        {
+            return d * A;
+        }
+
+        public static Polynomial operator *(Polynomial A, Polynomial B)
+        {
+            if (A.variable != B.variable)
+                throw new Exception("Incompatable variables in polynomial multiplication");
+            int Amp = A.maxPower;
+            int Bmp = B.maxPower;
+            int Cmp = Amp + Bmp;
+            double[] a = A.convertToCoefficients();
+            double[] b = B.convertToCoefficients();
+            double[] c = new double[Cmp + 1];
+            for (int i = 0; i <= Amp; i++)
+            {
+                double v = a[i];
+                if(v != 0D)
+                    for (int j = 0; j <= Bmp; j++)
+                    {
+                        c[i + j] += v * b[j];
+                    }
+            }
+            return new Polynomial(c, A.Variable);
+        }
+
+        public static Polynomial operator -(Polynomial A, Polynomial B)
+        {
+            int Amp = A.maxPower;
+            int Bmp = B.maxPower;
+            if (A.variable != B.variable)
+                throw new Exception("Incompatable variables in polynomial subtraction");
+            double[] a = A.convertToCoefficients();
+            double[] b = B.convertToCoefficients();
+            double[] c = new double[Math.Max(Amp, Bmp) + 1];
+            for (int i = 0; i <= Amp; i++) c[i] = a[i];
+            for (int i = 0; i <= Bmp; i++) c[i] -= b[i];
+            return new Polynomial(c, A.Variable);
+        }
+
+        /// <summary>
+        /// Evaluate Polynomial at a point
+        /// </summary>
+        /// <param name="x">Abscissa value at which to evaluate</param>
+        /// <returns>Ordinate value</returns>
+        public double evaluateAt(double x)
+        {
+            double[] p = this.convertToCoefficients();
+            double s = 0;
+            for (int i = maxPower; i >= 0; i--)
+                s = s * x + p[i];
+            return s;
         }
 
         /// <summary>
@@ -140,6 +281,7 @@ namespace CCIUtilities
 
         public override string ToString()
         {
+            if (terms.Count == 0) return "0";
             StringBuilder sb = new StringBuilder();
             bool plus = false;
             foreach(termInfo t in terms)
@@ -148,19 +290,19 @@ namespace CCIUtilities
                 double c = t.coef;
                 sb.Append(((c > 0D && plus) ? "+" : "") +
                     ((Math.Abs(c) == 1D && p != 0) ? (c < 0 ? "-" : "") : c.ToString("G4")) +
-                    (p == 0 ? "" : "x" + (p == 1 ? "" : "^" + p.ToString("0"))));
+                    (p == 0 ? "" : variable + (p == 1 ? "" : "^" + p.ToString("0"))));
                 plus = true; //show + sign after first term
             }
             return sb.ToString();
         }
 
-        public static Polynomial ChebyshevT(int n)
+        public static Polynomial ChebyshevT(int n, char v)
         {
-            if (n == 0) return new Polynomial("1", 'x');
+            if (n == 0) return new Polynomial("1", v);
             double[] c2 = {0D, 1D };
-            if (n == 1) return new Polynomial(c2);
+            if (n == 1) return new Polynomial(c2, v);
             double[] c1 = { -1D, 0D, 2D };
-            if (n == 2) return new Polynomial(c1);
+            if (n == 2) return new Polynomial(c1, v);
             double[] c = { 0D, -3D, 0D, 4D };
             int j;
             for (int i = 4; i <= n; i++)
@@ -168,10 +310,15 @@ namespace CCIUtilities
                 c2 = c1;
                 c1 = c;
                 c = new double[i + 1];
-                for (j = 0; j < i - 2; j++) c[j] = -c2[j];
-                for (j = 0; j < i - 1; j++) c[j + 1] += 2 * c1[j];
+                for (j = 0; j <= i - 2; j++) c[j] = -c2[j];
+                for (j = 0; j <= i - 1; j++) c[j + 1] += 2 * c1[j];
             }
-            return new Polynomial(c);
+            return new Polynomial(c, v);
+        }
+
+        public static Polynomial ChebyshevT(int n)
+        {
+            return ChebyshevT(n, 'x');
         }
 
         struct termInfo
@@ -190,7 +337,8 @@ namespace CCIUtilities
         {
             public override int Compare(termInfo x, termInfo y)
             {
-                return -x.pow.CompareTo(y.pow);
+                if (x.pow != y.pow) return x.pow < y.pow ? -1 : 1;
+                return x.coef.CompareTo(y.coef);
             }
         }
 
@@ -268,7 +416,7 @@ namespace CCIUtilities
 
          private static double[,] getXMatrix(int degree, int N)
          {
-            if (degree > 10 || degree < 0) throw (new Exception("Degree of polynomial fit (" + N.ToString("0") + ") is to large."));
+            if (degree > 10 || degree < 0) throw (new Exception("Degree of polynomial fit (" + N.ToString("0") + ") is too large."));
             double n = (double)N;
             double[] nPow = new double[2 * degree + 2];
             double v = 1D;
