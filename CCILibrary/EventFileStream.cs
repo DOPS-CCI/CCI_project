@@ -67,11 +67,11 @@ namespace EventFile
                         ev.m_time = Convert.ToDouble(t);
                     else //deprecated, no decimal point
                     {
-                        int l = t.Length - 7; //count in 100nsec intervals
+                        int l = t.Length - 7; //count in 100nsec intervals assumed
                         ev.m_time = Convert.ToDouble(t.Substring(0, l) + "." + t.Substring(l));
                     }
-                    if (!ev.BDFBased) // only used for Absolute ClockTimes
-                        ev.EventTime = xr.ReadElementString("EventTime", nameSpace);
+                    if (xr.Name == "EventTime") // optional; present with absolute timing, optional with relative
+                        ev.EventTime = xr.ReadElementString(/* EventTime */);
                 }
                 else if (xr.Name == "Time") //Time construct -- deprecated as of 11 Feb 2013
                 {
@@ -234,7 +234,7 @@ namespace EventFile
                 xw.WriteElementString("Index", ev.Index.ToString("0"));
                 xw.WriteElementString("GrayCode", ev.GC.ToString("0"));
                 xw.WriteStartElement("ClockTime");
-                if (ev.BDFBased) // BDF-based clock
+                if (ev.HasRelativeTime) // BDF-based clock
                 {
                     xw.WriteString(ev.Time.ToString("0.0000000"));
                     xw.WriteEndElement(/* ClockTime */);
@@ -244,7 +244,7 @@ namespace EventFile
                     xw.WriteString(ev.Time.ToString("00000000000.0000000"));
                     xw.WriteEndElement(/* ClockTime */);
 
-                    //only Absolute clocks record EventTime in readable form
+                    // Absolute clocks also record EventTime in readable form
                     DateTime t = new DateTime((long)(ev.Time * 1E7));
                     if (t.Year < 1000) t = t.AddYears(1600); //convert to 0 year basis from 1600 basis
                     xw.WriteElementString("EventTime", t.ToString("d MMM yyyy HH:mm:ss.fffFF"));

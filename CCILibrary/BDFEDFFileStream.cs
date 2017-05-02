@@ -221,6 +221,53 @@ namespace BDFEDFFileStream
             return -1;
         }
 
+        double? _zeroTime = null;
+
+        /// <summary>
+        /// Sets the time of start of file (record 0, point 0) to a given value
+        /// After this, value may be accessed via property <code>zeroTime</code>
+        /// WARNING: use with caution; the BDF and Event clocks may not be synchronized
+        /// </summary>
+        /// <param name="zeroTime">time to set zeroTime to</param>
+        public void setZeroTime(double zeroTime)
+        {
+            _zeroTime = zeroTime;
+        }
+
+        /// <summary>
+        /// Read-only property which is the absolute time of the first point in the file
+        /// Used to synch Events with absolute times to the BDF file
+        /// </summary>
+        public double zeroTime
+        {
+            get
+            {
+                if (_zeroTime == null) throw new Exception("In BDFEDFFile: zeroTime not initialized");
+                return (double)_zeroTime;
+            }
+        }
+
+        /// <summary>
+        /// Returns true if zeroTiem has been previously set, false if it has not
+        /// </summary>
+        public bool IsZeroTimeSet
+        {
+            get { return _zeroTime != null; }
+        }
+
+        /// <summary>
+        /// Calculates number of seconds from beginning of file to an Event; if Event is Absolute,
+        /// uses zeroTime to synchonize clocks; zeroTime must be previously set.
+        /// </summary>
+        /// <param name="ie">The Event to locate</param>
+        /// <returns>Time to Event</returns>
+        /// <exception cref="Exception">zeroTime not initialized</exception>
+        public double timeFromBeginningOfFileTo(Event.Event ie)
+        {
+            if (ie.HasRelativeTime) return ie.Time;
+            return ie.Time - zeroTime;
+        }
+
         /// <summary>
         /// BDF/EDF header information
         /// </summary>
@@ -647,52 +694,6 @@ namespace BDFEDFFileStream
             }
             return false;
         }
-
-        /// <summary>
-        /// Sets the time of start of file (record 0, point 0) to a given value
-        /// After this, value may be accessed via property <code>zeroTime</code>
-        /// WARNING: use with caution; the BDF and Event clocks may not be synchronized
-        /// </summary>
-        /// <param name="zeroTime">time to set zeroTime to</param>
-        public void setZeroTime(double zeroTime)
-        {
-            _zeroTime = zeroTime;
-        }
-
-        /// <summary>
-        /// Read-only property which is the absolute time of the first point in the file
-        /// Used to synch Events with absolute times to the BDF file
-        /// </summary>
-        public double zeroTime
-        {
-            get
-            {
-                if (_zeroTime == null) throw new Exception("In BDFEDFFileReader: zeroTime not initialized");
-                return (double)_zeroTime;
-            }
-        }
-
-        /// <summary>
-        /// Returns true if zeroTiem has been previously set, false if it has not
-        /// </summary>
-        public bool IsZeroTimeSet
-        {
-            get { return _zeroTime != null; }
-        }
-
-        /// <summary>
-        /// Calculates number of seconds from beginning of file to an Event; if Event is Absolute,
-        /// uses zeroTime to synchonize clocks; zeroTime must be previously set.
-        /// </summary>
-        /// <param name="ie">The Event to locate</param>
-        /// <returns>Time to Event</returns>
-        /// <exception cref="Exception">zeroTime not initialized</exception>
-        public double timeFromBeginningOfFileTo(Event.Event ie)
-        {
-            if (ie.BDFBased) return ie.Time;
-            return ie.Time - zeroTime;
-        }
-
         public bool setExtrinsicChannelNumber(EventDictionaryEntry ede)
         {
             if (ede.IsExtrinsic && ede.channel == -1) //need to perform channel look-up

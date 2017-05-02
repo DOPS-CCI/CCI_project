@@ -39,23 +39,37 @@ namespace EventDictionary
         public string Description { get { return m_description; } set { m_description = value; } } //need for binding
 
         public bool? intrinsic = true; //specifies the Event type: 
-            // intrinsic (true) are computer generated; extrinsic are external (nonsynchronous); both should have corresponding Status markers;
-            // use null for intrinsic Events with no Status marker (naked)
-        internal bool m_bdfBased = false;
-        public bool BDFBased //Time in Event is based on start of BDF file if true; otherwise Time is absolute if false => clocks need synchronization
+            // intrinsic (true) are computer generated; extrinsic are external (nonsynchronous) both should have
+            // corresponding Status markers (Covered); use null for Events with no Status marker (naked Events) -- these are
+            // assumed to be extrinsic, generally created secondarily based on BDF file channels; e.g. artifact markers
+
+        internal bool m_bdfBasedTime = false;
+        
+        [Obsolete("Use RelativeTime(set) or HasRelativeTime/HasAbsoluteTime(get) properties")]
+        public bool BDFBased
         {
-            get { return m_bdfBased; }
+            get { return m_bdfBasedTime; }
             set
             {
-//                if (value) intrinsic = null; //must be naked Event if BDF-based time
-                m_bdfBased = value;
+                m_bdfBasedTime = value;
             }
         }
+
+        public bool RelativeTime //Time in Event is based on start of BDF file if true; otherwise Time is absolute if false => clocks need synchronization
+        {
+            set
+            {
+                m_bdfBasedTime = value;
+            }
+        }
+
         public string IE { get { return IsCovered ? (bool)intrinsic ? "I" : "E" : "*"; } }
         public bool IsCovered { get { return intrinsic != null; } }
         public bool IsNaked { get { return intrinsic == null; } }
         public bool IsIntrinsic { get { return intrinsic != null && (bool)intrinsic; } }
         public bool IsExtrinsic { get { return intrinsic != null && !(bool)intrinsic; } }
+        public bool HasRelativeTime { get { return m_bdfBasedTime; } }
+        public bool HasAbsoluteTime { get { return !m_bdfBasedTime; } }
 
         public string channelName;
         public int channel = -1; //specifies channel number that contains the extrinsic Event data (AIB) -- only used for extrinsic Events

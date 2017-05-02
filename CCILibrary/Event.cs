@@ -140,20 +140,20 @@ namespace Event
         public string Name { get { return m_name; } }
         internal double m_time;
         public virtual double Time { get { return m_time; } }
-        //this item added to include concept of relativeTime, where all Event locations are w.r.t. BDF file origin
-        protected double? _relativeTime = null;
+        protected double? _relativeTime = null; //this item added to include concept of relativeTime, where all Event locations are w.r.t. BDF file origin
         public double relativeTime
         {
             get
             {
-                if (ede.BDFBased) return m_time; //if it's already relative, don't have to set it
+                if (ede.HasRelativeTime) return m_time; //if it's already relative, don't have to set it
+                if (bdf.IsZeroTimeSet) return m_time - bdf.zeroTime;
                 try
                 {
                     return (double)_relativeTime; //will throw exception if relativeTime hasn't been set
                 }
                 catch
                 {
-                    throw new Exception("Relative (BDF-based) time not available in Event "+ ede.Name);
+                    throw new Exception("Relative (BDF-based) time not available for Event "+ ede.Name);
                 }
             }
         }
@@ -164,6 +164,9 @@ namespace Event
         protected EventDictionaryEntry ede;
         public EventDictionaryEntry EDE { get { return ede; } }
         public byte[] ancillary;
+
+        internal static BDFEDFFileReader bdf = null; //attach Events to dataset
+        internal static Header.Header head = null;
 
         protected Event(EventDictionaryEntry entry)
         {
@@ -197,6 +200,18 @@ namespace Event
             return r;
         }
 
+        /// <summary>
+        /// Links all input Events to a particular dataset in order to make the timing of InputEvents relative
+        /// to the BDF file
+        /// </summary>
+        /// <param name="Head">HDR file reader for the dataset</param>
+        /// <param name="BDF">BDF file reader for the dataset</param>
+        public static void LinkEventsToDataset(Header.Header Head, BDFEDFFileReader BDF)
+        {
+            head = Head;
+            bdf = BDF;
+        }
+
         public static int CompareEventsByTime(Event ev1, Event ev2)
         {
             if (ev1.Time > ev2.Time) return 1;
@@ -228,11 +243,28 @@ namespace Event
             }
         }
 
-        public bool BDFBased
+        [Obsolete("Use HasRelativeTime or HasAbsoluteTime property")]
+        public bool BDFBased //deprecated
         {
             get
             {
-                return ede.BDFBased;
+                return ede.HasRelativeTime;
+            }
+        }
+
+        public bool HasRelativeTime
+        {
+            get
+            {
+                return ede.HasRelativeTime;
+            }
+        }
+
+        public bool HasAbsoluteTime
+        {
+            get
+            {
+                return ede.HasAbsoluteTime;
             }
         }
     }
@@ -259,7 +291,7 @@ namespace Event
         public OutputEvent(EventDictionaryEntry entry, DateTime time, int index = 0)
             : base(entry)
         {
-            if (entry.BDFBased) throw new Exception("OutputEvent constructor(EDE, DateTime, int) only for absolute Events");
+            if (entry.HasRelativeTime) throw new Exception("OutputEvent constructor(EDE, DateTime, int) only for absolute Events");
             ede = entry;
             m_time = (double)(time.Ticks) / 1E7;
             if (entry.IsCovered)
@@ -279,7 +311,7 @@ namespace Event
         public OutputEvent(EventDictionaryEntry entry, long time, int index)
             : base(entry)
         {
-            if (entry.BDFBased) throw new Exception("OutputEvent constructor(EDE, long, int) only for absolute Events");
+            if (entry.HasRelativeTime) throw new Exception("OutputEvent constructor(EDE, long, int) only for absolute Events");
             ede = entry;
             m_time = (double)(time) / 1E7;
             if (entry.IsCovered)
@@ -291,15 +323,15 @@ namespace Event
         }
 
         /// <summary>
-        /// Stand-alone constructor for use creating ouput events based on BDF time
+        /// Stand-alone constructor to create ouput events using relative (BDF-based) time
         /// </summary>
         /// <param name="entry">EventDictionaryEntry describing the Event</param>
         /// <param name="time">time of Event, seconds since start of BDF file</param>
-        /// <param name="index">index of new Event; may be zero only if naked Event</param>
+        /// <param name="index">index of new Event; must be zero only if naked Event</param>
         public OutputEvent(EventDictionaryEntry entry, double time, int index = 0)
             : base(entry)
         {
-            if (!entry.BDFBased) throw new Exception("OutputEvent constructor(EDE, double, int) only for BDF-based Events");
+            if (entry.HasAbsoluteTime) throw new Exception("OutputEvent constructor(EDE, double, int) only for relative (BDF-based) Events");
             if (entry.IsCovered)
             {
                 if (index == 0)
@@ -349,10 +381,6 @@ namespace Event
         public string EventTime; //optional; string translation of Time
         public string[] GVValue;
 
-        static BDFEDFFileReader bdf = null; //attach Events to dataset
-        static Header.Header head = null;
-
-
         public InputEvent(EventDictionaryEntry entry): base(entry)
         {
             if (ede.GroupVars != null && ede.GroupVars.Count > 0) GVValue = new string[ede.GroupVars.Count];
@@ -364,25 +392,14 @@ namespace Event
             return i < 0 ? -1 : ede.GroupVars[i].ConvertGVValueStringToInteger(GVValue[i]);
         }
 
-        /// <summary>
-        /// Links all input Events to a particular dataset in order to make the timing of InputEvents relative
-        /// to the BDF file
-        /// </summary>
-        /// <param name="Head">HDR file reader for the dataset</param>
-        /// <param name="BDF">BDF file reader for the dataset</param>
-        public static void LinkEventsToDataset(Header.Header Head, BDFEDFFileReader BDF)
-        {
-            head = Head;
-            bdf = BDF;
-        }
-
         public void setRelativeTime() //need this post-processor because zeroTime hasn't been set when Events read in
         {
-            if (EDE.BDFBased) //relative time Event
+            if (EDE.HasRelativeTime) //relative time Event
                 _relativeTime = m_time; //relative time Event
-            else
+            else //absolute time Event
                 if (EDE.IsCovered) //covered, absolute Event
-                { // => try to find Status mark nearby to use as actual Event time
+                {   //                    => try to find Status mark nearby to use as actual, relative Event time
+                    // NB: link to HDR and BDF files must have been made using LinkEventsToDataset(Header, BDFEDFFile)
                     double offset;
                     GrayCode gc = new GrayCode(head.Status);
                     gc.Value = (uint)GC;
@@ -409,8 +426,8 @@ namespace Event
                 str.Append("ClockTime(Absolute): " + Time.ToString("00000000000.0000000" + nl));
                 str.Append("EventTime: " + EventTime + nl);
             }
-            else if (ede.m_bdfBased) //new form, with Type=BDF-based
-                str.Append("ClockTime(BDF-based): " + Time.ToString("0.0000000") + nl);
+            else if (ede.m_bdfBasedTime) //new form, with Type=Relative
+                str.Append("ClockTime(Relative): " + Time.ToString("0.0000000") + nl);
             else //deprecated form: no EventTime or Type attribute, always Absolute
                 str.Append("Time(Absolute,deprecated): " + Time.ToString("00000000000.0000000") + nl);
             if (ede.GroupVars != null) //if there are GVs
