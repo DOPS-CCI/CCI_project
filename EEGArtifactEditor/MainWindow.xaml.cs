@@ -959,8 +959,8 @@ namespace EEGArtifactEditor
                 {
                     if (!header.Events.TryGetValue("**ArtifactBegin", out ede1) || !header.Events.TryGetValue("**ArtifactEnd", out ede2)) //get the EDEs for the marking Events
                         throw new Exception("Error in attempted update of previously marked dataset -- incorrect marking Events");
-                    ede1.BDFBased = true; //make sure they are BDF-based!
-                    ede2.BDFBased = true;
+                    ede1.RelativeTime = true; //make sure they are BDF-based!
+                    ede2.RelativeTime = true;
                     Window3 w = new Window3();
                     w.Owner = this;
                     w.ShowDialog();
@@ -978,11 +978,11 @@ namespace EEGArtifactEditor
                     //Modify header with new "naked" Events and file names
                     ede1 = new EventDictionaryEntry();
                     ede1.intrinsic = null;
-                    ede1.BDFBased = true; //Use BDF-based clocking
+                    ede1.RelativeTime = true; //Use BDF-based clocking
                     ede1.Description = "Beginning of artifact region";
                     ede2 = new EventDictionaryEntry();
                     ede2.intrinsic = null;
-                    ede2.BDFBased = true; //Use BDF-based clocking
+                    ede2.RelativeTime = true; //Use BDF-based clocking
                     ede2.Description = "End of artifact region";
                     header.Events.Add("**ArtifactBegin", ede1);
                     header.Events.Add("**ArtifactEnd", ede2);
