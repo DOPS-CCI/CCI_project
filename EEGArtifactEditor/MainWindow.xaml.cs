@@ -111,19 +111,20 @@ namespace EEGArtifactEditor
                     new FileStream(System.IO.Path.Combine(directory, header.EventFile),
                         FileMode.Open, FileAccess.Read)); // open Event file
 
-                foreach (InputEvent ie in efr)// read in all Events into list
+                Event.Event.LinkEventsToDataset(header, bdf); //link Events to dataset
+
+                bool ok = false;
+                foreach (InputEvent ie in efr) // read in all Events into list of output Events
+                {
+                    if(!ok && ie.IsCovered && ie.HasAbsoluteTime) //look for first covered Event to set zeroTime
+                        ok = bdf.setZeroTime(ie);
+                    ie.setRelativeTime(); //make sure we have relative time set for later sorting
+                    //*** the only problem here is if there is a naked, absolute Event before we find a covered absolute Event
+                    //*** this will raise an Exception
                     events.Add(new OutputEvent(ie));
+                }
                 efr.Close(); //now events is list of Events in the dataset
 
-                //now set zeroTime for this BDF file, after finding an appropriate covered Event
-                bool ok = false;
-                foreach (OutputEvent ev in events) //find first covered Event to synchronize against
-                    if (header.Events[ev.Name].IsCovered)
-                    {
-                        bdf.setZeroTime(ev);
-                        ok = true;
-                        break;
-                    }
                 if (!ok) //no covered Events, unable to synchronize
                 {
                     ErrorWindow ew = new ErrorWindow();
@@ -237,7 +238,7 @@ namespace EEGArtifactEditor
             catch (Exception ex)
             {
                 ErrorWindow ew = new ErrorWindow();
-                ew.Message = "Error in EEGArtifactEditor initialization" + ex.Message;
+                ew.Message = "Error in EEGArtifactEditor initialization: " + ex.Message;
                 ew.ShowDialog();
                 this.Close(); //exit
             }
@@ -951,10 +952,6 @@ namespace EEGArtifactEditor
                 }
 
                 string newFileName;
-                StringBuilder sb = new StringBuilder(header.Comment); //Add comment to HDR file documenting artifact marking
-                if (sb.Length > 0) sb.Append(Environment.NewLine);
-                sb.Append("Artifacts marked on " + DateTime.Today.ToShortDateString() + " by " + Environment.UserName);
-                header.Comment = sb.ToString();
                 if (updateFlag) //then, this dataset is based on another one; need to find out if this is an update of current dataset only, or if a new file is to be created
                 {
                     if (!header.Events.TryGetValue("**ArtifactBegin", out ede1) || !header.Events.TryGetValue("**ArtifactEnd", out ede2)) //get the EDEs for the marking Events
@@ -993,7 +990,7 @@ namespace EEGArtifactEditor
                 }
 
                 header.Comment += (header.Comment == "" ? "" : Environment.NewLine) +
-                    "Artefact Events marked on " + DateTime.Now.ToString("dd MMM yyyy HH:mm:ss") +
+                    "Artifacts marked on " + DateTime.Now.ToString("dd MMM yyyy HH:mm:ss") +
                     " by " + Environment.UserName;
                 FileStream fs = new FileStream(System.IO.Path.Combine(directory, newFileName + ".hdr"), FileMode.OpenOrCreate, FileAccess.Write);
                 new HeaderFileWriter(fs, header); //write out new header
