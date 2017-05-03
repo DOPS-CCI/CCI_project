@@ -118,7 +118,7 @@ namespace DatasetReviewer
                 {
                     foreach (EventDictionaryEntry ede in ED.Values) // add ANA channels that are referenced by extrinsic Events
                     {
-                        if (ede.IsCovered && ede.IsExtrinsic)
+                        if (ede.IsExtrinsic)
                         {
                             int chan = bdf.ChannelNumberFromLabel(ede.channelName);
                             if (!channelList.Contains(chan)) //don't enter duplicate
