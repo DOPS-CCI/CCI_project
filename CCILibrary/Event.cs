@@ -322,6 +322,8 @@ namespace Event
         /// <param name="ie">InputEvent to be copied</param>
         public OutputEvent(InputEvent ie) : base(ie.EDE)
         {
+            m_index = ie.m_index;
+            m_gc = ie.m_gc;
             m_time = ie.Time;
             _relativeTime = ie.relativeTime;
             if (ie.GVValue != null)
