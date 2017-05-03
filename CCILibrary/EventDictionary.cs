@@ -66,8 +66,8 @@ namespace EventDictionary
         public string IE { get { return IsCovered ? (bool)intrinsic ? "I" : "E" : "*"; } }
         public bool IsCovered { get { return intrinsic != null; } }
         public bool IsNaked { get { return intrinsic == null; } }
-        public bool IsIntrinsic { get { return intrinsic != null && (bool)intrinsic; } }
-        public bool IsExtrinsic { get { return intrinsic != null && !(bool)intrinsic; } }
+        public bool IsIntrinsic { get { return intrinsic == null ? true : (bool)intrinsic; } } //all naked Events are intrinsic
+        public bool IsExtrinsic { get { return intrinsic == null ? false : !(bool)intrinsic; } }
         public bool HasRelativeTime { get { return m_bdfBasedTime; } }
         public bool HasAbsoluteTime { get { return !m_bdfBasedTime; } }
 

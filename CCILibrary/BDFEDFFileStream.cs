@@ -31,6 +31,8 @@ namespace BDFEDFFileStream
             }
         }
 
+        internal double? _zeroTime = null;
+
         /// <summary>
         /// Number of records currently in BDF/EDF file; read-only
         /// </summary>
@@ -221,8 +223,6 @@ namespace BDFEDFFileStream
             return -1;
         }
 
-        double? _zeroTime = null;
-
         /// <summary>
         /// Sets the time of start of file (record 0, point 0) to a given value
         /// After this, value may be accessed via property <code>zeroTime</code>
@@ -335,8 +335,6 @@ namespace BDFEDFFileStream
     {
 
         protected BinaryReader reader;
-        double? _zeroTime = null;
-
 
         public bool hasStatus
         {
@@ -675,25 +673,29 @@ namespace BDFEDFFileStream
         /// After this, value may be accessed via property <code>zeroTime</code>; this synchronizes
         /// the clocks of BDF file and the Event file
         /// </summary>
-        /// <param name="IE">InputEvent to use for synchronization</param>
+        /// <param name="IE">Event to use for synchronization; Event must be Covered and Absolute</param>
         /// <returns>True if GC found in Status channel (synchronization successful), false if not</returns>
         public bool setZeroTime(Event.Event IE)
         {
-            int[] statusBuffer = new int[NSamp];
-            int rec = 0;
-            uint mask = 0xFFFFFFFF >> (32 - EventFactory.Instance().statusBits);
-            while (this.read(rec++) != null)
+            if (IE.IsCovered && IE.HasAbsoluteTime) //must be Covered, Absolute Event
             {
-                statusBuffer = getStatus();
-                for (int i = 0; i < NSamp; i++)
-                    if ((mask & statusBuffer[i]) == IE.GC)
-                    {
-                        _zeroTime = IE.Time - (double)this.RecordDurationDouble * (--rec + (double)i / NSamp);
-                        return true;
-                    }
+                int[] statusBuffer = new int[NSamp];
+                int rec = 0;
+                uint mask = 0xFFFFFFFF >> (32 - EventFactory.Instance().statusBits);
+                while (this.read(rec++) != null)
+                {
+                    statusBuffer = getStatus();
+                    for (int i = 0; i < NSamp; i++)
+                        if ((mask & statusBuffer[i]) == IE.GC)
+                        {
+                            _zeroTime = IE.Time - (double)this.RecordDurationDouble * (--rec + (double)i / NSamp);
+                            return true;
+                        }
+                }
             }
             return false;
         }
+
         public bool setExtrinsicChannelNumber(EventDictionaryEntry ede)
         {
             if (ede.IsExtrinsic && ede.channel == -1) //need to perform channel look-up

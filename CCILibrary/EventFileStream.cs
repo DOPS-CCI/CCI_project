@@ -71,7 +71,7 @@ namespace EventFile
                         ev.m_time = Convert.ToDouble(t.Substring(0, l) + "." + t.Substring(l));
                     }
                     if (xr.Name == "EventTime") // optional; present with absolute timing, optional with relative
-                        ev.EventTime = xr.ReadElementString(/* EventTime */);
+                        ev._eventTime = xr.ReadElementString(/* EventTime */);
                 }
                 else if (xr.Name == "Time") //Time construct -- deprecated as of 11 Feb 2013
                 {

@@ -140,21 +140,24 @@ namespace Event
         public string Name { get { return m_name; } }
         internal double m_time;
         public virtual double Time { get { return m_time; } }
+        internal string _eventTime = null;
+        public string EventTime
+        {
+            get { return _eventTime; }
+        }
         protected double? _relativeTime = null; //this item added to include concept of relativeTime, where all Event locations are w.r.t. BDF file origin
         public double relativeTime
         {
             get
             {
-                if (ede.HasRelativeTime) return m_time; //if it's already relative, don't have to set it
+                if (_relativeTime != null) return (double)_relativeTime; //
+                if (ede.HasRelativeTime)
+                {
+                    _relativeTime = m_time;
+                    return m_time; //if it's already relative, don't have to set it
+                }
                 if (bdf.IsZeroTimeSet) return m_time - bdf.zeroTime;
-                try
-                {
-                    return (double)_relativeTime; //will throw exception if relativeTime hasn't been set
-                }
-                catch
-                {
-                    throw new Exception("Relative (BDF-based) time not available for Event "+ ede.Name);
-                }
+                throw new Exception("Relative (BDF-based) time not available for Event "+ ede.Name);
             }
         }
         internal uint m_index;
@@ -276,7 +279,9 @@ namespace Event
 
         internal OutputEvent(EventDictionaryEntry entry): base(entry)
         {
-            m_time = (double)(DateTime.Now.Ticks) / 1E7; // Get time immediately
+            DateTime t = DateTime.Now;
+            m_time = (double)(t.Ticks) / 1E7; // Get time immediately
+            _eventTime = t.ToString("d MMM yyyy HH:mm:ss.fffFF");
 
             if (entry.GroupVars != null && entry.GroupVars.Count > 0)
                 GVValue = new string[entry.GroupVars.Count]; //allocate correct number of group variable value entries
@@ -294,6 +299,7 @@ namespace Event
             if (entry.HasRelativeTime) throw new Exception("OutputEvent constructor(EDE, DateTime, int) only for absolute Events");
             ede = entry;
             m_time = (double)(time.Ticks) / 1E7;
+            _eventTime = time.ToString("d MMM yyyy HH:mm:ss.fffFF");
             if (entry.IsCovered)
             {
                 if (index == 0) throw new Exception("Event.OutputEvent(EDE, DateTime, int): attempt to create a covered OutputEvent with GC = 0");
@@ -314,6 +320,7 @@ namespace Event
             if (entry.HasRelativeTime) throw new Exception("OutputEvent constructor(EDE, long, int) only for absolute Events");
             ede = entry;
             m_time = (double)(time) / 1E7;
+            _eventTime = (new DateTime(time)).ToString("d MMM yyyy HH:mm:ss.fffFF");
             if (entry.IsCovered)
             {
                 m_index = (uint)index;
@@ -343,6 +350,7 @@ namespace Event
                 throw new Exception("OutputEvent constructor(EDE,double,int) has non-zero index for naked Event");
             ede = entry;
             m_time = time;
+            _eventTime = null;
             _relativeTime = time;
             GVValue = null;
         }
@@ -355,6 +363,7 @@ namespace Event
         public OutputEvent(InputEvent ie) : base(ie.EDE)
         {
             m_time = ie.Time;
+            _eventTime = ie._eventTime;
             _relativeTime = ie.relativeTime;
             if (ie.GVValue != null)
             {//do a full copy to protect values
@@ -378,7 +387,7 @@ namespace Event
     //********** Class: InputEvent **********
     public class InputEvent: Event
     {
-        public string EventTime; //optional; string translation of Time
+//        public string EventTime; //optional; string translation of Time
         public string[] GVValue;
 
         public InputEvent(EventDictionaryEntry entry): base(entry)
@@ -421,15 +430,15 @@ namespace Event
                 str.Append("Index: " + Index.ToString("0") + nl);
                 str.Append("GrayCode: " + GC.ToString("0") + nl);
             }
-            if (EventTime != null && EventTime != "") //EventTime field exists => must be Absolute, though perhaps old-form (no Type attribute)
+            if (HasAbsoluteTime) //EventTime field exists => must be Absolute, though perhaps old-form (no Type attribute)
             {
                 str.Append("ClockTime(Absolute): " + Time.ToString("00000000000.0000000" + nl));
-                str.Append("EventTime: " + EventTime + nl);
             }
             else if (ede.m_bdfBasedTime) //new form, with Type=Relative
                 str.Append("ClockTime(Relative): " + Time.ToString("0.0000000") + nl);
             else //deprecated form: no EventTime or Type attribute, always Absolute
                 str.Append("Time(Absolute,deprecated): " + Time.ToString("00000000000.0000000") + nl);
+            if (EventTime != null) str.Append("EventTime: " + EventTime + nl);
             if (ede.GroupVars != null) //if there are GVs
             {
                 int j = 0;

@@ -133,11 +133,8 @@ namespace HeaderFileStream
                             string s = xr.ReadContentAsString();
                             if (s == "Absolute")
                                 ede.RelativeTime = false;
-                            else if (s == "Relative" || s == "BDF-based")
-                            {
-                                //if (ede.IsCovered) throw new Exception("Incompatible Type and Clock attributes in Event");
+                            else if (s == "Relative" /* Preferred */ || s == "BDF-based" /* Deprecated */)
                                 ede.RelativeTime = true;
-                            }
                             else throw new Exception("Invalid Clock attribute in Event");
                         } //else clock is Absolute by default
                         xr.ReadStartElement(/* Event */);
