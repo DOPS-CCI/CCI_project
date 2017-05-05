@@ -331,7 +331,7 @@ namespace BDFEDFFileStream
     /// <summary>
     /// Class for reading a BDF, EDF, or EDF+ file
     /// </summary>
-    public class BDFEDFFileReader : BDFEDFFileStream, IDisposable
+    public class BDFEDFFileReader : BDFEDFFileStream, IDisposable, IBDFEDFFileReader
     {
 
         protected BinaryReader reader;
@@ -394,12 +394,6 @@ namespace BDFEDFFileStream
             return read();
         }
 
-        /// <summary>
-        /// Reads entire channel into an array for processing; values in physical units
-        /// </summary>
-        /// <remarks>Leaves stream pointer and current record number unchanged</remarks>
-        /// <param name="channel">Channel to be read (zero-based)</param>
-        /// <returns>Array containing entire channel data</returns>
         public double[] readAllChannelData(int channel)
         {
             if (!reader.BaseStream.CanSeek) throw new IOException("File stream not able to perform Seek.");
@@ -434,6 +428,46 @@ namespace BDFEDFFileStream
             }
             reader.BaseStream.Seek(pos, SeekOrigin.Begin); //return reader to original location
             return data;
+        }
+
+
+        /// <summary>
+        /// Reads entire raw Status channel into an array for processing
+        /// </summary>
+        /// <remarks>Leaves stream pointer and current record number unchanged</remarks>
+        /// <returns>Array containing entire Status channel data</returns>
+        public uint[] readAllStatus()
+        {
+            if (!reader.BaseStream.CanSeek) throw new IOException("File stream not able to perform Seek.");
+            if (!(header.isBDFFile && hasStatus)) throw new Exception("Not a BDF file with Status channel");
+
+            int statusChannel = NumberOfChannels - 1;
+            long pos = reader.BaseStream.Position; //remember current file position
+            long increment = 0; //calculate record size in bytes
+            foreach (int c in header.numberSamples) increment += c;
+            increment *= header._bytesPerSample;
+            int bufferSize = NumberOfSamples(statusChannel) * 3; //size of intermediate buffer for single channel
+
+            byte[] buffer = new byte[bufferSize]; //allocate intermediate buffer
+            uint[] status = new uint[NumberOfRecords * NumberOfSamples(statusChannel)]; //allocate final data array
+
+            long currentRecordPosition = (long)header.headerSize; //calculate initial file pointer position
+            for (int i = 0; i < statusChannel; i++)
+                currentRecordPosition += (long)NumberOfSamples(i) * 3;
+
+            int currentDataPosition = 0; //keeps track of where we are in the data array
+
+            while (currentRecordPosition < reader.BaseStream.Length) //read entire file for this channel
+            {
+                reader.BaseStream.Seek(currentRecordPosition, SeekOrigin.Begin); //seek to next channel record location
+                currentRecordPosition += increment; //and increment to next record location
+                buffer = reader.ReadBytes(bufferSize); //read in raw data for this channel
+                for (int i = 0; i < bufferSize; i += 3) //convert and fill next positions in output array
+                    status[currentDataPosition++] = (uint)buffer[i] + (((uint)buffer[i + 1] + ((uint)buffer[i + 2] << 8)) << 8);
+            }
+
+            reader.BaseStream.Seek(pos, SeekOrigin.Begin); //return reader to original location
+            return status;
         }
 
         /// <summary>
@@ -709,8 +743,14 @@ namespace BDFEDFFileStream
         }
 
 // ***** Find GrayCodes in Status channel *****
+        public StatusChannel createStatusChannel(int maskBits)
+        {
+            if(hasStatus)
+                return new StatusChannel(this, maskBits, header.isBDFFile);
+            return null;
+        }
 
-    public bool findGCAtOrAfter(GrayCode gc, ref BDFLoc p)
+        public bool findGCAtOrAfter(GrayCode gc, ref BDFLoc p)
         {
             while (p.IsInFile)
             {
@@ -732,6 +772,12 @@ namespace BDFEDFFileStream
 
         public bool findGCAfter(GrayCode gc, ref BDFLoc p)
         {
+            BDFLoc p1 = p;
+            p1.Pt = 0;
+            p1.Rec++;
+            while (p1.IsInFile && gc.CompareTo(getStatusSample(p1)) > 0) p1.Rec++;
+            p1.Rec--;
+            p = p1;
             while ((++p).IsInFile)
                 if (gc.CompareTo(getStatusSample(p)) <= 0) return true;
             return false;
@@ -746,8 +792,12 @@ namespace BDFEDFFileStream
 
         public bool findGCBefore(GrayCode gc, ref BDFLoc p)
         {
-            while ((--p).IsInFile)
-                if (gc.CompareTo(getStatusSample(p)) > 0) { p++; return true; }
+            BDFLoc p1 = p;
+            p1.Pt = 0;
+            while (p1.Rec > 0 && gc.CompareTo(getStatusSample(p1)) <= 0) p1.Rec--;
+            p = p1;
+            while ((++p).IsInFile)
+                if (gc.CompareTo(getStatusSample(p)) <= 0) return true;
             return false;
         }
 
@@ -827,6 +877,12 @@ namespace BDFEDFFileStream
 
     }
 
+    public interface IBDFEDFFileReader
+    {
+        int NumberOfChannels { get; }
+        double SampleTime(int channel);
+        uint[] readAllStatus();
+    }
     /// <summary>
     /// Class for writing a BDF or EDF file; EDF+ files not implemented
     /// </summary>
