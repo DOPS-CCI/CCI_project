@@ -67,11 +67,12 @@ namespace CCILibrary
         /// Encode value into a Gray code
         /// </summary>
         /// <param name="n">Number to be encoded</param>
-        public void Encode(uint n)
+        public GrayCode Encode(uint n)
         {
             if (n > _indexMax) //permit setting to zero, but not in cyclical series
                 throw new Exception("Attempt to set GrayCode to invalid value");
             _GC = n ^ (n >> 1);
+            return this;
         }
 
         /// <summary>
@@ -146,7 +147,7 @@ namespace CCILibrary
             if (gc1._status != gc2._status)
                 throw new ArgumentException("Incompatable subtraction: number of Status bits not equal");
             int d = (int)gc1.Decode() - (int)gc2.Decode();
-            if (Math.Abs(d) < (gc1._indexMax >> 1)) return d;
+            if (Math.Abs(d) <= (gc1._indexMax >> 1)) return d;
             return d - Math.Sign(d) * (int)gc1._indexMax;
         }
 
