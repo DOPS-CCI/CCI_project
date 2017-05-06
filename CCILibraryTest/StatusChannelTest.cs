@@ -74,6 +74,9 @@ namespace CCILibraryTest
             Assert.IsTrue(sc.TryFindGCNearest(21.9, out gc));
             Assert.AreEqual<uint>(3, gc.Value);
             Assert.IsFalse(sc.TryFindGCBefore(5.0, out gc));
+            Assert.AreEqual(9, sc.FindMarks(12.5, 18.0).Count);
+            Assert.AreEqual(0, sc.FindMarks(16.1, 18.0).Count);
+            Assert.AreEqual(6, sc.FindMarks(16.0, 18.0).Count);
         }
     }
 }
