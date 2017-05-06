@@ -75,6 +75,12 @@ namespace BDFEDFFileStream
             gc = gct2.Time > 0? gct2.GC : gct1.GC;  //if it exists, return it; otherewise return the first
             return true;
         }
+
+        public List<GCTime> FindMarks(double start, double end)
+        {
+            return GCList.FindAll(gct => gct.Time >= start && gct.Time < end);
+        }
+
         public override string ToString()
         {
             StringBuilder sb = new StringBuilder("Events: ");
@@ -93,29 +99,29 @@ namespace BDFEDFFileStream
             }
             return sb.ToString();
         }
+    }
 
-        private struct GCTime
+    public struct GCTime
+    {
+        public GrayCode GC;
+        public double Time;
+
+        internal GCTime(GrayCode gc, double time)
         {
-            internal GrayCode GC;
-            internal double Time;
+            GC = gc;
+            Time = time;
+        }
 
-            internal GCTime(GrayCode gc, double time)
-            {
-                GC = gc;
-                Time = time;
-            }
-
-            public override string ToString()
-            {
-                return "GC=" + GC.Value.ToString("0") + " t=" + Time.ToString("0.000");
-            }
+        public override string ToString()
+        {
+            return "GC=" + GC.Value.ToString("0") + " t=" + Time.ToString("0.000");
         }
     }
 
     public struct SystemEvent
     {
-        byte Code;
-        double Time;
+        public byte Code;
+        public double Time;
 
         internal SystemEvent(byte code, double time)
         {
