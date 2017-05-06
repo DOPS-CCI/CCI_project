@@ -112,13 +112,14 @@ namespace EEGArtifactEditor
                         FileMode.Open, FileAccess.Read)); // open Event file
 
                 Event.Event.LinkEventsToDataset(header, bdf); //link Events to dataset
+                StatusChannel sc = bdf.createStatusChannel(header.Status);
 
                 bool ok = false;
                 foreach (InputEvent ie in efr) // read in all Events into list of output Events
                 {
                     if(!ok && ie.IsCovered && ie.HasAbsoluteTime) //look for first covered Event to set zeroTime
                         ok = bdf.setZeroTime(ie);
-                    ie.setRelativeTime(); //make sure we have relative time set for later sorting
+                    ie.setRelativeTime(sc); //make sure we have relative time set for later sorting
                     //*** the only problem here is if there is a naked, absolute Event before we find a covered absolute Event
                     //*** this will raise an Exception
                     events.Add(new OutputEvent(ie));
