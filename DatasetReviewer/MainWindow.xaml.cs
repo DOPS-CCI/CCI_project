@@ -18,6 +18,7 @@ using System.Windows.Xps;
 using CCILibrary;
 using Header;
 using HeaderFileStream;
+using BDFEDFFileStream;
 using EventFile;
 using EventDictionary;
 using Event;
@@ -39,7 +40,7 @@ namespace DatasetReviewer
         public double currentDisplayOffsetInSecs = 0D;
         public double oldDisplayWidthInSecs = 10D;
         public double oldDisplayOffsetInSecs = -10D;
-        public BDFEDFFileStream.BDFEDFFileReader bdf;
+        public BDFEDFFileReader bdf;
         Header.Header head;
         internal string directory;
         internal string headerFileName;
@@ -59,6 +60,8 @@ namespace DatasetReviewer
         internal Window2 notes;
         internal string noteFilePath;
 
+        StatusChannel sc;
+
         public MainWindow()
         {
 
@@ -67,7 +70,7 @@ namespace DatasetReviewer
             do
             {
                 bool r;
-                do
+                do //open HDR file and associated BDF file
                 {
                     System.Windows.Forms.OpenFileDialog dlg = new System.Windows.Forms.OpenFileDialog();
                     dlg.Title = "Open Header file to be displayed...";
@@ -93,7 +96,7 @@ namespace DatasetReviewer
 
                     try
                     {
-                        bdf = new BDFEDFFileStream.BDFEDFFileReader(
+                        bdf = new BDFEDFFileReader(
                             new FileStream(System.IO.Path.Combine(directory, head.BDFFile),
                                 FileMode.Open, FileAccess.Read));
                     }
@@ -141,22 +144,32 @@ namespace DatasetReviewer
             BDFFileInfo.Content = bdf.ToString();
             HDRFileInfo.Content = head.ToString();
             Event.EventFactory.Instance(head.Events); // set up the factory
+            Event.Event.LinkEventsToDataset(head, bdf); //Link Events to dataset
+            sc = new StatusChannel(bdf, head.Status, true);
+
             EventFileReader efr = null;
             try
             {
-                    efr = new EventFileReader(
-                        new FileStream(System.IO.Path.Combine(directory, head.EventFile),
-                            FileMode.Open, FileAccess.Read)); // open Event file
+                efr = new EventFileReader(
+                    new FileStream(System.IO.Path.Combine(directory, head.EventFile),
+                        FileMode.Open, FileAccess.Read)); // open Event file
                 bool z = false;
-                foreach (Event.InputEvent ie in efr)// read in all Events into dictionary
+                foreach (Event.InputEvent ie in efr) // read in all Events into dictionary
                 {
                     if (ie.IsNaked)
-                        events.Add(ie);
-                    else if (events.Count(e => e.GC == ie.GC) == 0) //quietly skip duplicates
                     {
-                        if (!z) //use first found covered Event to synchronize clocks
-                            z = bdf.setZeroTime(ie);
+                        events.Add(ie); //may be Absolute, but this is corrected when getting relativeTime provided zeroTime set
+                        ie.setRelativeTime(sc);
+                    }
+                    else // covered Event
+                    {
                         events.Add(ie);
+                        ie.setRelativeTime(sc);
+                        if (!z && ie.HasAbsoluteTime) //use first found absolute covered Event to synchronize clocks
+                        {
+                            bdf.setZeroTime(ie.Time - ie.relativeTime);
+                            z = true;
+                        }
                     }
                 }
                 efr.Close(); //now events is Dictionary of Events in the dataset; lookup by GC
@@ -770,7 +783,7 @@ namespace DatasetReviewer
                     (ev.IsNaked && bdf.timeFromBeginningOfFileTo(ev) < currentOffset || !ev.IsNaked && gc.CompareTo(ev.GC) >= 0));
             }
             if (ie == null) return;
-            if (ie.BDFBased) //known BDF-based clock
+            if (ie.HasRelativeTime) //known BDF-based clock
                 newOffset = ie.Time;
             else if (ie.IsNaked) newOffset = bdf.timeFromBeginningOfFileTo(ie); //naked Event using Absolute clock -- not preferred, but OK
             else //covered Event, always Absolute clock

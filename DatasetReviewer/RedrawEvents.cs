@@ -7,6 +7,7 @@ using System.Windows.Media;
 using System.Windows.Shapes;
 using Event;
 using CCILibrary;
+using BDFEDFFileStream;
 
 namespace DatasetReviewer
 {
@@ -21,62 +22,33 @@ namespace DatasetReviewer
         {
             double startTime = currentDisplayOffsetInSecs - bdf.SampTime / 2D;
             double endTime = currentDisplayOffsetInSecs + currentDisplayWidthInSecs + bdf.SampTime / 2D;
-            FoundEvents = new List<FoundEvent>();
-            foreach(InputEvent ie in events) //look for naked or covered events when showing absolute time
+            FoundEvents = new List<FoundEvent>(); //make a list of Events displayed on this screen
+
+            foreach(InputEvent ie in events) //search for Events to display at absolute times:
+                                            //all Naked Events and all Covered Events when displaying at Absolute times
             {
-                if (ie.IsCovered && !showAllEventsAtAbsoluteTime) continue; //looking for: covered Event
-                double t = bdf.timeFromBeginningOfFileTo(ie);
+                double t;
+                if (showAllEventsAtAbsoluteTime) t = ie.Time - (ie.HasAbsoluteTime ? bdf.zeroTime : 0D);
+                else t = ie.relativeTime;
                 if (t < currentDisplayOffsetInSecs) continue; // with time greater than of equal to
                 if (t >= currentDisplayOffsetInSecs + currentDisplayWidthInSecs) break; //  and less than
                 FoundEvents.Add(new FoundEvent(t, ie));
             }
-            if(bdf.hasStatus && !showAllEventsAtAbsoluteTime) //displaying covered Events at Status marks
+
+            foreach (GCTime gct in sc.FindMarks(startTime, endTime)) // now find marks in Status channel that have no
+                                                                     // corresponding Event record
             {
-                BDFEDFFileStream.BDFLoc start = bdf.LocationFactory.New().FromSecs(currentDisplayOffsetInSecs);
-                BDFEDFFileStream.BDFLoc end = bdf.LocationFactory.New().FromSecs(currentDisplayOffsetInSecs + currentDisplayWidthInSecs);
-                GrayCode sample = new GrayCode(head.Status);
-                GrayCode lastSample = new GrayCode(sample);
+                if (FoundEvents.Find(e => e.ev != null && e.ev.GC == gct.GC.Value) == null)
+                    FoundEvents.Add(new FoundEvent(gct.Time, null));
+            }
 
-                //set inital lastSample for comparison at first point
-                if ((start - 1).IsInFile)
-                    lastSample.Value = (uint)bdf.getStatusSample(start - 1) & head.Mask; //get sample before start of segment to find "edge"
-                else
-                    lastSample.Value = (uint)bdf.getStatusSample(start++) & head.Mask;
-
-                for (BDFEDFFileStream.BDFLoc p = start; p.lessThan(end); p++) //search through displayed BDF points
-                {
-                    sample.Value = (uint)bdf.getStatusSample(p) & head.Mask;
-                    if (sample.CompareTo(lastSample) != 0) //found a Status change
-                    {
-                        for (GrayCode gc = lastSample + 1; gc.CompareTo(sample) <= 0; gc++)
-                        {
-                            int cnt = 0;
-                            foreach (InputEvent ie in events.FindAll(e => e.GC == gc.Value)) //find Events with this GC; should be 1
-                            {
-                                ++cnt;
-                                FoundEvent f = new FoundEvent(p.ToSecs(), ie);
-                                FoundEvents.Add(f);
-                            }
-                            if (cnt != 1) //then there is an error
-                            {
-                                if (cnt == 0) //then missing Event at this mark
-                                {
-                                    FoundEvent f = new FoundEvent(); //create null Event to mark "phantom"
-                                    f.time = p.ToSecs();
-                                    FoundEvents.Add(f);
-                                }
-                                else // too many Events at this mark
-                                {
-                                    for (int i = 1; i <= cnt; i++)
-                                        FoundEvents[FoundEvents.Count - i].time *= -1D; //mark time as negative to indicate multiple
-                                }
-                            }
-                        } //for gc
-                        lastSample.Value = sample.Value;
-                    } // Status change
-                } //for p
-            } // Covered Events
-
+            foreach (SystemEvent se in sc.SystemEvents) // add in System Events
+            {
+                double t = se.Time;
+                if (t < currentDisplayOffsetInSecs) continue; // with time greater than of equal to
+                if (t >= currentDisplayOffsetInSecs + currentDisplayWidthInSecs) break; //  and less than
+                FoundEvents.Add(new FoundEvent(t, null, (int)se.Code));
+            }
             FoundEvents.Sort(this);
             drawSymbols(); //Draw the ones for this page
         }
@@ -100,20 +72,21 @@ namespace DatasetReviewer
                 double t = Math.Round(Math.Abs(nextEvent.time) / bdf.SampTime) * bdf.SampTime; //calculate correct datel time
 
                 currentEvents.Clear();
+                int currentEventsCount = 0;
                 do //accumulate all Events that occur at/near this time; recall that they are sorted
                 {
                     nextEvent = enumerator.Current;
-                    if (Math.Abs(nextEvent.time) >= t - deltaT && Math.Abs(nextEvent.time) < t + deltaT)
+                    if (nextEvent.time >= t - deltaT && nextEvent.time < t + deltaT)
                     {
-                        AllEventsValid &= (nextEvent.time >= 0) && (nextEvent.ev != null);
+                        AllEventsValid &= (nextEvent.ev != null) || nextEvent.SE;
                         currentEvents.Add(nextEvent);
+                        currentEventsCount += nextEvent.SE ? 0 : 1;
                     }
                     else
                         break;
                 } while (enumerator.MoveNext());
 
                 //here we have a list of the Events that are associated with this datel at time t
-                bool multiEvent = currentEvents.Count > 1; //indicates multiple "simultaneous" Events
 
                 Button evbutt = (Button)EventMarkers.FindResource("EventButton"); //create and place button over Event marker
                 evbutt.Height = EMAH;
@@ -125,21 +98,21 @@ namespace DatasetReviewer
                 //here we create the string to be displayed when right clicking button
                 foreach(FoundEvent f in currentEvents)
                 {
-                    InputEvent ev = f.ev;
-                    if (multiEvent) //multiple Events at this point; show data concatenated with title
-                        sb.Append("Event number " + (++i).ToString("0") + ":" + Environment.NewLine);
-                    if(ev == null) //we have a missing Event at this datel
-                        sb.Append("Missing Event at " + f.time.ToString("0.000") + Environment.NewLine);
-                    else
+                    if (f.SE) //for System Event
+                        sb.Append("**System Event = " + f.SystemEventValue.ToString("X") + Environment.NewLine);
+                    else //for non-System Event
                     {
-                        if(f.time < 0D)
+                        InputEvent ev = f.ev;
+                        if (currentEventsCount > 1) //multiple non-System Events at this point; show data under title
+                            sb.Append("**Event number " + (++i).ToString("0") + ":" + Environment.NewLine);
+                        if (ev == null) //we have a missing Event at this datel
+                            sb.Append("Missing Event at " + f.time.ToString("0.000") + Environment.NewLine);
+                        else
                         {
-                            f.time *= -1D;
-                            sb.Append("Warning: duplicate Event" + Environment.NewLine);
+                            sb.Append(ev.ToString());
+                            if (ev.IsCovered)
+                                sb.Append("Offset=" + ((bdf.timeFromBeginningOfFileTo(ev) - f.time) * 1000D).ToString("+0.0 msec;-0.0 msec;0.0") + Environment.NewLine);
                         }
-                        sb.Append(ev.ToString());
-                        if(ev.IsCovered)
-                            sb.Append("Offset=" + ((bdf.timeFromBeginningOfFileTo(ev) - f.time) * 1000D).ToString("+0.0 msec;-0.0 msec;None") + Environment.NewLine);
                     }
                     evbutt.Tag = sb.ToString().Trim(); //to be displayed on right click
                 }
@@ -156,11 +129,11 @@ namespace DatasetReviewer
                 r.StrokeThickness = currentDisplayWidthInSecs * 0.0008;
                 r.Stroke = Brushes.Black; //black by default
 
-                //encode intrinsic/extrinsic/naked (or multiple) in green/blue/black colors; errors encoded in red
+                //encode intrinsic/extrinsic/System/naked (or multiple) in green/blue/brown/black colors; errors encoded in red
 
-                //handle multiple Event by place a number
+                //handle multiple Event by placing a number
                 TextBlock tb = null; //explicit assignment to fool compiler
-                if (multiEvent)
+                if (currentEvents.Count > 1)
                 {
                     double fSize = 0.9 * EMAH;
                     if (fSize > 0.0035) //minimal font size
@@ -175,52 +148,72 @@ namespace DatasetReviewer
                 }
                 else //single Event at this location
                 {
-                    InputEvent singleton = currentEvents[0].ev;
-                    if (AllEventsValid && singleton.EDE != null) //check for one last mistake!
+                    if (currentEvents[0].SE)
                     {
-                        if (singleton.IsCovered) //if multi-Event or naked, don't mark by type and leave black
-                            if (singleton.IsExtrinsic) //single Event extrinsic
-                            {
-                                Line l1 = new Line();
-                                Line l2 = new Line();
-                                l1.Stroke = l2.Stroke = r.Stroke = Brushes.Blue;
-                                l1.StrokeThickness = l2.StrokeThickness = r.StrokeThickness;
-                                l1.X1 = l2.X2 = t;
-                                l1.Y1 = 0.2 * EMAH;
-                                l2.Y2 = 0.8 * EMAH;
-                                l1.Y2 = l2.Y1 = 0.5 * EMAH;
-                                l1.X2 = l2.X1 = t + 0.5 * (singleton.EDE.location ? EMAH : -EMAH);
-                                EventMarkers.Children.Add(l1);
-                                EventMarkers.Children.Add(l2);
-                            }
-                            else //single Event intrinsic
-                            {
-                                Ellipse e = new Ellipse();
-                                e.Height = e.Width = 0.6 * EMAH;
-                                Canvas.SetTop(e, 0.2 * EMAH);
-                                Canvas.SetLeft(e, t - 0.3 * EMAH);
-                                e.Stroke = r.Stroke = Brushes.Green;
-                                e.StrokeThickness = r.StrokeThickness;
-                                EventMarkers.Children.Add(e);
-                            }
-                    }
-                    else //error -- no corresponding record in Event file or no EDE for this Event
-                    {
-                        r.Stroke = Brushes.Red;
                         Line l1 = new Line();
                         Line l2 = new Line();
-                        l1.Stroke = l2.Stroke = r.Stroke = Brushes.Red;
-                        l1.StrokeThickness = l2.StrokeThickness = r.StrokeThickness;
-                        l1.X1 = l2.X1 = t - 0.3 * EMAH;
-                        l1.Y1 = l2.Y2 = 0.2 * EMAH;
-                        l1.X2 = l2.X2 = t + 0.3 * EMAH;
-                        l1.Y2 = l2.Y1 = 0.8 * EMAH;
+                        Line l3 = new Line();
+                        l1.Stroke = l2.Stroke = l3.Stroke = r.Stroke = Brushes.Brown;
+                        l1.StrokeThickness = l2.StrokeThickness = l3.StrokeThickness = r.StrokeThickness;
+                        l1.X1 = l2.X1 = t;
+                        l1.Y1 = l2.Y1 = 0.2 * EMAH;
+                        l1.X2 = l3.X1 = t - 0.3 * EMAH;
+                        l1.Y2 = l2.Y2 = l3.Y1 = l3.Y2 = 0.8 * EMAH;
+                        l2.X2 = l3.X2 = t + 0.3 * EMAH;
                         EventMarkers.Children.Add(l1);
                         EventMarkers.Children.Add(l2);
+                        EventMarkers.Children.Add(l3);
                     }
+                    else //non-System Event
+                    {
+                        InputEvent singleton = currentEvents[0].ev;
+                        if (AllEventsValid && singleton.EDE != null) //check for one last mistake!
+                        {
+                            if (singleton.IsCovered) //if multi-Event or naked, don't mark by type and leave black
+                                if (singleton.IsExtrinsic) //single Event extrinsic
+                                {
+                                    Line l1 = new Line();
+                                    Line l2 = new Line();
+                                    l1.Stroke = l2.Stroke = r.Stroke = Brushes.Blue;
+                                    l1.StrokeThickness = l2.StrokeThickness = r.StrokeThickness;
+                                    l1.X1 = l2.X2 = t;
+                                    l1.Y1 = 0.2 * EMAH;
+                                    l2.Y2 = 0.8 * EMAH;
+                                    l1.Y2 = l2.Y1 = 0.5 * EMAH;
+                                    l1.X2 = l2.X1 = t + 0.5 * (singleton.EDE.location ? EMAH : -EMAH);
+                                    EventMarkers.Children.Add(l1);
+                                    EventMarkers.Children.Add(l2);
+                                } //extrinsic
+                                else //single Event intrinsic
+                                {
+                                    Ellipse e = new Ellipse();
+                                    e.Height = e.Width = 0.6 * EMAH;
+                                    Canvas.SetTop(e, 0.2 * EMAH);
+                                    Canvas.SetLeft(e, t - 0.3 * EMAH);
+                                    e.Stroke = r.Stroke = Brushes.Green;
+                                    e.StrokeThickness = r.StrokeThickness;
+                                    EventMarkers.Children.Add(e);
+                                } //intrisic
+                        } //valid
+                        else //error -- no corresponding record in Event file or no EDE for this Event
+                        {
+                            r.Stroke = Brushes.Red;
+                            Line l1 = new Line();
+                            Line l2 = new Line();
+                            l1.Stroke = l2.Stroke = r.Stroke = Brushes.Red;
+                            l1.StrokeThickness = l2.StrokeThickness = r.StrokeThickness;
+                            l1.X1 = l2.X1 = t - 0.3 * EMAH;
+                            l1.Y1 = l2.Y2 = 0.2 * EMAH;
+                            l1.X2 = l2.X2 = t + 0.3 * EMAH;
+                            l1.Y2 = l2.Y1 = 0.8 * EMAH;
+                            EventMarkers.Children.Add(l1);
+                            EventMarkers.Children.Add(l2);
+                        } //error
+                    } //non-System Event
                 } //singleton
                 EventMarkers.Children.Add(r);
             } //while(nextEvent!=null) loop
+
         }
 
         public int Compare(FoundEvent x, FoundEvent y)
@@ -235,11 +228,18 @@ namespace DatasetReviewer
     {
         internal double time;
         internal InputEvent ev;
+        internal byte SystemEventValue;
+        internal bool SE; //System Event flag
 
-        internal FoundEvent(double t, InputEvent ie)
+        internal FoundEvent(double t, InputEvent ie, int code = -1)
         {
             time = t;
             ev = ie;
+            if (code >= 0)
+            {
+                SE = true;
+                SystemEventValue = (byte)code;
+            }
         }
 
         public FoundEvent() { }
