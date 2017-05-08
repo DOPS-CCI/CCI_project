@@ -120,18 +120,62 @@ namespace BDFEDFFileStream
 
     public struct SystemEvent
     {
-        public byte Code;
+        public StatusByte Code;
         public double Time;
 
         internal SystemEvent(byte code, double time)
         {
-            Code = code;
+            Code._code = code;
             Time = time;
         }
 
         public override string ToString()
         {
-            return "Code=" + Code.ToString("0") + " t=" + Time.ToString("0.000");
+            return "Code=" + Code._code.ToString("0") + " t=" + Time.ToString("0.000");
+        }
+    }
+
+    public struct StatusByte
+    {
+        internal byte _code;
+
+        public StatusByte(byte code)
+        {
+            _code = code;
+        }
+
+        public override string ToString()
+        {
+            StringBuilder sb = new StringBuilder();
+            if ((_code & (byte)Codes.MK2) > 0) sb.Append("MK2 product" + Environment.NewLine);
+            else sb.Append("MK1 product" + Environment.NewLine);
+            sb.Append("Speed mode = " + decodeSpeedBits().ToString("0") + Environment.NewLine);
+            if ((_code & (byte)Codes.NewEpoch) > 0) sb.Append("*New epoch*" + Environment.NewLine);
+            if ((_code & (byte)Codes.CMSInRange) > 0) sb.Append("CMS in range" + Environment.NewLine);
+            else sb.Append("CMS out of range" + Environment.NewLine);
+            if ((_code & (byte)Codes.BatteryLow) > 0) sb.Append("Battery low" + Environment.NewLine);
+            else sb.Append("Battery OK" + Environment.NewLine);
+
+            return sb.ToString();
+        }
+
+        private byte decodeSpeedBits()
+        {
+            return (byte)((_code & (byte)(Codes.StatusBit0 | Codes.StatusBit1 | Codes.StatusBit2)) >> 1 |
+                (_code & (byte)Codes.StatusBit3) >> 2);
+        }
+
+        [Flags]
+        public enum Codes : byte
+        {
+            NewEpoch = 0x01,
+            StatusBit0 = 0x02,
+            StatusBit1 = 0x04,
+            StatusBit2 = 0x08,
+            CMSInRange = 0x10,
+            StatusBit3 = 0x20,
+            BatteryLow = 0x40,
+            MK2 = 0x80
         }
     }
 }

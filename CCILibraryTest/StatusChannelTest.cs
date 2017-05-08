@@ -11,23 +11,13 @@ namespace CCILibraryTest
     [TestClass]
     public class StatusChannelTest
     {
-        static StatusChannel sc;
-        static PrivateObject scPrivate;
-
-        [ClassInitialize()]
-        public static void InitClass(TestContext tc)
-        {
-            IBDFEDFFileReader bdf = new BDFEDFFileReaderStub();
-            sc = new StatusChannel(bdf, 4, true);
-            scPrivate = new PrivateObject(sc);
-        }
 
         [TestMethod]
         public void StatusChannelConstructorTest()
         {
             IBDFEDFFileReader bdf = new BDFEDFFileReaderStub();
-            sc = new StatusChannel(bdf, 4, true);
-            scPrivate = new PrivateObject(sc);
+            StatusChannel sc = new StatusChannel(bdf, 4, true);
+            PrivateObject scPrivate = new PrivateObject(sc);
             IList GCList = (IList)scPrivate.GetFieldOrProperty("GCList");
             Assert.AreEqual(17, GCList.Count);
 //            MessageBox.Show(sc.ToString());
@@ -38,8 +28,8 @@ namespace CCILibraryTest
         public void StatusChannelSearchTest()
         {
             IBDFEDFFileReader bdf = new BDFEDFFileReaderStub();
-            sc = new StatusChannel(bdf, 4, true);
-            scPrivate = new PrivateObject(sc);
+            StatusChannel sc = new StatusChannel(bdf, 4, true);
+            PrivateObject scPrivate = new PrivateObject(sc);
             GrayCode gc;
             Assert.IsTrue(sc.TryFindGCBefore(6.5, out gc));
             Assert.AreEqual<uint>(1,gc.Decode());
@@ -77,6 +67,25 @@ namespace CCILibraryTest
             Assert.AreEqual(9, sc.FindMarks(12.5, 18.0).Count);
             Assert.AreEqual(0, sc.FindMarks(16.1, 18.0).Count);
             Assert.AreEqual(6, sc.FindMarks(16.0, 18.0).Count);
+        }
+
+        [TestMethod]
+        public void StatusByteTest()
+        {
+            StatusByte sb = new StatusByte((byte)
+                (StatusByte.Codes.MK2 |
+                StatusByte.Codes.BatteryLow));
+            PrivateObject sbPrivate = new PrivateObject(sb);
+            Assert.AreEqual<byte>(0xC0, (byte)sbPrivate.GetField("_code"));
+//            MessageBox.Show(sb.ToString());
+            sb = new StatusByte((byte)
+                (StatusByte.Codes.MK2 |
+                StatusByte.Codes.CMSInRange |
+                StatusByte.Codes.StatusBit0 |
+                StatusByte.Codes.StatusBit3 ));
+            sbPrivate = new PrivateObject(sb);
+            Assert.AreEqual<byte>(0x09, (byte)sbPrivate.Invoke("decodeSpeedBits"));
+            MessageBox.Show(sb.ToString());
         }
     }
 }
