@@ -90,6 +90,7 @@ namespace DatasetReviewer
                         r = false; //loop around again
                         ErrorWindow ew = new ErrorWindow();
                         ew.Message = "Error reading Header file: " + e.Message;
+                        ew.ShowDialog();
                         continue;
                     }
                     ED = head.Events;
@@ -156,14 +157,11 @@ namespace DatasetReviewer
                 bool z = false;
                 foreach (Event.InputEvent ie in efr) // read in all Events into dictionary
                 {
+                    events.Add(ie);
                     if (ie.IsNaked)
-                    {
-                        events.Add(ie); //may be Absolute, but this is corrected when getting relativeTime provided zeroTime set
-                        ie.setRelativeTime(sc);
-                    }
+                        ie.setRelativeTime(sc); //may be Absolute, but this is corrected when setRelativeTime, provided zeroTime set
                     else // covered Event
                     {
-                        events.Add(ie);
                         ie.setRelativeTime(sc);
                         if (!z && ie.HasAbsoluteTime) //use first found absolute covered Event to synchronize clocks
                         {
