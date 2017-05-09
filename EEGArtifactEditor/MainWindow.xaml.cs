@@ -51,10 +51,12 @@ namespace EEGArtifactEditor
         Popup channelPopup = new Popup();
         TextBlock popupTB = new TextBlock();
 
-        internal List<int> EEGChannels = new List<int>(0); //list of EEG channels; only channels eligible for display
+        internal List<int> EEGChannels = new List<int>(0); //candidate list of EEG channels from BDF; only channels eligible for display
         internal List<int> selectedEEGChannels; //final list of channels to display, ordered by montage
 
         internal List<ChannelCanvas> currentChannelList = new List<ChannelCanvas>(0); //list of currently displayed channels, in order, top to bottom
+        internal Montage montage; //list indicating order channels are to be displayed
+
         internal List<OutputEvent> events = new List<OutputEvent>();
         internal Dictionary<string, ElectrodeRecord> electrodes;
 
@@ -947,7 +949,7 @@ namespace EEGArtifactEditor
                 int maxFileIndex = -1;
                 for (int i = 0; i < files.Length; i++)
                 {
-                    Match m = Regex.Match(files[i], @"^.+_artifact(-\d+)*-(?<number>\d+)\.[hH][dD][rR]$");
+                    Match m = Regex.Match(files[i], @"^.+_artifact(-\d+)*-(?<number>\d+).*\.[hH][dD][rR]$");
                     if(m.Success) //has to match naming convention
                         maxFileIndex = Math.Max(maxFileIndex, Convert.ToInt32(m.Groups["number"].Value));
                 }
@@ -967,7 +969,10 @@ namespace EEGArtifactEditor
                         newFileName = System.IO.Path.GetFileNameWithoutExtension(header.EventFile); //Use old name; only update Comment
                     else //create new file set from old
                     {
-                        newFileName = System.IO.Path.GetFileNameWithoutExtension(header.EventFile) + "-" + (maxFileIndex + 1).ToString("0");
+                        newFileName = System.IO.Path.GetFileNameWithoutExtension(header.EventFile);
+                        Match m = Regex.Match(header.EventFile, @"^.+_artifact(-\d+)+(?<cap>.)?.*$");
+                        int loc = m.Groups["cap"].Index;
+                        newFileName = newFileName.Insert(loc, "-" + (maxFileIndex + 1).ToString("0"));
                         header.EventFile = newFileName + ".evt";
                     }
                 }
@@ -975,23 +980,24 @@ namespace EEGArtifactEditor
                 {
                     //Modify header with new "naked" Events and file names
                     ede1 = new EventDictionaryEntry();
-                    ede1.intrinsic = null;
+                    ede1.Intrinsic = true;
+                    ede1.Covered = false;
                     ede1.RelativeTime = true; //Use BDF-based clocking
                     ede1.Description = "Beginning of artifact region";
                     ede2 = new EventDictionaryEntry();
-                    ede2.intrinsic = null;
+                    ede2.Intrinsic = true;
+                    ede2.Covered = false;
                     ede2.RelativeTime = true; //Use BDF-based clocking
                     ede2.Description = "End of artifact region";
                     header.Events.Add("**ArtifactBegin", ede1);
                     header.Events.Add("**ArtifactEnd", ede2);
-                    newFileName = System.IO.Path.GetFileNameWithoutExtension(header.BDFFile) + @"_artifact-" +
-                        (maxFileIndex + 1).ToString("0"); ; //create new filename
+                    newFileName = headerFileName + @"_artifact-" + (maxFileIndex + 1).ToString("0"); ; //create new filename
                     header.EventFile = newFileName + ".evt";
                     //and write new header out
                 }
 
-                header.Comment += (header.Comment == "" ? "" : Environment.NewLine) +
-                    "Artifacts marked on " + DateTime.Now.ToString("dd MMM yyyy HH:mm:ss") +
+                header.Comment += (header.Comment == "" ? "" : Environment.NewLine) + (updateFlag ? "Additional a" : "A") +
+                    "rtifacts marked on " + DateTime.Now.ToString("dd MMM yyyy HH:mm:ss") +
                     " by " + Environment.UserName;
                 FileStream fs = new FileStream(System.IO.Path.Combine(directory, newFileName + ".hdr"), FileMode.OpenOrCreate, FileAccess.Write);
                 new HeaderFileWriter(fs, header); //write out new header
@@ -1050,6 +1056,48 @@ namespace EEGArtifactEditor
                 foreach (ChannelCanvas cc in currentChannelList)
                     cc.offScaleRegions.Visibility = Visibility.Hidden;
         }
+
+        private void MenuItemRemoveChannel_Click(object sender, RoutedEventArgs e)
+        {
+
+        }
+
+        private void MenuItemAddChannel_Click(object sender, RoutedEventArgs e)
+        {
+
+        }
+
+        private void ViewerContextMenu_Opened(object sender, RoutedEventArgs e)
+        {
+            //set up context menu about to be displayed
+            if (currentChannelList.Count <= 1)
+                ((MenuItem)(Viewer.ContextMenu.Items[2])).IsEnabled = false; //disable remove channel menu item
+            else
+                ((MenuItem)(Viewer.ContextMenu.Items[2])).IsEnabled = true;
+            Viewer.ContextMenu.Visibility = Visibility.Visible;
+            AddChannel.Items.Clear();
+            RemoveChannel.Items.Clear();
+            if (channelList.Count < bdf.NumberOfChannels)
+            {
+                for (int i = 0; i < EEGChannels.Count; i++)
+                {
+                    if (channelList.Contains(i)) continue;
+                    MenuItem mi1 = new MenuItem();
+                    MenuItem mi2 = new MenuItem();
+                    mi1.Header = mi2.Header = bdf.channelLabel(i);
+                    mi1.Click += new RoutedEventHandler(MenuItemAdd_Click);
+                    mi2.Click += new RoutedEventHandler(MenuItemAdd_Click);
+                    AddBefore.Items.Add(mi1);
+                    AddAfter.Items.Add(mi2);
+                }
+            }
+            else
+            {
+                ((MenuItem)Viewer.ContextMenu.Items[0]).IsEnabled = false;
+                ((MenuItem)Viewer.ContextMenu.Items[1]).IsEnabled = false;
+            }
+        }
+
     }
 
     internal class ChannelCanvas : Canvas

@@ -27,30 +27,22 @@ namespace EEGArtifactEditor
                 Environment.NewLine + main.bdf.ToString().Trim();
             SelChan.Text = CCIUtilities.Utilities.intListToString(main.EEGChannels, true);
             IEnumerable<string> montageFiles = Directory.EnumerateFiles("Montage");
-            foreach (string montageFile in montageFiles) Montage.Items.Add(System.IO.Path.GetFileNameWithoutExtension(montageFile));
+            foreach (string montageFile in montageFiles) MontageSelection.Items.Add(System.IO.Path.GetFileNameWithoutExtension(montageFile));
         }
 
         private void OK_Click(object sender, RoutedEventArgs e)
         {
             DialogResult = (Button)sender == OK;
-            if ((bool)DialogResult && Montage.SelectedIndex != 0) //reorder electrode montage
+            if ((bool)DialogResult && MontageSelection.SelectedIndex != 0) //reorder electrode montage
             {
-                string montageFile = (string)Montage.SelectedItem;
-                List<int> montage = readMontageFile("Montage" + System.IO.Path.DirectorySeparatorChar + montageFile); //read in file listing order of channel display
-                main.selectedEEGChannels = main.selectedEEGChannels.Where(ch => ch < montage.Count && montage[ch] >= 0).ToList<int>(); //first remove channels not in montage
-                Comparison<int> c = (c1, c2) => montage[c1] > montage[c2] ? 1 : montage[c1] < montage[c2] ? -1 : 0; //comparison delegate
-                main.selectedEEGChannels.Sort(c); //sort remaining into montage order using Comparer
+                string montageFile = (string)MontageSelection.SelectedItem;
+                Montage montage = new Montage("Montage" + System.IO.Path.DirectorySeparatorChar + montageFile); //read in file listing order of channel display
+                main.selectedEEGChannels = main.selectedEEGChannels.Where(
+                    ch => ch < montage.Count && montage[ch] >= 0).ToList<int>(); //first remove channels not in montage
+                main.selectedEEGChannels.Sort(montage); //sort remaining into montage order using Comparer
+                main.montage = montage;
             }
             this.Close();
-        }
-
-        private List<int> readMontageFile(string montageFile)
-        {
-            BinaryReader br = new BinaryReader(new FileStream(montageFile, FileMode.Open, FileAccess.Read));
-            int count = br.ReadInt32();
-            List<int> montage = new List<int>(count);
-            for (int i = 0; i < count; i++) montage.Add(br.ReadInt32());
-            return montage;
         }
 
         private void SelChan_TextChanged(object sender, TextChangedEventArgs e)
@@ -112,6 +104,27 @@ namespace EEGArtifactEditor
                 return null;
             }
         }
+    }
 
+    /// <summary>
+    /// File for Montage contains N + 1 integers: the first entry is the number of entires to follow;
+    /// within these, entry i in Montage (at i + 1 in the file) contains an integer indicating the location of channel i in
+    /// the montage; an entry of -1 indicates that channel i should not be included in the montage
+    /// </summary>
+    internal class Montage: List<int>, IComparer<int>
+    {
+        internal Montage(string montageFile)
+        {
+            BinaryReader br = new BinaryReader(new FileStream(montageFile, FileMode.Open, FileAccess.Read));
+            int count = br.ReadInt32();
+            Capacity = count;
+            for (int i = 0; i < count; i++) Add(br.ReadInt32());
+            br.Close();
+        }
+
+        public int Compare(int channel1, int channel2)
+        {
+            return this[channel1] > this[channel2] ? 1 : this[channel1] < this[channel2] ? -1 : 0;
+        }
     }
 }
