@@ -238,6 +238,14 @@ namespace Event
             }
         }
 
+        public bool IsIntrinsic
+        {
+            get
+            {
+                return ede.IsIntrinsic;
+            }
+        }
+
         public bool IsExtrinsic
         {
             get
@@ -346,8 +354,11 @@ namespace Event
                 m_index = (uint)index;
                 m_gc = EventFactory.grayCode(m_index);
             }
-            else if (index != 0)
-                throw new Exception("OutputEvent constructor(EDE,double,int) has non-zero index for naked Event");
+            else
+            {
+                m_index = 0; //enforce zero index for naked Events
+                m_gc = 0;
+            }
             ede = entry;
             m_time = time;
             _eventTime = null;
@@ -360,13 +371,26 @@ namespace Event
         /// of Event file entries to create a new Event file
         /// </summary>
         /// <param name="ie">InputEvent to be copied</param>
-        public OutputEvent(InputEvent ie) : base(ie.EDE)
+        /// <param name="convertToRelativeTime">Convert (Absolute) InputEvent to Relative OutputEvent</param>
+        /// <remarks>WARNING: EDE modified to indicate Relative clocking if convertToRelative time is true</remarks>
+        public OutputEvent(InputEvent ie, bool convertToRelativeTime = false) : base(ie.EDE)
         {
-            m_index = ie.m_index;
-            m_gc = ie.m_gc;
-            m_time = ie.Time;
-            _eventTime = ie._eventTime;
-            _relativeTime = ie.relativeTime;
+            if (convertToRelativeTime)
+            {
+                EDE.m_bdfBasedTime = false;
+                m_index = 0;
+                m_gc = 0;
+                m_time = ie.relativeTime;
+                _eventTime = ie._eventTime;
+            }
+            else
+            {
+                m_index = ie.m_index;
+                m_gc = ie.m_gc;
+                m_time = ie.Time;
+                _eventTime = ie._eventTime;
+                _relativeTime = ie.relativeTime;
+            }
             if (ie.GVValue != null)
             {//do a full copy to protect values
                 GVValue = new string[ie.EDE.GroupVars.Count]; //go back to HDR definition

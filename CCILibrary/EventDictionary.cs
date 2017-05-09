@@ -38,12 +38,15 @@ namespace EventDictionary
         private string m_description;
         public string Description { get { return m_description; } set { m_description = value; } } //need for binding
 
-        public bool? intrinsic = true; //specifies the Event type: 
-            // intrinsic (true) are computer generated; extrinsic are external (nonsynchronous) both should have
-            // corresponding Status markers (Covered); use null for Events with no Status marker (naked Events) -- these are
-            // assumed to be extrinsic, generally created secondarily based on BDF file channels; e.g. artifact markers
+        internal bool? m_intrinsic = true; //specifies the Event type: intrinsic by default;
+            // intrinsic (true) Events are computer generated; extrinsic are external (nonsynchronous); use null for Events
+            // with no Status marker (naked Events) -- these are assumed to be intrinsic (although generally created
+            // secondarily based on BDF file channels, e.g. artifact markers) because they don't have any associated
+            // analog signal in BDF to determine "actual" time; this form is now deprecated: use Naked and Intrinsic (or Extrinsic)
+            // to permit processed BDF files that use Relative clocking and drop the Status channel
 
-        internal bool m_bdfBasedTime = false;
+        internal bool m_bdfBasedTime = false; //Absolute by default
+        internal bool m_covered = true; //Covered by default
         
         [Obsolete("Use RelativeTime(set) or HasRelativeTime/HasAbsoluteTime(get) properties")]
         public bool BDFBased
@@ -55,6 +58,28 @@ namespace EventDictionary
             }
         }
 
+        public bool Intrinsic
+        {
+            set
+            {
+                //if (value == null) //deprecated
+                //{
+                //    m_intrinsic = true;
+                //    m_covered = false;
+                //}
+                //else
+                    m_intrinsic = value;
+            }
+        }
+
+        public bool Covered
+        {
+            set
+            {
+                m_covered = value;
+            }
+        }
+
         public bool RelativeTime //Time in Event is based on start of BDF file if true; otherwise Time is absolute if false => clocks need synchronization
         {
             set
@@ -63,11 +88,11 @@ namespace EventDictionary
             }
         }
 
-        public string IE { get { return IsCovered ? (bool)intrinsic ? "I" : "E" : "*"; } }
-        public bool IsCovered { get { return intrinsic != null; } }
-        public bool IsNaked { get { return intrinsic == null; } }
-        public bool IsIntrinsic { get { return intrinsic == null ? true : (bool)intrinsic; } } //all naked Events are intrinsic
-        public bool IsExtrinsic { get { return intrinsic == null ? false : !(bool)intrinsic; } }
+        public string IE { get { return IsCovered ? (bool)m_intrinsic ? "I" : "E" : "*"; } }
+        public bool IsCovered { get { return m_intrinsic == null ? false : m_covered; } } //intrinsic == null => intrinsic & naked (old-style)
+        public bool IsNaked { get { return m_intrinsic == null ? true : !m_covered; } }
+        public bool IsIntrinsic { get { return m_intrinsic == null ? true : (bool)m_intrinsic; } }
+        public bool IsExtrinsic { get { return m_intrinsic == null ? false : !(bool)m_intrinsic; } }
         public bool HasRelativeTime { get { return m_bdfBasedTime; } }
         public bool HasAbsoluteTime { get { return !m_bdfBasedTime; } }
 

@@ -238,16 +238,18 @@ namespace EventFile
                 {
                     xw.WriteString(ev.Time.ToString("0.0000000"));
                     xw.WriteEndElement(/* ClockTime */);
+                    if (ev._eventTime != null) //string may be present, if the Event was created from an Absolute Event
+                        xw.WriteElementString("EventTime", ev._eventTime);
                 }
                 else // Absolute clock
                 {
                     xw.WriteString(ev.Time.ToString("00000000000.0000000"));
                     xw.WriteEndElement(/* ClockTime */);
 
-                    // Absolute clocks also record EventTime in readable form
+                    // Absolute clocks always record EventTime in readable form
                     DateTime t = new DateTime((long)(ev.Time * 1E7));
                     if (t.Year < 1000) t = t.AddYears(1600); //convert to 0 year basis from 1600 basis
-                    xw.WriteElementString("EventTime", t.ToString("d MMM yyyy HH:mm:ss.fffFF"));
+                    xw.WriteElementString("EventTime", t.ToString("d MMM yyyy HH:mm:ss.fffFF")); //enforce standard format
                 }
                 xw.WriteStartElement("GroupVars");
                 if (ev.GVValue != null)
