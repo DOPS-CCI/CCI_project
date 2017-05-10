@@ -2,7 +2,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Text;
 using System.Text.RegularExpressions;
 using System.Timers;
 using System.Printing;
@@ -18,8 +17,6 @@ using System.Windows.Media.Effects;
 using System.Windows.Shapes;
 using System.Windows.Xps;
 using Microsoft.Win32;
-using CCILibrary;
-using Header;
 using HeaderFileStream;
 using BDFEDFFileStream;
 using EventFile;
@@ -52,10 +49,10 @@ namespace EEGArtifactEditor
         TextBlock popupTB = new TextBlock();
 
         internal List<int> EEGChannels = new List<int>(0); //candidate list of EEG channels from BDF; only channels eligible for display
-        internal List<int> selectedEEGChannels; //final list of channels to display, ordered by montage
+        internal List<int> selectedEEGChannels; //list of channels to display, ordered by montage
 
         internal List<ChannelCanvas> currentChannelList = new List<ChannelCanvas>(0); //list of currently displayed channels, in order, top to bottom
-        internal Montage montage; //list indicating order channels are to be displayed
+        internal Montage montage; //list indicating order channels are to be displayed: montage[i] has relative location of channel i, -1 if ignored
 
         internal List<OutputEvent> events = new List<OutputEvent>();
         internal Dictionary<string, ElectrodeRecord> electrodes;
@@ -529,6 +526,7 @@ namespace EEGArtifactEditor
         }
 
         const double scaleDelta = 0.05;
+        bool completeRedraw;
         public void reDrawChannels()
         {
             this.Cursor = Cursors.Wait;
@@ -551,7 +549,7 @@ namespace EEGArtifactEditor
             ChannelCanvas.decimateNew = Convert.ToInt32(Math.Ceiling(2.5D * numberOfBDFPointsToRepresent / Viewer.ActualWidth)); //undersampling a bit for min/max approach
             if (ChannelCanvas.decimateNew == 2) ChannelCanvas.decimateNew = 1; //No advantage to decimating by 2
 
-            bool completeRedraw = ChannelCanvas.decimateNew != ChannelCanvas.decimateOld; //complete redraw of all channels if ...
+            completeRedraw |= ChannelCanvas.decimateNew != ChannelCanvas.decimateOld; //complete redraw of all channels if ...
             // change in decimation or if completely new screen (no overlap of old and new)
 
             //determine if overlap of new display with old and direction of scroll to determine trimming
@@ -564,13 +562,13 @@ namespace EEGArtifactEditor
             if (!completeRedraw)
             {
                 //calculate number of points to remove above and below current point set
-                List<PointListPoint> s = chans[0].PointList; //finding cut points works in any channel PointList
+                List<PointListPoint> s = chans[0].PointList; //finding cut points; works in any channel PointList
                 //now loop through each channel graph to remove unneeded points
                 //Use this information to determine bounds of current display and to caluculate size of
                 //non-overlap lower and higher than current display
                 if (s.Count > 0)
                 {
-                    if (scrollingRight)
+                    if (scrollingRight) //scrollingRight == dragging to the right or using left scroll bar button
                     {
                         removeHigh = -s.FindIndex(p => p.X >= currentHighSecs); //where to start removing from high end of data points
                         if (removeHigh <= 0)
@@ -612,7 +610,7 @@ namespace EEGArtifactEditor
                         cc.PointList.RemoveRange(0, removeLow);
                     if (removeHigh > 0) //then must remove points above
                         cc.PointList.RemoveRange(cc.PointList.Count - removeHigh, removeHigh);
-                    completeRedraw = completeRedraw || cc.PointList.Count == 0; //update completeRedraw, just in case!
+                    completeRedraw |= cc.PointList.Count == 0; //update completeRedraw, just in case!
                 }
             }
 
@@ -711,6 +709,7 @@ namespace EEGArtifactEditor
                 if(showOOSMarks)
                     markChannelRegions(cc);
             }
+            completeRedraw = false;
             this.Cursor = Cursors.Arrow;
         } //End redrawChannels
 
@@ -767,31 +766,7 @@ namespace EEGArtifactEditor
 #if DEBUG
             Console.WriteLine("In ViewerContextMenu_Opened with graph " + graphNumber.ToString("0") + " and X " + rightMouseClickLoc.X);
 #endif
-            //if (graphNumber < channelList.Count)
-            //{
-            //    //set up context menu about to be displayed
-            //    string channelName = bdf.channelLabel(channelList[graphNumber]);
-            //    if (channelList.Count <= 1)
-            //        ((MenuItem)(Viewer.ContextMenu.Items[4])).IsEnabled = false;
-            //    else
-            //        ((MenuItem)(Viewer.ContextMenu.Items[4])).IsEnabled = true;
-            //    Viewer.ContextMenu.Visibility = Visibility.Visible;
-            //    AddChannel.Items.Clear();
-            //    if (channelList.Count < bdf.NumberOfChannels)
-            //    {
-            //        ((MenuItem)Viewer.ContextMenu.Items[0]).IsEnabled = true;
-            //        ((MenuItem)Viewer.ContextMenu.Items[1]).IsEnabled = true;
-            //        for (int i = 0; i < bdf.NumberOfChannels; i++)
-            //        {
-            //            if (channelList.Contains(i)) continue;
-            //            MenuItem mi1 = new MenuItem();
-            //            mi1.Header = bdf.channelLabel(i);
-            //            mi1.Click += new RoutedEventHandler(MenuItemAdd_Click);
-            //            AddChannel.Items.Add(mi1);
-            //        }
-            //    }
-            //}
-        }
+        } //NB: ViewerContextMenu_Opened does the rest of the work to set up context menu
 
         private void MenuItemMakeNote_Click(object sender, RoutedEventArgs e)
         {
@@ -824,31 +799,35 @@ namespace EEGArtifactEditor
             if (mr != null) MarkerCanvas.Remove(mr);
         }
 
-        //private void MenuItemAdd_Click(object sender, RoutedEventArgs e)
-        //{
-        //    int offset = ((Control)sender).Parent == AddBefore ? 0 : 1;
-        //    int chan = bdf.ChannelNumberFromLabel((string)((MenuItem)sender).Header);
-        //    channelList.Insert(graphNumber + offset, chan);
-        //    GraphCanvas.Children.Insert(graphNumber + offset, new ChannelGraph(this, chan));
-        //    ChannelGraph.CanvasHeight = (Viewer.ViewportHeight - ScrollBarSize - EventChannelHeight) / channelList.Count;
-        //    ChannelGraph.decimateOld = -1;
-        //    reDrawChannelLabels();
-        //    reDrawChannels();
-        //}
+        private void MenuItemAdd_Click(object sender, RoutedEventArgs e)
+        {
+            int chan = (int)((MenuItem)sender).Tag; //get saved channel number
+            selectedEEGChannels.Add(chan); //add this channel to current list
+            selectedEEGChannels.Sort(montage); //and resort into list; if montage == null uses "natural" order
+            int loc = selectedEEGChannels.IndexOf(chan); //then find out where it was placed
+            ChannelCanvas cc = new ChannelCanvas(this, chan);
+            currentChannelList.Insert(loc, cc); //use new location to insert into ChannelCanvas list
+            ViewerCanvas.Children.Add(cc);
+            ViewerCanvas.Children.Add(cc.offScaleRegions);
+            ChannelCanvas.nominalCanvasHeight = ViewerGrid.ActualHeight / currentChannelList.Count; //update ChannelCanvas heights
+            completeRedraw = true; //let redraw know that there's a new channel, forcing a complete redraw
+            reDrawChannelLabels();
+            reDrawChannels();
+        }
 
-        //private void MenuItemRemove_Click(object sender, RoutedEventArgs e)
-        //{
-        //    if (graphNumber < channelList.Count && channelList.Count > 1)
-        //    {
-        //        channelList.RemoveAt(graphNumber);
-        //        ChannelGraph cg = (ChannelGraph)GraphCanvas.Children[graphNumber];
-        //        cg.baseline.Visibility = Visibility.Hidden;
-        //        GraphCanvas.Children.Remove(cg);
-        //        ChannelGraph.CanvasHeight = (Viewer.ViewportHeight - ScrollBarSize - EventChannelHeight) / channelList.Count;
-        //        reDrawChannelLabels();
-        //        reDrawChannels();
-        //    }
-        //}
+        private void MenuItemRemove_Click(object sender, RoutedEventArgs e)
+        {
+            int chan = (int)((MenuItem)sender).Tag; //get saved channel number
+            int loc = selectedEEGChannels.IndexOf(chan);
+            selectedEEGChannels.RemoveAt(loc);
+            ChannelCanvas cc = currentChannelList[loc]; //get a reference
+            currentChannelList.RemoveAt(loc); //then delete from list
+            ViewerCanvas.Children.Remove(cc.offScaleRegions); //and remove graphics
+            ViewerCanvas.Children.Remove(cc);
+            ChannelCanvas.nominalCanvasHeight = ViewerGrid.ActualHeight / currentChannelList.Count; //update ChannelCanvas heights
+            reDrawChannelLabels();
+            reDrawChannels();
+        }
 
         private void MenuItemPrint_Click(object sender, RoutedEventArgs e)
         {
@@ -1057,45 +1036,43 @@ namespace EEGArtifactEditor
                     cc.offScaleRegions.Visibility = Visibility.Hidden;
         }
 
-        private void MenuItemRemoveChannel_Click(object sender, RoutedEventArgs e)
-        {
-
-        }
-
-        private void MenuItemAddChannel_Click(object sender, RoutedEventArgs e)
-        {
-
-        }
-
         private void ViewerContextMenu_Opened(object sender, RoutedEventArgs e)
         {
+            ContextMenu cm = (ContextMenu)sender;
             //set up context menu about to be displayed
-            if (currentChannelList.Count <= 1)
-                ((MenuItem)(Viewer.ContextMenu.Items[2])).IsEnabled = false; //disable remove channel menu item
-            else
-                ((MenuItem)(Viewer.ContextMenu.Items[2])).IsEnabled = true;
-            Viewer.ContextMenu.Visibility = Visibility.Visible;
-            AddChannel.Items.Clear();
+            //first do removable channels
             RemoveChannel.Items.Clear();
-            if (channelList.Count < bdf.NumberOfChannels)
+            if (currentChannelList.Count <= 1) //don't remove last channel
+                ((MenuItem)(cm.Items[4])).IsEnabled = false; //disable remove channel menu item
+            else
             {
-                for (int i = 0; i < EEGChannels.Count; i++)
+                ((MenuItem)(cm.Items[4])).IsEnabled = true;
+                foreach (int EEGChan in selectedEEGChannels) //include only channels currently displayed
                 {
-                    if (channelList.Contains(i)) continue;
-                    MenuItem mi1 = new MenuItem();
                     MenuItem mi2 = new MenuItem();
-                    mi1.Header = mi2.Header = bdf.channelLabel(i);
-                    mi1.Click += new RoutedEventHandler(MenuItemAdd_Click);
-                    mi2.Click += new RoutedEventHandler(MenuItemAdd_Click);
-                    AddBefore.Items.Add(mi1);
-                    AddAfter.Items.Add(mi2);
+                    mi2.Header = bdf.channelLabel(EEGChan);
+                    mi2.Click += new RoutedEventHandler(MenuItemRemove_Click);
+                    mi2.Tag = EEGChan;
+                    RemoveChannel.Items.Add(mi2);
                 }
             }
-            else
+            //then do add channels
+            AddChannel.Items.Clear();
+            foreach (int EEGChan in EEGChannels) //from all possible candidates to add
             {
-                ((MenuItem)Viewer.ContextMenu.Items[0]).IsEnabled = false;
-                ((MenuItem)Viewer.ContextMenu.Items[1]).IsEnabled = false;
+                if (selectedEEGChannels.Contains(EEGChan)) continue; //skip those already displayed
+                if (montage != null && (EEGChan >= montage.Count || montage[EEGChan] < 0)) continue; //and those which are not included in montage
+                MenuItem mi1 = new MenuItem();
+                mi1.Header = bdf.channelLabel(EEGChan);
+                mi1.Click += new RoutedEventHandler(MenuItemAdd_Click);
+                mi1.Tag = EEGChan;
+                AddChannel.Items.Add(mi1);
             }
+            if (AddChannel.Items.Count > 0)
+                ((MenuItem)cm.Items[3]).IsEnabled = true;
+            else
+                ((MenuItem)cm.Items[3]).IsEnabled = false;
+            cm.Visibility = Visibility.Visible;
         }
 
     }

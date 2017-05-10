@@ -36,14 +36,14 @@
             <Canvas Name="HorizontalGrid" IsHitTestVisible="False" />
             <ScrollViewer Name="Viewer" HorizontalScrollBarVisibility="Visible" ScrollChanged="Viewer_ScrollChanged"
                           SizeChanged="Viewer_SizeChanged" VerticalScrollBarVisibility="Disabled">
-                <Grid Name="ViewerGrid" HorizontalAlignment="Left" VerticalAlignment="Stretch" Background="#00000000">
+                <Grid Name="ViewerGrid" HorizontalAlignment="Left" VerticalAlignment="Stretch" Background="#00000000" ContextMenuOpening="ViewerGridContextMenu_Opened">
                     <Grid.ContextMenu>
                         <ContextMenu Opened="ViewerContextMenu_Opened">
                             <MenuItem Header="Start marking segment" Click="MenuItemBeginMark_Click"/>
                             <MenuItem Name="RemoveSeg" Header="Remove marked segment" Click="MenuItemRemoveMark_Click"/>
                             <Separator/>
-                            <MenuItem Name="AddChannel" Header="Add channel to display " Click="MenuItemAddChannel_Click"/>
-                            <MenuItem Name="RemoveChannel" Header="Remove channel from display" Click="MenuItemRemoveChannel_Click" />
+                            <MenuItem Name="AddChannel" Header="Add channel to display "/>
+                            <MenuItem Name="RemoveChannel" Header="Remove channel from display" />
                             <Separator/>
                             <MenuItem Header="Create entry note" Click="MenuItemMakeNote_Click"/>
                             <Separator/>
