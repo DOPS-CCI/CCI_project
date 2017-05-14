@@ -22,14 +22,7 @@ namespace BDFEDFFileStream
         internal FileStream baseStream;
         public BDFEDFRecord record;
         internal byte[] _recordBuffer; //where the actual reads or writes take place; used by BDFEDFRecord
-        protected BDFLocFactory _locationFactory;
-        public BDFLocFactory LocationFactory
-        {
-            get
-            {
-                return _locationFactory;
-            }
-        }
+        internal double? _zeroTime = null;
 
         /// <summary>
         /// Number of records currently in BDF/EDF file; read-only
@@ -222,6 +215,51 @@ namespace BDFEDFFileStream
         }
 
         /// <summary>
+        /// Sets the time of start of file (record 0, point 0) to a given value
+        /// After this, value may be accessed via property <code>zeroTime</code>
+        /// WARNING: use with caution; the BDF and Event clocks may not be synchronized
+        /// </summary>
+        /// <param name="zeroTime">time to set zeroTime to</param>
+        public void setZeroTime(double zeroTime)
+        {
+            _zeroTime = zeroTime;
+        }
+
+        /// <summary>
+        /// Read-only property which is the absolute time of the first point in the file
+        /// Used to synch Events with absolute times to the BDF file
+        /// </summary>
+        public double zeroTime
+        {
+            get
+            {
+                if (_zeroTime == null) throw new Exception("In BDFEDFFile: zeroTime not initialized");
+                return (double)_zeroTime;
+            }
+        }
+
+        /// <summary>
+        /// Returns true if zeroTiem has been previously set, false if it has not
+        /// </summary>
+        public bool IsZeroTimeSet
+        {
+            get { return _zeroTime != null; }
+        }
+
+        /// <summary>
+        /// Calculates number of seconds from beginning of file to an Event; if Event is Absolute,
+        /// uses zeroTime to synchonize clocks; zeroTime must be previously set.
+        /// </summary>
+        /// <param name="ie">The Event to locate</param>
+        /// <returns>Time to Event</returns>
+        /// <exception cref="Exception">zeroTime not initialized</exception>
+        public double timeFromBeginningOfFileTo(Event.Event ie)
+        {
+            if (ie.HasRelativeTime) return ie.Time;
+            return ie.Time - zeroTime;
+        }
+
+        /// <summary>
         /// BDF/EDF header information
         /// </summary>
         /// <returns>String representation of BDF/EDF header</returns>
@@ -284,16 +322,23 @@ namespace BDFEDFFileStream
     /// <summary>
     /// Class for reading a BDF, EDF, or EDF+ file
     /// </summary>
-    public class BDFEDFFileReader : BDFEDFFileStream, IDisposable
+    public class BDFEDFFileReader : BDFEDFFileStream, IDisposable, IBDFEDFFileReader
     {
 
         protected BinaryReader reader;
-        double? _zeroTime = null;
-
 
         public bool hasStatus
         {
             get { return header.hasStatus; }
+        }
+
+        protected BDFLocFactory _locationFactory;
+        public BDFLocFactory LocationFactory
+        {
+            get
+            {
+                return _locationFactory;
+            }
         }
 
         /// <summary>
@@ -349,12 +394,6 @@ namespace BDFEDFFileStream
             return read();
         }
 
-        /// <summary>
-        /// Reads entire channel into an array for processing; values in physical units
-        /// </summary>
-        /// <remarks>Leaves stream pointer and current record number unchanged</remarks>
-        /// <param name="channel">Channel to be read (zero-based)</param>
-        /// <returns>Array containing entire channel data</returns>
         public double[] readAllChannelData(int channel)
         {
             if (!reader.BaseStream.CanSeek) throw new IOException("File stream not able to perform Seek.");
@@ -391,15 +430,55 @@ namespace BDFEDFFileStream
             return data;
         }
 
+
+        /// <summary>
+        /// Reads entire raw Status channel into an array for processing
+        /// </summary>
+        /// <remarks>Leaves stream pointer and current record number unchanged</remarks>
+        /// <returns>Array containing entire Status channel data</returns>
+        public uint[] readAllStatus()
+        {
+            if (!reader.BaseStream.CanSeek) throw new IOException("File stream not able to perform Seek.");
+            if (!(header.isBDFFile && hasStatus)) throw new Exception("Not a BDF file with Status channel");
+
+            int statusChannel = NumberOfChannels - 1;
+            long pos = reader.BaseStream.Position; //remember current file position
+            long increment = 0; //calculate record size in bytes
+            foreach (int c in header.numberSamples) increment += c;
+            increment *= header._bytesPerSample;
+            int bufferSize = NumberOfSamples(statusChannel) * 3; //size of intermediate buffer for single channel
+
+            byte[] buffer = new byte[bufferSize]; //allocate intermediate buffer
+            uint[] status = new uint[NumberOfRecords * NumberOfSamples(statusChannel)]; //allocate final data array
+
+            long currentRecordPosition = (long)header.headerSize; //calculate initial file pointer position
+            for (int i = 0; i < statusChannel; i++)
+                currentRecordPosition += (long)NumberOfSamples(i) * 3;
+
+            int currentDataPosition = 0; //keeps track of where we are in the data array
+
+            while (currentRecordPosition < reader.BaseStream.Length) //read entire file for this channel
+            {
+                reader.BaseStream.Seek(currentRecordPosition, SeekOrigin.Begin); //seek to next channel record location
+                currentRecordPosition += increment; //and increment to next record location
+                buffer = reader.ReadBytes(bufferSize); //read in raw data for this channel
+                for (int i = 0; i < bufferSize; i += 3) //convert and fill next positions in output array
+                    status[currentDataPosition++] = (uint)buffer[i] + (((uint)buffer[i + 1] + ((uint)buffer[i + 2] << 8)) << 8);
+            }
+
+            reader.BaseStream.Seek(pos, SeekOrigin.Begin); //return reader to original location
+            return status;
+        }
+
         /// <summary>
         /// Gets data from current record in physical units: thus includes correction for gain and offset
         /// </summary>
         /// <param name="channel">Requested channel number; zero-based</param>
         /// <returns>Array of samples from channel for current record</returns>
-        /// <exception cref="BDFEDFException">No record read or invalid input</exception>
+        /// <exception cref="BDFEDFException">Invalid input</exception>
         public double[] getChannel(int channel)
         {
-            if (reader != null && record.currentRecordNumber < 0) throw new BDFEDFException("No records have yet been read.");
+            if (reader != null && record.currentRecordNumber < 0) this.read();
             if (channel < 0 || channel >= header.numberChannels) throw new BDFEDFException("Invalid channel number (" + channel + ")");
             double[] chan = new double[header.numberSamples[channel]];
             double g = header.Gain(channel);
@@ -417,11 +496,10 @@ namespace BDFEDFFileStream
         /// Gets data from status channel; only valid in BDF files; not masked-off to exclude top 8 bits
         /// </summary>
         /// <returns>Array of integers from status channel</returns>
-        /// <exception cref="BDFEDFException">No records yet read</exception>
         /// <exception cref="BDFEDFException">Not a BDF file</exception>
         public int[] getStatus()
         {
-            if (reader != null && record.currentRecordNumber < 0) throw new BDFEDFException("No records have yet been read.");
+            if (reader != null && record.currentRecordNumber < 0) this.read();
             if (!header.hasStatus) throw new BDFEDFException("No Status channel in file");
             return record.channelData[header.numberChannels - 1];
         }
@@ -430,11 +508,10 @@ namespace BDFEDFFileStream
         /// Gets data from annotation channel for last record read; only valid in EDF+ files with designated "EDF Annotation" channel
         /// </summary>
         /// <returns>Array of integers from status channel</returns>
-        /// <exception cref="BDFEDFException">No records yet read</exception>
         /// <exception cref="BDFEDFException">Not a BDF file</exception>
         public List<TimeStampedAnnotation> getAnnotation()
         {
-            if (reader != null && record.currentRecordNumber < 0) throw new BDFEDFException("No records have yet been read.");
+            if (reader != null && record.currentRecordNumber < 0) this.read();
             if (!header.hasAnnotations) throw new BDFEDFException("No \"EDF Annotations\" channel in file");
             string s = Encoding.UTF8.GetString(_recordBuffer, header.AnnotationOffset,
                 NumberOfSamples(header._AnnotationChannel) * 2); //"2" is because this is only used in EDF+ files
@@ -455,10 +532,10 @@ namespace BDFEDFFileStream
         /// <param name="channel">Channel number; zero-based</param>
         /// <param name="sample">Sample number; zero-based</param>
         /// <returns>Value of requested sample</returns>
-        /// <exception cref="BDFException">No records read or invalid input</exception>
+        /// <exception cref="BDFException">Invalid input</exception>
         public double getSample(int channel, int sample)
         {
-            if (reader != null && record.currentRecordNumber < 0) throw new BDFEDFException("No records have yet been read.");
+            if (reader != null && record.currentRecordNumber < 0) this.read();
             try
             {
                 return (double)record.channelData[channel][sample] * header.Gain(channel) + header.Offset(channel);
@@ -628,69 +705,27 @@ namespace BDFEDFFileStream
         /// After this, value may be accessed via property <code>zeroTime</code>; this synchronizes
         /// the clocks of BDF file and the Event file
         /// </summary>
-        /// <param name="IE">InputEvent to use for synchronization</param>
+        /// <param name="IE">Event to use for synchronization; Event must be Covered and Absolute</param>
         /// <returns>True if GC found in Status channel (synchronization successful), false if not</returns>
         public bool setZeroTime(Event.Event IE)
         {
-            int[] statusBuffer = new int[NSamp];
-            int rec = 0;
-            uint mask = 0xFFFFFFFF >> (32 - EventFactory.Instance().statusBits);
-            while (this.read(rec++) != null)
+            if (IE.IsCovered && IE.HasAbsoluteTime) //must be Covered, Absolute Event
             {
-                statusBuffer = getStatus();
-                for (int i = 0; i < NSamp; i++)
-                    if ((mask & statusBuffer[i]) == IE.GC)
-                    {
-                        _zeroTime = IE.Time - (double)this.RecordDurationDouble * (--rec + (double)i / NSamp);
-                        return true;
-                    }
+                int[] statusBuffer = new int[NSamp];
+                int rec = 0;
+                uint mask = 0xFFFFFFFF >> (32 - EventFactory.Instance().statusBits);
+                while (this.read(rec++) != null)
+                {
+                    statusBuffer = getStatus();
+                    for (int i = 0; i < NSamp; i++)
+                        if ((mask & statusBuffer[i]) == IE.GC)
+                        {
+                            _zeroTime = IE.Time - (double)this.RecordDurationDouble * (--rec + (double)i / NSamp);
+                            return true;
+                        }
+                }
             }
             return false;
-        }
-
-        /// <summary>
-        /// Sets the time of start of file (record 0, point 0) to a given value
-        /// After this, value may be accessed via property <code>zeroTime</code>
-        /// WARNING: use with caution; the BDF and Event clocks may not be synchronized
-        /// </summary>
-        /// <param name="zeroTime">time to set zeroTime to</param>
-        public void setZeroTime(double zeroTime)
-        {
-            _zeroTime = zeroTime;
-        }
-
-        /// <summary>
-        /// Read-only property which is the absolute time of the first point in the file
-        /// Used to synch Events with absolute times to the BDF file
-        /// </summary>
-        public double zeroTime
-        {
-            get
-            {
-                if (_zeroTime == null) throw new Exception("In BDFEDFFileReader: zeroTime not initialized");
-                return (double)_zeroTime;
-            }
-        }
-
-        /// <summary>
-        /// Returns true if zeroTiem has been previously set, false if it has not
-        /// </summary>
-        public bool IsZeroTimeSet
-        {
-            get { return _zeroTime != null; }
-        }
-
-        /// <summary>
-        /// Calculates number of seconds from beginning of file to an Event; if Event is Absolute,
-        /// uses zeroTime to synchonize clocks; zeroTime must be previously set.
-        /// </summary>
-        /// <param name="ie">The Event to locate</param>
-        /// <returns>Time to Event</returns>
-        /// <exception cref="Exception">zeroTime not initialized</exception>
-        public double timeFromBeginningOfFileTo(Event.Event ie)
-        {
-            if (ie.BDFBased) return ie.Time;
-            return ie.Time - zeroTime;
         }
 
         public bool setExtrinsicChannelNumber(EventDictionaryEntry ede)
@@ -706,8 +741,14 @@ namespace BDFEDFFileStream
         }
 
 // ***** Find GrayCodes in Status channel *****
+        public StatusChannel createStatusChannel(int maskBits)
+        {
+            if(hasStatus)
+                return new StatusChannel(this, maskBits, header.isBDFFile);
+            return null;
+        }
 
-    public bool findGCAtOrAfter(GrayCode gc, ref BDFLoc p)
+        public bool findGCAtOrAfter(GrayCode gc, ref BDFLoc p)
         {
             while (p.IsInFile)
             {
@@ -729,6 +770,12 @@ namespace BDFEDFFileStream
 
         public bool findGCAfter(GrayCode gc, ref BDFLoc p)
         {
+            BDFLoc p1 = p;
+            p1.Pt = 0;
+            p1.Rec++;
+            while (p1.IsInFile && gc.CompareTo(getStatusSample(p1)) > 0) p1.Rec++;
+            p1.Rec--;
+            p = p1;
             while ((++p).IsInFile)
                 if (gc.CompareTo(getStatusSample(p)) <= 0) return true;
             return false;
@@ -743,8 +790,12 @@ namespace BDFEDFFileStream
 
         public bool findGCBefore(GrayCode gc, ref BDFLoc p)
         {
-            while ((--p).IsInFile)
-                if (gc.CompareTo(getStatusSample(p)) > 0) { p++; return true; }
+            BDFLoc p1 = p;
+            p1.Pt = 0;
+            while (p1.Rec > 0 && gc.CompareTo(getStatusSample(p1)) <= 0) p1.Rec--;
+            p = p1;
+            while ((++p).IsInFile)
+                if (gc.CompareTo(getStatusSample(p)) <= 0) return true;
             return false;
         }
 
@@ -825,6 +876,20 @@ namespace BDFEDFFileStream
     }
 
     /// <summary>
+    /// Unit test interface for BDFEDFReader
+    /// </summary>
+    public interface IBDFEDFFileReader
+    {
+        int NumberOfChannels { get; }
+        double SampleTime(int channel);
+        uint[] readAllStatus();
+        int NSamp { get; }
+        int NumberOfRecords { get; }
+        double RecordDurationDouble { get; }
+        BDFLocFactory LocationFactory { get; }
+    }
+
+    /// <summary>
     /// Class for writing a BDF or EDF file; EDF+ files not implemented
     /// </summary>
     public class BDFEDFFileWriter : BDFEDFFileStream, IDisposable
@@ -869,7 +934,6 @@ namespace BDFEDFFileStream
             if (!header.isValid)
             { //header not yet written -- do this once for each stream
                 header.write(new StreamWriter(writer.BaseStream, Encoding.ASCII));
-                _locationFactory = new BDFLocFactory(this);
             }
             else
                 throw new BDFEDFException("Attempt to rewrite header in BDFEDFFileWriter");
@@ -1589,28 +1653,32 @@ namespace BDFEDFFileStream
         internal int _recSize; //number of points in record of underlying BDF/EDF file
         internal double _sec; //record length in seconds of underlying BDF/EDF file
         internal double _st; //calculated sample time of underlying BDF/EDF file
-        internal BDFEDFFileStream _bdf;
+        internal IBDFEDFFileReader _bdf;
 
         /// <summary>
         /// Use a factory to create BDFLocs to assure all based on same file parameters
         /// </summary>
         /// <param name="bdf">BDF file stream on which to base BDFLocs</param>
-        public BDFLocFactory(BDFEDFFileStream bdf)
+        public BDFLocFactory(IBDFEDFFileReader bdf)
         {
-            if (bdf.Header.isValid)
-            {
-                _recSize = bdf.NSamp;
-                _sec = bdf.RecordDurationDouble;
-                _st = _sec / (double)_recSize;
-                _bdf = bdf;
-            }
-            else
-                throw new BDFEDFException("Can't create BDFLocFactory unless BDFEDFFileStream.Header is valid");
+            _recSize = bdf.NSamp;
+            _sec = bdf.RecordDurationDouble;
+            _st = _sec / (double)_recSize;
+            _bdf = bdf;
         }
 
         public BDFLoc New()
         {
             return new BDFLoc(this);
+        }
+
+        public BDFLoc New(double seconds)
+        {
+            double f = Math.Floor(seconds /_sec);
+            BDFLoc b = New();
+            b.Rec = (int)f;
+            b.Pt = Convert.ToInt32((seconds - f * _sec) / _st); //round and use Pt in case problem at record "edge"
+            return b;
         }
     }
 

@@ -51,8 +51,7 @@ namespace FileConverter
             logStream.WriteStartElement("Event");
             logStream.WriteAttributeString("Name", c.EDE.Name);
             logStream.WriteElementString("Type", c.EDE.IsIntrinsic ? "intrinsic" : "extrinsic");
-            logStream.WriteElementString("Continuous", c.continuousSearch ? "Yes" : "No");
-            logStream.WriteElementString("ExactMatch", c.equalStatusOnly ? "Yes" : "No");
+
             if (c.EDE.IsExtrinsic)
             {
                 logStream.WriteElementString("Channel", c.EDE.channelName);
@@ -103,37 +102,56 @@ namespace FileConverter
                 }
             }
             logStream.WriteEndElement(/* Reference */);
+            if (c.ExcludeEvent1 != null)
+            {
+                logStream.WriteStartElement("Exclude");
+                if (c.ExcludeEvent2 != null)
+                {
+                    logStream.WriteElementString("FromEvent", c.ExcludeEvent1.Name);
+                    logStream.WriteElementString("ToEvent", c.ExcludeEvent2.Name);
+                }
+                else
+                    logStream.WriteElementString("Event", c.ExcludeEvent1.Name);
+                logStream.WriteEndElement(/*Exclude*/);
+            }
+            logStream.WriteElementString("PermitOverlap", c.permitOverlap ? "Yes" : "No");
             logStream.WriteEndElement(/* Conversion */);
         }
 
-        public void registerExtrinsicEvent(BDFLoc nominal, BDFLoc actual, BDFLoc ext, InputEvent ie)
+        public void registerExtrinsicEvent(double nominal, double actual, BDFLoc ext, InputEvent ie)
+        {
+            registerIntrinsicEvent(nominal, actual, ie);
+            logStream.WriteElementString("ExtrinsicEventDiff", (ext.ToSecs() - actual).ToString("0.000000"));
+        }
+
+        public void registerIntrinsicEvent(double nominal, double actual, InputEvent ie)
         {
             logStream.WriteStartElement("Event");
             logStream.WriteAttributeString("Index", ie.Index.ToString("0"));
-            double t0 = actual.ToSecs();
-            double nominalOffset = nominal.ToSecs() - t0;
-            logStream.WriteElementString("ActualStatus", t0.ToString("0.000000"));
-            logStream.WriteElementString("EventFileDiff", (nominal.ToSecs() - t0).ToString("0.000000"));
-            logStream.WriteElementString("ExtrinsicEventDiff", (ext.ToSecs() - t0).ToString("0.000000"));
-            logStream.WriteEndElement(/*Event*/);
-            gatherStats(t0, nominalOffset);
+            logStream.WriteElementString("ActualStatus", actual.ToString("0.000000"));
+            if (ie.HasAbsoluteTime)
+            {
+                double nominalOffset = nominal - actual;
+                logStream.WriteElementString("EventFileDiff", nominalOffset.ToString("0.000000"));
+                gatherStats(actual, nominalOffset);
+            }
         }
 
-        public void registerIntrinsicEvent(BDFLoc nominal, BDFLoc actual, InputEvent ie)
+        internal void ExcludedEvent(string reason)
         {
-            logStream.WriteStartElement("Event");
-            logStream.WriteAttributeString("Index", ie.Index.ToString("0"));
-            double t0 = actual.ToSecs();
-            double nominalOffset = nominal.ToSecs() - t0;
-            logStream.WriteElementString("ActualStatus", t0.ToString("0.000000"));
-            logStream.WriteElementString("EventFileDiff", nominalOffset.ToString("0.000000"));
-            logStream.WriteEndElement(/*Event*/);
-            gatherStats(t0, nominalOffset);
+            logStream.WriteElementString("Excluded", "*** " + reason + " ***");
         }
 
-        internal void ExcludedEvent()
+        int n = 0;
+
+        internal void IncludedEvent()
         {
-            logStream.WriteElementString("Excluded", "***** Event excluded *****");
+            logStream.WriteElementString("Included", (++n).ToString("0"));
+        }
+
+        internal void closeEvent()
+        {
+            logStream.WriteEndElement(/* Event */);
         }
 
         public void registerEpochSet(double epoch, InputEvent ie)
@@ -198,13 +216,16 @@ Bit 23 (MSB) High if ActiveTwo MK2
 
         public void Close()
         {
-            logStream.WriteStartElement("Summary");
-            logStream.WriteElementString("EventFileDiffMax", nominalOffsetMax.ToString("0.0000"));
-            double n = (double)nEvents;
-            logStream.WriteElementString("EventFileDiffAve", (nominalOffsetSum / n).ToString("0.0000"));
-            double b = 1000D * (n * nominalOffsetActualProd - actualSum * nominalOffsetSum) / (n * actualSumSq - actualSum * actualSum);
-            logStream.WriteElementString("EventFileDiffSlope", b.ToString("0.0000") + "msec/sec");
-            logStream.WriteEndElement(/*Summary*/);
+            if (nominalOffsetMax != 0D)
+            {
+                logStream.WriteStartElement("Summary");
+                logStream.WriteElementString("EventFileDiffMax", nominalOffsetMax.ToString("0.0000"));
+                double n = (double)nEvents;
+                logStream.WriteElementString("EventFileDiffAve", (nominalOffsetSum / n).ToString("0.0000"));
+                double b = 1000D * (n * nominalOffsetActualProd - actualSum * nominalOffsetSum) / (n * actualSumSq - actualSum * actualSum);
+                logStream.WriteElementString("EventFileDiffSlope", b.ToString("0.0000") + "msec/sec");
+                logStream.WriteEndElement(/*Summary*/);
+            }
             logStream.WriteEndDocument();
             logStream.Close();
         }

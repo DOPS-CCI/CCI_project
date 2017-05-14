@@ -36,15 +36,15 @@
             <Canvas Name="HorizontalGrid" IsHitTestVisible="False" />
             <ScrollViewer Name="Viewer" HorizontalScrollBarVisibility="Visible" ScrollChanged="Viewer_ScrollChanged"
                           SizeChanged="Viewer_SizeChanged" VerticalScrollBarVisibility="Disabled">
-                <Grid Name="ViewerGrid" HorizontalAlignment="Left" VerticalAlignment="Stretch" Background="#00000000">
+                <Grid Name="ViewerGrid" HorizontalAlignment="Left" VerticalAlignment="Stretch" Background="#00000000" ContextMenuOpening="ViewerGridContextMenu_Opened">
                     <Grid.ContextMenu>
-                        <ContextMenu Opened="ViewerGridContextMenu_Opened">
+                        <ContextMenu Opened="ViewerContextMenu_Opened">
                             <MenuItem Header="Start marking segment" Click="MenuItemBeginMark_Click"/>
                             <MenuItem Name="RemoveSeg" Header="Remove marked segment" Click="MenuItemRemoveMark_Click"/>
                             <Separator/>
-                            <!--<MenuItem Name="AddChannel" Header="Add channel to display "/>
-                            <MenuItem Header="Remove channel from display" Click="MenuItemRemove_Click" />
-                            <Separator/>-->
+                            <MenuItem Name="AddChannel" Header="Add channel to display "/>
+                            <MenuItem Name="RemoveChannel" Header="Remove channel from display" />
+                            <Separator/>
                             <MenuItem Header="Create entry note" Click="MenuItemMakeNote_Click"/>
                             <Separator/>
                             <MenuItem Header="Print window" Click="MenuItemPrint_Click" />
@@ -106,19 +106,19 @@
                 </StackPanel.Resources>
                 <TextBlock Text="Vertical scale: " FontWeight="Bold" FontSize="12" VerticalAlignment="Center"/>
                 <ComboBox Name="VerticalScale" FontWeight="Bold" FontSize="12" SelectionChanged="VerticalScale_SelectionChanged" Height="28" VerticalContentAlignment="Center">
-                    <ComboBoxItem Tag="6">±3uV</ComboBoxItem>
-                    <ComboBoxItem Tag="8">±4uV</ComboBoxItem>
                     <ComboBoxItem Tag="10">±5uV</ComboBoxItem>
                     <ComboBoxItem Tag="16">±8uV</ComboBoxItem>
                     <ComboBoxItem Tag="20">±10uV</ComboBoxItem>
                     <ComboBoxItem Tag="30">±15uV</ComboBoxItem>
                     <ComboBoxItem Tag="40">±20uV</ComboBoxItem>
-                    <ComboBoxItem IsSelected="True" Tag="50">±25uV</ComboBoxItem>
+                    <ComboBoxItem Tag="50">±25uV</ComboBoxItem>
                     <ComboBoxItem Tag="60">±30uV</ComboBoxItem>
                     <ComboBoxItem Tag="80">±40uV</ComboBoxItem>
-                    <ComboBoxItem Tag="100">±50uV</ComboBoxItem>
+                    <ComboBoxItem IsSelected="True" Tag="100">±50uV</ComboBoxItem>
                     <ComboBoxItem Tag="150">±75uV</ComboBoxItem>
                     <ComboBoxItem Tag="200">±100uV</ComboBoxItem>
+                    <ComboBoxItem Tag="300">±150uV</ComboBoxItem>
+                    <ComboBoxItem Tag="500">±250uV</ComboBoxItem>
                 </ComboBox>
                 <CheckBox FontWeight="Bold" FontSize="12" IsChecked="True" VerticalContentAlignment="Center" VerticalAlignment="Center" Margin="8" Click="OOSMark_Clicked">Show out-of-scale marks</CheckBox>
             </StackPanel>

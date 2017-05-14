@@ -34,7 +34,7 @@ namespace FileConverter
             ElectrodeInputFileStream etrFile = new ElectrodeInputFileStream(
                 new FileStream(Path.Combine(directory, eventHeader.ElectrodeFile), FileMode.Open, FileAccess.Read));
 
-            parseEventFile(); //get list of Events required for conversion
+            parseEventFile(); //get list of candidate Events required for conversion
 
             /***** Open BDF file *****/
             SaveFileDialog dlg = new SaveFileDialog();
@@ -106,53 +106,47 @@ namespace FileConverter
 
             log.registerHeader(this);
 
-            BDFLoc EventPoint = BDFReader.LocationFactory.New();
-            BDFLoc lastBDFPoint = BDFReader.LocationFactory.New();
+            BDFLoc EventPoint = BDFReader.LocationFactory.New(); //marks the current Event; set to keep compiler from complaining
+            BDFLoc lastBDFPoint = BDFReader.LocationFactory.New(); //track the last point written out; may not be end of last trial segment however
             if (EDE.IsExtrinsic) //set threshold in analog channel scale
                 if (risingEdge) threshold = EDE.channelMin + (EDE.channelMax - EDE.channelMin) * threshold;
                 else threshold = EDE.channelMax - (EDE.channelMax - EDE.channelMin) * threshold;
 
-            nominalT = BDFReader.LocationFactory.New(); //nominal Event time based on Event.Time
-            actualT = BDFReader.LocationFactory.New(); //actual Event time in Status channel
-            //Note: these should be the same if the two clocks run the same rate (DAQ and computer)
-
             /***** MAIN LOOP *****/
 
-            BDFLoc endTrialSegment = BDFReader.LocationFactory.New();
+            BDFLoc endTrialSegment = BDFReader.LocationFactory.New(); //set to zero; tracks end of last trial segment that has been marked
             foreach (InputEvent ie in candidateEvents) //Loop through Event file
             {
                 bw.ReportProgress(0, "Processing event " + ie.Index.ToString("0")); //Report progress
 
-                if (findEvent(ref EventPoint, ie))
+                if (findEvent(out EventPoint, ie)) //EventPoint is actual point Event takes place
                 {
-                    BDFLoc startTrialSegment = EventPoint; //copied because it's a struct
-                    startTrialSegment += OffsetInPts;
-                    if (!startTrialSegment.lessThan(endTrialSegment)) //then trial segment doesn't overlap previous trial segment
+                    BDFLoc startTrialSegment = EventPoint + OffsetInPts;
+                    if (permitOverlap || startTrialSegment.greaterThanOrEqualTo(endTrialSegment)) //then trial segment doesn't overlap previous trial segment
                     {
-                        if (allSamps) //this is a continuous copy, not Event generated episodic conversion
+                        endTrialSegment = startTrialSegment + TrialLengthInPts; //now we have start and end of current trial segment
+                        bool exclude = IsExcluded(startTrialSegment.ToSecs(), endTrialSegment.ToSecs()); //see if this segment is excldued by artifact
+                        if (StatusMarkerType == 1) //continuously mark the trial segment
                         {
-                            if (StatusMarkerType == 1)
-                            {
-                                runToNextPoint(lastBDFPoint, ref startTrialSegment, 0);
-                                endTrialSegment = startTrialSegment;
-                                endTrialSegment += TrialLengthInPts;
-                                runToNextPoint(startTrialSegment, ref endTrialSegment,
-                                    IsExcluded(startTrialSegment.ToSecs(), endTrialSegment.ToSecs()) ? 0 : getStatusValue(ie)); //mark whole trial segment, if included
-                                lastBDFPoint = endTrialSegment;
-                            }
-                            else //mark only underlying Event, using trial segment only for elimination of trial by overlap or artifact exclusion
-                            {
-                                runToNextPoint(lastBDFPoint, ref EventPoint, 0);
-                                lastBDFPoint = EventPoint;
-                                lastBDFPoint++;
-                                endTrialSegment = startTrialSegment;
-                                endTrialSegment += TrialLengthInPts;
-                                runToNextPoint(EventPoint, ref lastBDFPoint,
-                                    IsExcluded(startTrialSegment.ToSecs(), endTrialSegment.ToSecs()) ? 0 : getStatusValue(ie)); //mark one point, if trial included
-                            }
+                            runToNextPoint(lastBDFPoint, ref startTrialSegment, 0);
+                            runToNextPoint(startTrialSegment, ref endTrialSegment,
+                                 exclude ? 0 : getStatusValue(ie)); //mark whole trial segment with GV value, if included
+                            lastBDFPoint = endTrialSegment;
                         }
-//                        else createBDFRecord(EventPoint, ie); //Create BDF recordset around this point; i.e. Event driven episodic conversion
+                        else //mark only underlying Event, using trial segment only for elimination of trial by overlap or artifact exclusion
+                        {
+                            runToNextPoint(lastBDFPoint, ref EventPoint, 0);
+                            lastBDFPoint = EventPoint + 1;
+                            endTrialSegment = startTrialSegment;
+                            endTrialSegment += TrialLengthInPts;
+                            runToNextPoint(EventPoint, ref lastBDFPoint,
+                                exclude ? 0 : getStatusValue(ie)); //mark one point, if trial included
+                        }
+                        if (!exclude) log.IncludedEvent();
                     }
+                    else
+                        log.ExcludedEvent("Exclusion by overlap with previous segment");
+                    log.closeEvent();
                 }
             }
 

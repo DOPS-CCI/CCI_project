@@ -78,6 +78,7 @@
     </Compile>
     <Compile Include="Settings.cs" />
     <Compile Include="SPSSFile.cs" />
+    <Compile Include="StatusChannel.cs" />
     <Compile Include="SYSTATFileStream.cs" />
   </ItemGroup>
   <ItemGroup>

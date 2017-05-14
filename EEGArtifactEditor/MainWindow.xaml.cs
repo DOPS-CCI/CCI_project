@@ -2,7 +2,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Text;
 using System.Text.RegularExpressions;
 using System.Timers;
 using System.Printing;
@@ -18,8 +17,6 @@ using System.Windows.Media.Effects;
 using System.Windows.Shapes;
 using System.Windows.Xps;
 using Microsoft.Win32;
-using CCILibrary;
-using Header;
 using HeaderFileStream;
 using BDFEDFFileStream;
 using EventFile;
@@ -51,10 +48,12 @@ namespace EEGArtifactEditor
         Popup channelPopup = new Popup();
         TextBlock popupTB = new TextBlock();
 
-        internal List<int> EEGChannels = new List<int>(0); //list of EEG channels; only channels eligible for display
-        internal List<int> selectedEEGChannels; //final list of channels to display, ordered by montage
+        internal List<int> EEGChannels = new List<int>(0); //candidate list of EEG channels from BDF; only channels eligible for display
+        internal List<int> selectedEEGChannels; //list of channels to display, ordered by montage
 
         internal List<ChannelCanvas> currentChannelList = new List<ChannelCanvas>(0); //list of currently displayed channels, in order, top to bottom
+        internal Montage montage; //list indicating order channels are to be displayed: montage[i] has relative location of channel i, -1 if ignored
+
         internal List<OutputEvent> events = new List<OutputEvent>();
         internal Dictionary<string, ElectrodeRecord> electrodes;
 
@@ -111,19 +110,21 @@ namespace EEGArtifactEditor
                     new FileStream(System.IO.Path.Combine(directory, header.EventFile),
                         FileMode.Open, FileAccess.Read)); // open Event file
 
-                foreach (InputEvent ie in efr)// read in all Events into list
+                Event.Event.LinkEventsToDataset(header, bdf); //link Events to dataset
+                StatusChannel sc = bdf.createStatusChannel(header.Status);
+
+                bool ok = false;
+                foreach (InputEvent ie in efr) // read in all Events into list of output Events
+                {
+                    if(!ok && ie.IsCovered && ie.HasAbsoluteTime) //look for first covered Event to set zeroTime
+                        ok = bdf.setZeroTime(ie);
+                    ie.setRelativeTime(sc); //make sure we have relative time set for later sorting
+                    //*** the only problem here is if there is a naked, absolute Event before we find a covered absolute Event
+                    //*** this will raise an Exception
                     events.Add(new OutputEvent(ie));
+                }
                 efr.Close(); //now events is list of Events in the dataset
 
-                //now set zeroTime for this BDF file, after finding an appropriate covered Event
-                bool ok = false;
-                foreach (OutputEvent ev in events) //find first covered Event to synchronize against
-                    if (header.Events[ev.Name].IsCovered)
-                    {
-                        bdf.setZeroTime(ev);
-                        ok = true;
-                        break;
-                    }
                 if (!ok) //no covered Events, unable to synchronize
                 {
                     ErrorWindow ew = new ErrorWindow();
@@ -237,7 +238,7 @@ namespace EEGArtifactEditor
             catch (Exception ex)
             {
                 ErrorWindow ew = new ErrorWindow();
-                ew.Message = "Error in EEGArtifactEditor initialization" + ex.Message;
+                ew.Message = "Error in EEGArtifactEditor initialization: " + ex.Message;
                 ew.ShowDialog();
                 this.Close(); //exit
             }
@@ -525,6 +526,7 @@ namespace EEGArtifactEditor
         }
 
         const double scaleDelta = 0.05;
+        bool completeRedraw;
         public void reDrawChannels()
         {
             this.Cursor = Cursors.Wait;
@@ -547,7 +549,7 @@ namespace EEGArtifactEditor
             ChannelCanvas.decimateNew = Convert.ToInt32(Math.Ceiling(2.5D * numberOfBDFPointsToRepresent / Viewer.ActualWidth)); //undersampling a bit for min/max approach
             if (ChannelCanvas.decimateNew == 2) ChannelCanvas.decimateNew = 1; //No advantage to decimating by 2
 
-            bool completeRedraw = ChannelCanvas.decimateNew != ChannelCanvas.decimateOld; //complete redraw of all channels if ...
+            completeRedraw |= ChannelCanvas.decimateNew != ChannelCanvas.decimateOld; //complete redraw of all channels if ...
             // change in decimation or if completely new screen (no overlap of old and new)
 
             //determine if overlap of new display with old and direction of scroll to determine trimming
@@ -560,13 +562,13 @@ namespace EEGArtifactEditor
             if (!completeRedraw)
             {
                 //calculate number of points to remove above and below current point set
-                List<PointListPoint> s = chans[0].PointList; //finding cut points works in any channel PointList
+                List<PointListPoint> s = chans[0].PointList; //finding cut points; works in any channel PointList
                 //now loop through each channel graph to remove unneeded points
                 //Use this information to determine bounds of current display and to caluculate size of
                 //non-overlap lower and higher than current display
                 if (s.Count > 0)
                 {
-                    if (scrollingRight)
+                    if (scrollingRight) //scrollingRight == dragging to the right or using left scroll bar button
                     {
                         removeHigh = -s.FindIndex(p => p.X >= currentHighSecs); //where to start removing from high end of data points
                         if (removeHigh <= 0)
@@ -608,7 +610,7 @@ namespace EEGArtifactEditor
                         cc.PointList.RemoveRange(0, removeLow);
                     if (removeHigh > 0) //then must remove points above
                         cc.PointList.RemoveRange(cc.PointList.Count - removeHigh, removeHigh);
-                    completeRedraw = completeRedraw || cc.PointList.Count == 0; //update completeRedraw, just in case!
+                    completeRedraw |= cc.PointList.Count == 0; //update completeRedraw, just in case!
                 }
             }
 
@@ -707,6 +709,7 @@ namespace EEGArtifactEditor
                 if(showOOSMarks)
                     markChannelRegions(cc);
             }
+            completeRedraw = false;
             this.Cursor = Cursors.Arrow;
         } //End redrawChannels
 
@@ -763,31 +766,7 @@ namespace EEGArtifactEditor
 #if DEBUG
             Console.WriteLine("In ViewerContextMenu_Opened with graph " + graphNumber.ToString("0") + " and X " + rightMouseClickLoc.X);
 #endif
-            //if (graphNumber < channelList.Count)
-            //{
-            //    //set up context menu about to be displayed
-            //    string channelName = bdf.channelLabel(channelList[graphNumber]);
-            //    if (channelList.Count <= 1)
-            //        ((MenuItem)(Viewer.ContextMenu.Items[4])).IsEnabled = false;
-            //    else
-            //        ((MenuItem)(Viewer.ContextMenu.Items[4])).IsEnabled = true;
-            //    Viewer.ContextMenu.Visibility = Visibility.Visible;
-            //    AddChannel.Items.Clear();
-            //    if (channelList.Count < bdf.NumberOfChannels)
-            //    {
-            //        ((MenuItem)Viewer.ContextMenu.Items[0]).IsEnabled = true;
-            //        ((MenuItem)Viewer.ContextMenu.Items[1]).IsEnabled = true;
-            //        for (int i = 0; i < bdf.NumberOfChannels; i++)
-            //        {
-            //            if (channelList.Contains(i)) continue;
-            //            MenuItem mi1 = new MenuItem();
-            //            mi1.Header = bdf.channelLabel(i);
-            //            mi1.Click += new RoutedEventHandler(MenuItemAdd_Click);
-            //            AddChannel.Items.Add(mi1);
-            //        }
-            //    }
-            //}
-        }
+        } //NB: ViewerContextMenu_Opened does the rest of the work to set up context menu
 
         private void MenuItemMakeNote_Click(object sender, RoutedEventArgs e)
         {
@@ -820,31 +799,35 @@ namespace EEGArtifactEditor
             if (mr != null) MarkerCanvas.Remove(mr);
         }
 
-        //private void MenuItemAdd_Click(object sender, RoutedEventArgs e)
-        //{
-        //    int offset = ((Control)sender).Parent == AddBefore ? 0 : 1;
-        //    int chan = bdf.ChannelNumberFromLabel((string)((MenuItem)sender).Header);
-        //    channelList.Insert(graphNumber + offset, chan);
-        //    GraphCanvas.Children.Insert(graphNumber + offset, new ChannelGraph(this, chan));
-        //    ChannelGraph.CanvasHeight = (Viewer.ViewportHeight - ScrollBarSize - EventChannelHeight) / channelList.Count;
-        //    ChannelGraph.decimateOld = -1;
-        //    reDrawChannelLabels();
-        //    reDrawChannels();
-        //}
+        private void MenuItemAdd_Click(object sender, RoutedEventArgs e)
+        {
+            int chan = (int)((MenuItem)sender).Tag; //get saved channel number
+            selectedEEGChannels.Add(chan); //add this channel to current list
+            selectedEEGChannels.Sort(montage); //and resort into list; if montage == null uses "natural" order
+            int loc = selectedEEGChannels.IndexOf(chan); //then find out where it was placed
+            ChannelCanvas cc = new ChannelCanvas(this, chan);
+            currentChannelList.Insert(loc, cc); //use new location to insert into ChannelCanvas list
+            ViewerCanvas.Children.Add(cc);
+            ViewerCanvas.Children.Add(cc.offScaleRegions);
+            ChannelCanvas.nominalCanvasHeight = ViewerGrid.ActualHeight / currentChannelList.Count; //update ChannelCanvas heights
+            completeRedraw = true; //let redraw know that there's a new channel, forcing a complete redraw
+            reDrawChannelLabels();
+            reDrawChannels();
+        }
 
-        //private void MenuItemRemove_Click(object sender, RoutedEventArgs e)
-        //{
-        //    if (graphNumber < channelList.Count && channelList.Count > 1)
-        //    {
-        //        channelList.RemoveAt(graphNumber);
-        //        ChannelGraph cg = (ChannelGraph)GraphCanvas.Children[graphNumber];
-        //        cg.baseline.Visibility = Visibility.Hidden;
-        //        GraphCanvas.Children.Remove(cg);
-        //        ChannelGraph.CanvasHeight = (Viewer.ViewportHeight - ScrollBarSize - EventChannelHeight) / channelList.Count;
-        //        reDrawChannelLabels();
-        //        reDrawChannels();
-        //    }
-        //}
+        private void MenuItemRemove_Click(object sender, RoutedEventArgs e)
+        {
+            int chan = (int)((MenuItem)sender).Tag; //get saved channel number
+            int loc = selectedEEGChannels.IndexOf(chan);
+            selectedEEGChannels.RemoveAt(loc);
+            ChannelCanvas cc = currentChannelList[loc]; //get a reference
+            currentChannelList.RemoveAt(loc); //then delete from list
+            ViewerCanvas.Children.Remove(cc.offScaleRegions); //and remove graphics
+            ViewerCanvas.Children.Remove(cc);
+            ChannelCanvas.nominalCanvasHeight = ViewerGrid.ActualHeight / currentChannelList.Count; //update ChannelCanvas heights
+            reDrawChannelLabels();
+            reDrawChannels();
+        }
 
         private void MenuItemPrint_Click(object sender, RoutedEventArgs e)
         {
@@ -945,22 +928,18 @@ namespace EEGArtifactEditor
                 int maxFileIndex = -1;
                 for (int i = 0; i < files.Length; i++)
                 {
-                    Match m = Regex.Match(files[i], @"^.+_artifact(-\d+)*-(?<number>\d+)\.[hH][dD][rR]$");
+                    Match m = Regex.Match(files[i], @"^.+_artifact(-\d+)*-(?<number>\d+).*\.[hH][dD][rR]$");
                     if(m.Success) //has to match naming convention
                         maxFileIndex = Math.Max(maxFileIndex, Convert.ToInt32(m.Groups["number"].Value));
                 }
 
                 string newFileName;
-                StringBuilder sb = new StringBuilder(header.Comment); //Add comment to HDR file documenting artifact marking
-                if (sb.Length > 0) sb.Append(Environment.NewLine);
-                sb.Append("Artifacts marked on " + DateTime.Today.ToShortDateString() + " by " + Environment.UserName);
-                header.Comment = sb.ToString();
                 if (updateFlag) //then, this dataset is based on another one; need to find out if this is an update of current dataset only, or if a new file is to be created
                 {
                     if (!header.Events.TryGetValue("**ArtifactBegin", out ede1) || !header.Events.TryGetValue("**ArtifactEnd", out ede2)) //get the EDEs for the marking Events
                         throw new Exception("Error in attempted update of previously marked dataset -- incorrect marking Events");
-                    ede1.BDFBased = true; //make sure they are BDF-based!
-                    ede2.BDFBased = true;
+                    ede1.RelativeTime = true; //make sure they are BDF-based!
+                    ede2.RelativeTime = true;
                     Window3 w = new Window3();
                     w.Owner = this;
                     w.ShowDialog();
@@ -969,7 +948,10 @@ namespace EEGArtifactEditor
                         newFileName = System.IO.Path.GetFileNameWithoutExtension(header.EventFile); //Use old name; only update Comment
                     else //create new file set from old
                     {
-                        newFileName = System.IO.Path.GetFileNameWithoutExtension(header.EventFile) + "-" + (maxFileIndex + 1).ToString("0");
+                        newFileName = System.IO.Path.GetFileNameWithoutExtension(header.EventFile);
+                        Match m = Regex.Match(header.EventFile, @"^.+_artifact(-\d+)+(?<cap>.)?.*$");
+                        int loc = m.Groups["cap"].Index;
+                        newFileName = newFileName.Insert(loc, "-" + (maxFileIndex + 1).ToString("0"));
                         header.EventFile = newFileName + ".evt";
                     }
                 }
@@ -977,23 +959,24 @@ namespace EEGArtifactEditor
                 {
                     //Modify header with new "naked" Events and file names
                     ede1 = new EventDictionaryEntry();
-                    ede1.intrinsic = null;
-                    ede1.BDFBased = true; //Use BDF-based clocking
+                    ede1.Intrinsic = true;
+                    ede1.Covered = false;
+                    ede1.RelativeTime = true; //Use BDF-based clocking
                     ede1.Description = "Beginning of artifact region";
                     ede2 = new EventDictionaryEntry();
-                    ede2.intrinsic = null;
-                    ede2.BDFBased = true; //Use BDF-based clocking
+                    ede2.Intrinsic = true;
+                    ede2.Covered = false;
+                    ede2.RelativeTime = true; //Use BDF-based clocking
                     ede2.Description = "End of artifact region";
                     header.Events.Add("**ArtifactBegin", ede1);
                     header.Events.Add("**ArtifactEnd", ede2);
-                    newFileName = System.IO.Path.GetFileNameWithoutExtension(header.BDFFile) + @"_artifact-" +
-                        (maxFileIndex + 1).ToString("0"); ; //create new filename
+                    newFileName = headerFileName + @"_artifact-" + (maxFileIndex + 1).ToString("0"); ; //create new filename
                     header.EventFile = newFileName + ".evt";
                     //and write new header out
                 }
 
-                header.Comment += (header.Comment == "" ? "" : Environment.NewLine) +
-                    "Artefact Events marked on " + DateTime.Now.ToString("dd MMM yyyy HH:mm:ss") +
+                header.Comment += (header.Comment == "" ? "" : Environment.NewLine) + (updateFlag ? "Additional a" : "A") +
+                    "rtifacts marked on " + DateTime.Now.ToString("dd MMM yyyy HH:mm:ss") +
                     " by " + Environment.UserName;
                 FileStream fs = new FileStream(System.IO.Path.Combine(directory, newFileName + ".hdr"), FileMode.OpenOrCreate, FileAccess.Write);
                 new HeaderFileWriter(fs, header); //write out new header
@@ -1052,6 +1035,46 @@ namespace EEGArtifactEditor
                 foreach (ChannelCanvas cc in currentChannelList)
                     cc.offScaleRegions.Visibility = Visibility.Hidden;
         }
+
+        private void ViewerContextMenu_Opened(object sender, RoutedEventArgs e)
+        {
+            ContextMenu cm = (ContextMenu)sender;
+            //set up context menu about to be displayed
+            //first do removable channels
+            RemoveChannel.Items.Clear();
+            if (currentChannelList.Count <= 1) //don't remove last channel
+                ((MenuItem)(cm.Items[4])).IsEnabled = false; //disable remove channel menu item
+            else
+            {
+                ((MenuItem)(cm.Items[4])).IsEnabled = true;
+                foreach (int EEGChan in selectedEEGChannels) //include only channels currently displayed
+                {
+                    MenuItem mi2 = new MenuItem();
+                    mi2.Header = bdf.channelLabel(EEGChan);
+                    mi2.Click += new RoutedEventHandler(MenuItemRemove_Click);
+                    mi2.Tag = EEGChan;
+                    RemoveChannel.Items.Add(mi2);
+                }
+            }
+            //then do add channels
+            AddChannel.Items.Clear();
+            foreach (int EEGChan in EEGChannels) //from all possible candidates to add
+            {
+                if (selectedEEGChannels.Contains(EEGChan)) continue; //skip those already displayed
+                if (montage != null && (EEGChan >= montage.Count || montage[EEGChan] < 0)) continue; //and those which are not included in montage
+                MenuItem mi1 = new MenuItem();
+                mi1.Header = bdf.channelLabel(EEGChan);
+                mi1.Click += new RoutedEventHandler(MenuItemAdd_Click);
+                mi1.Tag = EEGChan;
+                AddChannel.Items.Add(mi1);
+            }
+            if (AddChannel.Items.Count > 0)
+                ((MenuItem)cm.Items[3]).IsEnabled = true;
+            else
+                ((MenuItem)cm.Items[3]).IsEnabled = false;
+            cm.Visibility = Visibility.Visible;
+        }
+
     }
 
     internal class ChannelCanvas : Canvas

@@ -123,23 +123,28 @@ namespace HeaderFileStream
                         if (xr.MoveToAttribute("Type"))
                         {
                             string s = xr.ReadContentAsString();
-                            if (s == "*")
-                                ede.intrinsic = null;
+                            if (s == "*")  //deprecated -- use separate Covered attribute
+                            {
+                                ede.m_intrinsic = true;
+                                ede.m_covered = false;
+                            }
                             else
-                                ede.intrinsic = s != "extrinsic";
+                                ede.m_intrinsic = s != "Extrinsic" /* Preferred */ && s != "extrinsic" /* Deprecated */;
                         } //else Type is intrinsic by default
                         if (xr.MoveToAttribute("Clock")) //is there a Clock attribute?
                         {
                             string s = xr.ReadContentAsString();
                             if (s == "Absolute")
-                                ede.BDFBased = false;
-                            else if (s == "BDF-based")
-                            {
-//                                if (ede.IsCovered) throw new Exception("Incompatible Type and Clock attributes in Event");
-                                ede.BDFBased = true;
-                            }
+                                ede.RelativeTime = false;
+                            else if (s == "Relative" /* Preferred */ || s == "BDF-based" /* Deprecated */)
+                                ede.RelativeTime = true;
                             else throw new Exception("Invalid Clock attribute in Event");
                         } //else clock is Absolute by default
+                        if (xr.MoveToAttribute("Covered")) //Covered or Naked?
+                        {
+                            string s = xr.ReadContentAsString();
+                            ede.m_covered = s != "No";
+                        } //else Covered by default
                         xr.ReadStartElement(/* Event */);
                         xr.ReadStartElement("Name", nameSpace);
                         string name = xr.ReadContentAsString();
@@ -310,11 +315,12 @@ namespace HeaderFileStream
                 foreach (KeyValuePair<string, EventDictionaryEntry> ede in head.Events)
                 {
                     xw.WriteStartElement("Event");
-                    xw.WriteAttributeString("Type", ede.Value.IsCovered ? (bool)ede.Value.intrinsic ? "intrinsic" : "extrinsic" : "*");
-                    xw.WriteAttributeString("Clock", ede.Value.BDFBased ? "BDF-based" : "Absolute");
+                    xw.WriteAttributeString("Type", (bool)ede.Value.m_intrinsic ? "Intrinsic" : "Extrinsic");
+                    xw.WriteAttributeString("Clock", ede.Value.HasRelativeTime ? "Relative" : "Absolute");
+                    xw.WriteAttributeString("Covered", ede.Value.IsCovered ? "Yes" : "No");
                     xw.WriteElementString("Name", ede.Key);
                     xw.WriteElementString("Description", ede.Value.Description);
-                    if (ede.Value.IsCovered && !(bool)ede.Value.intrinsic)
+                    if (ede.Value.IsCovered && !(bool)ede.Value.m_intrinsic)
                     {
                         xw.WriteElementString("Channel", ede.Value.channelName);
                         xw.WriteElementString("Edge", ede.Value.rise ? "rising" : "falling");
