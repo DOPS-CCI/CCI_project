@@ -53,8 +53,10 @@ namespace CCILibraryTest
             Assert.AreEqual<uint>(12, gc.Value);
             gc.Value = 5;
             CollectionAssert.AreEqual(new double[] {13D}, sc.FindGCTime(gc));
+            CollectionAssert.AreEqual(new double[] {13D}, sc.FindGCTime(5));
             gc.Value = 2;
             CollectionAssert.AreEqual(new double[] {10D, 22D}, sc.FindGCTime(gc));
+            CollectionAssert.AreEqual(new double[] {10D, 22D}, sc.FindGCTime(2));
             Assert.IsFalse(sc.TryFindGCAtOrAfter(22.1, out gc));
             Assert.IsTrue(sc.TryFindGCAtOrAfter(22.0, out gc));
             Assert.AreEqual<uint>(3, gc.Value);

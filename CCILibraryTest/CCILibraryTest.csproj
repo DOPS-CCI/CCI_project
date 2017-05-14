@@ -55,6 +55,7 @@
     <Compile Include="GrayCodeTest.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="StatusChannelTest.cs" />
+    <Compile Include="BDFLocTest.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\CCILibrary\CCILibrary.csproj">
