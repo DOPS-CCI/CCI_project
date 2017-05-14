@@ -242,9 +242,9 @@ namespace BDFFileStream {
         /// </summary>
         /// <param name="channel">Channel number; zero-based</param>
         /// <returns>Array of samples from channel</returns>
-        /// <exception cref="BDFException">No record read or invalid input</exception>
+        /// <exception cref="BDFException">Invalid input</exception>
         public double[] getChannel(int channel) {
-            if (reader != null && record.currentRecordNumber < 0) throw new BDFException("No records have yet been read.");
+            if (reader != null && record.currentRecordNumber < 0) this.read();
             if (channel < 0 || channel >= header.numberChannels) throw new BDFException("Invalid channel number (" + channel + ")");
             double[] chan = new double[header.numberSamples[channel]];
             double g = header.Gain(channel);
@@ -261,9 +261,8 @@ namespace BDFFileStream {
         /// Gets data from status channel
         /// </summary>
         /// <returns>Array of integers from status channel</returns>
-        /// <exception cref="BDFException">No records yet read</exception>
         public int[] getStatus() {
-            if (reader != null && record.currentRecordNumber < 0) throw new BDFException("No records have yet been read.");
+            if (reader != null && record.currentRecordNumber < 0) this.read();
             return record.channelData[header.numberChannels - 1];
         }
 
@@ -273,9 +272,9 @@ namespace BDFFileStream {
         /// <param name="channel">Channel number; zero-based</param>
         /// <param name="sample">Sample number; zero-based</param>
         /// <returns>Value of requested sample</returns>
-        /// <exception cref="BDFException">No records read or invalid input</exception>
+        /// <exception cref="BDFException">Invalid input</exception>
         public double getSample(int channel, int sample) {
-            if (reader != null && record.currentRecordNumber < 0) throw new BDFException("No records have yet been read.");
+            if (reader != null && record.currentRecordNumber < 0) this.read();
             if (channel < 0 || channel >= header.numberChannels) throw new BDFException("Invalid channel number (" + channel + ")");
             if (sample < 0 || sample >= header.numberSamples[channel]) throw new BDFException("Invalid sample number (" + sample + ")");
             return (double)record.channelData[channel][sample] * header.Gain(channel) + header.Offset(channel);

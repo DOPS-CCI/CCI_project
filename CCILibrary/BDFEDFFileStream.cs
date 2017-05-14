@@ -22,15 +22,6 @@ namespace BDFEDFFileStream
         internal FileStream baseStream;
         public BDFEDFRecord record;
         internal byte[] _recordBuffer; //where the actual reads or writes take place; used by BDFEDFRecord
-        protected BDFLocFactory _locationFactory;
-        public BDFLocFactory LocationFactory
-        {
-            get
-            {
-                return _locationFactory;
-            }
-        }
-
         internal double? _zeroTime = null;
 
         /// <summary>
@@ -341,6 +332,15 @@ namespace BDFEDFFileStream
             get { return header.hasStatus; }
         }
 
+        protected BDFLocFactory _locationFactory;
+        public BDFLocFactory LocationFactory
+        {
+            get
+            {
+                return _locationFactory;
+            }
+        }
+
         /// <summary>
         /// Constructor for BDFEDFFileReader: reads in file Header, initializes record and BDFLocFactory
         /// </summary>
@@ -475,10 +475,10 @@ namespace BDFEDFFileStream
         /// </summary>
         /// <param name="channel">Requested channel number; zero-based</param>
         /// <returns>Array of samples from channel for current record</returns>
-        /// <exception cref="BDFEDFException">No record read or invalid input</exception>
+        /// <exception cref="BDFEDFException">Invalid input</exception>
         public double[] getChannel(int channel)
         {
-            if (reader != null && record.currentRecordNumber < 0) throw new BDFEDFException("No records have yet been read.");
+            if (reader != null && record.currentRecordNumber < 0) this.read();
             if (channel < 0 || channel >= header.numberChannels) throw new BDFEDFException("Invalid channel number (" + channel + ")");
             double[] chan = new double[header.numberSamples[channel]];
             double g = header.Gain(channel);
@@ -496,11 +496,10 @@ namespace BDFEDFFileStream
         /// Gets data from status channel; only valid in BDF files; not masked-off to exclude top 8 bits
         /// </summary>
         /// <returns>Array of integers from status channel</returns>
-        /// <exception cref="BDFEDFException">No records yet read</exception>
         /// <exception cref="BDFEDFException">Not a BDF file</exception>
         public int[] getStatus()
         {
-            if (reader != null && record.currentRecordNumber < 0) throw new BDFEDFException("No records have yet been read.");
+            if (reader != null && record.currentRecordNumber < 0) this.read();
             if (!header.hasStatus) throw new BDFEDFException("No Status channel in file");
             return record.channelData[header.numberChannels - 1];
         }
@@ -509,11 +508,10 @@ namespace BDFEDFFileStream
         /// Gets data from annotation channel for last record read; only valid in EDF+ files with designated "EDF Annotation" channel
         /// </summary>
         /// <returns>Array of integers from status channel</returns>
-        /// <exception cref="BDFEDFException">No records yet read</exception>
         /// <exception cref="BDFEDFException">Not a BDF file</exception>
         public List<TimeStampedAnnotation> getAnnotation()
         {
-            if (reader != null && record.currentRecordNumber < 0) throw new BDFEDFException("No records have yet been read.");
+            if (reader != null && record.currentRecordNumber < 0) this.read();
             if (!header.hasAnnotations) throw new BDFEDFException("No \"EDF Annotations\" channel in file");
             string s = Encoding.UTF8.GetString(_recordBuffer, header.AnnotationOffset,
                 NumberOfSamples(header._AnnotationChannel) * 2); //"2" is because this is only used in EDF+ files
@@ -534,10 +532,10 @@ namespace BDFEDFFileStream
         /// <param name="channel">Channel number; zero-based</param>
         /// <param name="sample">Sample number; zero-based</param>
         /// <returns>Value of requested sample</returns>
-        /// <exception cref="BDFException">No records read or invalid input</exception>
+        /// <exception cref="BDFException">Invalid input</exception>
         public double getSample(int channel, int sample)
         {
-            if (reader != null && record.currentRecordNumber < 0) throw new BDFEDFException("No records have yet been read.");
+            if (reader != null && record.currentRecordNumber < 0) this.read();
             try
             {
                 return (double)record.channelData[channel][sample] * header.Gain(channel) + header.Offset(channel);
@@ -877,12 +875,20 @@ namespace BDFEDFFileStream
 
     }
 
+    /// <summary>
+    /// Unit test interface for BDFEDFReader
+    /// </summary>
     public interface IBDFEDFFileReader
     {
         int NumberOfChannels { get; }
         double SampleTime(int channel);
         uint[] readAllStatus();
+        int NSamp { get; }
+        int NumberOfRecords { get; }
+        double RecordDurationDouble { get; }
+        BDFLocFactory LocationFactory { get; }
     }
+
     /// <summary>
     /// Class for writing a BDF or EDF file; EDF+ files not implemented
     /// </summary>
@@ -928,7 +934,6 @@ namespace BDFEDFFileStream
             if (!header.isValid)
             { //header not yet written -- do this once for each stream
                 header.write(new StreamWriter(writer.BaseStream, Encoding.ASCII));
-                _locationFactory = new BDFLocFactory(this);
             }
             else
                 throw new BDFEDFException("Attempt to rewrite header in BDFEDFFileWriter");
@@ -1648,28 +1653,32 @@ namespace BDFEDFFileStream
         internal int _recSize; //number of points in record of underlying BDF/EDF file
         internal double _sec; //record length in seconds of underlying BDF/EDF file
         internal double _st; //calculated sample time of underlying BDF/EDF file
-        internal BDFEDFFileStream _bdf;
+        internal IBDFEDFFileReader _bdf;
 
         /// <summary>
         /// Use a factory to create BDFLocs to assure all based on same file parameters
         /// </summary>
         /// <param name="bdf">BDF file stream on which to base BDFLocs</param>
-        public BDFLocFactory(BDFEDFFileStream bdf)
+        public BDFLocFactory(IBDFEDFFileReader bdf)
         {
-            if (bdf.Header.isValid)
-            {
-                _recSize = bdf.NSamp;
-                _sec = bdf.RecordDurationDouble;
-                _st = _sec / (double)_recSize;
-                _bdf = bdf;
-            }
-            else
-                throw new BDFEDFException("Can't create BDFLocFactory unless BDFEDFFileStream.Header is valid");
+            _recSize = bdf.NSamp;
+            _sec = bdf.RecordDurationDouble;
+            _st = _sec / (double)_recSize;
+            _bdf = bdf;
         }
 
         public BDFLoc New()
         {
             return new BDFLoc(this);
+        }
+
+        public BDFLoc New(double seconds)
+        {
+            double f = Math.Floor(seconds /_sec);
+            BDFLoc b = New();
+            b.Rec = (int)f;
+            b.Pt = Convert.ToInt32((seconds - f * _sec) / _st); //round and use Pt in case problem at record "edge"
+            return b;
         }
     }
 

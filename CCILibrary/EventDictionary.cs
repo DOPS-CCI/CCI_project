@@ -88,7 +88,7 @@ namespace EventDictionary
             }
         }
 
-        public string IE { get { return IsCovered ? (bool)m_intrinsic ? "I" : "E" : "*"; } }
+        public string IE { get { return ((bool)m_intrinsic ? "I" : "E") + (IsCovered ? "" : "*"); } }
         public bool IsCovered { get { return m_intrinsic == null ? false : m_covered; } } //intrinsic == null => intrinsic & naked (old-style)
         public bool IsNaked { get { return m_intrinsic == null ? true : !m_covered; } }
         public bool IsIntrinsic { get { return m_intrinsic == null ? true : (bool)m_intrinsic; } }

@@ -51,7 +51,12 @@ namespace BDFEDFFileStream
 
         public double[] FindGCTime(GrayCode gc)
         {
-            return GCList.FindAll(gct => gct.GC.Value == gc.Value).Select(gct => gct.Time).ToArray();
+            return FindGCTime((int)gc.Value);
+        }
+
+        public double[] FindGCTime(int gc)
+        {
+            return GCList.FindAll(gct => gct.GC.Value == gc).Select(gct => gct.Time).ToArray();
         }
 
         public bool TryFindGCBefore(double time, out GrayCode gc)
