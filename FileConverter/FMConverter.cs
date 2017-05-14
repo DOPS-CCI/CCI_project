@@ -31,7 +31,7 @@ namespace FileConverter
             ElectrodeInputFileStream etrFile = new ElectrodeInputFileStream(
                 new FileStream(Path.Combine(directory, eventHeader.ElectrodeFile), FileMode.Open, FileAccess.Read));
 
-            parseEventFile(); //get list of Events required for conversion
+            parseEventFile(); //get lists of Events required for conversion
 
             /***** Open FILMAN file *****/
             SaveFileDialog dlg = new SaveFileDialog();
@@ -119,24 +119,33 @@ namespace FileConverter
 
             log.registerHeader(this);
 
-            BDFLoc stp = BDFReader.LocationFactory.New();
+            BDFLoc stp = BDFReader.LocationFactory.New(); //register with factory
             if (EDE.IsExtrinsic)
                 if (risingEdge) threshold = EDE.channelMin + (EDE.channelMax - EDE.channelMin) * threshold;
                 else threshold = EDE.channelMax - (EDE.channelMax - EDE.channelMin) * threshold;
 
-            nominalT = BDFReader.LocationFactory.New(); //nominal Event time based on Event.Time
-            actualT = BDFReader.LocationFactory.New(); //actual Event time in Status channel
-            //Note: these should be the same if the two clocks run the same rate (BioSemi DAQ and computer)
-
             /***** MAIN LOOP *****/
-            foreach (InputEvent ie in candidateEvents) //Loop through Event file
+
+            BDFLoc lastSegmentEnd = stp; //this tracks the end of the last recorded data segment
+            foreach (InputEvent ie in candidateEvents)
             {
                 bw.ReportProgress(0, "Processing event " + ie.Index.ToString("0")); //Report progress
-
-                if (findEvent(ref stp, ie))
+                if (findEvent(out stp, ie)) //stp is the location of the Event itself with correction for Extrinsic (if found)
                 {
-
-                    createFILMANRecord(stp, ie); //Create FILMAN recordset around this found point
+                    stp += offsetInPts; //update to start the next segment
+                    if (permitOverlap || stp.greaterThanOrEqualTo(lastSegmentEnd)) //handle question of overlapping segments
+                    {
+                        double startTime = stp.ToSecs();
+                        if (!IsExcluded(startTime, startTime + length))
+                            if (createFILMANRecord(ref stp, ie)) //only update lastSegmentEnd if we actually write out a record
+                            {
+                                lastSegmentEnd = stp;
+                                log.IncludedEvent();
+                            }
+                    }
+                    else
+                        log.ExcludedEvent("Exclusion by overlap with previous segment");
+                log.closeEvent();
                 }
             }
             e.Result = new int[] { FMStream.NR, FMStream.NR / FMStream.NC };
@@ -144,14 +153,11 @@ namespace FileConverter
             log.Close();
         }
 
-        private void createFILMANRecord(BDFLoc stp, InputEvent evt)
+        private bool createFILMANRecord(ref BDFLoc startingPt, InputEvent evt)
         {
-            BDFLoc startingPt = stp + offsetInPts; //calculate starting point
-            if (startingPt.Rec < 0) return; //start of record outside of file coverage; so skip it
+            if (!startingPt.IsInFile) return false; //start of record outside of file coverage; so skip it
             BDFLoc endPt = startingPt + Convert.ToInt32(length * samplingRate); //calculate ending point
-            if (endPt.Rec >= BDFReader.NumberOfRecords) return; //end of record outside of file coverage
-
-            if (IsExcluded(startingPt.ToSecs(), endPt.ToSecs())) return; //excluded
+            if (!endPt.IsInFile) return false; //end of record outside of file coverage
 
             /***** Read correct portion of BDF file and decimate *****/
             int pt = 0;
@@ -169,6 +175,7 @@ namespace FileConverter
                     for (int c = 0; c < BDFReader.NumberOfChannels - 1; c++)
                         bigBuff[c, pt] = (float)BDFReader.getSample(c, p);
             }
+            startingPt = endPt; //update to end of segment
 
             //NOTE: after this point bigBuff containes all channels in BDF file,
             // includes all BDF records that contribute to this output record,
@@ -231,6 +238,7 @@ namespace FileConverter
                     FMStream.record[i] = (double)bigBuff[channel, i] - (ave + beta * ((double)i - t));
                 FMStream.write(); //Channel number group variable taken care of here
             }
+            return true;
         }
     }
 }

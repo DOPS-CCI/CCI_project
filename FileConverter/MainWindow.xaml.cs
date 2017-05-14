@@ -128,16 +128,15 @@ namespace FileConverter
             this.TitleLine.Text = head.Title + " - " + head.Date + " " + head.Time + " S=" + head.Subject.ToString("0000");
 
             foreach (EventDictionaryEntry ed in ED.Values)
-                if (ed.IsCovered) _EDEList.Add(ed); //include only covered Events
-            listView1.SelectedItem = 0;
-            listView1.Focus();
-            listView1.ItemsSource = EDEList;
-            foreach (EventDictionaryEntry ed in ED.Values)
-                if (ed.IsCovered || ed.BDFBased) //exclude absolute naked Events = old-style artifact Events
+                if (ed.IsCovered || ed.HasRelativeTime) //exclude absolute naked Events = old-style artifact Events
                 {
+                    _EDEList.Add(ed);
                     ExcludeFrom.Items.Add(ed);
                     ExcludeTo.Items.Add(ed);
                 }
+            listView1.SelectedItem = 0;
+            listView1.Focus();
+            listView1.ItemsSource = EDEList;
             ExcludeTo.SelectedItem = 0;
             ExcludeFrom.SelectedItem = 0;
 
@@ -148,6 +147,7 @@ namespace FileConverter
             GVBinding.Mode = BindingMode.OneWay;
             listView2.SetBinding(System.Windows.Controls.ListView.ItemsSourceProperty, GVBinding);
             GVList = EDEList[0].GroupVars;
+            this.Activate();
         }
 
         private void listView1_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -209,7 +209,7 @@ namespace FileConverter
 
         private void validParams_CanExecute(object sender, CanExecuteRoutedEventArgs e)
         {
-            e.CanExecute = ConvertFM.IsEnabled;
+            e.CanExecute = ConvertFM.IsEnabled; //only permit when FM conversion can execute
         }
 
         private void cbExit_CanExecute(object sender, CanExecuteRoutedEventArgs e)
@@ -253,10 +253,7 @@ namespace FileConverter
                 xml.WriteEndElement(/* Excluding */);
             }
 
-            xml.WriteStartElement("Search");
-            xml.WriteAttributeString("Continuous", (bool)ContinuousSearch.IsChecked ? "true" : "false");
-            xml.WriteAttributeString("Exact", (bool)ExactStatus.IsChecked ? "true" : "false");
-            xml.WriteEndElement(/* Search */);
+            xml.WriteElementString("PermitOverlap", (bool)SegTypeOverlap.IsChecked ? "Yes" : "No");
 
             if (ede.IsExtrinsic)
             {
@@ -269,7 +266,7 @@ namespace FileConverter
             if (!FMConversion) //BDF conversion
             {
                 xml.WriteStartElement("StatusMark");
-                xml.WriteAttributeString("Location", (bool)SMType1.IsChecked ? "Episode" : "Event");
+                xml.WriteAttributeString("Location", (bool)SMTypeWhole.IsChecked ? "Episode" : "Event");
                 xml.WriteEndElement(/* StatusMark */);
             }
             xml.WriteEndElement(/* EpisodeDescription */);
@@ -286,7 +283,7 @@ namespace FileConverter
             xml.WriteElementString("Channels", SelChan.Text);
 
             xml.WriteStartElement("Samples");
-            if (!FMConversion || !(bool)Radin.IsChecked)
+            if (!FMConversion || !(bool)Radin.IsChecked) //only valid if not using Radin reference
             {
                 s = "None";
                 if ((bool)removeOffsets.IsChecked) s = "Offsets";
@@ -304,9 +301,6 @@ namespace FileConverter
                 xml.WriteElementString("From", RadinLow.Text);
                 xml.WriteElementString("To", RadinHigh.Text);
                 xml.WriteEndElement(/* RadinReference */);
-            }
-            else //only valid if not using Radin reference
-            {
             }
             xml.WriteEndElement(/* Samples */);
 
@@ -366,7 +360,7 @@ namespace FileConverter
 
                 if (xml.Name == "Excluding")
                 {
-                    s = xml["From"];
+                    s = xml["From"]; //"From" attribute required
                     found = false;
                     for (int i = 1; i < ExcludeFrom.Items.Count; i++)
                         if (((EventDictionaryEntry)ExcludeFrom.Items[i]).Name == s)
@@ -376,9 +370,9 @@ namespace FileConverter
                             break;
                         }
                     if (!found) throw new Exception("Invalid excluding From Event name " + s);
-                    s = xml["To"];
+                    s = xml["To"]; //"To" attribute
                     found = false;
-                    if (s != null)
+                    if (s != null) //attribute is present
                     {
                         for (int i = 1; i < ExcludeTo.Items.Count; i++)
                             if (((EventDictionaryEntry)ExcludeTo.Items[i]).Name == s)
@@ -387,10 +381,10 @@ namespace FileConverter
                                 found = true;
                                 break;
                             }
-                        throw new Exception("Invalid excluding To Event name " + s);
+                        if (!found) throw new Exception("Invalid excluding To Event name " + s);
                     }
                     else
-                        ExcludeTo.SelectedIndex = 0;
+                        ExcludeTo.SelectedIndex = 0; //select "Same Event" if attribute missing
                     if (!xml.Read()) throw new Exception();
                 }
                 else
@@ -399,11 +393,19 @@ namespace FileConverter
                     ExcludeTo.SelectedIndex = 0;
                 }
 
-                if (xml.Name != "Search") throw new Exception();
-                ContinuousSearch.IsChecked = xml["Continuous"] == "true";
-                ExactStatus.IsChecked = xml["Exact"] == "true";
+                if (xml.Name == "Search") //eliminated 5/11/17
+                    if (!xml.Read()) throw new XmlException(); //Skip unless can't read it
 
-                if (!xml.Read()) throw new Exception();
+                if (xml.Name == "PermitOverlap")
+                {
+                    if (xml.ReadElementContentAsString() == "No")
+                        SegTypeNoOverlap.IsChecked = true;
+                    else
+                        SegTypeOverlap.IsChecked = true;
+                }
+                else
+                    SegTypeOverlap.IsChecked = true; //permit overlap by default
+
                 if (xml.Name == "ExtrinsicEvent")
                 {
                     if (!xml.Read()) throw new Exception();
@@ -416,8 +418,8 @@ namespace FileConverter
                     if (xml.Name == "StatusMark")
                     {
                         found = xml["Location"] == "Episode";
-                        SMType1.IsChecked = found;
-                        SMType2.IsChecked = !found;
+                        SMTypeWhole.IsChecked = found;
+                        SMTypeEvent.IsChecked = !found;
                         if (!xml.Read()) throw new Exception();
                     }
                     else throw new Exception();
@@ -450,8 +452,8 @@ namespace FileConverter
                     if (s == "Offsets") removeOffsets.IsChecked = true;
                     else
                         if (s == "Trends") removeTrends.IsChecked = true;
-                    else
-                        noneOffsets.IsChecked = true;
+                        else
+                            noneOffsets.IsChecked = true;
 
                 xml.ReadStartElement("Samples");
                 Decimation.Text = xml.ReadElementString("Decimation");
@@ -477,8 +479,8 @@ namespace FileConverter
                 if (s == "SelectedChannels") radioButton2.IsChecked = true;
                 else
                     if (s == "Expression") radioButton4.IsChecked = true;
-                else
-                    radioButton3.IsChecked = true;
+                    else
+                        radioButton3.IsChecked = true;
                 string v = xml.ReadElementString("Reference");
                 if (s != "None")
                     if (s == "Expression") RefChanExpression.Text = v;
@@ -490,6 +492,12 @@ namespace FileConverter
             {
                 ErrorWindow er = new ErrorWindow();
                 er.Message = "Error in parameter file at line number " + e.LineNumber.ToString("0") + ". Unable to continue.";
+                er.ShowDialog();
+            }
+            catch (Exception e)
+            {
+                ErrorWindow er = new ErrorWindow();
+                er.Message = "Exception in parameter file: " + e.Message;
                 er.ShowDialog();
             }
             xml.Close();
@@ -532,30 +540,32 @@ namespace FileConverter
             bw.RunWorkerAsync();
         }
 
+
+        //Enforce no duplicate references for a given channel; keeps first one found in reference list
         private void correctReferenceLists(Converter conv)
         {
             List<List<int>> list = conv.referenceGroups;
             for (int c = 1; c < list.Count; c++) //don't need to check first list
             {
-                List<int> chanList1 = list[c];
+                List<int> chanList1 = list[c];  //this is a list of channels referenced to the cth group
                 for (int chan = 0; chan < chanList1.Count; chan++)
                 {
                     int chan1 = chanList1[chan]; //channel number to look for
                     for (int d = 0; d < c; d++) //look into previous lists only
                     {
-                        List<int> chanList2 = list[d];
+                        List<int> chanList2 = list[d]; //list of channels to compare against from dth list for d < c
                         for (int comp = chanList2.Count - 1; comp >= 0; comp--) //always work backwards to avoid changing indices
-                            if (chan1 == chanList2[comp]) //remove element from chanList2
+                            if (chan1 == chanList2[comp]) //then, remove element from chanList2
                                 chanList2.Remove(chanList2[comp]); //assumes that no dupes within lists (enforced by parser)
                     }
                 }
             }
             for (int i = list.Count - 1; i >= 0; i--)
             {
-                if (list[i].Count == 0)
+                if (list[i].Count == 0) //if no channels left to reference in group i ...
                 {
-                    list.Remove(list[i]);
-                    conv.referenceChannels.Remove(conv.referenceChannels[i]);
+                    list.Remove(list[i]); //remove its list and ...
+                    conv.referenceChannels.Remove(conv.referenceChannels[i]); //remove the reference channels for group i
                 }
             }
         }
@@ -687,6 +697,11 @@ namespace FileConverter
             ConvertFM.Visibility = Visibility.Collapsed;
             ConvertBDF.Visibility = Visibility.Visible;
             SMType.Visibility = Visibility.Visible;
+            if (!(bool)SMTypeEvent.IsChecked)
+            {
+                SegTypeOverlap.IsChecked = true;
+                SegType.IsEnabled = false;
+            }
 
             listView2.SelectionMode = System.Windows.Controls.SelectionMode.Single;
             None.IsEnabled = false;
@@ -723,7 +738,8 @@ namespace FileConverter
             ConvertFM.Visibility = Visibility.Visible;
             ConvertBDF.Visibility = Visibility.Collapsed;
             SMType.Visibility = Visibility.Collapsed;
-            SMType1.IsChecked = true;
+            SMTypeWhole.IsChecked = true;
+            SegType.IsEnabled = true;
 
             listView2.SelectionMode = System.Windows.Controls.SelectionMode.Multiple;
             None.IsEnabled = true;
@@ -896,7 +912,7 @@ namespace FileConverter
 
             bdfc.recordLength = bdf.RecordDuration; //unchanged BDF output record length
             bdfc.allSamps = true; //***** force collection of all samples in BDF file; i.e. no episodic BDF file
-            if ((bool)SMType1.IsChecked)
+            if ((bool)SMTypeWhole.IsChecked)
                 //mark each trial segment completely
             {
                 bdfc.StatusMarkerType = 1;
@@ -1088,8 +1104,7 @@ namespace FileConverter
             else
                 conv.ExcludeEvent1 = null;
 
-            conv.equalStatusOnly = (bool)ExactStatus.IsChecked;
-            conv.continuousSearch = (bool)ContinuousSearch.IsChecked;
+            conv.permitOverlap = (bool)SegTypeOverlap.IsChecked;
             if (ExtSearch.Text != "")
                 conv.maxSearch = (int)(_extSearch * oldSR + 0.5);
             else conv.maxSearch = Int32.MaxValue;
@@ -1124,7 +1139,7 @@ namespace FileConverter
                     conv.referenceGroups.Add(_refChanExp[i]);
                     conv.referenceChannels.Add(_refChanExp[i + 1]);
                 }
-                correctReferenceLists(conv);
+                correctReferenceLists(conv); //remove duplicate references for a given channel
             }
             else // no overall reference
             {
@@ -1139,32 +1154,6 @@ namespace FileConverter
             RefChan.Text = SelChan.Text;
         }
 
-/* ***** Eliminated AllSamples check box --> only full copy permitted; no episodic form of BDF
-        private void AllSamples_Checked(object sender, RoutedEventArgs e)
-        {
-            if (!this.IsLoaded) return;
-
-            removeTrends.IsChecked = false;
-            removeTrends.IsEnabled = false;
-            removeOffsets.IsChecked = false;
-            removeOffsets.IsEnabled = false;
-            SMType1.IsEnabled = true;
-            SMType2.IsEnabled = true;
-        }
-
-        private void AllSamples_Unchecked(object sender, RoutedEventArgs e)
-        {
-            if (!this.IsLoaded) return;
-
-            removeTrends.IsEnabled = true;
-            removeOffsets.IsEnabled = true;
-            removeTrends.IsEnabled = true;
-            SMType1.IsChecked = true;
-            SMType1.IsEnabled = false;
-            SMType2.IsEnabled = false;
-        }
-*/
-
         private void ExcludeFrom_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (!this.IsLoaded) return;
@@ -1173,37 +1162,25 @@ namespace FileConverter
             else { ExcludeTo.IsEnabled = true; }
         }
 
-        private void SMType1_Checked(object sender, RoutedEventArgs e) //Mark entire seqment in Status
+        private void SMType_Checked(object sender, RoutedEventArgs e)
         {
             if (!this.IsLoaded) return;
 
-            //label1.Visibility = Visibility.Visible;
-            //label2.Visibility = Visibility.Visible;
-            //label3.Visibility = Visibility.Visible;
-            //label4.Visibility = Visibility.Visible;
-            //RecOffset.Visibility = Visibility.Visible;
-            //RecOffsetPts.Visibility = Visibility.Visible;
-            //RecLength.Visibility = Visibility.Visible;
-            //RecLengthPts.Visibility = Visibility.Visible;
+            if ((bool)ConvertToBDF.IsChecked)
+            {
+                if (((System.Windows.Controls.RadioButton)sender).Name == "SMTypeEvent")
+                {
+                    SegType.IsEnabled = true;
+                    if (ExcludeFrom.SelectedIndex == 0) { } //should disable offset and length
 
-            //checkError();
-        }
-
-        private void SMType2_Checked(object sender, RoutedEventArgs e) //Mark only the underlying Event in Status
-        {
-            if (!this.IsLoaded) return;
-
-            //label1.Visibility = Visibility.Collapsed;
-            //label2.Visibility = Visibility.Collapsed;
-            //label3.Visibility = Visibility.Collapsed;
-            //label4.Visibility = Visibility.Collapsed;
-            //RecOffset.Visibility = Visibility.Collapsed;
-            //RecOffsetPts.Visibility = Visibility.Collapsed;
-            //RecLength.Visibility = Visibility.Collapsed;
-            //RecLengthPts.Visibility = Visibility.Collapsed;
-            //RecLength.Text = "1";
-            //RecOffset.Text = "0";
-            //errorCheck called from above text settings
+                }
+                else //sender.Name == "SMTypeWhole"
+                {
+                    SegTypeNoOverlap.IsChecked = true; //must be no overlap
+                    SegType.IsEnabled = false;
+                    //should enable offset and length
+                }
+            }
         }
     }
 }
