@@ -71,7 +71,7 @@ namespace FileConverter
                     double[] zT = sc.FindGCTime(ie.GC);
                     BDFReader.setZeroTime(ie.Time - zT[0]);
                     setEpoch = true;
-//                    log.registerEpochSet(BDFReader.zeroTime, ie);
+                    log.registerEpochSet(BDFReader.zeroTime, ie);
                 }
                 if (ie.Name == EDE.Name)
                 {
