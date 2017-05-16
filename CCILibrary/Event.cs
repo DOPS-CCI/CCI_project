@@ -377,11 +377,11 @@ namespace Event
         {
             if (convertToRelativeTime)
             {
-                EDE.m_bdfBasedTime = false;
+                EDE.m_bdfBasedTime = false; //change EDE to indicate
                 m_index = 0;
                 m_gc = 0;
                 m_time = ie.relativeTime;
-                _eventTime = ie._eventTime;
+                _eventTime = ie._eventTime; //carry along the string version of absolute time
             }
             else
             {
@@ -400,6 +400,11 @@ namespace Event
             }
             else
                 GVValue = null;
+        }
+
+        public void setRelativeTime(double time)
+        {
+            _relativeTime = time;
         }
 
         public int CompareTo(OutputEvent y)
@@ -476,7 +481,7 @@ namespace Event
                                 _relativeTime = offsets[i];
                     }
                 }
-                else //naked, absolute Event; best we can do
+                else //naked, absolute Event; best we can do; will throw Exception if zeroTime not yet set
                     _relativeTime = m_time - bdf.zeroTime;
         }
 

@@ -31,6 +31,7 @@ namespace CCILibraryTest
             StatusChannel sc = new StatusChannel(bdf, 4, true);
             PrivateObject scPrivate = new PrivateObject(sc);
             GrayCode gc;
+            GCTime gct;
             Assert.IsTrue(sc.TryFindGCBefore(6.5, out gc));
             Assert.AreEqual<uint>(1,gc.Decode());
             Assert.IsTrue(sc.TryFindGCBefore(11.1, out gc));
@@ -39,18 +40,24 @@ namespace CCILibraryTest
             Assert.AreEqual<uint>(3, gc.Decode());
             Assert.IsTrue(sc.TryFindGCAtOrAfter(10.9, out gc));
             Assert.AreEqual<uint>(4, gc.Decode());
-            Assert.IsTrue(sc.TryFindGCNearest(10.95, out gc));
-            Assert.AreEqual<uint>(6, gc.Value);
-            Assert.IsTrue(sc.TryFindGCNearest(11.95, out gc));
-            Assert.AreEqual<uint>(6, gc.Value);
-            Assert.IsTrue(sc.TryFindGCNearest(5.9, out gc));
-            Assert.AreEqual<uint>(1, gc.Value);
-            Assert.IsTrue(sc.TryFindGCNearest(6.0, out gc));
-            Assert.AreEqual<uint>(1, gc.Value);
-            Assert.IsTrue(sc.TryFindGCNearest(6.1, out gc));
-            Assert.AreEqual<uint>(3, gc.Value);
-            Assert.IsTrue(sc.TryFindGCNearest(15.9, out gc));
-            Assert.AreEqual<uint>(12, gc.Value);
+            Assert.IsTrue(sc.TryFindGCTimeNearest(10.95, out gct));
+            Assert.AreEqual<uint>(6, gct.GC.Value);
+            Assert.AreEqual<double>(11D, gct.Time);
+            Assert.IsTrue(sc.TryFindGCTimeNearest(11.95, out gct));
+            Assert.AreEqual<uint>(6, gct.GC.Value);
+            Assert.AreEqual<double>(11D, gct.Time);
+            Assert.IsTrue(sc.TryFindGCTimeNearest(5.9, out gct));
+            Assert.AreEqual<uint>(1, gct.GC.Value);
+            Assert.AreEqual<double>(5D, gct.Time);
+            Assert.IsTrue(sc.TryFindGCTimeNearest(6.0, out gct));
+            Assert.AreEqual<uint>(1, gct.GC.Value);
+            Assert.AreEqual<double>(5D, gct.Time);
+            Assert.IsTrue(sc.TryFindGCTimeNearest(6.1, out gct));
+            Assert.AreEqual<uint>(3, gct.GC.Value);
+            Assert.AreEqual<double>(7D, gct.Time);
+            Assert.IsTrue(sc.TryFindGCTimeNearest(15.9, out gct));
+            Assert.AreEqual<uint>(12, gct.GC.Value);
+            Assert.AreEqual<double>(16D, gct.Time);
             gc.Value = 5;
             CollectionAssert.AreEqual(new double[] {13D}, sc.FindGCTime(gc));
             CollectionAssert.AreEqual(new double[] {13D}, sc.FindGCTime(5));
@@ -61,10 +68,12 @@ namespace CCILibraryTest
             Assert.IsTrue(sc.TryFindGCAtOrAfter(22.0, out gc));
             Assert.AreEqual<uint>(3, gc.Value);
             Assert.IsFalse(sc.TryFindGCBefore(5.0, out gc));
-            Assert.IsTrue(sc.TryFindGCNearest(22.1, out gc));
-            Assert.AreEqual<uint>(2, gc.Value);
-            Assert.IsTrue(sc.TryFindGCNearest(21.9, out gc));
-            Assert.AreEqual<uint>(3, gc.Value);
+            Assert.IsTrue(sc.TryFindGCTimeNearest(22.1, out gct));
+            Assert.AreEqual<uint>(2, gct.GC.Value);
+            Assert.AreEqual<double>(22D, gct.Time);
+            Assert.IsTrue(sc.TryFindGCTimeNearest(21.9, out gct));
+            Assert.AreEqual<uint>(3, gct.GC.Value);
+            Assert.AreEqual<double>(22D, gct.Time);
             Assert.IsFalse(sc.TryFindGCBefore(5.0, out gc));
             Assert.AreEqual(9, sc.FindMarks(12.5, 18.0).Count);
             Assert.AreEqual(0, sc.FindMarks(16.1, 18.0).Count);
@@ -87,7 +96,7 @@ namespace CCILibraryTest
                 StatusByte.Codes.StatusBit3 ));
             sbPrivate = new PrivateObject(sb);
             Assert.AreEqual<byte>(0x09, (byte)sbPrivate.Invoke("decodeSpeedBits"));
-            MessageBox.Show(sb.ToString());
+//            MessageBox.Show(sb.ToString());
         }
     }
 }

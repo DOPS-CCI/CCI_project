@@ -71,13 +71,29 @@ namespace BDFEDFFileStream
             return gc.Value != 0;
         }
 
-        public bool TryFindGCNearest(double time, out GrayCode gc)
+        public bool TryGetFirstGCTimeAtOrAfter(double time, out GCTime gct)
+        {
+            gct = GCList.Find(g => g.Time >= time);
+            return gct.GC.Value != 0;
+        }
+
+        public bool TryGetFirstGCTimeAfter(double time, out GCTime gct)
+        {
+            gct = GCList.Find(g => g.Time > time);
+            return gct.GC.Value != 0;
+        }
+
+        public bool TryFindGCTimeNearest(double time, out GCTime gct)
         {
             GCTime gct1 = GCList.FindLast(g => g.Time < time); //find closest before or at time
-            if (gct1.Time == 0) return TryFindGCAtOrAfter(time, out gc); //case with no Events before
+            if (gct1.GC.Value == 0) //case with no Events before
+            {
+                gct = GCList.Find(g => g.Time >= time);
+                return gct.GC.Value != 0;
+            }
             double d1 = time - gct1.Time;
             GCTime gct2 = GCList.Find(g => g.Time >= time && g.Time - time < d1); //find first after and closer
-            gc = gct2.Time > 0? gct2.GC : gct1.GC;  //if it exists, return it; otherewise return the first
+            gct = gct2.GC.Value != 0 ? gct2 : gct1;  //if it exists, return it; otherewise return the first
             return true;
         }
 
