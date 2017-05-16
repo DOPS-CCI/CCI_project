@@ -14,7 +14,7 @@ namespace FileConverter
         double nominalOffsetActualProd = 0;
         double actualSum = 0D;
         double actualSumSq = 0D;
-        int nEvents = 0;
+        int nStatEvents = 0;
 
         public LogFile(string fileName)
         {
@@ -142,11 +142,11 @@ namespace FileConverter
             logStream.WriteElementString("Excluded", "*** " + reason + " ***");
         }
 
-        int n = 0;
+        int nEvents = 0;
 
         internal void IncludedEvent()
         {
-            logStream.WriteElementString("Included", (++n).ToString("0"));
+            logStream.WriteElementString("Included", (++nEvents).ToString("0"));
         }
 
         internal void closeEvent()
@@ -220,7 +220,7 @@ Bit 23 (MSB) High if ActiveTwo MK2
             {
                 logStream.WriteStartElement("Summary");
                 logStream.WriteElementString("EventFileDiffMax", nominalOffsetMax.ToString("0.0000"));
-                double n = (double)nEvents;
+                double n = (double)nStatEvents;
                 logStream.WriteElementString("EventFileDiffAve", (nominalOffsetSum / n).ToString("0.0000"));
                 double b = 1000D * (n * nominalOffsetActualProd - actualSum * nominalOffsetSum) / (n * actualSumSq - actualSum * actualSum);
                 logStream.WriteElementString("EventFileDiffSlope", b.ToString("0.0000") + "msec/sec");
@@ -237,7 +237,7 @@ Bit 23 (MSB) High if ActiveTwo MK2
             actualSumSq += actual * actual;
             nominalOffsetSum += nominalOffset;
             nominalOffsetActualProd += nominalOffset * actual;
-            nEvents++;
+            nStatEvents++;
         }
     }
 }
