@@ -36,38 +36,38 @@
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
-                <Label Grid.Row="0" Grid.Column="0" Content="From Event" Height="22" HorizontalAlignment="Right" Margin="1" VerticalAlignment="Center" VerticalContentAlignment="Center" Padding="2" />
-                <ComboBox Grid.Row="0" Grid.Column="1" Margin="2" Name="Event1" Height="22" VerticalAlignment="Center" HorizontalAlignment="Left" Width="120" SelectedIndex="-1" SelectionChanged="Event1_SelectionChanged"/>
-                <StackPanel Orientation="Horizontal" Name="GVPanel1" Grid.Row="0" Grid.Column="2">
-                    <Label Content="with GV" Height="22" HorizontalAlignment="Left" Margin="1" VerticalAlignment="Center" Padding="2" />
-                    <ComboBox Margin="2" Name="GV1" Height="22" VerticalAlignment="Center" HorizontalAlignment="Left" Width="120" SelectedIndex="0" SelectionChanged="GV1_SelectionChanged" />
-                    <ComboBox Name="Comp1" Height="22" Width="42" HorizontalAlignment="Left" Margin="0" VerticalAlignment="Center" SelectedIndex="0" HorizontalContentAlignment="Center"/>
-                        <TextBox Height="22" HorizontalAlignment="Left" Margin="2" Name="GVValue1TB" VerticalAlignment="Center" Width="100" TextChanged="GVValue1TB_TextChanged"/>
-                        <ComboBox Height="22" Margin="2" Name="GVValue1CB" VerticalAlignment="Center" Width="100" Visibility="Collapsed" />
-                </StackPanel>
-                <Label Grid.Row="0" Grid.Column="3" Content="offset" Height="22" HorizontalAlignment="Left" Margin="1" VerticalAlignment="Center" Padding="2" />
-                <TextBox Grid.Row="0" Grid.Column="4" Height="22" HorizontalAlignment="Left" Margin="2,3" Name="Offset1" VerticalAlignment="Center" Width="40" TextChanged="Offset1_TextChanged">0</TextBox>
-                <Label Grid.Row="1" Grid.Column="0" Content="To Event" Height="22" HorizontalAlignment="right" Margin="1" VerticalAlignment="Center" VerticalContentAlignment="Center" Padding="2" />
-                <ComboBox Grid.Row="1" Grid.Column="1" Margin="2" Name="Event2" Height="22" VerticalAlignment="Center" HorizontalAlignment="Left" Width="120" SelectedIndex="-1" SelectionChanged="Event2_SelectionChanged"/>
-                <StackPanel Orientation="Horizontal" Name="GVPanel2" Grid.Row="1" Grid.Column="2">
-                        <Label Content="with GV" Height="22" HorizontalAlignment="Left" Margin="1" VerticalAlignment="Center" Padding="2" />
-                        <ComboBox Margin="2" Name="GV2" Height="22" VerticalAlignment="Center" HorizontalAlignment="Left" Width="120" SelectedIndex="0" SelectionChanged="GV2_SelectionChanged" />
-                    <ComboBox Name="Comp2" Height="22" Width="42" HorizontalAlignment="Left" Margin="0" VerticalAlignment="Center" SelectedIndex="0" HorizontalContentAlignment="Center"/>
-                        <TextBox Height="22" HorizontalAlignment="Left" Margin="2" Name="GVValue2TB" VerticalAlignment="Center" Width="100" TextChanged="GVValue2TB_TextChanged" />
-                        <ComboBox Height="22" Margin="2" Name="GVValue2CB" VerticalAlignment="Center" Width="100" Visibility="Collapsed" />
-                </StackPanel>
-                <Label Grid.Row="1" Grid.Column="3" Content="offset" Height="24" HorizontalAlignment="Left" Margin="1" VerticalAlignment="Center" Padding="2" />
-                <TextBox Grid.Row="1" Grid.Column="4" Height="22" HorizontalAlignment="Left" Margin="2" Name="Offset2" VerticalAlignment="Center" Width="40" TextChanged="Offset2_TextChanged">0</TextBox>
-                    <Label Grid.Row="2" Grid.Column="0" Content="Exclude Event" Height="22" HorizontalAlignment="right" Margin="1" VerticalAlignment="Center" VerticalContentAlignment="Center" Padding="2"/>
-                    <ComboBox Grid.Row="2" Grid.Column="1" Margin="2" Name="Event3" Height="22" VerticalAlignment="Center" HorizontalAlignment="Left" Width="120" SelectedIndex="-1" SelectionChanged="Event3_SelectionChanged"/>
-                <StackPanel Orientation="Horizontal" Grid.Row="2" Grid.Column="2">
-                    <Label Content="to" Height="22" Width="46" HorizontalAlignment="Left" Margin="1" VerticalAlignment="Center" Padding="2" HorizontalContentAlignment="Center" />
-                    <ComboBox Margin="2" Name="Event4" Height="22" VerticalAlignment="Center" HorizontalAlignment="Left" Width="120" SelectedIndex="0" />
-                </StackPanel>
-                <StackPanel Orientation="Horizontal" Grid.Row="2" Grid.Column="2" Grid.ColumnSpan="3" HorizontalAlignment="Right">
-                    <CheckBox Name="useEOF" VerticalAlignment="Center" Margin="2">May use EOF as last "To Event"</CheckBox>
-                </StackPanel>
-            </Grid>
+            <Label Grid.Row="0" Grid.Column="0" Content="From Event" Height="22" HorizontalAlignment="Right" Margin="1" VerticalAlignment="Center" VerticalContentAlignment="Center" Padding="2" />
+            <ComboBox Grid.Row="0" Grid.Column="1" Margin="2" Name="Event1" Height="22" VerticalAlignment="Center" HorizontalAlignment="Left" Width="120" SelectedIndex="-1" SelectionChanged="Event1_SelectionChanged"/>
+            <StackPanel Orientation="Horizontal" Name="GVPanel1" Grid.Row="0" Grid.Column="2">
+                <Label Content="with GV" Height="22" HorizontalAlignment="Left" Margin="1" VerticalAlignment="Center" Padding="2" />
+                <ComboBox Margin="2" Name="GV1" Height="22" VerticalAlignment="Center" HorizontalAlignment="Left" Width="120" SelectedIndex="0" SelectionChanged="GV1_SelectionChanged" />
+                <ComboBox Name="Comp1" Height="22" Width="42" HorizontalAlignment="Left" Margin="0" VerticalAlignment="Center" SelectedIndex="0" HorizontalContentAlignment="Center"/>
+                <TextBox Height="22" HorizontalAlignment="Left" Margin="2" Name="GVValue1TB" VerticalAlignment="Center" Width="100" TextChanged="GVValue1TB_TextChanged"/>
+                <ComboBox Height="22" Margin="2" Name="GVValue1CB" VerticalAlignment="Center" Width="100" Visibility="Collapsed" />
+            </StackPanel>
+            <Label Grid.Row="0" Grid.Column="3" Content="offset" Height="22" HorizontalAlignment="Left" Margin="1" VerticalAlignment="Center" Padding="2" />
+            <TextBox Grid.Row="0" Grid.Column="4" Height="22" HorizontalAlignment="Left" Margin="2,3" Name="Offset1" VerticalAlignment="Center" Width="40" TextChanged="Offset1_TextChanged">0</TextBox>
+            <Label Grid.Row="1" Grid.Column="0" Content="To Event" Height="22" HorizontalAlignment="right" Margin="1" VerticalAlignment="Center" VerticalContentAlignment="Center" Padding="2" />
+            <ComboBox Grid.Row="1" Grid.Column="1" Margin="2" Name="Event2" Height="22" VerticalAlignment="Center" HorizontalAlignment="Left" Width="120" SelectedIndex="-1" SelectionChanged="Event2_SelectionChanged"/>
+            <StackPanel Orientation="Horizontal" Name="GVPanel2" Grid.Row="1" Grid.Column="2">
+                <Label Content="with GV" Height="22" HorizontalAlignment="Left" Margin="1" VerticalAlignment="Center" Padding="2" />
+                <ComboBox Margin="2" Name="GV2" Height="22" VerticalAlignment="Center" HorizontalAlignment="Left" Width="120" SelectedIndex="0" SelectionChanged="GV2_SelectionChanged" />
+                <ComboBox Name="Comp2" Height="22" Width="42" HorizontalAlignment="Left" Margin="0" VerticalAlignment="Center" SelectedIndex="0" HorizontalContentAlignment="Center"/>
+                <TextBox Height="22" HorizontalAlignment="Left" Margin="2" Name="GVValue2TB" VerticalAlignment="Center" Width="100" TextChanged="GVValue2TB_TextChanged" />
+                <ComboBox Height="22" Margin="2" Name="GVValue2CB" VerticalAlignment="Center" Width="100" Visibility="Collapsed" />
+            </StackPanel>
+            <Label Grid.Row="1" Grid.Column="3" Content="offset" Height="22" HorizontalAlignment="Left" Margin="1" VerticalAlignment="Center" Padding="2" />
+            <TextBox Grid.Row="1" Grid.Column="4" Height="22" HorizontalAlignment="Left" Margin="2" Name="Offset2" VerticalAlignment="Center" Width="40" TextChanged="Offset2_TextChanged">0</TextBox>
+            <Label Grid.Row="2" Grid.Column="0" Content="Exclude Event" Height="22" HorizontalAlignment="right" Margin="1" VerticalAlignment="Center" VerticalContentAlignment="Center" Padding="2"/>
+            <ComboBox Grid.Row="2" Grid.Column="1" Margin="2" Name="Event3" Height="22" VerticalAlignment="Center" HorizontalAlignment="Left" Width="120" SelectedIndex="-1" SelectionChanged="Event3_SelectionChanged"/>
+            <StackPanel Orientation="Horizontal" Grid.Row="2" Grid.Column="2">
+                <Label Content="to" Height="22" Width="46" HorizontalAlignment="Left" Margin="1" VerticalAlignment="Center" Padding="2" HorizontalContentAlignment="Center" />
+                <ComboBox Margin="2" Name="Event4" Height="22" VerticalAlignment="Center" HorizontalAlignment="Left" Width="120" SelectedIndex="0" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Grid.Row="2" Grid.Column="2" Grid.ColumnSpan="3" HorizontalAlignment="Right">
+                <CheckBox Name="useEOF" VerticalAlignment="Center" Margin="2">May use EOF as last "To Event"</CheckBox>
+            </StackPanel>
+        </Grid>
     </StackPanel>
     </Border>
         </TabItem>

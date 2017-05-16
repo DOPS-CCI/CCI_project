@@ -5,14 +5,14 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using BDFEDFFileStream;
-using ElectrodeFileStream;
-using Event;
-using EventFile;
-using EventDictionary;
-using FILMANFileStream;
-using GroupVarDictionary;
 using CCILibrary;
 using CCIUtilities;
+using ElectrodeFileStream;
+using Event;
+using EventDictionary;
+using EventFile;
+using FILMANFileStream;
+using GroupVarDictionary;
 using Microsoft.Win32;
 
 namespace ASCtoFMConverter
@@ -87,7 +87,7 @@ namespace ASCtoFMConverter
                     pkd.assignedGVNumber = GVCount;
                 }
             }
-            GVCount += PKCounterExists ? 3 : 0;
+            GVCount += PKCounterExists ? 3 : 0; //get 3 more GVs if PKcounter used
 
             //NOTE: because we have to have the number of GVs (and Channels) available when we create the output stream,
             // we have to separate the enumeration of GVs from the naming of GVs; this could be avoided by using lists
@@ -96,6 +96,7 @@ namespace ASCtoFMConverter
             // the constructor use the counts to get NG and NC; NA could also be an array that must be created before as a
             // byte array, but this might be awkward
 
+            //Set up FILMAN outpur
             FMStream = new FILMANOutputStream(
                 File.Open(dlg.FileName, FileMode.Create, FileAccess.ReadWrite),
                 GVCount, 0, channels.Count,
@@ -185,6 +186,7 @@ namespace ASCtoFMConverter
 
             FMStream.writeHeader();
 
+
             log.registerHeader(this);
 
             EventFactory.Instance(ED);
@@ -202,6 +204,9 @@ namespace ASCtoFMConverter
             {
                 EventList.Add(ie);
             }
+
+            Event.Event.LinkEventsToDataset(head, bdf); //link to dataset
+            StatusChannel sc = new StatusChannel(bdf, head.Status, false); //process Status channel
             IEnumerator<InputEvent> EventEnumerator = EventList.GetEnumerator(); //Enumerator for stepping through Event file
 
  //******** Synchronize clocks
@@ -211,7 +216,7 @@ namespace ASCtoFMConverter
                 //use raw Event clock times as actual offsets from beginning of BDF file; in other words force all Events to be BDF-based
                 bdf.setZeroTime(0D); //this keeps it from throwing an error when "synchronizing"
             else
-            { //Need to find a covered (intrisic or extrinsic) Event to use as an indicial Event
+            { //Need to find a covered (intrisic or extrinsic) absolute Event to use as an indicial Event
                 bool found = false;
                 EventEnumerator.Reset();
                 if (syncToFirst || ignoreStatus)
@@ -260,7 +265,7 @@ namespace ASCtoFMConverter
             Log.writeToLog("\tinto FM file " + dlg.FileName);
 
             foreach(InputEvent ie in EventList) //modify relativeTime field depending on type of Event
-                ie.setRelativeTime();
+                ie.setRelativeTime(sc);
 
             EventList = EventList.OrderBy(ev => ev.relativeTime).ToList(); //re-sort: minor order changes may occur
 
@@ -282,12 +287,12 @@ namespace ASCtoFMConverter
                     //permit different exclusion criteria for each EpisodeDescription
 
                     ExclusionDescription ed = currentEpisode.Exclude;
-                    EventEnumerator.Reset();
                     EventDictionaryEntry startEDE = ed.startEvent;
                     bool t = ed.endEvent != null && ed.endEvent.GetType() == typeof(EventDictionaryEntry);
                     EventDictionaryEntry endEDE = null;
                     if(t)
                         endEDE = (EventDictionaryEntry)ed.endEvent;
+                    EventEnumerator.Reset();
                     while(EventEnumerator.MoveNext())
                     {
                         InputEvent ev = EventEnumerator.Current;
@@ -309,7 +314,7 @@ namespace ASCtoFMConverter
                                 ed.To.Add(b);
                         }
                     }
-                }
+                } //Exclusion
 
                 // From here we loop through Event file until an Event is found that matches the
                 // current startEvent in spec[i]; from that point a matching endEvent is sought;
@@ -390,7 +395,7 @@ namespace ASCtoFMConverter
                                     {
                                         PKDetectorEventCounterDescription pkd = currentEpisode.PKCounter;
                                         double[] v = pkd.countMatchingEvents(startTime, startTime + FMRecLength, EventList);
-                                        FMStream.record.GV[GVCount - 3] = Convert.ToInt32(1000D * v[0]); //make per thousand to nave useful integer
+                                        FMStream.record.GV[GVCount - 3] = Convert.ToInt32(1000D * v[0]); //make per thousand to give useful integer
                                         FMStream.record.GV[GVCount - 2] = Convert.ToInt32(v[1]);
                                         FMStream.record.GV[GVCount - 1] = Convert.ToInt32(v[2]);
                                     }
@@ -399,7 +404,7 @@ namespace ASCtoFMConverter
                                 createFILMANRecord(startBDFPoint, endBDFPoint);
                             }
                             startBDFPoint = endBDFPoint; //move start point forward
-                        }
+                        } //loop over FM records
                         log.closeFoundEpisode(actualNumberOfFMRecs);
                     }
 
