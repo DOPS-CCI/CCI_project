@@ -31,7 +31,6 @@ namespace FileConverter
             ElectrodeInputFileStream etrFile = new ElectrodeInputFileStream(
                 new FileStream(Path.Combine(directory, eventHeader.ElectrodeFile), FileMode.Open, FileAccess.Read));
 
-            parseEventFile(); //get lists of Events required for conversion
 
             /***** Open FILMAN file *****/
             SaveFileDialog dlg = new SaveFileDialog();
@@ -56,10 +55,11 @@ namespace FileConverter
                 GV.Count + 2, EDE.ancillarySize, channels.Count,
                 newRecordLength,
                 FILMANFileStream.FILMANFileStream.Format.Real);
-            log = new LogFile(dlg.FileName + ".log.xml");
             FMStream.IS = Convert.ToInt32( (double)samplingRate/(double)decimation);
             bigBuff = new float[BDFReader.NumberOfChannels - 1, FMStream.ND]; //have to dimension to BDF rather than FMStream
                                                                         //in case we need for reference calculations
+            log = new LogFile(dlg.FileName + ".log.xml"); //must open Log before calling parseEventFile
+            parseEventFile(); //get lists of Events required for conversion
 
             /***** Create FILMAN header records *****/
             FMStream.GVNames(0, "Channel");

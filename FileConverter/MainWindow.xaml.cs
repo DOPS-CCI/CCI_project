@@ -128,7 +128,7 @@ namespace FileConverter
             this.TitleLine.Text = head.Title + " - " + head.Date + " " + head.Time + " S=" + head.Subject.ToString("0000");
 
             foreach (EventDictionaryEntry ed in ED.Values)
-                if (ed.IsCovered || ed.HasRelativeTime) //exclude absolute naked Events = old-style artifact Events
+                if (ed.IsCovered || ed.HasRelativeTime) //exclude absolute naked Events = old-style artifact Events -- don't show them!
                 {
                     _EDEList.Add(ed);
                     ExcludeFrom.Items.Add(ed);

@@ -29,7 +29,7 @@
     <InstallUrl>http://zoomlenz.net/CCI/publish/FileConverter/</InstallUrl>
     <CreateWebPageOnPublish>true</CreateWebPageOnPublish>
     <WebPage>publish.htm</WebPage>
-    <ApplicationRevision>29</ApplicationRevision>
+    <ApplicationRevision>32</ApplicationRevision>
     <ApplicationVersion>1.0.0.%2a</ApplicationVersion>
     <UseApplicationTrust>false</UseApplicationTrust>
     <CreateDesktopShortcut>true</CreateDesktopShortcut>
@@ -57,7 +57,7 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <PropertyGroup>
-    <ManifestCertificateThumbprint>E0854CD1A81B1D83CB56212C34BEB2144AA7CF9C</ManifestCertificateThumbprint>
+    <ManifestCertificateThumbprint>8062D52FEE08B5DD495119A229124BEEAABD7F92</ManifestCertificateThumbprint>
   </PropertyGroup>
   <PropertyGroup>
     <ManifestKeyFile>SigningKey.pfx</ManifestKeyFile>
@@ -134,12 +134,12 @@
     </Compile>
     <AppDesigner Include="Properties\" />
     <None Include="app.config" />
+    <None Include="SigningKey.pfx" />
     <None Include="Properties\app.manifest" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
     </None>
-    <None Include="SigningKey.pfx" />
   </ItemGroup>
   <ItemGroup>
     <Page Include="MainWindow.xaml">

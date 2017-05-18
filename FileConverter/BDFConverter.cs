@@ -34,7 +34,6 @@ namespace FileConverter
             ElectrodeInputFileStream etrFile = new ElectrodeInputFileStream(
                 new FileStream(Path.Combine(directory, eventHeader.ElectrodeFile), FileMode.Open, FileAccess.Read));
 
-            parseEventFile(); //get list of candidate Events required for conversion
 
             /***** Open BDF file *****/
             SaveFileDialog dlg = new SaveFileDialog();
@@ -75,7 +74,9 @@ namespace FileConverter
                 newSamplingRate,
                 true);
 
-            log = new LogFile(dlg.FileName + ".log.xml");
+            log = new LogFile(dlg.FileName + ".log.xml"); //must open Log before calling parseEventFile
+            parseEventFile(); //get list of candidate Events required for conversion
+
             bigBuff = new float[BDFReader.NumberOfChannels - 1, newRecordLengthInPts];   //have to dimension to all old channels rather than new
                                                                                 //in case we need for reference calculations later
             /***** Create BDF header record *****/
