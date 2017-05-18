@@ -54,7 +54,7 @@ namespace DatasetReviewer
 
         internal List<int> channelList; //list of currently displayed channels
         internal EventDictionary.EventDictionary ED;
-        internal List<Event.InputEvent> events = new List<Event.InputEvent>();
+        internal List<Event.Event> events = new List<Event.Event>();
         internal Dictionary<string, ElectrodeRecord> electrodes;
 
         internal Window2 notes;
@@ -145,8 +145,9 @@ namespace DatasetReviewer
             BDFFileInfo.Content = bdf.ToString();
             HDRFileInfo.Content = head.ToString();
             Event.EventFactory.Instance(head.Events); // set up the factory
+
             Event.Event.LinkEventsToDataset(head, bdf); //Link Events to dataset
-            sc = new StatusChannel(bdf, head.Status, true);
+            sc = new StatusChannel(bdf, head.Status, true); //create StatusChannel object
 
             EventFileReader efr = null;
             try
@@ -154,23 +155,11 @@ namespace DatasetReviewer
                 efr = new EventFileReader(
                     new FileStream(System.IO.Path.Combine(directory, head.EventFile),
                         FileMode.Open, FileAccess.Read)); // open Event file
-                bool z = false;
-                foreach (Event.InputEvent ie in efr) // read in all Events into dictionary
-                {
+                foreach (InputEvent ie in efr) // read all Events
                     events.Add(ie);
-                    if (ie.IsNaked)
-                        ie.setRelativeTime(sc); //may be Absolute, but this is corrected when setRelativeTime, provided zeroTime set
-                    else // covered Event
-                    {
-                        ie.setRelativeTime(sc);
-                        if (!z && ie.HasAbsoluteTime) //use first found absolute covered Event to synchronize clocks
-                        {
-                            bdf.setZeroTime(ie.Time - ie.relativeTime);
-                            z = true;
-                        }
-                    }
-                }
-                efr.Close(); //now events is Dictionary of Events in the dataset; lookup by GC
+                efr.Close();
+                bdf.setZeroTime(sc.getFirstZeroTime(events)); //now we can get the zero time
+                foreach (Event.Event ev in events) ev.setRelativeTime(sc); //and calculate all the relative times
             }
             catch (Exception e)
             {
@@ -769,25 +758,25 @@ namespace DatasetReviewer
                 currentOffset += bdf.SampTime / 2D;
                 if(bdf.hasStatus)
                     gc = gc.NewGrayCodeForStatus(bdf.getStatusSample(p));
-                ie = events.Find(ev => ev.Name == currentSearchEvent &&
-                    (ev.IsNaked && bdf.timeFromBeginningOfFileTo(ev) > currentOffset || !ev.IsNaked && gc.CompareTo(ev.GC) < 0));
+                ie = (InputEvent)events.Find(ev => ev.Name == currentSearchEvent &&
+                    (ev.IsNaked && ev.relativeTime > currentOffset || !ev.IsNaked && gc.CompareTo(ev.GC) < 0));
             }
             else //Prev
             {
                 currentOffset -= bdf.SampTime / 2D;
                 if (bdf.hasStatus)
                     gc = gc.NewGrayCodeForStatus(bdf.getStatusSample(p - 1));
-                ie = events.LastOrDefault(ev => ev.Name == currentSearchEvent &&
-                    (ev.IsNaked && bdf.timeFromBeginningOfFileTo(ev) < currentOffset || !ev.IsNaked && gc.CompareTo(ev.GC) >= 0));
+                ie = (InputEvent)events.LastOrDefault(ev => ev.Name == currentSearchEvent &&
+                    (ev.IsNaked && ev.relativeTime < currentOffset || !ev.IsNaked && gc.CompareTo(ev.GC) >= 0));
             }
             if (ie == null) return;
             if (ie.HasRelativeTime) //known BDF-based clock
                 newOffset = ie.Time;
-            else if (ie.IsNaked) newOffset = bdf.timeFromBeginningOfFileTo(ie); //naked Event using Absolute clock -- not preferred, but OK
+            else if (ie.IsNaked) newOffset = ie.relativeTime; //naked Event using Absolute clock -- not preferred, but OK
             else //covered Event, always Absolute clock
             {
                 gc.Value = (uint)ie.GC;
-                newOffset = bdf.findGCNear(gc, bdf.timeFromBeginningOfFileTo(ie)); //search for nearby Status channel mark
+                newOffset = bdf.findGCNear(gc, ie.relativeTime); //search for nearby Status channel mark
             }
             if (newOffset >= 0D)
                 Viewer.ScrollToHorizontalOffset((newOffset - SearchSiteOffset * currentDisplayWidthInSecs) * XScaleSecsToInches);
