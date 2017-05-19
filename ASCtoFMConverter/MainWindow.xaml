@@ -51,7 +51,7 @@
                             <Button Name="AddSpec" Grid.Row="1" Width="24" Height="24" FontSize="13" FontWeight="Bold" HorizontalAlignment="Left" Margin="4" Click="AddSpec_Click">+</Button>
                             <Button Name="RemoveSpec" Grid.Row="1" Width="24" Height="24" FontSize="13" FontWeight="Bold" HorizontalAlignment="Left" Margin="4" IsEnabled="False" Click="RemoveSpec_Click">-</Button>
                         </StackPanel>
-                        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                        <!--<StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right">
                             <StackPanel.Resources>
                                 <Style TargetType="RadioButton">
                                     <Setter Property="VerticalAlignment" Value="Center"/>
@@ -62,7 +62,7 @@
                             <RadioButton Name="SyncToFirst" IsChecked="True">first covered Event</RadioButton>
                             <RadioButton Name="SyncToMiddle">"middle" covered Event</RadioButton>
                             <RadioButton Name="NoSyncToStatus" >none</RadioButton>
-                        </StackPanel>
+                        </StackPanel>-->
                     </Grid>
                 </GroupBox>
                 <GroupBox Grid.Row="2" Header="Group variables" Height="203" VerticalAlignment="Bottom">

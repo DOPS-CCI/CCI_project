@@ -178,7 +178,7 @@ namespace ASCtoFMConverter
             bdf = BDF;
         }
 
-        internal double[] countMatchingEvents(double startTime, double endTime, List<InputEvent> events)
+        internal double[] countMatchingEvents(double startTime, double endTime, List<Event.Event> events)
         {
             double[] d = new double[3];
             double mag;

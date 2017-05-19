@@ -46,8 +46,11 @@ namespace ASCtoFMConverter
             foreach (EventDictionary.EventDictionaryEntry ev in events.Values){
                 Event1.Items.Add(ev);
                 Event2.Items.Add(ev);
-                Event3.Items.Add(ev);
-                Event4.Items.Add(ev);
+                if (ev.IsCovered || ev.HasRelativeTime) //don't include "old-style", naked absolute (artifact) Events 
+                {
+                    Event3.Items.Add(ev);
+                    Event4.Items.Add(ev);
+                }
             }
             Event1.SelectedIndex = 0;
             Event2.SelectedIndex = 0;

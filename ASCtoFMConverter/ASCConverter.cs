@@ -36,9 +36,8 @@ namespace ASCtoFMConverter
         public List<GVEntry> GVCopyAcross;
         public double FMRecLength;
         public int samplingRate;
-        public bool ignoreStatus;
-        public bool syncToFirst; //if true sync clock to first covered Event; if false, to first Event after middle of dataset
-        public double offsetToFirstEvent = -1D; //Negative to indicate use actual times in Events
+//        public bool ignoreStatus;
+//        public double offsetToFirstEvent = -1D; //Negative to indicate use actual times in Events
 
         protected BackgroundWorker bw;
         protected double[,] bigBuff;
@@ -195,20 +194,19 @@ namespace ASCtoFMConverter
 
             //read in list of Events
             bw.ReportProgress(0, "Reading Events, synchronizing clocks, and calculating Event offsets from BDF file");
-            List<InputEvent> EventList = new List<InputEvent>();
+            List<Event.Event> EventList = new List<Event.Event>();
             EventFileReader efr=new EventFileReader(
                     new FileStream(System.IO.Path.Combine(directory, head.EventFile),
                     FileMode.Open, FileAccess.Read));
             InputEvent.LinkEventsToDataset(head, bdf); //link InputEvents to this specific dataset
             foreach (InputEvent ie in efr)
-            {
                 EventList.Add(ie);
-            }
 
             Event.Event.LinkEventsToDataset(head, bdf); //link to dataset
             StatusChannel sc = new StatusChannel(bdf, head.Status, false); //process Status channel
-            IEnumerator<InputEvent> EventEnumerator = EventList.GetEnumerator(); //Enumerator for stepping through Event file
-
+            IEnumerator<Event.Event> EventEnumerator = EventList.GetEnumerator(); //Enumerator for stepping through Event file
+            bdf.setZeroTime(sc.getFirstZeroTime(EventList));
+/*
  //******** Synchronize clocks
             //Need to synchronize clocks by setting the BDF.zeroTime value
             //zeroTime is the time, according to the Event file clock, of the beginning of the BDF file (BioSemi clock)
@@ -262,6 +260,7 @@ namespace ASCtoFMConverter
                     throw (new Exception("No valid synchronizing (covered) Event found; use manual synchronization"));
                 }
             }
+ */
             Log.writeToLog("\tinto FM file " + dlg.FileName);
 
             foreach(InputEvent ie in EventList) //modify relativeTime field depending on type of Event
@@ -295,18 +294,18 @@ namespace ASCtoFMConverter
                     EventEnumerator.Reset();
                     while(EventEnumerator.MoveNext())
                     {
-                        InputEvent ev = EventEnumerator.Current;
+                        InputEvent ev = (InputEvent)EventEnumerator.Current;
                         if (ev.Name == startEDE.Name)
                         {
-                            BDFPoint b = new BDFPoint(bdf).FromSecs(bdf.timeFromBeginningOfFileTo(ev));
+                            BDFPoint b = new BDFPoint(bdf).FromSecs(ev.relativeTime);
                             ed.From.Add(b);
                             if (t)
                                 while (EventEnumerator.MoveNext())
                                 {
-                                    ev = EventEnumerator.Current;
+                                    ev = (InputEvent)EventEnumerator.Current;
                                     if (ev.Name == endEDE.Name)
                                     {
-                                        ed.To.Add(new BDFPoint(bdf).FromSecs(bdf.timeFromBeginningOfFileTo(ev)));
+                                        ed.To.Add(new BDFPoint(bdf).FromSecs(ev.relativeTime));
                                         break;
                                     }
                                 }
@@ -432,7 +431,7 @@ namespace ASCtoFMConverter
         /// <returns>true if match found, otherwise false</returns>
 
         bool sameEventFlag = false;
-        private bool findNextMark(EpisodeMark eventCriterium, IEnumerator<InputEvent> Events, bool startEvent, out double time, out InputEvent ie)
+        private bool findNextMark(EpisodeMark eventCriterium, IEnumerator<Event.Event> Events, bool startEvent, out double time, out InputEvent ie)
         {
             if (eventCriterium._Event.GetType() == typeof(string)) //handle special cases first
             {
@@ -445,7 +444,7 @@ namespace ASCtoFMConverter
                 }
                 else if (str == "Same Event") //only occurs as endEvent
                 { //will only be called if there has been a previous match
-                    ie = Events.Current;
+                    ie = (InputEvent)Events.Current;
                     time = Events.Current.relativeTime;
                     sameEventFlag = true;
                     return true;
@@ -463,7 +462,7 @@ namespace ASCtoFMConverter
 
             while(more) // loop through Events beginning at .Current to find one meeting eventCriterium
             {
-                ie = Events.Current;
+                ie = (InputEvent)Events.Current;
                 if (eventCriterium._Event.GetType() == typeof(EventDictionaryEntry)) //if named Event, simply check it
                 {
                     if (eventCriterium.Match(ie)) //found matching Event

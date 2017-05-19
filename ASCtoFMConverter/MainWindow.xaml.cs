@@ -31,7 +31,7 @@ namespace ASCtoFMConverter
         string directory;
         string headerFileName;
         int samplingRate;
-        double offsetToFirstEvent;
+//        double offsetToFirstEvent;
         ASCtoFMConverter.ASCConverter asc = null;
 
         int _decimation;
@@ -192,10 +192,10 @@ namespace ASCtoFMConverter
             xml.WriteStartDocument();
 
             xml.WriteStartElement("ASCtoFMParameters");
-            s = "Middle covered Event";
-            if ((bool)SyncToFirst.IsChecked) s = "First covered Event";
-            if ((bool)NoSyncToStatus.IsChecked) s = "None";
-            xml.WriteAttributeString("ClockSync", s);
+            //s = "Middle covered Event";
+            //if ((bool)SyncToFirst.IsChecked) s = "First covered Event";
+            //if ((bool)NoSyncToStatus.IsChecked) s = "None";
+            //xml.WriteAttributeString("ClockSync", s);
 
             xml.WriteStartElement("EpisodeDescriptions");
             foreach (EpisodeDescriptionEntry ede in EpisodeEntries.Items)
@@ -268,14 +268,14 @@ namespace ASCtoFMConverter
             try
             {
                 if(!xml.ReadToFollowing("ASCtoFMParameters")) throw new XmlException("No ASCtoFMParameters element found");
-                s = xml["ClockSync"];
-                if (s == "First covered Event")
-                    SyncToFirst.IsChecked = true;
-                else
-                    if (s == "None")
-                        NoSyncToStatus.IsChecked = true;
-                    else
-                        SyncToMiddle.IsChecked = true;
+                //s = xml["ClockSync"];
+                //if (s == "First covered Event")
+                //    SyncToFirst.IsChecked = true;
+                //else
+                //    if (s == "None")
+                //        NoSyncToStatus.IsChecked = true;
+                //    else
+                //        SyncToMiddle.IsChecked = true;
                 xml.ReadStartElement("ASCtoFMParameters");
 
                 xml.ReadStartElement("EpisodeDescriptions");
@@ -394,14 +394,14 @@ namespace ASCtoFMConverter
 
         private void ConvertFM_Click(object sender, RoutedEventArgs e)
         {
-            if ((bool)NoSyncToStatus.IsChecked)
-            {
-                SetUpIgnoreStatus dialog = new SetUpIgnoreStatus();
-                dialog.Owner = this;
-                if (!(bool)dialog.ShowDialog())
-                    return; //without conversion
-                offsetToFirstEvent = dialog.offsetValue;
-            }
+            //if ((bool)NoSyncToStatus.IsChecked)
+            //{
+            //    SetUpIgnoreStatus dialog = new SetUpIgnoreStatus();
+            //    dialog.Owner = this;
+            //    if (!(bool)dialog.ShowDialog())
+            //        return; //without conversion
+            //    offsetToFirstEvent = dialog.offsetValue;
+            //}
 
             ConvertFM.Visibility = Visibility.Hidden;
             Done.Visibility = Visibility.Collapsed;
@@ -796,7 +796,7 @@ namespace ASCtoFMConverter
 
         private void createASCConverter(ASCConverter conv)
         {
-            conv.syncToFirst = (bool)SyncToFirst.IsChecked;
+            //conv.syncToFirst = (bool)SyncToFirst.IsChecked;
             conv.specs = new EpisodeDescription[this.EpisodeEntries.Items.Count];
             for (int i = 0; i < this.EpisodeEntries.Items.Count; i++)
             {
@@ -845,8 +845,8 @@ namespace ASCtoFMConverter
             conv.ED = this.ED;
             conv.FMRecLength = this._recLength;
             conv.samplingRate = this.samplingRate;
-            if (conv.ignoreStatus = (bool)NoSyncToStatus.IsChecked)
-                conv.offsetToFirstEvent = offsetToFirstEvent;
+            //if (conv.ignoreStatus = (bool)NoSyncToStatus.IsChecked)
+            //    conv.offsetToFirstEvent = offsetToFirstEvent;
         }
 
         private EpisodeDescription getEpisode(EpisodeDescriptionEntry ede)
