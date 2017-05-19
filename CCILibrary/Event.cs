@@ -215,6 +215,38 @@ namespace Event
             bdf = BDF;
         }
 
+        /// <summary>
+        /// Sets the relative time of this Event to the best available value: uses time from Event itself for
+        /// Events with relative time; uses location of Status mark for covered Events; and uses zeroTime to
+        /// estimate relative time for naked, absolute Events
+        /// </summary>
+        /// <param name="sc">StatusChannel objected obtained by scanning Status channel for Event marks</param>
+        public void setRelativeTime(StatusChannel sc)
+        {
+            if (EDE.HasRelativeTime) //relative time Event
+                _relativeTime = m_time; //relative time Event
+            else //absolute time Event
+                if (EDE.IsCovered) //covered, absolute Event
+                {   //                    => try to find Status mark nearby to use as actual, relative Event time
+                    double[] offsets;
+                    GrayCode gc = new GrayCode(head.Status); //must be linked!!
+                    gc.Value = (uint)GC;
+                    offsets = sc.FindGCTime(gc);
+                    if (offsets.Length == 1) _relativeTime = offsets[0]; //usual case
+                    else if (offsets.Length <= 0) _relativeTime = null; //error! no Status mark for covered Event
+                    else //more than 1 Status mark for same gray code; should be widely separated
+                    {
+                        double refT = m_time - bdf.zeroTime; //use estimate of Event time; find offset closest
+                        _relativeTime = offsets[0];
+                        for (int i = 1; i < offsets.Length; i++)
+                            if (Math.Abs(offsets[i] - refT) < Math.Abs((double)_relativeTime - refT))
+                                _relativeTime = offsets[i];
+                    }
+                }
+                else //naked, absolute Event; best we can do; will throw Exception if zeroTime not yet set
+                    _relativeTime = m_time - bdf.zeroTime; //must be linked!!
+        }
+
         public static int CompareEventsByTime(Event ev1, Event ev2)
         {
             if (ev1.Time > ev2.Time) return 1;
@@ -451,38 +483,6 @@ namespace Event
                 }
                 else
                     _relativeTime = m_time - bdf.zeroTime; //naked, absolute Evemnt; best we can do
-        }
-
-        /// <summary>
-        /// Sets the relative time of this Event to the best available value: uses time from Event itself for
-        /// Events with relative time; uses location of Status mark for covered Events; and uses zeroTime to
-        /// estimate relative time for naked, absolute Events
-        /// </summary>
-        /// <param name="sc">StatusChannel objected obtained by scanning Status channel for Event marks</param>
-        public void setRelativeTime(StatusChannel sc)
-        {
-            if (EDE.HasRelativeTime) //relative time Event
-                _relativeTime = m_time; //relative time Event
-            else //absolute time Event
-                if (EDE.IsCovered) //covered, absolute Event
-                {   //                    => try to find Status mark nearby to use as actual, relative Event time
-                    double[] offsets;
-                    GrayCode gc = new GrayCode(head.Status);
-                    gc.Value = (uint)GC;
-                    offsets = sc.FindGCTime(gc);
-                    if (offsets.Length == 1) _relativeTime = offsets[0]; //usual case
-                    else if (offsets.Length <= 0) _relativeTime = null; //error! no Status mark for covered Event
-                    else //more than 1 Status mark for same gray code; should be widely separated
-                    {
-                        double refT = m_time - bdf.zeroTime; //use estimate of Event time; find offset closest
-                        _relativeTime = offsets[0];
-                        for (int i = 1; i < offsets.Length; i++)
-                            if (Math.Abs(offsets[i] - refT) < Math.Abs((double)_relativeTime - refT))
-                                _relativeTime = offsets[i];
-                    }
-                }
-                else //naked, absolute Event; best we can do; will throw Exception if zeroTime not yet set
-                    _relativeTime = m_time - bdf.zeroTime;
         }
 
         public override string ToString()

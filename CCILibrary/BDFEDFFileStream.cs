@@ -220,7 +220,7 @@ namespace BDFEDFFileStream
         /// WARNING: use with caution; the BDF and Event clocks may not be synchronized
         /// </summary>
         /// <param name="zeroTime">time to set zeroTime to</param>
-        public void setZeroTime(double zeroTime)
+        public void setZeroTime(double? zeroTime)
         {
             _zeroTime = zeroTime;
         }
@@ -253,6 +253,7 @@ namespace BDFEDFFileStream
         /// <param name="ie">The Event to locate</param>
         /// <returns>Time to Event</returns>
         /// <exception cref="Exception">zeroTime not initialized</exception>
+        [Obsolete("Prefer use of Event.relativeTime")]
         public double timeFromBeginningOfFileTo(Event.Event ie)
         {
             if (ie.HasRelativeTime) return ie.Time;

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using CCILibrary;
+using Event;
 
 namespace BDFEDFFileStream
 {
@@ -15,18 +16,18 @@ namespace BDFEDFFileStream
         {
             uint mask = 0xFFFFFFFF >> (32 - maskBits);
             double sampleTime = bdf.SampleTime(bdf.NumberOfChannels - 1);
-            uint[] status = bdf.readAllStatus();
-            bool start = false;
+            uint[] status = bdf.readAllStatus(); //read in complete Status channel
+            bool start = false; //signals when we have our first zero
             GrayCode gc = new GrayCode(maskBits);
-            GrayCode comp = new GrayCode(0, maskBits);
-            byte lastSE = 0;
-            for (int i = 0; i < status.Length; i++)
+            GrayCode comp = new GrayCode(0, maskBits); //previous Gray code
+            byte lastSE = 0; //previous SE value
+            for (int i = 0; i < status.Length; i++) //scan Status
             {
                 uint v = status[i];
                 if (hasSystemEvents)
                 {
-                    byte s = (byte)(v >> 16);
-                    if (s != lastSE)
+                    byte s = (byte)(v >> 16); //reduce to Sytem Event byte
+                    if (s != lastSE) //only note changes
                     {
                         lastSE = s;
                         SystemEvents.Add(new SystemEvent(s, (double)i * sampleTime));
@@ -36,16 +37,16 @@ namespace BDFEDFFileStream
                 //always start from GC == 0
                 if (!start)
                     if (c == 0) start = true;
-                    else continue;
+                    else continue; //if not zero keep looking
 
-                if (c == comp.Value) continue;
+                if (c == comp.Value) continue; //no shange, keep looking
                 
                 gc.Value = c;
-                int n = gc - comp; //this is how many Events occur at this exact time
+                int n = gc - comp; //subtract Gray codes to find how many Events occur at this exact time
                 if (n <= 0) throw new Exception("In StatusChannel: too many Events at one Status time");
                 double t = (double)i * sampleTime;
-                for (int k = 0; k < n; k++)
-                    GCList.Add(new GCTime(++comp, t));
+                for (int k = 0; k < n; k++) //create an entry for every Event at this time
+                    GCList.Add(new GCTime(++comp, t)); //this also sets comp to the right value
             }
         }
 
@@ -102,6 +103,29 @@ namespace BDFEDFFileStream
             return GCList.FindAll(gct => gct.Time >= start && gct.Time < end);
         }
 
+        public double? getFirstZeroTime(List<Event.Event> events)
+        {
+            Event.Event ev = events.Find(e => e.HasAbsoluteTime && e.IsCovered);
+            if (ev == null) return null;
+            return ev.Time - GCList.Find(gct => gct.GC.Value == (uint)ev.GC).Time;
+        }
+/*
+        public double getRelativeTimeBasedOnClosestAbsolute(List<Event.Event> events, double absoluteTime)
+        {
+            foreach (Event.Event ev in events)
+            {
+                if (ev.HasRelativeTime || ev.IsNaked) continue; //looking for covered, absolute Events only
+                double t = ev.Time; //absolute time of current event
+                while (t <= absoluteTime)
+                {
+
+                }
+            }
+            Event.Event evLess = events.FindLast(e => e.HasAbsoluteTime && e.IsCovered && e.Time <= absoluteTime); //find closest below
+            double d = absoluteTime-evLess.Time;
+            Event.Event evGreater = events.Find(e => e.HasAbsoluteTime && e.IsCovered && e.Time > absoluteTime && e.Time - absoluteTime < d);
+        }
+ */
         public override string ToString()
         {
             StringBuilder sb = new StringBuilder("Events: ");

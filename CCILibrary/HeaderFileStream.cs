@@ -144,7 +144,7 @@ namespace HeaderFileStream
                         {
                             string s = xr.ReadContentAsString();
                             ede.m_covered = s != "No";
-                        } //else Covered by default
+                        } //else Covered by default, unless set previously by Type="*"
                         xr.ReadStartElement(/* Event */);
                         xr.ReadStartElement("Name", nameSpace);
                         string name = xr.ReadContentAsString();
