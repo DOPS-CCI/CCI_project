@@ -54,7 +54,7 @@ namespace EEGArtifactEditor
         internal List<ChannelCanvas> currentChannelList = new List<ChannelCanvas>(0); //list of currently displayed channels, in order, top to bottom
         internal Montage montage; //list indicating order channels are to be displayed: montage[i] has relative location of channel i, -1 if ignored
 
-        internal List<OutputEvent> events = new List<OutputEvent>();
+        internal List<Event.Event> events = new List<Event.Event>();
         internal Dictionary<string, ElectrodeRecord> electrodes;
 
         internal Window2 notes;
@@ -113,19 +113,19 @@ namespace EEGArtifactEditor
                 Event.Event.LinkEventsToDataset(header, bdf); //link Events to dataset
                 StatusChannel sc = bdf.createStatusChannel(header.Status);
 
-                bool ok = false;
+                //First, read in and convert Events, noting if there are naked absolute and covered absolute Events present
+                bool hasNAEvent = false;
+                bool hasCAEvent = false;
                 foreach (InputEvent ie in efr) // read in all Events into list of output Events
                 {
-                    if(!ok && ie.IsCovered && ie.HasAbsoluteTime) //look for first covered Event to set zeroTime
-                        ok = bdf.setZeroTime(ie);
-                    ie.setRelativeTime(sc); //make sure we have relative time set for later sorting
-                    //*** the only problem here is if there is a naked, absolute Event before we find a covered absolute Event
-                    //*** this will raise an Exception
-                    events.Add(new OutputEvent(ie));
+                    hasNAEvent |= ie.IsNaked && ie.HasAbsoluteTime;
+                    hasCAEvent |= ie.IsCovered && ie.HasAbsoluteTime;
+                    events.Add(ie);
                 }
                 efr.Close(); //now events is list of Events in the dataset
 
-                if (!ok) //no covered Events, unable to synchronize
+                //Generate error if we can't generate relative times for naked Events
+                if (hasNAEvent && !hasCAEvent) //no covered Events, unable to synchronize ==> Error
                 {
                     ErrorWindow ew = new ErrorWindow();
                     ew.Message = "Unable to find a covered Event in this dataset on which to synchronize clocks. Exiting.";
@@ -134,11 +134,17 @@ namespace EEGArtifactEditor
                     this.Close();
                 }
 
+                //Second, if we can (and need to), determine the zerotime for the BDF file
+                if (hasNAEvent && hasCAEvent) //have naked absolute Events; need to set zero time
+                    bdf.setZeroTime(sc.getFirstZeroTime(events));
+
+                //Third, now we have all the data to set all the Events relative times; need this to sort them all later
+                foreach (Event.Event ev in events) ev.setRelativeTime(sc);
+
+                //Now we can create the marked artifact regions if this is an update
                 if (updateFlag) //re-editing this dataset for artifacts; start with currently marked regions
                 {
-                    Event.EventFactory.Instance(header.Events); // set up the factory, based on this Event dictionary
-                    //and read them in
-                    OutputEvent ev;
+                    Event.Event ev;
                     int i = 0;
                     double left;
                     while (i < events.Count) //find next begin-artifact Event
@@ -146,14 +152,14 @@ namespace EEGArtifactEditor
                         ev = events[i];
                         if (ev.Name == "**ArtifactBegin")
                         {
-                            left = bdf.timeFromBeginningOfFileTo(ev);
+                            left = ev.relativeTime;
                             events.Remove(ev);
                             while (i < events.Count) //find next end-artifact Event
                             {
                                 ev = events[i];
                                 if (ev.Name == "**ArtifactEnd")
                                 {
-                                    MarkerCanvas.createMarkRegion(left, bdf.timeFromBeginningOfFileTo(ev));
+                                    MarkerCanvas.createMarkRegion(left, ev.relativeTime);
                                     events.Remove(ev);
                                     break;
                                 }
@@ -242,7 +248,7 @@ namespace EEGArtifactEditor
                 ew.ShowDialog();
                 this.Close(); //exit
             }
-
+            this.Activate();
             //from here on the program is GUI-event driven
         }
 
@@ -938,7 +944,7 @@ namespace EEGArtifactEditor
                 {
                     if (!header.Events.TryGetValue("**ArtifactBegin", out ede1) || !header.Events.TryGetValue("**ArtifactEnd", out ede2)) //get the EDEs for the marking Events
                         throw new Exception("Error in attempted update of previously marked dataset -- incorrect marking Events");
-                    ede1.RelativeTime = true; //make sure they are BDF-based!
+                    ede1.RelativeTime = true; //make sure they are BDF-based! This corrects old-style artifact Events
                     ede2.RelativeTime = true;
                     Window3 w = new Window3();
                     w.Owner = this;
@@ -985,14 +991,14 @@ namespace EEGArtifactEditor
                 {
                     double eventTime = mr.leftEdge;
                     OutputEvent newOE = new OutputEvent(ede1, eventTime);
-                    int index = events.FindIndex(ev => bdf.timeFromBeginningOfFileTo(ev) >= eventTime);
+                    int index = events.FindIndex(ev => ev.relativeTime >= eventTime);
                     if (index < 0) //must be after last Event or no Events
                         events.Add(newOE);
                     else
                         events.Insert(index, newOE);
                     eventTime = mr.rightEdge;
                     newOE = new OutputEvent(ede2, eventTime);
-                    index = events.FindIndex(ev => bdf.timeFromBeginningOfFileTo(ev) > eventTime);
+                    index = events.FindIndex(ev => ev.relativeTime > eventTime);
                     if (index < 0)
                         events.Add(newOE);
                     else
@@ -1001,8 +1007,11 @@ namespace EEGArtifactEditor
 
                 EventFileWriter efw = new EventFileWriter(
                     new FileStream(System.IO.Path.Combine(directory, header.EventFile), FileMode.OpenOrCreate, FileAccess.Write));
-                foreach (OutputEvent ev in events)
-                    efw.writeRecord(ev);
+                foreach (Event.Event ev in events)
+                    if (ev.GetType() == typeof(InputEvent))
+                        efw.writeRecord(new OutputEvent((InputEvent)ev));
+                    else
+                        efw.writeRecord((OutputEvent)ev);
                 efw.Close();
                 Log.writeToLog("    Created/updated to dataset " + newFileName);
             }
