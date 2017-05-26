@@ -1,4 +1,4 @@
-﻿#undef DEBUG
+﻿#define DEBUG
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -559,8 +559,8 @@ namespace EEGArtifactEditor
             // change in decimation or if completely new screen (no overlap of old and new)
 
             //determine if overlap of new display with old and direction of scroll to determine trimming
-            bool scrollingRight = currentHighSecs > oldLowSecs && currentHighSecs < oldHighSecs; //implies scrolling to right; will add points on left (low end), remove from right (high end)
-            bool scrollingLeft = currentLowSecs > oldLowSecs && currentLowSecs < oldHighSecs; //implies scrolling to left; will add points on right (high end), remove from left (low end)
+            bool scrollingRight = currentHighSecs > oldLowSecs && currentHighSecs < oldHighSecs; //implies dragging to right; will add points on left (low end), remove from right (high end)
+            bool scrollingLeft = currentLowSecs > oldLowSecs && currentLowSecs < oldHighSecs; //implies dragging to left; will add points on right (high end), remove from left (low end)
             completeRedraw = completeRedraw || !(scrollingLeft || scrollingRight); //redraw if no overlap
 
             int removeLow = 0;
@@ -587,8 +587,8 @@ namespace EEGArtifactEditor
                             removeHigh = 0;                       
                     }
 
-                    if (scrollingLeft)
-                    {
+                    if (scrollingLeft) //scrollingLeft == dragging to the left or using right scroll bar button
+                    {                        
                         removeLow = s.FindIndex(p => p.X >= currentLowSecs); //how many to remove from low end of data points
                         if (removeLow >= 0)
                         {
@@ -657,8 +657,28 @@ namespace EEGArtifactEditor
                 }
             }
 
+            // Rereference the channels, if required; referencing to occur BEFORE detrending
+            if (CAReference)
+            {
+                for (int i = 0; i < currentChannelList[0].PointList.Count; i++)
+                {
+                    //calculate the reference value
+                    double average = 0;
+                    foreach (ChannelCanvas cc in currentChannelList) average += cc.PointList[i].rawY;
+                    average = average / (double)currentChannelList.Count;
+                    //and subtract it from each channel
+                    foreach (ChannelCanvas cc in currentChannelList)
+                    {
+                        PointListPoint p = cc.PointList[i]; //not sure why we have to go through another variable?
+                        p.rawY -= average;
+                        cc.PointList[i] = p;
+                    }
+                }
+            } //end rereference
+
             foreach(ChannelCanvas cc in currentChannelList)
             {
+                //first calculate the x and y means:
                 double my = 0D;
                 double mx = 0D;
                 foreach (PointListPoint p in cc.PointList)
@@ -668,6 +688,7 @@ namespace EEGArtifactEditor
                 }
                 mx /= cc.PointList.Count;
                 my /= cc.PointList.Count;
+                //and now the variances
                 double sxy = 0D;
                 double sx2 = 0D;
                 foreach (PointListPoint p in cc.PointList)
@@ -675,8 +696,10 @@ namespace EEGArtifactEditor
                     sxy += (p.X - mx) * (p.rawY - my);
                     sx2 += Math.Pow(p.X - mx, 2);
                 }
+                //from which calculate the detrending coefficients y = A + B x
                 cc.B = sxy/sx2;
                 cc.A = my - cc.B * mx;
+                //finally calculate the values to be displayed
                 cc.overallMax = double.MinValue;
                 cc.overallMin = double.MaxValue;
                 for (int i = 0; i < cc.PointList.Count; i++)
@@ -703,7 +726,7 @@ namespace EEGArtifactEditor
                 //calculate and set appropriate stroke thickness
                 cc.path.StrokeThickness = newDisplayWidthInSecs * 0.0006D;
 
-                cc.rescalePoints(); //create new pointList
+                cc.rescalePoints(); //create new pointList;
                 //and install it in window
                 ChannelCanvas.OldCanvasHeight = ChannelCanvas.nominalCanvasHeight; //reset
                 StreamGeometryContext ctx = cc.geometry.Open();
@@ -1045,6 +1068,15 @@ namespace EEGArtifactEditor
                     cc.offScaleRegions.Visibility = Visibility.Hidden;
         }
 
+        internal bool CAReference = true;
+        internal bool redoRef = true;
+        private void CheckBox_Click(object sender, RoutedEventArgs e)
+        {
+            CAReference = (bool)((CheckBox)sender).IsChecked;
+            completeRedraw = true;
+            reDrawChannels();
+        }
+
         private void ViewerContextMenu_Opened(object sender, RoutedEventArgs e)
         {
             ContextMenu cm = (ContextMenu)sender;
@@ -1115,7 +1147,7 @@ namespace EEGArtifactEditor
             }
             set
             {
-                _oldCanvasHeight = _nominalCanvasHeight;
+                _oldCanvasHeight = _nominalCanvasHeight; //remember last value
                 _nominalCanvasHeight = value;
             }
         }
