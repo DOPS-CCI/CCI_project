@@ -193,11 +193,11 @@ namespace SPSSDataConsolidator
                 {
                     f = (string)values[icode]; //assured to be a string
                     int l = ccp.leading > 0 ? Math.Min(f.Length, ccp.leading) : f.Length; //0 => all of string; else up to leading long
-                    sb.Append(f.Substring(0, l).Replace(' ', '_')); //string macro; cannot be parenthesized
+                    sb.Append(f.Substring(0, l)); //string macro; cannot be parenthesized
                 }
             }
-
-            return sb.ToString();
+            f = sb.ToString().Replace("-", "").Replace(' ', '_');
+            return f;
         }
 
         public class NameEncoding : List<Char_CodePairs>

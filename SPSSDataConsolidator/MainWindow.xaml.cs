@@ -187,8 +187,6 @@ namespace SPSSDataConsolidator
             Log.writeToLog("Beginning data consolidation to: " + SPSSFileName.Text);
             try
             {
-                //systat = new SYSTAT.SYSTATFileStream(SYSTATFileName.Text,
-                //    ((bool)SYS.IsChecked) ? SYSTAT.SYSTATFileStream.SFileType.SYS : SYSTAT.SYSTATFileStream.SFileType.SYD);
                 spss = new SPSSFile.SPSS(SPSSFileName.Text);
                 bw.RunWorkerAsync(this);
             }
