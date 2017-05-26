@@ -121,9 +121,9 @@ namespace ASCtoFMConverter
             //and last, the GVs from the counters
             if (PKCounterExists) //if there are any PK counters, we'll need their GVs
             {
-                FMStream.GVNames(GVCount - 3, "PK-rate");
-                FMStream.GVNames(GVCount - 2, "PK-velocity");
-                FMStream.GVNames(GVCount - 1, "PK-accel");
+                FMStream.GVNames(GVCount - 3, "PKRATE");
+                FMStream.GVNames(GVCount - 2, "PKVELOCITY");
+                FMStream.GVNames(GVCount - 1, "PKACCEL");
             }
 
             for (int j = 0; j < FMStream.NC; j++) //generate channel labels
