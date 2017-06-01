@@ -9,7 +9,7 @@ namespace CCIUtilitiesUnitTest
     public class PolynomialTest
     {
         [TestMethod]
-        public void ConstructorTest()
+        public void PolyConstructorTest()
         {
             string inputString = "x^4-7x^3+0.5x-17";
             string canonicalInputString = "-17+0.5x-7x^3+x^4";
@@ -33,7 +33,7 @@ namespace CCIUtilitiesUnitTest
         }
 
         [TestMethod]
-        public void OperationTest()
+        public void PolyOperationTest()
         {
             Polynomial A, B, C;
             A = new Polynomial("-t^2+6t-2", 't');
@@ -71,7 +71,7 @@ namespace CCIUtilitiesUnitTest
         }
 
         [TestMethod]
-        public void ChebychevTest()
+        public void PolyChebychevTest()
         {
             Polynomial ch = Polynomial.ChebyshevT(10);
             double[] result = new double[] { -1, 0, 50, 0, -400, 0, 1120, 0, -1280, 0, 512 };
@@ -82,7 +82,7 @@ namespace CCIUtilitiesUnitTest
         }
 
         [TestMethod]
-        public void EvaluateAtTest()
+        public void PolyEvaluateAtTest()
         {
             Assert.AreEqual(14D, (new Polynomial("2t^2-3t+12", 't')).evaluateAt(2));
         }
