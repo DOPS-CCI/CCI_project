@@ -1,0 +1,1 @@
+<Playlist Version="1.0"><Add Test="CCILibraryTest.StatusChannelTest.StatusChannelSearchTest" /><Add Test="CCILibraryTest.StatusChannelTest.StatusByteTest" /><Add Test="CCILibraryTest.StatusChannelTest.StatusChannelConstructorTest" /></Playlist>

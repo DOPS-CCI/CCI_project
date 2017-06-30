@@ -62,5 +62,15 @@ namespace CCILibraryTest
             Assert.AreEqual(1, loc.Rec);
             Assert.AreEqual(7, loc.Pt);
         }
+
+        [TestMethod]
+        public void BDFLocConversionTest()
+        {
+            BDFEDFFileStream.IBDFEDFFileReader bdf = new BDFEDFFileReaderStub(1024,1,10000);
+            BDFLoc b = (new BDFLocFactory(bdf)).New(2048);
+            Assert.AreEqual<double>(2.0, b.ToSecs());
+            Assert.AreEqual(2, b.FromPoint(2050).Pt);
+            Assert.AreEqual(2050, b.ToPoint());
+        }
     }
 }

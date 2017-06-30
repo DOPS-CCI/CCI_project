@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Event;
 using CCILibrary;
+using CCIUtilities;
 using EventDictionary;
 
 namespace BDFEDFFileStream
@@ -333,6 +334,8 @@ namespace BDFEDFFileStream
             get { return header.hasStatus; }
         }
 
+        int _fileLength;
+        public int FileLengthInPts { get { return _fileLength; } } //Length of file in bytes
         protected BDFLocFactory _locationFactory;
         public BDFLocFactory LocationFactory
         {
@@ -357,6 +360,7 @@ namespace BDFEDFFileStream
             header.read(reader); //Read in header
 
             record = new BDFEDFRecord(this); //Now can create BDFEDFRecord
+            _fileLength = NSamp * NumberOfRecords; //and calculate file length in points
             header._isValid = true;
             _locationFactory = new BDFLocFactory(this);
         }
@@ -376,6 +380,33 @@ namespace BDFEDFFileStream
                 return null;
             }
             return record;
+        }
+
+        DatasetViewer<float[]> dv = null;
+        public float[][] GetFrame(int left, int right)
+        {
+            if (dv == null)
+                dv = new DatasetViewer<float[]>(getPoint, (int)FileLengthInPts); //JIT construction
+            float[][] frame = new float[right-left][];
+            int i = 0;
+            foreach (float[] f in dv.Dataset(left, right - left)) frame[i++] = f;
+            return frame;
+        }
+
+        float[] getPoint(int i) //delegate
+        {
+            BDFLoc b = LocationFactory.New(i);
+            if (b.Rec != record.currentRecordNumber)
+            { //advance to correct record
+                long pos = (long)header.headerSize + (long)b.Rec * record.recordLength; //these files get BIG!!
+                reader.BaseStream.Seek(pos, SeekOrigin.Begin);
+                record.currentRecordNumber = b.Rec - 1; //one less as read() increments it
+                read();
+            }
+            float[] point = new float[NumberOfChannels];
+            for (int chan = 0; chan < NumberOfChannels; chan++)
+                point[chan] = (float)record.getConvertedPoint(chan, b.Pt);
+            return point;
         }
 
         /// <summary>
@@ -412,8 +443,8 @@ namespace BDFEDFFileStream
             long currentRecordPosition = (long)header.headerSize; //calculate initial file pointer position
             for (int i = 0; i < channel; i++)
                 currentRecordPosition += (long)NumberOfSamples(i) * header._bytesPerSample;
-            if (header._AnnotationChannel < channel)
-                currentRecordPosition += header.AnnotationLength * 2; //Yikes! but not likely to occur, since annotation usually at end!!
+            if (header._hasAnnotations && header._AnnotationChannel < channel)
+                currentRecordPosition += header.AnnotationLength * 2; //Yikes! But not likely to occur, since annotation usually at end!!
             int currentDataPosition = 0; //keeps track of where we are in the data array
 
             while (currentRecordPosition < reader.BaseStream.Length) //read entire file for this channel
@@ -1068,9 +1099,9 @@ namespace BDFEDFFileStream
         internal bool _isContinuous = true;
         internal bool _hasStatus = true;
         internal bool _hasAnnotations = false;
-        internal int _AnnotationChannel; //only valid if _hasAnnotations is true
-        internal int AnnotationOffset; //only valid if _hasAnnotations is true
-        internal int AnnotationLength; //only valid if _hasAnnotations is true
+        internal int _AnnotationChannel; //only valid if _hasAnnotations is true: channel number
+        internal int AnnotationOffset; //only valid if _hasAnnotations is true: in bytes
+        internal int AnnotationLength; //only valid if _hasAnnotations is true: length of channel in 2-byte increments
         public bool isBDFFile { get { return _BDFFile; } }
         public bool isEDFFile { get { return !_BDFFile; } }
         public bool isEDFPlusFile { get { return _EDFPlusFile; } }
@@ -1469,7 +1500,7 @@ namespace BDFEDFFileStream
         /// Currently available record number; read-only
         /// </summary>
         public int RecordNumber { get { return currentRecordNumber; } }
-        internal int recordLength = 0;
+        internal int recordLength = 0; //length of each record in bytes
         BDFEDFFileStream fileStream;
         BDFEDFHeader header;
         internal int[][] channelData;
@@ -1509,7 +1540,7 @@ namespace BDFEDFFileStream
                 for (int j = 0; j < header.numberSamples[i]; j++)
                     r.channelData[i][j] = this.channelData[i][j];
             if (header._hasAnnotations)
-                for (i = 0; i < header.AnnotationLength; i++)
+                for (i = 0; i < header.AnnotationLength * 2; i++)
                     r.annotationData[i] = this.annotationData[i];
             return r;
         }
@@ -1529,7 +1560,7 @@ namespace BDFEDFFileStream
             if (header._hasAnnotations)
             {
                 recordLength += header.AnnotationLength;
-                annotationData = new char[header.AnnotationLength];
+                annotationData = new char[header.AnnotationLength * 2];
             }
             recordLength *= fs.header._bytesPerSample; // calculate length in bytes
             fs._recordBuffer = new byte[recordLength];
@@ -1559,12 +1590,12 @@ namespace BDFEDFFileStream
                         channelData[channel][sample] = convert34(fileStream._recordBuffer[i], fileStream._recordBuffer[i + 1], fileStream._recordBuffer[i + 2]);
                         i += 3;
                     }
-                    else
+                    else //EDF file
                     {
                         if (header._hasAnnotations && channel == header._AnnotationChannel)
                         {
-                            annotationData[2 * i] = (char)fileStream._recordBuffer[i];
-                            annotationData[2 * i + 1] = (char)fileStream._recordBuffer[i + 1];
+                            annotationData[i] = (char)fileStream._recordBuffer[i];
+                            annotationData[i + 1] = (char)fileStream._recordBuffer[i + 1];
                         }
                         else
                             channelData[header._channelMap[channel]][sample] = convert24(fileStream._recordBuffer[i], fileStream._recordBuffer[i + 1]);
@@ -1679,6 +1710,13 @@ namespace BDFEDFFileStream
             BDFLoc b = New();
             b.Rec = (int)f;
             b.Pt = Convert.ToInt32((seconds - f * _sec) / _st); //round and use Pt in case problem at record "edge"
+            return b;
+        }
+
+        public BDFLoc New(int pointN)
+        {
+            BDFLoc b = New();
+            b.Pt = pointN;
             return b;
         }
     }
@@ -1851,7 +1889,28 @@ namespace BDFEDFFileStream
         }
 
         /// <summary>
-        /// Changes a BDFLoc to point just beyond end of file
+        /// Convert a BDFLoc to point number in file
+        /// </summary>
+        /// <returns>point number in BDF/EDF file</returns>
+        public int ToPoint()
+        {
+            return _rec * myFactory._recSize + _pt;
+        }
+
+        /// <summary>
+        /// Converts a point number to a BDFLoc
+        /// </summary>
+        /// <param name="seconds">point number in file to convert</param>
+        /// <returns>reference to self, so it can be chained with other operations</returns>
+        public BDFLoc FromPoint(int pointN)
+        {
+            _rec = 0;
+            Pt = pointN;
+            return this;
+        }
+
+        /// <summary>
+        /// Sets a BDFLoc to point just beyond end of file
         /// </summary>
         /// <returns>reference to self, so it can be chained with other operations</returns>
         public BDFLoc EOF()
