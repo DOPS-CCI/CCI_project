@@ -1,4 +1,4 @@
-﻿#define DEBUG
+﻿#undef DEBUG
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -258,7 +258,6 @@ namespace EEGArtifactEditor
             if (e.HeightChanged || e.WidthChanged)
             {
                 IndexLine.Y2 = e.NewSize.Height - ScrollBarSize;
-//                reDrawGrid(e.NewSize.Height - ScrollBarSize);
                 double w = e.NewSize.Width;
                 XScaleSecsToInches = w / newDisplayWidthInSecs;
                 //rescale axes, so that X-scale units remain seconds
@@ -276,6 +275,10 @@ namespace EEGArtifactEditor
                 double loc = e.HorizontalOffset;
                 oldDisplayOffsetInSecs = newDisplayOffsetInSecs;
                 newDisplayOffsetInSecs = loc / XScaleSecsToInches;
+                if (newDisplayOffsetInSecs + newDisplayWidthInSecs > BDFLength)
+                {
+                    newDisplayOffsetInSecs = BDFLength - newDisplayWidthInSecs;
+                }
                 ChannelCanvas.nominalCanvasHeight = ViewerGrid.ActualHeight / currentChannelList.Count; //
 
                 //change Event/location information in bottom panel
@@ -532,7 +535,136 @@ namespace EEGArtifactEditor
         }
 
         const double scaleDelta = 0.05;
-        bool completeRedraw;
+        float[][] frame;
+        public void reDrawChannels()
+        {
+            this.Cursor = Cursors.Wait;
+            List<ChannelCanvas> chans = currentChannelList;
+            int currentLowInPts = (int)(newDisplayOffsetInSecs / bdf.SampTime + 0.5);
+            int currentLengthInPts = (int)(newDisplayWidthInSecs / bdf.SampTime + 0.5);
+            ChannelCanvas.decimateNew = (int)Math.Ceiling(2.5D * currentLengthInPts / Viewer.ActualWidth);
+            if (ChannelCanvas.decimateNew == 2) ChannelCanvas.decimateNew = 1; //No advantage to decimating by 2
+#if DEBUG
+            Console.WriteLine("*****In reDrawChannels: Low=" + currentLowInPts + " Length=" + currentLengthInPts + " Decimate=" + ChannelCanvas.decimateNew);
+#endif
+
+            frame = bdf.GetFrame(currentLowInPts, currentLowInPts + currentLengthInPts); //get all data needed, current frame
+
+            // Rereference the channels, if required; referencing must occur BEFORE detrending
+            if (CAReference)
+            {
+                ChannelCanvas.CommonMode = new float[frame.Length];
+                double NChannels = (double)EEGChannels.Count; //number of EEG channels
+                for (int i = 0; i < frame.Length; i++)
+                {
+                    //calculate the reference value
+                    double average = 0D;
+                    foreach (int chan in EEGChannels) average += frame[i][chan];
+                    ChannelCanvas.CommonMode[i] = (float)(average / NChannels);
+                }
+            }
+            else
+                ChannelCanvas.CommonMode = null; //end rereference
+
+            //now for each channel to be displayed:
+            int L = frame.Length;
+            double N = L;
+            double N2 = (N - 1) / 2;
+            foreach (ChannelCanvas cc in currentChannelList)
+            {
+                //first calculate detrending parameters using all points in this channel
+                int chan = cc._channel;
+                double my = 0D;
+                double my2 = 0D;
+                for (int i = 0; i < L; i++)
+                {
+                    double p = (double)(frame[i][chan] - ChannelCanvas.GetCommonMode(i));
+                    my += p;
+                    my2 += p * (i - N2);
+                }
+                //from which calculate the detrending coefficients y = A + B x
+                cc.B = 12 * my2 / (N * (N + 1) * (N - 1));
+                cc.A = my/N;
+
+                //then decimate and find max and min, taking into account CM, A, B
+                cc.PointList.Clear();
+                cc.overallMax = double.MinValue;
+                cc.overallMin = double.MaxValue;
+                double st = bdf.SampTime;
+                for (int index = 0; index < L; )
+                {
+                    double x;
+                    double sample;
+                    if (ChannelCanvas.decimateNew == 1) //no decimation
+                    {
+                        x = index - N2;
+                        sample = frame[index][chan] - ChannelCanvas.GetCommonMode(index) - cc.A - cc.B * x;
+                        cc.PointList.Add(new Point(newDisplayOffsetInSecs + index * st, sample));
+                        cc.overallMax = Math.Max(sample, cc.overallMax);
+                        cc.overallMin = Math.Min(sample, cc.overallMin);
+                        index++;
+                    }
+                    else
+                    {
+                        double max = double.MinValue; //max value in this decimate
+                        double min = double.MaxValue; //min value in this decimate
+                        int imax = 0; //location of max value in this decimate
+                        int imin = 0; //location of min value in this decimate
+                        for (int j = 0; j < ChannelCanvas.decimateNew && index < L; j++)
+                        {
+                            x = index - N2;
+                            sample = frame[index][chan] - ChannelCanvas.GetCommonMode(index) - cc.A - cc.B * x; // we use scaled valued (in uV)
+                            cc.overallMax = Math.Max(sample, cc.overallMax);
+                            cc.overallMin = Math.Min(sample, cc.overallMin);
+                            if (sample > max) { max = sample; imax = index; } //if all values in the decimate are the same, we still create two separate
+                            if (sample <= min) { min = sample; imin = index; } //points: the first and last in the decimate by using the <= for the min!
+                            index++;
+                        }
+
+                        Point pt1 = new Point();
+                        Point pt2 = new Point();
+                        if (imax < imin) //if maximum to the "left" of minimum
+                        {
+                            pt1.X = newDisplayOffsetInSecs + imax * st;
+                            pt1.Y = max;
+                            pt2.X = newDisplayOffsetInSecs + imin * st;
+                            pt2.Y = min;
+                        }
+                        else
+                        {
+                            pt1.X = newDisplayOffsetInSecs + imin * st;
+                            pt1.Y = min;
+                            pt2.X = newDisplayOffsetInSecs + imax * st;
+                            pt2.Y = max;
+                        }
+                        cc.PointList.Add(pt1);
+                        cc.PointList.Add(pt2);
+                    }
+                }
+            }
+
+            for (int graphNumber = 0; graphNumber < chans.Count; graphNumber++)
+            {
+                ChannelCanvas cc = chans[graphNumber];
+                //calculate and set appropriate stroke thickness
+                cc.path.StrokeThickness = newDisplayWidthInSecs * 0.0006D;
+
+                cc.rescalePoints(); //create new pointList;
+                //and install it in window
+                ChannelCanvas.OldCanvasHeight = ChannelCanvas.nominalCanvasHeight; //reset
+                StreamGeometryContext ctx = cc.geometry.Open();
+                ctx.BeginFigure(cc.pointList[0], false, false);
+                ctx.PolyLineTo(cc.pointList, true, true);
+                ctx.Close();
+                cc.Height = ChannelCanvas.nominalCanvasHeight / XScaleSecsToInches;
+                Canvas.SetTop(cc, (double)graphNumber * ChannelCanvas.nominalCanvasHeight);
+                if (showOOSMarks)
+                    markChannelRegions(cc);
+            }
+            this.Cursor = Cursors.Arrow;
+        } //End redrawChannels
+
+/*        bool completeRedraw;
         public void reDrawChannels()
         {
             this.Cursor = Cursors.Wait;
@@ -559,9 +691,9 @@ namespace EEGArtifactEditor
             // change in decimation or if completely new screen (no overlap of old and new)
 
             //determine if overlap of new display with old and direction of scroll to determine trimming
-            bool scrollingRight = currentHighSecs > oldLowSecs && currentHighSecs < oldHighSecs; //implies dragging to right; will add points on left (low end), remove from right (high end)
-            bool scrollingLeft = currentLowSecs > oldLowSecs && currentLowSecs < oldHighSecs; //implies dragging to left; will add points on right (high end), remove from left (low end)
-            completeRedraw = completeRedraw || !(scrollingLeft || scrollingRight); //redraw if no overlap
+            bool draggingRight = currentHighSecs > oldLowSecs && currentHighSecs < oldHighSecs; //implies dragging to right; will add points on left (low end), remove from right (high end)
+            bool draggingLeft = currentLowSecs > oldLowSecs && currentLowSecs < oldHighSecs; //implies dragging to left; will add points on right (high end), remove from left (low end)
+            completeRedraw |=  !(draggingLeft || draggingRight); //redraw if no overlap
 
             int removeLow = 0;
             int removeHigh = 0;
@@ -574,7 +706,7 @@ namespace EEGArtifactEditor
                 //non-overlap lower and higher than current display
                 if (s.Count > 0)
                 {
-                    if (scrollingRight) //scrollingRight == dragging to the right or using left scroll bar button
+                    if (draggingRight) //scrollingRight == dragging to the right or using left scroll bar button
                     {
                         removeHigh = -s.FindIndex(p => p.X >= currentHighSecs); //where to start removing from high end of data points
                         if (removeHigh <= 0)
@@ -587,7 +719,7 @@ namespace EEGArtifactEditor
                             removeHigh = 0;                       
                     }
 
-                    if (scrollingLeft) //scrollingLeft == dragging to the left or using right scroll bar button
+                    if (draggingLeft) //scrollingLeft == dragging to the left or using right scroll bar button
                     {                        
                         removeLow = s.FindIndex(p => p.X >= currentLowSecs); //how many to remove from low end of data points
                         if (removeLow >= 0)
@@ -741,7 +873,7 @@ namespace EEGArtifactEditor
             completeRedraw = false;
             this.Cursor = Cursors.Arrow;
         } //End redrawChannels
-
+*/
         void markChannelRegions(ChannelCanvas cc)
         {
             cc.offScaleRegions.Children.Clear();
@@ -751,7 +883,7 @@ namespace EEGArtifactEditor
             double lowerThr = -upperThr;
             bool InBadRegion = false;
             double rectLeft = 0;
-            foreach (PointListPoint pt in cc.PointList)
+            foreach (Point pt in cc.PointList)
             {
                 if (pt.Y > upperThr || pt.Y < lowerThr)
                 {
@@ -775,7 +907,7 @@ namespace EEGArtifactEditor
 
         void addNewCCRect(ChannelCanvas cc, double left, double right)
         {
-            if (left >= right) return; //can't mark single value -- unlikely to occur
+            if (left >= right) return; //can't mark single point -- unlikely to occur
             Rectangle r = new Rectangle();
             r.Opacity = 0.4;
             r.Fill = Brushes.Green;
@@ -839,7 +971,7 @@ namespace EEGArtifactEditor
             ViewerCanvas.Children.Add(cc);
             ViewerCanvas.Children.Add(cc.offScaleRegions);
             ChannelCanvas.nominalCanvasHeight = ViewerGrid.ActualHeight / currentChannelList.Count; //update ChannelCanvas heights
-            completeRedraw = true; //let redraw know that there's a new channel, forcing a complete redraw
+//            completeRedraw = true; //let redraw know that there's a new channel, forcing a complete redraw
             reDrawChannelLabels();
             reDrawChannels();
         }
@@ -907,7 +1039,9 @@ namespace EEGArtifactEditor
 
         private void FOV_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            ChangeDisplayWidth(Math.Min(Math.Pow(10D, e.NewValue), BDFLength));
+            double NewWidth = Math.Min(Math.Pow(10D, e.NewValue), BDFLength);
+            ChangeDisplayWidth(NewWidth);
+            if (DW != null) DW.Text = NewWidth.ToString("0.000");
             reDrawGrid(VerticalGrid.ActualHeight - ScrollBarSize);
         }
 
@@ -1073,7 +1207,7 @@ namespace EEGArtifactEditor
         private void CheckBox_Click(object sender, RoutedEventArgs e)
         {
             CAReference = (bool)((CheckBox)sender).IsChecked;
-            completeRedraw = true;
+//            completeRedraw = true;
             reDrawChannels();
         }
 
@@ -1127,7 +1261,7 @@ namespace EEGArtifactEditor
         internal System.Windows.Shapes.Path path = new System.Windows.Shapes.Path();
         internal Line baseline = new Line();
 
-        internal List<PointListPoint> PointList = new List<PointListPoint>(4096); //Points with Y-scale of uV: original and de-trended
+        internal List<Point> PointList = new List<Point>(4096); //Points with Y-scale of uV: original and de-trended
         internal List<Point> pointList = new List<Point>(4096); //Final Points for creating the PolyLine on the Canvas
 //        internal bool needsRedraw = true;
         internal double overallMax; //detrended maximal value
@@ -1139,6 +1273,11 @@ namespace EEGArtifactEditor
         internal static int decimateNew;
         private static double _nominalCanvasHeight = 0;
         private static double _oldCanvasHeight;
+        internal static float[] CommonMode = null;
+        internal static float GetCommonMode(int index)
+        {
+            return CommonMode == null ? 0F : CommonMode[index];
+        }
         internal static double nominalCanvasHeight
         {
             get
@@ -1191,7 +1330,7 @@ namespace EEGArtifactEditor
         //at the given location (index) in the BDF/EDF file; it finds the minimum and maximum values in
         //the next decimateNew points and saves those values in FilePoint, placing the new Points above
         //or below the Points already in FilePoint
-        internal void createMinMaxPoints(BDFEDFFileStream.BDFLoc index, bool addAbove)
+/*        internal void createMinMaxPoints(BDFEDFFileStream.BDFLoc index, bool addAbove)
         {
             double secs = index.ToSecs();
             if (decimateNew == 1) //only time we generate single point
@@ -1247,13 +1386,13 @@ namespace EEGArtifactEditor
                 this.PointList.Insert(0, pt1);
             }
         }
-
+*/
         internal void rescalePoints()
         {
             double c1 = nominalCanvasHeight / ChannelYScale; // nominalCanvasHeight is already scaled by XScaleSecsToInches
             double c2 = nominalCanvasHeight / 2;
             pointList.Clear();
-            foreach(PointListPoint pt in PointList)
+            foreach(Point pt in PointList)
             {
                 pointList.Add(new Point(pt.X, c2 - c1 * pt.Y));
             }
@@ -1415,18 +1554,19 @@ namespace EEGArtifactEditor
             return leftEdge >= left && leftEdge <= right || rightEdge >= left && rightEdge <= right;
         }
     }
-
+/*
     internal struct PointListPoint
     {
-        public double rawY;
+//        public double rawY;
         public double X;
         public double Y;
 
         internal PointListPoint(double x, double y)
         {
-            rawY = y;
+//            rawY = y;
             X = x;
-            Y = 0;
+            Y = y;
         }
     }
+ * */
 }
