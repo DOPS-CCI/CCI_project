@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Runtime;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using CCIUtilities;
 
@@ -14,9 +15,9 @@ namespace CCIUtilitiesUnitTest
             CircularBuffer<double> cb = new CircularBuffer<double>(2, 7);
             Assert.AreEqual(2, cb.CurrentSize);
             cb.IncreaseSize();
-            Assert.AreEqual(4, cb.CurrentSize);
+            Assert.AreEqual(3, cb.CurrentSize);
             cb.IncreaseSize();
-            Assert.AreEqual(7, cb.CurrentSize);
+            Assert.AreEqual(5, cb.CurrentSize);
         }
 
         [TestMethod]
@@ -35,7 +36,7 @@ namespace CCIUtilitiesUnitTest
             Assert.AreEqual<double>(7, cb[1]);
             cb.AddToFront(-3D);
             Assert.AreEqual(3, cb.Length);
-            Assert.AreEqual(4, cb.CurrentSize);
+            Assert.AreEqual(3, cb.CurrentSize);
             Assert.AreEqual<double>(5, cb[0]);
             Assert.AreEqual<double>(7, cb[1]);
             Assert.AreEqual<double>(-3, cb[2]);
@@ -72,10 +73,11 @@ namespace CCIUtilitiesUnitTest
             Assert.AreEqual<double>(-17, cb.RemoveAtBack());
             Assert.AreEqual<double>(-1, cb.RemoveAtBack());
             cb = new CircularBuffer<double>(3, 20);
-            for (double d = 0D; d < 10D; d += 1D)
+            cb.AddToBack(0D);
+            for (double d = 1D; d < 10D; d += 1D)
             {
                 cb.AddToBack(-d);
-                if(d!=0D) cb.AddToFront(d);
+                cb.AddToFront(d);
             }
             Assert.AreEqual(19, cb.Length);
             Assert.AreEqual(20, cb.CurrentSize);
@@ -100,29 +102,95 @@ namespace CCIUtilitiesUnitTest
         [TestMethod]
         public void CBTimingTest()
         {
+            CircularBuffer<float[]> cb = new CircularBuffer<float[]>(1024, Int32.MaxValue);
+            int N = 1500000;
+            GC.Collect();
+            Console.WriteLine("Start=" + GC.GetTotalMemory(false).ToString("0,0"));
             Stopwatch s = Stopwatch.StartNew();
-            CircularBuffer<float[]> cb = new CircularBuffer<float[]>(1, Int64.MaxValue);
-            for (int i = 0; i < 5000000; i+=2)
+            for (int i = 0; i < N; i++)
             {
-                float[] f = new float[128];
-                for (int j = 0; j < 128; j++)
+                try
                 {
-                    f[j] = (float)i * j;
+                    float[] f = new float[128];
+                    for (int j = 0; j < 128; j++)
+                    {
+                        f[j] = (float)i * j;
+                    }
+                    cb.AddToFront(f);
+                    f = new float[128];
+                    for (int j = 0; j < 128; j++)
+                    {
+                        f[j] = -(float)i * j;
+                    }
+                    cb.AddToBack(f);
                 }
-                cb.AddToFront(f);
-                for (int j = 0; j < 128; j++)
+                catch(OutOfMemoryException e)
                 {
-                    f[j] = (float)(i + 1) * j;
+                    long p = i * 256 * 4;
+                    Console.WriteLine("Out of memory; N = " + i.ToString("0,0") + "; memory = " + p.ToString("0,0"));
+                    throw (e);
                 }
-                cb.AddToBack(f);
             }
-            Console.WriteLine("Current size = " + cb.CurrentSize.ToString("0"));
             Console.WriteLine(s.Elapsed);
-            float[] f1 = new float[128];
+            Console.WriteLine("Current size = " + cb.CurrentSize.ToString("0,0"));
+            Console.WriteLine("Buffer size = " + cb.Length.ToString("0,0"));
+            Console.WriteLine("Middle=" + GC.GetTotalMemory(true).ToString("0,0"));
+            double[] f1 = new double[128];
             foreach (float[] f in cb)
                 for (int j = 0; j < 128; j++)
                     f1[j] += f[j];
             Console.WriteLine(s.Elapsed);
+            Console.WriteLine("End=" + GC.GetTotalMemory(true).ToString("0,0"));
+        }
+
+        [TestMethod]
+        public void CBCirculationTest()
+        {
+            CircularBuffer<double> cb = new CircularBuffer<double>(1, Int32.MaxValue);
+            cb.AddToFront(1.0);
+            for (int i = 0; i < 50; i++)
+            {
+                cb.AddToFront(i + 2);
+                Assert.AreEqual(i + 1, cb.RemoveAtBack());
+            }
+            Assert.AreEqual(51, cb[0]);
+
+            cb = new CircularBuffer<double>(1, Int32.MaxValue);
+            cb.AddToBack(1.0);
+            for (int i = 0; i < 50; i++)
+            {
+                cb.AddToBack(i + 2);
+                Assert.AreEqual(i + 1, cb.RemoveAtFront());
+            }
+            Assert.AreEqual(51, cb[0]);
+            cb.RemoveAtBack();
+            Assert.AreEqual(0, cb.Length);
+
+            CircularBuffer<int> cb1 = new CircularBuffer<int>(1, Int32.MaxValue);
+            Random r = new Random();
+            int N = 100000000;
+            int MaxLength = 0;
+            Stopwatch s = Stopwatch.StartNew();
+            for (int i = 0; i < N; i++)
+            {
+                if (cb1.Length > 0 && r.NextDouble() < 0.5)
+                {
+                    if (r.NextDouble() >= 0.5)
+                        cb1.RemoveAtFront();
+                    else
+                        cb1.RemoveAtBack();
+                }
+                else
+                {
+                    if (cb1.Length == 0) Console.WriteLine("Circular buffer empty at i = {0}", i);
+                    if (r.NextDouble() >= 0.5)
+                        cb1.AddToFront(i);
+                    else
+                        cb1.AddToBack(i);
+                }
+                MaxLength = Math.Max(MaxLength, cb1.Length);
+            }
+            Console.WriteLine("Time for {0} operations = {1} with MaxLength = {2}, current length = {3}", N.ToString("0,0"), s.Elapsed, MaxLength, cb1.Length);
         }
     }
 }

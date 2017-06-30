@@ -1,0 +1,1 @@
+<Playlist Version="1.0"><Add Test="CCIUtilitiesUnitTest.CircularBufferTest.CBConstructorTest" /><Add Test="CCIUtilitiesUnitTest.CircularBufferTest.CBTimingTest" /><Add Test="CCIUtilitiesUnitTest.CircularBufferTest.CBInsertModifyTest" /><Add Test="CCIUtilitiesUnitTest.CircularBufferTest.CBCirculationTest" /></Playlist>

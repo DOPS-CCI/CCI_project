@@ -7,13 +7,13 @@ namespace CCIUtilitiesUnitTest
     [TestClass]
     public class DatasetViewerTest
     {
-        double dataset(long n) { return (double)(n + 1); }
+        double dataset(int n) { return (double)(n + 1); }
 
         [TestMethod]
         public void DVConstructorTest()
         {
             DatasetViewer<double> dv = new DatasetViewer<double>(dataset, 20, 10);
-            for (long i = 0; i < 10; i++)
+            for (int i = 0; i < 10; i++)
                 Assert.AreEqual<double>((double)(i + 1), dv[i]);
         }
 
@@ -21,7 +21,7 @@ namespace CCIUtilitiesUnitTest
         public void DVIndexingTest()
         {
             PrivateType pt = new PrivateType(typeof(DatasetViewer<double>));
-            pt.SetStaticField("FirstBufferSize", 3L); //work with small Chunk sizes to stress that logic
+            pt.SetStaticField("FirstBufferSize", 3); //work with small Chunk sizes to stress that logic
             DatasetViewer<double> dv = new DatasetViewer<double>(dataset, 40, 10);
             Assert.AreEqual<double>(9.0, dv[8]);
             Assert.AreEqual(9, dv.Length);
@@ -43,7 +43,7 @@ namespace CCIUtilitiesUnitTest
         public void DVIteratorTest()
         {
             PrivateType pt = new PrivateType(typeof(DatasetViewer<double>));
-            pt.SetStaticField("FirstBufferSize", 3L); //work with small Chunk sizes to stress that logic
+            pt.SetStaticField("FirstBufferSize", 3); //work with small Chunk sizes to stress that logic
             DatasetViewer<double> dv = new DatasetViewer<double>(dataset, 50, 20); //50 points in dataset, maximum viewlength of 20
             Assert.AreEqual<double>(5.0, dv[4]);
             Assert.AreEqual(5, dv.Length); //0-5

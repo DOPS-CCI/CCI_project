@@ -10,17 +10,17 @@ namespace CCIUtilities
     public class CircularBuffer<T> : IEnumerable<T>
     {
         List<Chunk> chunks = new List<Chunk>(10);
-        long _bufferLength = 0;
-        long _back = 0; //internal index showing where current element 0 of the allocated Buffer is
-        long _front = 0; //internal index showing where last element in the allocated buffer is
+        int _bufferLength = 0;
+        int _back = 0; //internal index showing where current element 0 of the allocated Buffer is
+        int _front = 0; //internal index showing where last element in the allocated buffer is
 
         #region Properties
 
-        public long MaxSize { get; set; }
+        public int MaxSize { get; set; }
 
         //current size of circular buffer storage
-        long _currentSize;
-        public long CurrentSize
+        int _currentSize;
+        public int CurrentSize
         {
             get
             {
@@ -29,7 +29,7 @@ namespace CCIUtilities
         }
 
         //current length of valid data in circular buffer
-        public long Length
+        public int Length
         {
             get
             {
@@ -51,13 +51,13 @@ namespace CCIUtilities
         /// </summary>
         /// <param name="index">index of allocated buffer element to return</param>
         /// <returns>value of element</returns>
-        public T this[long index]
+        public T this[int index]
         {
             get
             {
                 if (indexOK(index))
                 {
-                    long i = (_back + index) % _currentSize;
+                    int i = (_back + index) % _currentSize;
                     Chunk c = findChunk(i);
                     return c[i - c.First];
                 }
@@ -69,7 +69,7 @@ namespace CCIUtilities
             {
                 if (indexOK(index))
                 {
-                    long i = (_back + index) % _currentSize;
+                    int i = (_back + index) % _currentSize;
                     Chunk c = findChunk(i);
                     c[i - c.First] = value;
                 }
@@ -81,7 +81,7 @@ namespace CCIUtilities
 
         #region Constructors
 
-        public CircularBuffer(long initialSize, long maxSize)
+        public CircularBuffer(int initialSize, int maxSize)
         {
             if (initialSize <= 0 || maxSize <= 0)
                 throw new ArgumentOutOfRangeException("In CircularBuffer constructor: size argument <= 0");
@@ -90,15 +90,17 @@ namespace CCIUtilities
             _currentSize = initialSize;
         }
 
-        public CircularBuffer(long initialSize) : this(initialSize, initialSize) { }
+        public CircularBuffer(int initialSize) : this(initialSize, Int32.MaxValue) { }
         #endregion
 
         #region public methods
 
         public void IncreaseSize()
         {
-            long size = _currentSize;
-            if (size << 1 > MaxSize) size = MaxSize - size;
+            int size;
+            size = (_currentSize + 1) >> 1; //asdd 50% of current size each time
+            if (_currentSize + size > MaxSize) size = MaxSize - _currentSize;
+
             if (_back < _front) //then allocate at the "junction": "easy-peasy"
             {
                 allocate(size); //double size of cirular buffer up to max
@@ -117,20 +119,20 @@ namespace CCIUtilities
                 }
             }
             //finally, if none found, allocate at "junction" and move elements into newly allocated Chunk
-            long backsideLength = _currentSize - _back;
+            int backsideLength = _currentSize - _back;
             Chunk newChunk = allocate(size); //add new Chunk to end of buffer
             _currentSize += size;
             if (backsideLength >= _front) //move front end of allocated buffer back into front of new Chunk
             {
                 int fromChunk = 0;
-                long fromN = 0;
+                int fromN = 0;
                 int toChunk = chunks.Count - 1;
-                long toN = 0;
-                for (long i = 0; i < _front; i++)
+                int toN = 0;
+                for (int i = 0; i < _front; i++)
                 {
                     chunks[toChunk].buffer[toN++] = chunks[fromChunk][fromN];
                     chunks[fromChunk].buffer[fromN++] = default(T); //remove reference for garbage collection
-                    if (fromN >= chunks[fromChunk].buffer.Length)
+                    if (fromN >= chunks[fromChunk].Length)
                     {
                         fromN = 0;
                         ++fromChunk; //will never "wrap around"
@@ -141,15 +143,15 @@ namespace CCIUtilities
                         if (++fromChunk >= chunks.Count) fromChunk = 0;
                     }
                 }
-                _front = chunks.Last().First + _front;
+                if ((_front += chunks.Last().First) >= _currentSize) _front = 0;
             }
             else //move back end of allocated buffer forward into back of new Chunk
             {
                 int fromChunk = chunks.Count - 2;
-                long fromN = chunks[fromChunk].buffer.Length;
+                int fromN = chunks[fromChunk].buffer.Length;
                 int toChunk = chunks.Count - 1;
-                long toN = size;
-                for (long i = 0; i < backsideLength; i++)
+                int toN = size;
+                for (int i = 0; i < backsideLength; i++)
                 {
                     chunks[toChunk].buffer[--toN] = chunks[fromChunk].buffer[fromN - 1];
                     chunks[fromChunk].buffer[--fromN] = default(T);
@@ -159,7 +161,7 @@ namespace CCIUtilities
                     }
                     if (toN <= 0)
                     {
-                        toN = chunks[--toChunk].buffer.Length;
+                        toN = chunks[--toChunk].Length;
                     }
                 }
                 _back = _currentSize - backsideLength;
@@ -171,7 +173,7 @@ namespace CCIUtilities
             if (_front == _back && _bufferLength > 0) IncreaseSize(); //need more space
             Chunk c = findChunk(_front);
             c.buffer[_front - c.First] = newElement;
-            if (++_front >= _currentSize) _front = 0; //loop around
+            if (++_front >= _currentSize) _front = 0;
             _bufferLength++; ;
         }
 
@@ -200,7 +202,7 @@ namespace CCIUtilities
             if (_bufferLength <= 0)
                 throw new Exception("In CircularBuffer.RemoveAtBack: attempt to remove from empty buffer");
             T ret = this[0];
-            this[0] = default(T);
+            this[0] = default(T); //remove reference
             if (++_back >= _currentSize) _back = 0;
             --_bufferLength;
             return ret;
@@ -210,14 +212,14 @@ namespace CCIUtilities
         {
             if (clearValues)
             {
-                for (long i = 0; i < Length; i++) this[i] = default(T);
+                for (int i = 0; i < Length; i++) this[i] = default(T);
             }
             _back = 0;
             _front = 0;
             _bufferLength = 0;
         }
 
-        public IEnumerable<T> Entries(long From, long Length)
+        public IEnumerable<T> Entries(int From, int Length)
         {
             IEnumerator<T> e = GetEnumerator(From, Length);
             while (e.MoveNext())
@@ -228,7 +230,7 @@ namespace CCIUtilities
 
         #region private methods
 
-        Chunk allocate(long size)
+        Chunk allocate(int size)
         {
             Chunk c;
             T[] buffer = new T[size];
@@ -239,7 +241,7 @@ namespace CCIUtilities
             return c;
         }
 
-        void allocateAfter(int after, long size)
+        void allocateAfter(int after, int size)
         {
             Chunk afterChunk = chunks[after];
             Chunk c = new Chunk();
@@ -255,12 +257,12 @@ namespace CCIUtilities
             }
         }
 
-        bool indexOK(long index)
+        bool indexOK(int index)
         {
             return index >= 0 && index < _bufferLength;
         }
 
-        Chunk findChunk(long index)
+        Chunk findChunk(int index)
         {
             return chunks.Find(c => index >= c.First && index < c.Last);
         }
@@ -271,7 +273,7 @@ namespace CCIUtilities
             return new CBEnumerator(this);
         }
 
-        internal IEnumerator<T> GetEnumerator(long start, long length)
+        internal IEnumerator<T> GetEnumerator(int start, int length)
         {
             return new CBEnumerator(this, start, length);
         }
@@ -283,17 +285,17 @@ namespace CCIUtilities
 
         internal struct Chunk: IEqualityComparer<Chunk>
         {
-            internal long First;
-            internal long Last;
+            internal int First;
+            internal int Last;
             internal T[] buffer;
 
-            internal T this[long i]
+            internal T this[int i]
             {
                 get { return buffer[i]; }
                 set { buffer[i] = value; }
             }
 
-            internal long Length { get { return Last - First; } }
+            internal int Length { get { return (int)(Last - First); } }
 
             public bool Equals(Chunk x, Chunk y)
             {
@@ -302,7 +304,7 @@ namespace CCIUtilities
 
             public int GetHashCode(Chunk obj)
             {
-                return (int)(First & 0xFFFFFFFF);
+                return (int)(First);
             }
         }
 
@@ -310,21 +312,19 @@ namespace CCIUtilities
         {
             CircularBuffer<T> CBuffer;
             Chunk currentChunk; //Chunk containing the current element
-            long currentCIndex; //Index within Chunk of current element
-            long currentBIndex; //Index within Buffer
-            long start;
-            long stop;
+            int currentCIndex; //Index within Chunk of current element
+            int currentBIndex; //Index within Buffer
+            int start;
+            int stop;
 
             public CBEnumerator(CircularBuffer<T> cb) : this(cb, 0, cb._bufferLength) { }
 
-            public CBEnumerator(CircularBuffer<T> cb, long initialOffset, long length)
+            public CBEnumerator(CircularBuffer<T> cb, int initialOffset, int length)
             {
                 CBuffer = cb;
                 start = (CBuffer._back + initialOffset) % CBuffer._currentSize;
-                currentChunk = CBuffer.findChunk(start);
-                currentBIndex = -1;
-                currentCIndex = start - currentChunk.First - 1;
                 stop = length;
+                Reset();
             }
 
             public T Current
@@ -347,9 +347,9 @@ namespace CCIUtilities
 
             public void Reset()
             {
-                currentChunk = CBuffer.findChunk(CBuffer._back);
+                currentChunk = CBuffer.findChunk(start);
                 currentBIndex = - 1;
-                currentCIndex = CBuffer._back - currentChunk.First - 1;
+                currentCIndex = (int)(start - currentChunk.First - 1);
             }
 
             public void Dispose() { }
@@ -360,17 +360,17 @@ namespace CCIUtilities
     #region DatasetViewer class
     public class DatasetViewer<T>
     {
-        static long FirstBufferSize = 1024; //Recommended first CircularBuffer size
+        static int FirstBufferSize = 1024; //Recommended first CircularBuffer size
         CircularBuffer<T> dataBuffer;
-        long _datasetLength; //total number of elements in dataset
-        long _maxViewLength; //also equals the maximum size of CircularBuffer
-        long _current0 = 0;
-        long _currentDataLength = 0;
-        long _currentN { get { return _current0 + _currentDataLength; } }
+        int _datasetLength; //total number of elements in dataset
+        int _maxViewLength; //also equals the maximum size of CircularBuffer
+        int _current0 = 0;
+        int _currentDataLength = 0;
+        int _currentN { get { return _current0 + _currentDataLength; } }
 
-        public long Length { get { return _currentDataLength; } } //length of current View
+        public int Length { get { return _currentDataLength; } } //length of current View
 
-        public T this[long i] //i is dataset index, may be outside current View, which will be adjusted as needed
+        public T this[int i] //i is dataset index, may be outside current View, which will be adjusted as needed
         {
             get
             {
@@ -381,13 +381,13 @@ namespace CCIUtilities
                 { //if so, ...
                     if (i < _current0) //is datapoint to left of data currently in CircularBuffer?
                     { //if so, fill to left, behind current CB data
-                        long limit = _current0 - i; //CB index; this is negative indicating index to left(behind) currnet _back
+                        int limit = _current0 - i; //CB index; this is negative indicating index to left(behind) currnet _back
                         for (int j = 0; j < limit; j++)
                             d = AddOnLeft();
                     }
                     else //datapoint must be to right of data in CB
                     { //if so, fill to right, ahead of current CB data
-                        long limit = i - _currentN;
+                        int limit = i - _currentN;
                         for (int j = 0; j <= limit; j++)
                             d = AddOnRight();
                     }
@@ -396,10 +396,10 @@ namespace CCIUtilities
             }
         }
 
-        public delegate T AccessDataset(long location); //source of data
+        public delegate T AccessDataset(int location); //source of data
         AccessDataset dataPoint;
 
-        public DatasetViewer(AccessDataset data, long dataLength, long bufferLength)
+        public DatasetViewer(AccessDataset data, int dataLength, int bufferLength)
         {
             dataPoint = data;
             _datasetLength = dataLength;
@@ -407,25 +407,25 @@ namespace CCIUtilities
             dataBuffer = new CircularBuffer<T>(Math.Min(DatasetViewer<T>.FirstBufferSize, bufferLength), Math.Min(bufferLength, dataLength));
         }
 
-        public DatasetViewer(AccessDataset data, long dataLength) : this(data, dataLength, dataLength) { }
+        public DatasetViewer(AccessDataset data, int dataLength) : this(data, dataLength, dataLength) { }
 
-        public IEnumerable<T> Dataset(long From, long Length)
+        public IEnumerable<T> Dataset(int From, int Length)
         {
-            long To = From + Length;
+            int To = From + Length;
             if (!IsDatasetIndexInDataset(From) || !IsDatasetIndexInDataset(To))
                 throw new IndexOutOfRangeException("In DatasetViewer.Dataset iterator: invalid dataset index");
             if (IsDatasetIndexInCB(From)) //then at least From is inside CircularBuffer
             {//so we can read direcly from CircularBuffer for at least some of the data points
-                long from = mapDatasetToCBIndex(From);
-                long length = Math.Min(Length, dataBuffer.Length - from);
-                long remainder = Length - length;
+                int from = mapDatasetToCBIndex(From);
+                int length = Math.Min(Length, dataBuffer.Length - from);
+                int remainder = Length - length;
                 foreach (T d in dataBuffer.Entries(from, length))
                     yield return d;
 
                 if (remainder > 0) //then To is ouside of current View
                 {
                     from = From + length;
-                    for (long i = from; i < To; i++)
+                    for (int i = from; i < To; i++)
                         yield return this[i]; //have to do it this way because _left may be changing
                 }
             }
@@ -434,16 +434,16 @@ namespace CCIUtilities
                 yield return this[From++]; //after first one has been read, the View has moved and the new From is ...
                 // inside the buffer; To may or may not be anymore
                 Length--;
-                long from = mapDatasetToCBIndex(From);
-                long length = Math.Min(Length, dataBuffer.Length - from);
-                long remainder = Length - length;
+                int from = mapDatasetToCBIndex(From);
+                int length = Math.Min(Length, dataBuffer.Length - from);
+                int remainder = Length - length;
                 foreach (T d in dataBuffer.Entries(from, length))
                     yield return d;
 
                 if (remainder > 0) //then To is ouside of current View
                 {
                     from = From + length;
-                    for (long i = from; i < To; i++)
+                    for (int i = from; i < To; i++)
                         yield return this[i]; //have to do it this way because _left may be changing
                 }
             }
@@ -458,7 +458,7 @@ namespace CCIUtilities
                     _currentDataLength = 0;
                     _current0 = From;
                 }
-                for (long i = From; i < To; i++)
+                for (int i = From; i < To; i++)
                     yield return this[i];
             }
         }
@@ -495,19 +495,19 @@ namespace CCIUtilities
         /// </summary>
         /// <param name="n">DatasetIndex: 0 to datasetLength</param>
         /// <returns>CB index</returns>
-        long mapDatasetToCBIndex(long n)
+        int mapDatasetToCBIndex(int n)
         {
             return n - _current0;
         }
 
-        bool IsDatasetIndexInCB(long n)
+        bool IsDatasetIndexInCB(int n)
         {
             return n >= _current0 && n < _current0 + dataBuffer.Length;
         }
 
-        bool IsDatasetIndexInDataset(long n)
+        bool IsDatasetIndexInDataset(int n)
         {
-            return n >= 0 && n < _datasetLength;
+            return n >= 0 && n <= _datasetLength;
         }
     }
     #endregion
