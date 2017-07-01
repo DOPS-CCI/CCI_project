@@ -1,4 +1,4 @@
-﻿#undef DEBUG
+﻿#define DEBUG
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -580,7 +580,8 @@ namespace EEGArtifactEditor
                 {
                     double p = (double)(frame[i][chan] - ChannelCanvas.GetCommonMode(i));
                     my += p;
-                    my2 += p * (i - N2);
+                    if (calcB)
+                        my2 += p * (i - N2);
                 }
                 //from which calculate the detrending coefficients y = A + B x
                 cc.B = 12 * my2 / (N * (N + 1) * (N - 1));
@@ -1202,12 +1203,17 @@ namespace EEGArtifactEditor
                     cc.offScaleRegions.Visibility = Visibility.Hidden;
         }
 
-        internal bool CAReference = true;
-        internal bool redoRef = true;
-        private void CheckBox_Click(object sender, RoutedEventArgs e)
+        bool CAReference = true;
+        private void CAR_Click(object sender, RoutedEventArgs e)
         {
             CAReference = (bool)((CheckBox)sender).IsChecked;
-//            completeRedraw = true;
+            reDrawChannels();
+        }
+
+        bool calcB = true;
+        private void Trend_Click(object sender, RoutedEventArgs e)
+        {
+            calcB = (bool)((CheckBox)sender).IsChecked;
             reDrawChannels();
         }
 
