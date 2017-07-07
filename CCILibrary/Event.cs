@@ -220,7 +220,7 @@ namespace Event
         /// Events with relative time; uses location of Status mark for covered Events; and uses zeroTime to
         /// estimate relative time for naked, absolute Events
         /// </summary>
-        /// <param name="sc">StatusChannel objected obtained by scanning Status channel for Event marks</param>
+        /// <param name="sc">StatusChannel object obtained by scanning Status channel for Event marks</param>
         public void setRelativeTime(StatusChannel sc)
         {
             if (EDE.HasRelativeTime) //relative time Event

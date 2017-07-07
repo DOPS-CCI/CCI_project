@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -7,9 +8,9 @@ using Event;
 
 namespace BDFEDFFileStream
 {
-    public class StatusChannel
+    public class StatusChannel : IEnumerable<GCTime>
     {
-        List<GCTime> GCList = new List<GCTime>();
+        internal List<GCTime> GCList = new List<GCTime>();
         public List<SystemEvent> SystemEvents = new List<SystemEvent>();
 
         public StatusChannel(IBDFEDFFileReader bdf, int maskBits, bool hasSystemEvents)
@@ -40,13 +41,18 @@ namespace BDFEDFFileStream
                     else continue; //if not zero keep looking
 
                 if (c == comp.Value) continue; //no shange, keep looking
-                
+
                 gc.Value = c;
                 int n = gc - comp; //subtract Gray codes to find how many Events occur at this exact time
-                if (n <= 0) throw new Exception("In StatusChannel: too many Events at one Status time");
-                double t = (double)i * sampleTime;
-                for (int k = 0; k < n; k++) //create an entry for every Event at this time
-                    GCList.Add(new GCTime(++comp, t)); //this also sets comp to the right value
+                if (n > 0)
+                {
+
+                    double t = (double)i * sampleTime;
+                    for (int k = 0; k < n; k++) //create an entry for every Event at this time
+                        GCList.Add(new GCTime(++comp, t)); //this also sets comp to the right value
+                }
+                else //assume that this code is erroneous; skip it but use as basis for later codes
+                    comp = gc;
             }
         }
 
@@ -109,23 +115,23 @@ namespace BDFEDFFileStream
             if (ev == null) return null;
             return ev.Time - GCList.Find(gct => gct.GC.Value == (uint)ev.GC).Time;
         }
-/*
-        public double getRelativeTimeBasedOnClosestAbsolute(List<Event.Event> events, double absoluteTime)
-        {
-            foreach (Event.Event ev in events)
-            {
-                if (ev.HasRelativeTime || ev.IsNaked) continue; //looking for covered, absolute Events only
-                double t = ev.Time; //absolute time of current event
-                while (t <= absoluteTime)
+        /*
+                public double getRelativeTimeBasedOnClosestAbsolute(List<Event.Event> events, double absoluteTime)
                 {
+                    foreach (Event.Event ev in events)
+                    {
+                        if (ev.HasRelativeTime || ev.IsNaked) continue; //looking for covered, absolute Events only
+                        double t = ev.Time; //absolute time of current event
+                        while (t <= absoluteTime)
+                        {
 
+                        }
+                    }
+                    Event.Event evLess = events.FindLast(e => e.HasAbsoluteTime && e.IsCovered && e.Time <= absoluteTime); //find closest below
+                    double d = absoluteTime-evLess.Time;
+                    Event.Event evGreater = events.Find(e => e.HasAbsoluteTime && e.IsCovered && e.Time > absoluteTime && e.Time - absoluteTime < d);
                 }
-            }
-            Event.Event evLess = events.FindLast(e => e.HasAbsoluteTime && e.IsCovered && e.Time <= absoluteTime); //find closest below
-            double d = absoluteTime-evLess.Time;
-            Event.Event evGreater = events.Find(e => e.HasAbsoluteTime && e.IsCovered && e.Time > absoluteTime && e.Time - absoluteTime < d);
-        }
- */
+         */
         public override string ToString()
         {
             StringBuilder sb = new StringBuilder("Events: ");
@@ -143,6 +149,16 @@ namespace BDFEDFFileStream
                 first = false;
             }
             return sb.ToString();
+        }
+
+        public IEnumerator<GCTime> GetEnumerator()
+        {
+            return GCList.GetEnumerator();
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return (IEnumerator)(GCList.GetEnumerator());
         }
     }
 
