@@ -55,6 +55,7 @@ namespace DatasetReviewer
         internal List<int> channelList; //list of currently displayed channels
         internal EventDictionary.EventDictionary ED;
         internal List<Event.Event> events = new List<Event.Event>();
+        internal List<Tuple<int, Event.Event>> displayEventList = new List<Tuple<int, Event.Event>>();
         internal Dictionary<string, ElectrodeRecord> electrodes;
 
         internal Window2 notes;
@@ -184,6 +185,60 @@ namespace DatasetReviewer
                 ew.ShowDialog();
                 Log.writeToLog(Environment.NewLine + e.StackTrace);
                 Environment.Exit(0);
+            }
+
+            IEnumerator<GCTime> statusIterator = sc.GetEnumerator();
+            IEnumerator<Event.Event> eventIterator = events.GetEnumerator();
+            bool moreGCT = statusIterator.MoveNext(), moreEvent = eventIterator.MoveNext();
+            while (moreGCT || moreEvent)
+            {
+                if (moreEvent)
+                {
+                    if (eventIterator.Current.GC == 0) //skip Events with GC = 0
+                    {
+                        displayEventList.Add(new Tuple<int, Event.Event>(0, eventIterator.Current)); // naked Event = 0
+                        moreEvent = eventIterator.MoveNext();
+                        continue;
+                    }
+                    if (moreGCT)
+                    {
+                        int c = statusIterator.Current.GC.CompareTo(eventIterator.Current.GC);
+                        if (c == 0) //matching Status mark and covered Event
+                        {
+                            displayEventList.Add(new Tuple<int, Event.Event>(1, eventIterator.Current)); // covered Event = 1
+                            moreGCT = statusIterator.MoveNext();
+                            moreEvent = eventIterator.MoveNext();
+                            continue;
+                        }
+                        if (c < 0) //=> missing Event
+                        {
+                            GCTime gct = statusIterator.Current;
+                            Event.Event ev = new OutputEvent(null, gct.Time, (int)gct.GC.Decode()); //fake Event for missing Event file entry
+                            displayEventList.Add(new Tuple<int, Event.Event>(-2, ev)); // Status mark without Event = -2
+                            moreGCT = statusIterator.MoveNext();
+                            continue;
+                        }
+                        if (c > 0) //=> missing Status mark
+                        {
+                            displayEventList.Add(new Tuple<int, Event.Event>(-1, eventIterator.Current)); // Covered Event without Status mark = -1
+                            moreEvent = eventIterator.MoveNext();
+                            continue;
+                        }
+                    }
+                    else // Covered Event with no Status mark
+                    {
+                        displayEventList.Add(new Tuple<int, Event.Event>(-1, eventIterator.Current)); // Covered Event without Status mark = -1
+                        moreEvent = eventIterator.MoveNext();
+                        continue;
+                    }
+                }
+                else // Status mark with no Event
+                {
+                    GCTime gct = statusIterator.Current;
+                    Event.Event ev = new OutputEvent(null, gct.Time, (int)gct.GC.Decode()); //fake Event for missing Event file entry
+                    displayEventList.Add(new Tuple<int, Event.Event>(-2, ev)); //Status mark without Event = -2
+                    moreGCT = statusIterator.MoveNext();
+                }
             }
 
             EventMarkers.Width = BDFLength;

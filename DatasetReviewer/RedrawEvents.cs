@@ -14,66 +14,39 @@ namespace DatasetReviewer
     /// <summary>
     /// Interaction logic for MainWindow.xaml
     /// </summary>
-    public partial class MainWindow : Window, IComparer<FoundEvent>
+    public partial class MainWindow : Window, IComparer<Tuple<int, double, object>>
     {
-        List<FoundEvent> FoundEvents; //list of Events found in currently displayed data
+        List<Tuple<int, double, object>> FoundEvents; //list of Events found in currently displayed data
 
         private void reDrawEvents()
         {
             double startTime = currentDisplayOffsetInSecs - bdf.SampTime / 2D;
             double endTime = currentDisplayOffsetInSecs + currentDisplayWidthInSecs + bdf.SampTime / 2D;
-            FoundEvents = new List<FoundEvent>(); //make a list of Events displayed on this screen
+            FoundEvents = new List<Tuple<int,double,object>>(); //make a list of Events displayed on this screen
 
-            foreach(InputEvent ie in events) //search for Events to display at absolute times:
-                                            //all Naked Events and all Covered Events when displaying at Absolute times
+            foreach(Tuple<int,Event.Event> ev in displayEventList) //search for Events on current screen
             {
-                double t;
-//                if (showAllEventsAtAbsoluteTime) t = ie.Time - (ie.HasAbsoluteTime ? bdf.zeroTime : 0D);
-                t = ie.relativeTime;
-                if (t < currentDisplayOffsetInSecs) continue; // with time greater than or equal to
-                if (t >= currentDisplayOffsetInSecs + currentDisplayWidthInSecs) break; //  and less than
-                //check for errors in Event description
-                if (ie.EDE != null)
-                    FoundEvents.Add(new FoundEvent(t, ie));
+                double t; //Event display time
+                if (showAllEventsAtAbsoluteTime && ev.Item2.EDE != null && ev.Item2.HasAbsoluteTime)
+                    t = ev.Item2.Time - bdf.zeroTime;
                 else
-                    FoundEvents.Add(new FoundEvent(t, ie, -1)); //missing EDE (not sure how this happens!)
-            }
-
-            foreach (GCTime gct in sc.FindMarks(startTime, endTime)) // now find marks in Status channel that have
-                                                                     // no corresponding Event record => error Event
-            {
-                uint gc = gct.GC.Value;
-                if (FoundEvents.Find(e => e.Event != null && ((InputEvent)e.Event).GC == gc) == null) //NB: may be null Event if previously found
-                    FoundEvents.Add(new FoundEvent(gct.Time, null, (int)gct.GC.Value));
+                    t = ev.Item2.relativeTime;
+                if (t < startTime || t >= endTime) continue; //not in current display
+                //check for missing in Event description
+                if (ev.Item2.EDE == null && ev.Item1 > 0)
+                    FoundEvents.Add(new Tuple<int, double, object>(-3, t, null)); //missing EDE (not sure how this happens!)
+                else
+                    FoundEvents.Add(new Tuple<int, double, object>(ev.Item1, t, ev.Item2)); //add to list to display
             }
 
             foreach (SystemEvent se in sc.SystemEvents) // add in System Events
             {
                 double t = se.Time;
-                if (t < currentDisplayOffsetInSecs) continue; // with time greater than of equal to
-                if (t >= currentDisplayOffsetInSecs + currentDisplayWidthInSecs) break; //  and less than
-                FoundEvents.Add(new FoundEvent(t, se));
+                if (t < startTime) continue; // with time greater than of equal to
+                if (t >= endTime) break; //  and less than
+                FoundEvents.Add(new Tuple<int, double, object>(2, t, se.Code));
             }
 
-            if (showAllEventsAtAbsoluteTime) // wait until now to correct times and drop absolute Events that move off screen
-            {
-                foreach (FoundEvent f in FoundEvents)
-                {
-                    if (f.Event != null && f.Event.GetType() == typeof(InputEvent))
-                    {
-                        InputEvent ie = (InputEvent)f.Event;
-                        if (ie.HasAbsoluteTime)
-                        {
-                            double t = ie.Time - bdf.zeroTime;
-                            if (t >= currentDisplayOffsetInSecs && t < currentDisplayOffsetInSecs + currentDisplayWidthInSecs)
-                                f.time = t;
-                            else
-                                f.time = -1D; //indicate no show; mark for removal
-                        }
-                    }
-                }
-                FoundEvents.RemoveAll(f => f.time == -1D);
-            }
             FoundEvents.Sort(this);
             drawSymbols(); //Draw the ones for this page
         }
@@ -87,23 +60,23 @@ namespace DatasetReviewer
             double deltaT = bdf.SampTime / 2D;
 
             //use Enumerator because we look for groups of Events that occur close to the same time to mark together
-            IEnumerator<FoundEvent> enumerator = FoundEvents.GetEnumerator();
+            IEnumerator<Tuple<int, double, object>> enumerator = FoundEvents.GetEnumerator();
             enumerator.MoveNext();
-            FoundEvent nextEvent;
+            Tuple<int, double, object> nextEvent;
 
-            List<FoundEvent> currentEvents = new List<FoundEvent>();
-            while((nextEvent = enumerator.Current) != null)
+            List<Tuple<int, double, object>> currentEvents = new List<Tuple<int, double, object>>();
+            while ((nextEvent = enumerator.Current) != null)
             {
                 bool AllEventsValid = true;
-                double t = Math.Round(nextEvent.time / bdf.SampTime) * bdf.SampTime; //calculate correct datel time
+                double t = Math.Round(nextEvent.Item2 / bdf.SampTime) * bdf.SampTime; //calculate correct datel time
 
                 currentEvents.Clear();
                 do //accumulate all Events that occur at/near this time; recall that they are sorted
                 {
                     nextEvent = enumerator.Current;
-                    if (nextEvent.time >= t - deltaT && nextEvent.time < t + deltaT)
+                    if (nextEvent.Item2 >= t - deltaT && nextEvent.Item2 < t + deltaT)
                     {
-                        AllEventsValid &= (nextEvent.Event != null || nextEvent.code == 0); //keep track of whether all valid
+                        AllEventsValid &= nextEvent.Item1 > 0; //keep track of whether all valid
                         currentEvents.Add(nextEvent);
                     }
                     else
@@ -121,25 +94,30 @@ namespace DatasetReviewer
                 int i = 0;
 
                 //Create the string to be displayed when right clicking button
-                foreach(FoundEvent found in currentEvents)
+                foreach (Tuple<int, double, object> found in currentEvents)
                 {
                     if (currentEvents.Count > 1) //multiple non-System Events at this point; show data under title
                         sb.Append("**Event number " + (++i).ToString("0") + ":" + Environment.NewLine);
-                    if (found.Event == null) //missing Event record for Status mark
-                        sb.Append("Missing Event record" + Environment.NewLine +
-                            "GC = " + found.code.ToString("0") + Environment.NewLine);
-                    else if (found.code < 0) //missing EDE
-                        sb.Append("Missing EDE for Event" + Environment.NewLine +
-                            "GC = " + found.code.ToString("0") + Environment.NewLine);
-                    else if (found.Event.GetType() == typeof(SystemEvent)) //for System Event
+                    if (found.Item1 < 0)
+                    {
+                        switch (found.Item1)
+                        {
+                            case -1: sb.Append("Missing Status for Event"); break;
+                            case -2: sb.Append("Missing Event record"); break;
+                            case -3: sb.Append("Missing EDE for Event"); break;
+                        }
+                        sb.Append(Environment.NewLine + "GC = " +
+                            ((Event.Event)found.Item3).GC.ToString("0") + Environment.NewLine);
+                    }
+                    else if (found.Item1 == 2) //for System Event
                         sb.Append("System Event" + Environment.NewLine +
-                            ((SystemEvent)found.Event).Code.ToString());
+                            ((StatusByte)found.Item3).ToString());
                     else //for non-System Event
                     {
-                        InputEvent ev = (InputEvent)found.Event;
+                        Event.Event ev = (Event.Event)found.Item3;
                         sb.Append(ev.ToString());
                         if (ev.IsCovered)
-                            sb.Append("Clock offset=" + ((bdf.timeFromBeginningOfFileTo(ev) - found.time) * 1000D).ToString("+0.0 msec;-0.0 msec;0.0") + Environment.NewLine);
+                            sb.Append("Clock offset=" + ((ev.relativeTime - (ev.Time-bdf.zeroTime)) * 1000D).ToString("+0.0 msec;-0.0 msec;0.0") + Environment.NewLine);
                     }
                     evbutt.Tag = sb.ToString().Trim(); //to be displayed on right click of button
                 }
@@ -176,22 +154,22 @@ namespace DatasetReviewer
                 //however, if any of them are invalid,
                 if (!AllEventsValid) // mark with red X
                 {
-                        r.Stroke = Brushes.Red;
-                        Line l1 = new Line();
-                        Line l2 = new Line();
-                        l1.Stroke = l2.Stroke = r.Stroke = Brushes.Red;
-                        l1.StrokeThickness = l2.StrokeThickness = r.StrokeThickness;
-                        l1.X1 = l2.X1 = t - 0.3 * EMAH;
-                        l1.Y1 = l2.Y2 = 0.2 * EMAH;
-                        l1.X2 = l2.X2 = t + 0.3 * EMAH;
-                        l1.Y2 = l2.Y1 = 0.8 * EMAH;
-                        EventMarkers.Children.Add(l1);
-                        EventMarkers.Children.Add(l2);
+                    r.Stroke = Brushes.Red;
+                    Line l1 = new Line();
+                    Line l2 = new Line();
+                    l1.Stroke = l2.Stroke = r.Stroke = Brushes.Red;
+                    l1.StrokeThickness = l2.StrokeThickness = r.StrokeThickness;
+                    l1.X1 = l2.X1 = t - 0.3 * EMAH;
+                    l1.Y1 = l2.Y2 = 0.2 * EMAH;
+                    l1.X2 = l2.X2 = t + 0.3 * EMAH;
+                    l1.Y2 = l2.Y1 = 0.8 * EMAH;
+                    EventMarkers.Children.Add(l1);
+                    EventMarkers.Children.Add(l2);
                 } //invalid Event
                 else //single, valid Event at this location
                 {
                     //System Event
-                    if (currentEvents[0].Event.GetType() == typeof(SystemEvent))
+                    if (currentEvents[0].Item1 == 2) //System Event
                     {
                         Line l1 = new Line();
                         Line l2 = new Line();
@@ -209,7 +187,7 @@ namespace DatasetReviewer
                     } //System Event
                     else //non-System Event
                     {
-                        InputEvent singleton = (InputEvent)currentEvents[0].Event;
+                        Event.Event singleton = (Event.Event)currentEvents[0].Item3;
                         if (singleton.IsCovered) //if multi-Event or naked, don't mark by type and leave black
                             if (singleton.IsExtrinsic) //single Event extrinsic
                             {
@@ -242,10 +220,10 @@ namespace DatasetReviewer
 
         }
 
-        public int Compare(FoundEvent x, FoundEvent y)
+        public int Compare(Tuple<int, double, object> x, Tuple<int, double, object> y)
         {
-            if (Math.Abs(x.time) > Math.Abs(y.time)) return 1;
-            if (Math.Abs(x.time) < Math.Abs(y.time)) return -1;
+            if (Math.Abs(x.Item2) > Math.Abs(y.Item2)) return 1;
+            if (Math.Abs(x.Item2) < Math.Abs(y.Item2)) return -1;
             return 0;
         }
     }
