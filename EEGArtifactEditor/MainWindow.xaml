@@ -35,7 +35,8 @@
             <Canvas Name="GridLabels" VerticalAlignment="Bottom" HorizontalAlignment="Center" Height="33" IsHitTestVisible="False" />
             <Canvas Name="HorizontalGrid" IsHitTestVisible="False" />
             <ScrollViewer Name="Viewer" HorizontalScrollBarVisibility="Visible" ScrollChanged="Viewer_ScrollChanged"
-                          SizeChanged="Viewer_SizeChanged" VerticalScrollBarVisibility="Disabled" BorderThickness="2" BorderBrush="Black">
+                          SizeChanged="Viewer_SizeChanged" VerticalScrollBarVisibility="Disabled">
+                <!--NB: transparent to capture all mouse clicks-->
                 <Grid Name="ViewerGrid" HorizontalAlignment="Left" VerticalAlignment="Stretch" Background="#00000000" ContextMenuOpening="ViewerGridContextMenu_Opened">
                     <Grid.ContextMenu>
                         <ContextMenu Opened="ViewerContextMenu_Opened">

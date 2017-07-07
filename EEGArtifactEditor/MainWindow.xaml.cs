@@ -1269,7 +1269,6 @@ namespace EEGArtifactEditor
 
         internal List<Point> PointList = new List<Point>(4096); //Points with Y-scale of uV: original and de-trended
         internal List<Point> pointList = new List<Point>(4096); //Final Points for creating the PolyLine on the Canvas
-//        internal bool needsRedraw = true;
         internal double overallMax; //detrended maximal value
         internal double overallMin; //detrended minimal value
         internal double A; //offset of trend
