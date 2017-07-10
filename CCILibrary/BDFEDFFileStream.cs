@@ -352,7 +352,7 @@ namespace BDFEDFFileStream
         /// with care other subclasses of Stream may work</param>
         public BDFEDFFileReader(Stream str)
         {
-            if (!str.CanRead) throw new BDFEDFException("BDFEDFFileStream must be able to read from Stream.");
+            if (!str.CanRead) throw new BDFEDFException("BDFEDFFileReader must be able to read from Stream.");
             if (str is FileStream) baseStream = (FileStream)str;
             reader = new BinaryReader(str, Encoding.ASCII);
             header = new BDFEDFHeader();
@@ -928,7 +928,7 @@ namespace BDFEDFFileStream
     {
         protected BinaryWriter writer;
 
-    //****** DEPRICATED: recordDuration and samplingRate may be double ******//
+    //****** DEPRECATED: recordDuration and samplingRate may be double ******//
         public BDFEDFFileWriter(Stream str, int nChan, int recordDuration, int samplingRate, bool isBDF)
         {
             if (!str.CanWrite) throw new BDFEDFException("BDFEDFFileStream must be able to write to Stream.");
@@ -1277,7 +1277,7 @@ namespace BDFEDFFileStream
 
                 //NOTE: we have taken a "promiscuous" approach  by allowing EDF files that do not
                 // match the details of the standard w.r.t. the subject and recording IDs; thus
-                // files that cannot be read by EDFReader may work OK using this reader
+                // files that cannot be read by EDFBrowser may work OK using this reader
                 nChar = reader.Read(cBuf, 0, 80);
                 localSubjectId = new string(cBuf, 0, 80).TrimEnd();
                 nChar = reader.Read(cBuf, 0, 80);
