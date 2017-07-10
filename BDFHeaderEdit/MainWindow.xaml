@@ -1,0 +1,18 @@
+﻿<Window x:Class="BDFHeaderEdit.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Height="500" Width="525" FontSize="14" Closing="Window_Closing" ResizeMode="CanResize">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="44"/>
+        </Grid.RowDefinitions>
+        <DataGrid Grid.Row="0"  Name="ChannelSelect" HorizontalAlignment="Left" Margin="10,10,0,0" Height="Auto" Width="Auto"
+                  SelectionMode="Single" SelectionUnit="Cell" CellEditEnding="ChannelSelect_CellEditEnding" AutoGeneratingColumn="ChannelSelect_AutoGeneratingColumn"
+                  AlternationCount="2" AlternatingRowBackground="#FFC0F5F0"/>
+        <StackPanel Orientation="Horizontal" Grid.Row="1" HorizontalAlignment="Right" VerticalAlignment="Center">
+            <Button Height="32" Width="80" Margin="8,4" Click="Exit_Click">Exit</Button>
+            <Button Height="32" Width="80" Margin="8,4" Click="Save_Click">Save</Button>
+        </StackPanel>
+    </Grid>
+</Window>
