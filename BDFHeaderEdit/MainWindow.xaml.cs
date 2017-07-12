@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
@@ -54,18 +55,19 @@ namespace BDFHeaderEdit
             {
                 datagridItems.Add(new dataTuple(i + 1, name[i], type[i]));
             }
-
             ChannelSelect.ItemsSource = datagridItems;
         }
 
         private void ChannelSelect_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
         {
-            int row = ((dataTuple)e.Row.Item).Number-1;
+            int row = ((dataTuple)e.Row.Item).Number - 1;
             int n = e.Column.DisplayIndex;
+            System.Windows.Controls.TextBox tb = (System.Windows.Controls.TextBox)e.EditingElement;
+            string s = tb.Text;
             if (n == 1)//Name
-                editor.ChangeChannelLabel(row, ((System.Windows.Controls.TextBox)e.EditingElement).Text);
+                editor.ChangeChannelLabel(row, s.Substring(0, Math.Min(16, s.Length))); //have to shorten here as well as in property.set
             else if (n == 2) //Type
-                editor.ChangeTransducerType(row, ((System.Windows.Controls.TextBox)e.EditingElement).Text);
+                editor.ChangeTransducerType(row, s.Substring(0, Math.Min(80, s.Length))); //have to shorten here as well as in property.set
         }
 
         private void ChannelSelect_AutoGeneratingColumn(object sender, DataGridAutoGeneratingColumnEventArgs e)
@@ -73,20 +75,29 @@ namespace BDFHeaderEdit
             switch ((string)e.Column.Header)
             {
                 case ("Number"):
+                    e.Column.CanUserResize = false;
                     e.Column.IsReadOnly = true;
                     e.Column.Width = 64;
                     break;
                 case ("Name"):
-                    e.Column.Width = 120;
+                    e.Column.CanUserResize = false;
+                    e.Column.Width = 150;
                     break;
                 case ("Type"):
-                    e.Column.Width = 280;
+                    e.Column.CanUserResize = true;
+                    e.Column.MinWidth = 400;
                     break;
             }
         }
 
         private void Exit_Click(object sender, RoutedEventArgs e)
         {
+            if (editor.HasChanged)
+            {
+                Window w = new SaveQuestion();
+                w.Owner=this;
+                if ((bool)w.ShowDialog()) editor.RewriteHeader();
+            }
             editor.Close();
             Environment.Exit(0);
         }
@@ -113,7 +124,7 @@ namespace BDFHeaderEdit
             {
                 if (value == _number) return;
                 _number = value;
-                NotifyPropertyChanged("Number");
+                NotifyPropertyChanged();
             }
         }
 
@@ -124,8 +135,8 @@ namespace BDFHeaderEdit
             set
             {
                 if (value == _name) return;
-                _name = value;
-                NotifyPropertyChanged("Name");
+                _name = value.Substring(0, Math.Min(16, value.Length));
+                NotifyPropertyChanged();
             }
         }
 
@@ -136,8 +147,8 @@ namespace BDFHeaderEdit
             set
             {
                 if (value == _type) return;
-                _type = value;
-                NotifyPropertyChanged("Type");
+                _type = value.Substring(0, Math.Min(80, value.Length));
+                NotifyPropertyChanged();
             }
         }
 
@@ -149,7 +160,7 @@ namespace BDFHeaderEdit
         }
 
         public event PropertyChangedEventHandler PropertyChanged;
-        private void NotifyPropertyChanged(string propertyName)
+        private void NotifyPropertyChanged([CallerMemberName] string propertyName = null)
         {
             if (PropertyChanged != null)
             {
