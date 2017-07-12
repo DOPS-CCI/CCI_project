@@ -32,12 +32,14 @@ namespace BDFEDFFileStream
 
         public void ChangeChannelLabel(int index, string s)
         {
+            if (Header.channelLabels[index] == s) return;
             Header.channelLabels[index] = s;
             labelChanged = true;
         }
 
         public void ChangeTransducerType(int index, string s)
         {
+            if (Header.transducerTypes[index] == s) return;
             Header.transducerTypes[index] = s;
             typeChanged = true;
         }
@@ -57,8 +59,8 @@ namespace BDFEDFFileStream
             if (labelChanged)
             {
                 fileStream.BaseStream.Seek(256L, SeekOrigin.Begin);
-                foreach(string cL in Header.channelLabels)
-                    fileStream.Write("{0,-16}", cL);
+                foreach (string cL in Header.channelLabels)
+                    fileStream.Write("{0,-16}", cL.Substring(0, Math.Min(16, cL.Length)));
                 fileStream.Flush();
                 labelChanged = false;
             }
@@ -66,7 +68,7 @@ namespace BDFEDFFileStream
             {
                 fileStream.BaseStream.Seek(256L + 16 * Header.numberChannels, SeekOrigin.Begin);
                 foreach (string tT in Header.transducerTypes)
-                    fileStream.Write("{0,-80}", tT);
+                    fileStream.Write("{0,-80}", tT.Substring(0, Math.Min(80, tT.Length)));
                 fileStream.Flush();
                 typeChanged = false;
             }
