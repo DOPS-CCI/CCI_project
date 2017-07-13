@@ -1,23 +1,10 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
-using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Forms;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
-using CCILibrary;
 using BDFEDFFileStream;
 
 namespace BDFHeaderEdit
@@ -95,7 +82,7 @@ namespace BDFHeaderEdit
             if (editor.HasChanged)
             {
                 Window w = new SaveQuestion();
-                w.Owner=this;
+                w.Owner = this;
                 if ((bool)w.ShowDialog()) editor.RewriteHeader();
             }
             editor.Close();
@@ -114,7 +101,7 @@ namespace BDFHeaderEdit
         }
     }
 
-    public class dataTuple : INotifyPropertyChanged, IEditableObject
+    public class dataTuple : INotifyPropertyChanged
     {
         int _number;
         public int Number
@@ -166,21 +153,6 @@ namespace BDFHeaderEdit
             {
                 PropertyChanged(this, new PropertyChangedEventArgs(propertyName));
             }
-        }
-
-        public void BeginEdit()
-        {
-            return;
-        }
-
-        public void CancelEdit()
-        {
-            return;
-        }
-
-        public void EndEdit()
-        {
-            return;
         }
     }
 }
