@@ -76,7 +76,7 @@ namespace DatasetReviewer
                     nextEvent = enumerator.Current;
                     if (nextEvent.Item2 >= t - deltaT && nextEvent.Item2 < t + deltaT)
                     {
-                        AllEventsValid &= nextEvent.Item1 > 0; //keep track of whether all valid
+                        AllEventsValid &= nextEvent.Item1 >= 0; //keep track of whether all valid
                         currentEvents.Add(nextEvent);
                     }
                     else
