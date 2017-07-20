@@ -22,7 +22,6 @@ namespace BDFEDFFileStream
         }
         internal FileStream baseStream;
         public BDFEDFRecord record;
-        internal byte[] _recordBuffer; //where the actual reads or writes take place; used by BDFEDFRecord
         internal double? _zeroTime = null;
 
         /// <summary>
@@ -487,15 +486,24 @@ namespace BDFEDFFileStream
             for (int i = 0; i < statusChannel; i++)
                 currentRecordPosition += (long)NumberOfSamples(i) * 3;
 
-            int currentDataPosition = 0; //keeps track of where we are in the data array
-
-            while (currentRecordPosition < reader.BaseStream.Length) //read entire file for this channel
+            unsafe
             {
-                reader.BaseStream.Seek(currentRecordPosition, SeekOrigin.Begin); //seek to next channel record location
-                currentRecordPosition += increment; //and increment to next record location
-                buffer = reader.ReadBytes(bufferSize); //read in raw data for this channel
-                for (int i = 0; i < bufferSize; i += 3) //convert and fill next positions in output array
-                    status[currentDataPosition++] = (uint)buffer[i] + (((uint)buffer[i + 1] + ((uint)buffer[i + 2] << 8)) << 8);
+                fixed (uint* startDataPosition = &status[0])
+                { //keeps track of where we are in the data array
+                    uint* currentDataPosition = startDataPosition;
+                    while (currentRecordPosition < reader.BaseStream.Length) //read entire file for this channel
+                    {
+                        reader.BaseStream.Seek(currentRecordPosition, SeekOrigin.Begin); //seek to next channel record location
+                        currentRecordPosition += increment; //and increment to next record location
+                        buffer = reader.ReadBytes(bufferSize); //read in raw data for this channel
+                        fixed (byte* buff = &buffer[0])
+                        {
+                            byte* p = buff;
+                            for (int i = 0; i < bufferSize; i += 3) //convert and fill next positions in output array
+                                *currentDataPosition++ = (uint)(*p++ + (*p++ << 8) + (*p++ << 16));
+                        }
+                    }
+                }
             }
 
             reader.BaseStream.Seek(pos, SeekOrigin.Begin); //return reader to original location
@@ -545,8 +553,7 @@ namespace BDFEDFFileStream
         {
             if (reader != null && record.currentRecordNumber < 0) this.read();
             if (!header.hasAnnotations) throw new BDFEDFException("No \"EDF Annotations\" channel in file");
-            string s = Encoding.UTF8.GetString(_recordBuffer, header.AnnotationOffset,
-                NumberOfSamples(header._AnnotationChannel) * 2); //"2" is because this is only used in EDF+ files
+            string s = record.GetAnnotation();
 
             List<TimeStampedAnnotation> TAL = new List<TimeStampedAnnotation>(1);
             foreach (Match m in Regex.Matches(s, @"(?'Time'[+-]\d+(?:\.\d*)?)(?:\x15(?'Duration'\d+(?:\.\d*)?))?\x14(?'Tag'((?:.*?)\x14)+?)\x00"))
@@ -1490,7 +1497,7 @@ namespace BDFEDFFileStream
     /// methods.</remarks>
     public class BDFEDFRecord : IDisposable
     {
-
+        internal byte[] _recordBuffer; //where the actual reads or writes take place
         internal struct i24 { internal byte b1, b2, b3; }
         internal struct i16 { internal byte b1, b2;}
 
@@ -1504,7 +1511,6 @@ namespace BDFEDFFileStream
         BDFEDFFileStream fileStream;
         BDFEDFHeader header;
         internal int[][] channelData;
-        internal char[] annotationData;
 
         public int getRawPoint(int channel, int point)
         {
@@ -1539,9 +1545,6 @@ namespace BDFEDFFileStream
             for (i = 0; i < nC; i++)
                 for (int j = 0; j < header.numberSamples[i]; j++)
                     r.channelData[i][j] = this.channelData[i][j];
-            if (header._hasAnnotations)
-                for (i = 0; i < header.AnnotationLength * 2; i++)
-                    r.annotationData[i] = this.annotationData[i];
             return r;
         }
 
@@ -1560,20 +1563,19 @@ namespace BDFEDFFileStream
             if (header._hasAnnotations)
             {
                 recordLength += header.AnnotationLength;
-                annotationData = new char[header.AnnotationLength * 2];
             }
             recordLength *= fs.header._bytesPerSample; // calculate length in bytes
-            fs._recordBuffer = new byte[recordLength];
+            _recordBuffer = new byte[recordLength];
         }
 
         private BDFEDFRecord(){}
 
-        internal void read(BinaryReader reader)
+        unsafe internal void read(BinaryReader reader)
         {
             try
             {
-                fileStream._recordBuffer = reader.ReadBytes(recordLength);
-                if (fileStream._recordBuffer.Length < recordLength) throw new EndOfStreamException("Unexpected end of BDF/EDF file reached");
+                _recordBuffer = reader.ReadBytes(recordLength);
+                if (_recordBuffer.Length < recordLength) throw new EndOfStreamException("Unexpected end of BDF/EDF file reached");
             }
             catch (Exception e)
             {
@@ -1581,27 +1583,37 @@ namespace BDFEDFFileStream
                     currentRecordNumber.ToString("0") + ": " + e.Message);
             }
             currentRecordNumber++;
-            int i = 0;
-            for (int channel = 0; channel < header.numberChannels; channel++)
-                for (int sample = 0; sample < header.numberSamples[channel]; sample++)
+            int c = 0; //to keep track of channel number when there is an Annotation channel (EDF+ only)
+            unsafe
+            {
+                fixed (byte* buff = &_recordBuffer[0]) //input pointer
                 {
-                    if (header.isBDFFile)
-                    {
-                        channelData[channel][sample] = convert34(fileStream._recordBuffer[i], fileStream._recordBuffer[i + 1], fileStream._recordBuffer[i + 2]);
-                        i += 3;
-                    }
-                    else //EDF file
+                    byte* i = buff;
+                    for (int channel = 0; channel < header.numberChannels; channel++)
                     {
                         if (header._hasAnnotations && channel == header._AnnotationChannel)
                         {
-                            annotationData[i] = (char)fileStream._recordBuffer[i];
-                            annotationData[i + 1] = (char)fileStream._recordBuffer[i + 1];
+                            i += header.numberSamples[channel] * 2;
+                            continue; //just skip it
                         }
-                        else
-                            channelData[header._channelMap[channel]][sample] = convert24(fileStream._recordBuffer[i], fileStream._recordBuffer[i + 1]);
-                        i += 2;
-                    }
+                        fixed (int* cBuff = &channelData[c++][0]) //output pointer
+                        {
+                            int* j = cBuff;
+                            int nSamp = header.numberSamples[channel];
+                            if (header.isBDFFile)
+                            {
+                                for (int sample = 0; sample < nSamp; sample++)
+                                    *j++ = convert34(*i++, *i++, *i++);
+                            }
+                            else //EDF file
+                            {
+                                for (int sample = 0; sample < nSamp; sample++)
+                                    *j++ = convert24(*i++, *i++);
+                            } //BDFFile?
+                        }
+                    } //channel
                 }
+            }
         }
 
         internal void write(BinaryWriter writer)
@@ -1613,20 +1625,20 @@ namespace BDFEDFFileStream
                     if (header.isBDFFile)
                     {
                         i24 b = convert43(channelData[channel][sample]);
-                        fileStream._recordBuffer[i++] = b.b1;
-                        fileStream._recordBuffer[i++] = b.b2;
-                        fileStream._recordBuffer[i++] = b.b3;
+                        _recordBuffer[i++] = b.b1;
+                        _recordBuffer[i++] = b.b2;
+                        _recordBuffer[i++] = b.b3;
                     }
                     else
                     {
                         i16 b = convert42(channelData[channel][sample]);
-                        fileStream._recordBuffer[i++] = b.b1;
-                        fileStream._recordBuffer[i++] = b.b2;
+                        _recordBuffer[i++] = b.b1;
+                        _recordBuffer[i++] = b.b2;
                     }
                 }
             try
             {
-                writer.Write(fileStream._recordBuffer);
+                writer.Write(_recordBuffer);
             }
             catch (Exception e)
             {
@@ -1637,11 +1649,15 @@ namespace BDFEDFFileStream
             header.numberOfRecords++;
         }
 
+        internal string GetAnnotation()
+        {
+            return Encoding.UTF8.GetString(_recordBuffer, header.AnnotationOffset,
+                fileStream.NumberOfSamples(header._AnnotationChannel) * 2); //"2" is because this is only used in EDF+ files
+        }
+
         internal static int convert34(byte b1, byte b2, byte b3)
         {
-            uint i = (uint)b1 + (((uint)b2 + ((uint)b3 << 8)) << 8);
-            if (b3 >= 128) i |= 0xFF000000; //extend sign
-            return (int)i;
+            return b1 + (b2 << 8) + ((b3 << 24) >> 8);
         }
 
         private static i24 convert43(int i3)
@@ -1655,9 +1671,7 @@ namespace BDFEDFFileStream
 
         internal static int convert24(byte b1, byte b2)
         {
-            uint i = (uint)b1 + ((uint)b2 << 8);
-            if (b2 >= 128) i |= 0xFFFF0000; //extend sign
-            return (int)i;
+            return b1 + ((b2 << 24) >> 16);
         }
 
         private static i16 convert42(int i2)

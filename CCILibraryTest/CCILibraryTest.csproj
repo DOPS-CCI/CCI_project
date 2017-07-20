@@ -57,6 +57,7 @@
     <Compile Include="StatusChannelTest.cs" />
     <Compile Include="BDFLocTest.cs" />
     <Compile Include="BDFEDFHeaderEditorTest.cs" />
+    <Compile Include="ConversionTest.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\CCILibrary\CCILibrary.csproj">
