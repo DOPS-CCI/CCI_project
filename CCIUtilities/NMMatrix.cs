@@ -241,12 +241,37 @@ namespace CCIUtilities
             return C.ExtractColumn(C.M - 1);
         }
 
+        /// <summary>
+        /// Calculation using Gauss-Jordan elimination
+        /// </summary>
+        /// <param name="A"></param>
+        /// <param name="B"></param>
+        /// <returns>least square solution to XB = A</returns>
         public static NMMatrix operator /(NMMatrix A, NMMatrix B)
         {
             NMMatrix C = B.Augment(A);
             C.GaussJordanElimination();
 
             return C.ExtractMatrix(B.M, A.M);
+        }
+
+        /// <summary>
+        /// Calculation using Gauss-Jordan elimination
+        /// </summary>
+        /// <param name="B"></param>
+        /// <returns>least square solution to AX = B</returns>
+        public NMMatrix LeftDiv(NMMatrix B)
+        {
+            return (B.Transpose() / this.Transpose()).Transpose();
+            NMMatrix C = this.Transpose().Augment(B.Transpose());
+            C.GaussJordanElimination();
+
+            return C.ExtractMatrix(N, B.N).Transpose();
+        }
+
+        public NMMatrix RightDiv(NMMatrix B)
+        {
+            return this / B;
         }
 
         public NMMatrix Inverse()
@@ -282,6 +307,20 @@ namespace CCIUtilities
                 for (int j = 0; j < M; j++)
                     sb.Append(" " + this[i, j].ToString(format));
             }
+            return sb.ToString();
+        }
+
+        public override string ToString()
+        {
+            StringBuilder sb = new StringBuilder("{");
+            for (int i = 0; i < N; i++)
+            {
+                sb.Append("{");
+                for (int j = 0; j < M; j++)
+                    sb.Append(" " + this[i, j].ToString("G"));
+                sb.Append("}");
+            }
+            sb.Append("}");
             return sb.ToString();
         }
 
