@@ -1,0 +1,39 @@
+!  FORTRANDLL.f90 
+!
+!  FUNCTIONS/SUBROUTINES exported from FORTRANDLL.dll:
+!  FORTRANDLL - subroutine 
+MODULE FORTRANDLL
+    
+    INTERFACE FOOADD
+        MODULE PROCEDURE FOOADD
+        MODULE PROCEDURE TSAT12
+    END INTERFACE
+    
+    CONTAINS
+    
+    SUBROUTINE FOOADD(A,B,C)
+    ! Expose subroutine FOOADD to users of this DLL
+    !
+    !DEC$ ATTRIBUTES ALIAS:'FOOADD' :: FOOADD
+    !DEC$ ATTRIBUTES DLLEXPORT :: FOOADD
+        INTEGER, INTENT(IN) :: A,B
+        INTEGER, INTENT(OUT) :: C
+        C=A+B
+    END SUBROUTINE
+
+    FUNCTION TSAT12(P,N) 
+    !DEC$ ATTRIBUTES ALIAS:'TSAT12' :: TSAT12
+    !DEC$ ATTRIBUTES DLLEXPORT :: TSAT12
+    !DEC$ ATTRIBUTES VALUE :: N
+        INTEGER, INTENT(IN) :: N
+        REAL, INTENT(IN) :: P(N)
+        REAL :: TSAT12, S
+        S=0
+        DO I=1,N
+          S=S+P(I)
+          END DO
+        TSAT12=S/N
+        RETURN 
+    END FUNCTION
+    
+    END MODULE FORTRANDLL
