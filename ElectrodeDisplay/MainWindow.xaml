@@ -1,0 +1,57 @@
+﻿<Window x:Class="ElectrodeDisplay.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Electrode Map" MinWidth="850" MinHeight="900" Closing="Window_Closing" SizeToContent="WidthAndHeight" WindowStartupLocation="CenterScreen" ResizeMode="CanResizeWithGrip">
+        <Grid Grid.Column="0" Grid.Row="0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="24"/>
+                <RowDefinition Height="24"/>
+                <RowDefinition Height="48"/>
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="24"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="24"/>
+            </Grid.ColumnDefinitions>
+            <Canvas Grid.Row="0" Grid.Column="1" Name="Draw" MinHeight="800" MinWidth="800" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" ClipToBounds="True" SizeChanged="Draw_SizeChanged"></Canvas>
+            <TextBlock Grid.Row="0" Grid.Column="1" Name="UpDirection" HorizontalAlignment="Center" VerticalAlignment="Top" FontWeight="Bold" FontSize="14">A</TextBlock>
+            <TextBlock Grid.Row="0" Grid.Column="1" Name="DownDirection" HorizontalAlignment="Center" VerticalAlignment="Bottom" FontWeight="Bold" FontSize="14">P</TextBlock>
+            <TextBlock Grid.Row="0" Grid.Column="1" Name="LeftDirection" HorizontalAlignment="Left" VerticalAlignment="Center" FontWeight="Bold" FontSize="14">L</TextBlock>
+            <TextBlock Grid.Row="0" Grid.Column="1" Name="RightDirection" HorizontalAlignment="Right" VerticalAlignment="Center" FontWeight="Bold" FontSize="14">R</TextBlock>
+            <Slider Grid.Row="2" Grid.Column="1" Name="Magnification" Orientation="Horizontal" Value="1.5" Maximum="2" Minimum="1" VerticalAlignment="Center" ValueChanged="Magnification_ValueChanged" FlowDirection="RightToLeft" LargeChange="0.2" SmallChange="0.05"></Slider>
+            <TextBlock Grid.Column="1" Name="ButtonInfo" VerticalAlignment="Bottom" HorizontalAlignment="Left" Background="#00000000"/>
+            <Slider Grid.Row="1" Grid.Column="1" Name="Yaw" Orientation="Horizontal" Value="0" Maximum="180" Minimum="-180" ValueChanged="Yaw_ValueChanged" VerticalAlignment="Center"></Slider>
+            <Slider Grid.Column="3" Name="Pitch" Orientation="Vertical" Value="0" Maximum="180" Minimum="-180" ValueChanged="Pitch_ValueChanged" HorizontalAlignment="Center"></Slider>
+            <Slider Grid.Column="0" Name="Roll" Orientation="Vertical" Value="0" Maximum="180" Minimum="-180" ValueChanged="Roll_ValueChanged" HorizontalAlignment="Center"></Slider>
+            <Grid Grid.Column="1" Grid.Row="0" HorizontalAlignment="Right" VerticalAlignment="Bottom">
+                <Grid.Resources>
+                    <Style TargetType="Button">
+                        <EventSetter Event="Click" Handler="StandardView_Click" />
+                        <Setter Property="Margin" Value="3"/>
+                        <Setter Property="Height" Value="24"/>
+                        <Setter Property="Width" Value="24"/>
+                        <Setter Property="FontWeight" Value="Bold" />
+                    </Style>
+                </Grid.Resources>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <Button Grid.Row="1" Grid.Column="1">V</Button>
+                <Button Grid.Row="1" Grid.Column="0">L</Button>
+                <Button Grid.Row="1" Grid.Column="2">R</Button>
+                <Button Grid.Row="0" Grid.Column="1">A</Button>
+                <Button Grid.Row="2" Grid.Column="1">P</Button>
+            </Grid>
+         <StackPanel Orientation="Horizontal" Grid.Row="4" Grid.ColumnSpan="3" HorizontalAlignment="Right" Margin="20,8">
+            <Button Height="32" Width="120" FontSize="16" FontWeight="Bold" Click="Exit_Click">Exit</Button>
+        </StackPanel>
+       </Grid>
+</Window>
