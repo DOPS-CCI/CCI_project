@@ -37,6 +37,7 @@
   <ItemGroup>
     <Reference Include="System" />
     <Reference Include="System.Windows.Forms" />
+    <Reference Include="WindowsBase" />
   </ItemGroup>
   <Choose>
     <When Condition="('$(VisualStudioVersion)' == '10.0' or '$(VisualStudioVersion)' == '') and '$(TargetFrameworkVersion)' == 'v3.5'">
@@ -58,6 +59,7 @@
     <Compile Include="BDFLocTest.cs" />
     <Compile Include="BDFEDFHeaderEditorTest.cs" />
     <Compile Include="ConversionTest.cs" />
+    <Compile Include="ElectrodeFileStreamTest.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\CCILibrary\CCILibrary.csproj">
