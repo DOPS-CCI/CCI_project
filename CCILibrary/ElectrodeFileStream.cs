@@ -120,10 +120,12 @@ namespace ElectrodeFileStream
         public abstract Point3D convertXYZ(); //convert electrode coordinates to XYZ space: X-Y and Phi-Theta convert onto
             //a sphere of standard radius
 
+        public abstract PointRPhiTheta convertRPhiTheta(); //convert electrode coordinates to {r, phi, theta} space
+
         public abstract double DistanceTo(ElectrodeRecord er); //distance on surface of standard sphere between electrodes;
             //Note: this is not the actual distance between electrodes in XYZ space, but the arc length on the sphere
 
-        public abstract override string ToString(); //standard descriptive output for this record
+        public abstract string ToString(string format); //standard descriptive output for this record
             //Note: to obtain a simple "phi,theta" output use projectPhiTheta().ToString(format)
 
         protected const double radius = 10D; //standard "head radius" in centimeters
@@ -132,16 +134,16 @@ namespace ElectrodeFileStream
 
         protected static double angleDiff(double phi1, double theta1, double phi2, double theta2)
         {
-            double DTheta = theta1 - theta2;
-            double cDTheta = Math.Cos(DTheta);
-            double sPhi1 = Math.Sin(phi1);
-            double cPhi1 = Math.Cos(phi1);
-            double sPhi2 = Math.Sin(phi2);
-            double cPhi2 = Math.Cos(phi2);
-            double t1 = sPhi1 * Math.Sin(DTheta);
-            double t2 = sPhi2 * cPhi1 - cPhi2 * sPhi1 * cDTheta;
-            double d = Math.Atan2(Math.Sqrt(t1 * t1 + t2 * t2), cPhi1 * cPhi2 + sPhi1 * sPhi2 * cDTheta);
-            return radius * d;
+                double DTheta = theta1 - theta2;
+                double cDTheta = Math.Cos(DTheta);
+                double sPhi1 = Math.Sin(phi1);
+                double cPhi1 = Math.Cos(phi1);
+                double sPhi2 = Math.Sin(phi2);
+                double cPhi2 = Math.Cos(phi2);
+                double t1 = sPhi1 * Math.Sin(DTheta);
+                double t2 = sPhi2 * cPhi1 - cPhi2 * sPhi1 * cDTheta;
+                double d = Math.Atan2(Math.Sqrt(t1 * t1 + t2 * t2), cPhi1 * cPhi2 + sPhi1 * sPhi2 * cDTheta);
+                return radius * d;
         }
     }
 
@@ -213,6 +215,11 @@ namespace ElectrodeFileStream
             return new Point3D(r1 * Math.Sin(Theta), r1 * Math.Cos(Theta), radius * Math.Cos(Phi));
         }
 
+        public override PointRPhiTheta convertRPhiTheta()
+        {
+            return new PointRPhiTheta(radius, Phi, Theta);
+        }
+
         public override double DistanceTo(ElectrodeRecord er)
         {
             if (!(er is PhiThetaRecord))
@@ -227,7 +234,7 @@ namespace ElectrodeFileStream
             return "PhiTheta: " + (Phi * ToDeg).ToString("0.0") + ", " + (Theta * ToDeg).ToString("0.0");
         }
 
-        public string ToString(string format)
+        public override string ToString(string format)
         {
             return (Phi * ToDeg).ToString(format) + "," + (Theta * ToDeg).ToString(format);
         }
@@ -298,6 +305,13 @@ namespace ElectrodeFileStream
             return new Point3D(r1 * X / p, r1 * Y / p, radius * Math.Cos(p));
         }
 
+        public override PointRPhiTheta convertRPhiTheta()
+        {
+            double p = Math.Sqrt(X * X + Y * Y);
+            double r1 = radius * Math.Sin(p);
+            return new PointRPhiTheta(radius, p, Math.Atan2(X, Y));
+        }
+
         public override double DistanceTo(ElectrodeRecord er)
         {
             if(!(er is XYRecord))
@@ -314,6 +328,11 @@ namespace ElectrodeFileStream
         {
             return "XY: " + X.ToString("0.00") + ", " + Y.ToString("0.00");
         }
+
+        public override string ToString(string format)
+        {
+            return X.ToString(format) + ", " + Y.ToString(format);
+        }
     }
 
     /// <summary>
@@ -322,9 +341,9 @@ namespace ElectrodeFileStream
     /// </summary>
     public class XYZRecord : ElectrodeRecord
     {
-        public double X { get; private set; }
-        public double Y { get; private set; }
-        public double Z { get; private set; }
+        public double X { get; private set; } //X-axis is toward right preauricular point
+        public double Y { get; private set; } //Y-axis is toward nasion point
+        public double Z { get; private set; } //Z-axis is upward, toward vertex
 
         public XYZRecord() { }
 
@@ -369,7 +388,7 @@ namespace ElectrodeFileStream
         public override Point projectXY()
         {
             double x2y2 = Math.Sqrt(X * X + Y * Y);
-            double r = Math.Atan2(x2y2, Z); // = phi of PhiTheta system
+            double r = Math.Atan2(x2y2, Z); // = phi of PhiTheta system; "radius"
             return new Point(X * r / x2y2, Y * r / x2y2);
         }
 
@@ -381,6 +400,12 @@ namespace ElectrodeFileStream
         public override Point3D convertXYZ()
         {
             return new Point3D(X, Y, Z);
+        }
+
+        public override PointRPhiTheta convertRPhiTheta()
+        {
+            double r = Math.Sqrt(X * X + Y * Y + Z * Z);
+            return new PointRPhiTheta(r, Math.Atan2(Math.Sqrt(X * X + Y * Y), Z), Math.Atan2(X, Y));
         }
 
         /// <summary>
@@ -404,6 +429,11 @@ namespace ElectrodeFileStream
         {
             return "XYZ: " + X.ToString("0.00") + ", " + Y.ToString("0.00") + ", " + Z.ToString("0.00");
         }
+
+        public override string ToString(string format)
+        {
+            return X.ToString(format) + ", " + Y.ToString(format) + ", " + Z.ToString(format);
+        }
     }
 
     public struct Point3D
@@ -419,13 +449,61 @@ namespace ElectrodeFileStream
             Y = y;
             Z = z;
         }
+
+        public PointRPhiTheta ConvertToRPhiTheta()
+        {
+            double r = Math.Sqrt(X * X + Y * Y + Z * Z);
+            double r1 = Math.Sqrt(X * X + Y * Y);
+            PointRPhiTheta t = new PointRPhiTheta(r, Math.Atan2(r1, Z), Math.Atan2(X, Y));
+//          NOTE: the theta component is correct!!! 1) Atan2(Y,X) has y (opposite) before x (adjacent);
+//          2) Rotation to RIGHT makes this work out (surprisingly) correct (there's a flip as well as a 90 degree rotation)
+//          Essentially the meaning of X and Y are reversed when measuring theta
+            return t;
+        }
+
+        public string ToString(string format = "0.00")
+        {
+            return X.ToString(format) + ", " + Y.ToString(format) + ", " + Z.ToString(format);
+        }
+    }
+
+    public struct PointRPhiTheta
+    {
+        public double R { get; set; }
+        public double Phi { get; set; }
+        public double Theta { get; set; }
+        const double deg = 180D / Math.PI;
+
+        public PointRPhiTheta(double r, double phi, double theta)
+            : this()
+        {
+            R = r;
+            Phi = phi;
+            Theta = theta;
+        }
+
+        public Point3D ConvertToXYZ()
+        {
+            return new Point3D(R * Math.Sin(Phi) * Math.Sin(Theta), R * Math.Sin(Phi) * Math.Cos(Theta), R * Math.Cos(Phi));
+        }
+
+        public string ToString(string format = "0.0")
+        {
+            return "R=" + R.ToString(format) + ", Phi=" + (Phi * deg).ToString(format) + ", Theta=" + (Theta * deg).ToString(format);
+        }
     }
 
     public struct PhiTheta
     {
-        public double Phi { get; set; }
-        public double Theta { get; set; }
+        public double Phi { get; set; } //angle in radians from vertex
+        public double Theta { get; set; } //angle in radians from Y-axis, positive to right
+        const double deg = 180D / Math.PI;
 
+        /// <summary>
+        /// Constructor
+        /// </summary>
+        /// <param name="phi">Angle from vertex in radians</param>
+        /// <param name="theta">Angle from nasion, positive to right</param>
         public PhiTheta(double phi, double theta)
             : this()
         {
@@ -435,7 +513,7 @@ namespace ElectrodeFileStream
 
         public string ToString(string format)
         {
-            return Math.Round(Phi * 180D / Math.PI).ToString(format) + "," + Math.Round(Theta * 180D / Math.PI).ToString(format);
+            return Math.Round(Phi * deg).ToString(format) + "," + Math.Round(Theta * deg).ToString(format);
         }
     }
 }
