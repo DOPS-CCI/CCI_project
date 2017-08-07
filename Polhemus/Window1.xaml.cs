@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Windows;
@@ -58,7 +59,7 @@ namespace Polhemus
             dlg.DefaultExt = ".etr"; // Default file extension
             dlg.Filter = "Electrode Files (.etr)|*.etr"; // Filter files by extension
             dlg.FileName = "Electrodes.etr";
-            dlg.InitialDirectory = MainWindow.networkFolder;
+            dlg.InitialDirectory = Directory.Exists(MainWindow.networkFolder) ? MainWindow.networkFolder : "";
             Nullable<bool> result = dlg.ShowDialog();
             if (result != null && (bool)result)
             {

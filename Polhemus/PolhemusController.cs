@@ -1,22 +1,12 @@
-﻿using System;
+﻿#define DCMTranspose
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
-using System.IO.Ports;
-using System.Linq;
-using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Text.RegularExpressions;
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
 using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
 
 namespace Polhemus
 {
@@ -1150,6 +1140,210 @@ namespace Polhemus
         }
     }
 
+    /// <summary>
+    /// Class to use stylus device with Polhemus; has three modes of use:
+    /// 1. Monitor: continuous recording of data frames, independent of stylus
+    ///  button position;
+    /// 2. Single shot: record data frame whenever stylus button is pressed;
+    /// 3. Continuous: continuous recording of data frames, but only when stylus 
+    ///  button is pressed.
+    /// Monitor mode may be used with either of the other two modes; continuous
+    ///  and single shot modes cannot be used together.
+    /// Callback delegates are provided to process data in real time in each
+    ///  of these modes; a parameter is provided to indicate that a particular
+    ///  callback is the "final" one (continuous and monitor modes), i.e., the
+    ///  stylus button has been released.
+    /// </summary>
+    public class StylusAcquisition : BackgroundWorker
+    {
+        List<IDataFrameType>[] currentFrame;
+        PolhemusController _controller;
+        public delegate void Continuous(List<IDataFrameType>[] frame, bool final);
+        public delegate void SingleShot(List<IDataFrameType>[] frame);
+        public delegate void Monitor(List<IDataFrameType>[] frame, bool final);
+        Continuous _continuous;
+        SingleShot _singleShot;
+        Monitor _monitor;
+        bool _continuousMode;
+        bool trueCancellation = false;
+        int stylusFrameLoc; //where stylus marker state is in the Polhemus data frame
+
+        public StylusAcquisition(PolhemusController controller, Continuous continuous, Monitor monitor = null)
+        {
+            if (controller == null) throw new ArgumentNullException("controller");
+            if (continuous == null) throw new ArgumentNullException("continuous");
+            _controller = controller;
+            _continuous = continuous;
+            _monitor = monitor;
+            _continuousMode = true;
+            initialization();
+            ProgressChanged += new ProgressChangedEventHandler(sa_StylusProgressChanged);
+        }
+
+        public StylusAcquisition(PolhemusController controller, SingleShot singleShot, Monitor monitor = null)
+        {
+            if (controller == null) throw new ArgumentNullException("controller");
+            if (singleShot == null) throw new ArgumentNullException("singleShot");
+            _controller = controller;
+            _singleShot = singleShot;
+            _monitor = monitor;
+            _continuousMode = false;
+            initialization();
+            if (monitor != null)
+                ProgressChanged += new ProgressChangedEventHandler(sa_StylusProgressChanged);
+        }
+
+        public StylusAcquisition(PolhemusController controller, Monitor monitor) //monitor only, independent of button state; stops on cancel only
+        {
+            if (controller == null) throw new ArgumentNullException("controller");
+            if (monitor == null) throw new ArgumentNullException("monitor");
+            _controller = controller;
+            _monitor = monitor;
+            _continuousMode = true;
+            initialization();
+            ProgressChanged += new ProgressChangedEventHandler(sa_StylusProgressChanged);
+        }
+
+        public void Start()
+        {
+            if (!IsBusy)
+                this.RunWorkerAsync();
+        }
+
+        public void Stop()
+        {
+            CancelAsync();
+        }
+
+        public void Cancel()
+        {
+            trueCancellation = true;
+            Stop();
+        }
+
+        void initialization()
+        {
+            WorkerSupportsCancellation = true;
+            WorkerReportsProgress = true;
+            RunWorkerCompleted += new RunWorkerCompletedEventHandler(sa_StylusMarker);
+            DoWork += new DoWorkEventHandler(Execute);
+
+            //look in station 1 ResponseFrameDesctiption for a StylusFlag item
+            List<IDataFrameType> l = _controller.ResponseFrameDescription[0];
+            Type[] l1 = new Type[l.Count + 1];
+            stylusFrameLoc = 0; //index of the StylusFlag item in the data frame
+            foreach (IDataFrameType idf in l)
+            {
+                Type t = idf.GetType();
+                if (t == typeof(StylusFlag)) return;
+                l1[stylusFrameLoc++] = t;
+            }
+            //if we don't find a StylusFlag, add one to the end of station 1 frame
+            l1[stylusFrameLoc] = typeof(StylusFlag);
+            _controller.OutputDataList(1, l1);
+        }
+
+        void sa_StylusProgressChanged(object sender, ProgressChangedEventArgs e)
+        {
+#if TRACE
+            Console.WriteLine("StylusProgressChanged");
+#endif
+            if (_monitor != null)
+                _monitor((List<IDataFrameType>[])e.UserState, false); //independent of stylus button state
+            if (e.ProgressPercentage == 0) return; //use to determine if in last segment of tracking stylus button
+            if (_continuousMode)
+                _continuous((List<IDataFrameType>[])e.UserState, false); //call continuous monitor delegate
+        }
+
+        void sa_StylusMarker(object sender, RunWorkerCompletedEventArgs e)
+        {
+#if TRACE
+            Console.WriteLine("StylusMarker " + trueCancellation.ToString() + " " + e.Cancelled.ToString());
+#endif
+            if (e.Error != null)
+                throw e.Error;
+            List<IDataFrameType>[] t = e.Cancelled ? null : (List<IDataFrameType>[])e.Result;
+            //NB: in the following last calls to the delegates, if t is null and trueCancellation is false =>
+            // extrinsic conclusion to frame; if t is not null and trueCancellation is false => intrisic
+            // end to frame; if trueCancellation is true, then abnormal end to frame: a true cancellation of
+            // the process. Extrinsic means that the frame has been ended by the delegate in the previous call,
+            // while intrinsic means that the frame has ended by release of the stylus button.
+            if (_monitor != null)
+                _monitor(t, !trueCancellation);
+            if (_continuousMode)
+                _continuous(t, !trueCancellation); //make last callback
+            else if (!trueCancellation)
+                _singleShot(t);
+        }
+
+        /// <summary>
+        /// This is the routine that is executed on the background thread to acquire "frames" of data
+        ///  from Polhemus by repeatedly doing SingleDataRecordData commands (P) on the Polhemus device.
+        ///  After each frame is acquired from Polhemus (in synchronous mode), a ReportProgress event
+        ///  is generated which in turn executes a delegate on the home thread (if appropriate for
+        ///  the mode that the StylusAcquisition object was created with). A BackgroundWorkerCompleted
+        ///  event is created when this routine exits, resulting in another delegate execution on the
+        ///  home thread.
+        /// </summary>
+        const int sleepTime = 20; //Best value; results in about 40 samples/sec with or without monitor running
+        void Execute(object sender, DoWorkEventArgs e)
+        {
+            BackgroundWorker bw = (BackgroundWorker)sender;
+            do //wait for stylus button to be in released state
+            {
+                Thread.Sleep(sleepTime);
+                currentFrame = _controller.SingleDataRecordOutput();
+                if (bw.CancellationPending)
+                {
+#if TRACE
+                    Console.WriteLine("BW: Cancel 1");
+#endif
+                    e.Result = currentFrame; //truecancellation vs extrinsic
+                    e.Cancel = true;
+                    return;
+                }
+                if (_monitor != null)
+                    bw.ReportProgress(0, currentFrame); //monitor only while waiting for button release
+            } while (((StylusFlag)currentFrame[0][stylusFrameLoc]).Flag == 1); //Wait for stylus button to be released
+            do //wait for stylus button to be pushed
+            {
+                Thread.Sleep(sleepTime);
+                currentFrame = _controller.SingleDataRecordOutput();
+                if (bw.CancellationPending)
+                {
+#if TRACE
+                    Console.WriteLine("BW: Cancel 2");
+#endif
+                    e.Result = currentFrame; //truecancellation vs extrinsic
+                    e.Cancel = true;
+                    return;
+                }
+                if (((StylusFlag)currentFrame[0][stylusFrameLoc]).Flag == 1) break; //stylus button just pushed
+                if (_monitor != null)
+                    bw.ReportProgress(0, currentFrame); //monitor until stylus button push
+            } while (true); //Wait for button to be pushed
+            if (_continuousMode)
+            {
+                do //wait for stylus button to be released
+                {
+                    bw.ReportProgress(1, currentFrame); //monitor and wait for button release
+                    Thread.Sleep(sleepTime);
+                    currentFrame = _controller.SingleDataRecordOutput();
+                    if (bw.CancellationPending)
+                    {
+#if TRACE
+                        Console.WriteLine("BW: Cancel 3");
+#endif
+                        e.Result = currentFrame;
+                        e.Cancel = true;
+                        return;
+                    }
+                } while (((StylusFlag)currentFrame[0][stylusFrameLoc]).Flag == 1); //Wait for button to be released
+            }
+            e.Result = currentFrame; //intrinsic exit
+        }
+    }
+
     public class PolhemusException : Exception
     {
         byte _errNum;
@@ -1456,23 +1650,37 @@ namespace Polhemus
 
         public void FromASCII(StreamReader sr)
         {
+            //Assumes row-first order
             int i = 0;
             for (int j = 0; j < 3; j++)
+#if DCMTranspose
+                Matrix[i][j] = (double)PolhemusController.parseASCIIStream(sr, "Sx.xxxxxB");
+#else
                 Matrix[j][i] = (double)PolhemusController.parseASCIIStream(sr, "Sx.xxxxxB");
+#endif
             PolhemusController.parseASCIIStream(sr, "<>");
             i = 1;
             PolhemusController.parseASCIIStream(sr, "AAAA"); //skip 4 blanks at beginning of line
             for (int j = 0; j < 3; j++)
+#if DCMTranspose
+                Matrix[i][j] = (double)PolhemusController.parseASCIIStream(sr, "Sx.xxxxxB");
+#else
                 Matrix[j][i] = (double)PolhemusController.parseASCIIStream(sr, "Sx.xxxxxB");
+#endif
             PolhemusController.parseASCIIStream(sr, "<>");
             i = 2;
             PolhemusController.parseASCIIStream(sr, "AAAA"); //skip 4 blanks at beginning of line
             for (int j = 0; j < 3; j++)
+#if DCMTranspose
+                Matrix[i][j] = (double)PolhemusController.parseASCIIStream(sr, "Sx.xxxxxB");
+#else
                 Matrix[j][i] = (double)PolhemusController.parseASCIIStream(sr, "Sx.xxxxxB");
+#endif
         }
 
         public void FromBinary(BinaryReader br)
         {
+            //Assumes row-first order
             for (int i = 0; i < 3; i++)
                 for (int j = 0; j < 3; j++)
                     Matrix[j][i] = br.ReadSingle();
@@ -1526,6 +1734,35 @@ namespace Polhemus
                 q1.ToString("0.000") + ", " +
                 q2.ToString("0.000") + ", " +
                 q3.ToString("0.000");
+        }
+
+        public DirectionCosineMatrix ConvertToDCM()
+        {
+            double q0s = q0 * q0;
+            double q1s = q1 * q1;
+            double q2s = q2 * q2;
+            double q3s = q3 * q3;
+            double q01 = q0 * q1;
+            double q12 = q1 * q2;
+            double q03 = q0 * q3;
+            double q13 = q1 * q3;
+            double q02 = q0 * q2;
+            double q23 = q2 * q3;
+
+            DirectionCosineMatrix dcm = new DirectionCosineMatrix();
+
+            dcm.Matrix[0][0] = q0s + q1s - q2s - q3s;
+            dcm.Matrix[0][1] = 2 * (q12 + q03);
+            dcm.Matrix[0][2] = 2 * (q13 - q02);
+
+            dcm.Matrix[1][0] = 2 * (q12 - q03);
+            dcm.Matrix[1][1] = q0s - q1s + q2s - q3s;
+            dcm.Matrix[1][2] = 2 * (q01 + q23);
+
+            dcm.Matrix[2][0] = 2 * (q02 + q13);
+            dcm.Matrix[2][1] = 2 * (q23 - q01);
+            dcm.Matrix[2][2] = q0s - q1s - q2s + q3s;
+            return dcm;
         }
     }
 
@@ -1604,208 +1841,6 @@ namespace Polhemus
         public override string ToString()
         {
             return Flag == 0 ? "Off" : "On";
-        }
-    }
-
-    /// <summary>
-    /// Class to use stylus device with Polhemus; has three modes of use:
-    /// 1. Monitor: continuous recording of data frames, independent of stylus
-    ///  button position;
-    /// 2. Single shot: record data frame whenever stylus button is pressed;
-    /// 3. Continuous: continuous recording of data frames, but only when stylus 
-    ///  button is pressed.
-    /// Monitor mode may be used with either of the other two modes; continuous
-    ///  and single shot modes cannot be used together.
-    /// Callback delegates are provided to process data in real time in each
-    ///  of these modes; a parameter is provided to indicate that a particular
-    ///  callback is the "final" one (continuous and monitor modes), i.e., the
-    ///  stylus button has been released.
-    /// </summary>
-    public class StylusAcquisition : BackgroundWorker
-    {
-        List<IDataFrameType>[] currentFrame;
-        PolhemusController _controller;
-        public delegate void Continuous(List<IDataFrameType>[] frame, bool final);
-        public delegate void SingleShot(List<IDataFrameType>[] frame);
-        public delegate void Monitor(List<IDataFrameType>[] frame, bool final);
-        Continuous _continuous;
-        SingleShot _singleShot;
-        Monitor _monitor;
-        bool _continuousMode;
-        bool trueCancellation = false;
-        int stylusFrameLoc; //where stylus marker state is in the Polhemus data frame
-
-        public StylusAcquisition(PolhemusController controller, Continuous continuous, Monitor monitor = null)
-        {
-            if (controller == null) throw new ArgumentNullException("controller");
-            if (continuous == null) throw new ArgumentNullException("continuous");
-            _controller = controller;
-            _continuous = continuous;
-            _monitor = monitor;
-            _continuousMode = true;
-            initialization();
-            ProgressChanged += new ProgressChangedEventHandler(sa_StylusProgressChanged);
-        }
-
-        public StylusAcquisition(PolhemusController controller, SingleShot singleShot, Monitor monitor = null)
-        {
-            if (controller == null) throw new ArgumentNullException("controller");
-            if (singleShot == null) throw new ArgumentNullException("singleShot");
-            _controller = controller;
-            _singleShot = singleShot;
-            _monitor = monitor;
-            _continuousMode = false;
-            initialization();
-            if (monitor != null)
-                ProgressChanged += new ProgressChangedEventHandler(sa_StylusProgressChanged);
-        }
-
-        public StylusAcquisition(PolhemusController controller, Monitor monitor) //monitor only, independent of button state; stops on cancel only
-        {
-            if (controller == null) throw new ArgumentNullException("controller");
-            if (monitor == null) throw new ArgumentNullException("monitor");
-            _controller = controller;
-            _monitor = monitor;
-            _continuousMode = true;
-            initialization();
-            ProgressChanged += new ProgressChangedEventHandler(sa_StylusProgressChanged);
-        }
-
-        public void Start()
-        {
-            if (!IsBusy)
-                this.RunWorkerAsync();
-        }
-
-        public void Stop()
-        {
-            CancelAsync();
-        }
-
-        public void Cancel()
-        {
-            trueCancellation = true;
-            Stop();
-        }
-
-        void initialization()
-        {
-            WorkerSupportsCancellation = true;
-            WorkerReportsProgress = true;
-            RunWorkerCompleted += new RunWorkerCompletedEventHandler(sa_StylusMarker);
-            DoWork += new DoWorkEventHandler(Execute);
-
-            //look in station 1 ResponseFrameDesctiption for a StylusFlag item
-            List<IDataFrameType> l = _controller.ResponseFrameDescription[0];
-            Type[] l1 = new Type[l.Count + 1];
-            stylusFrameLoc = 0; //index of the StylusFlag item in the data frame
-            foreach (IDataFrameType idf in l)
-            {
-                Type t = idf.GetType();
-                if (t == typeof(StylusFlag)) return;
-                l1[stylusFrameLoc++] = t;
-            }
-            //if we don't find a StylusFlag, add one to the end of station 1 frame
-            l1[stylusFrameLoc] = typeof(StylusFlag);
-            _controller.OutputDataList(1, l1);
-        }
-
-        void sa_StylusProgressChanged(object sender, ProgressChangedEventArgs e)
-        {
-#if TRACE
-            Console.WriteLine("StylusProgressChanged");
-#endif
-            if (_monitor != null)
-                _monitor((List<IDataFrameType>[])e.UserState, false); //independent of stylus button state
-            if (e.ProgressPercentage == 0) return; //use to determine if in last segment of tracking stylus button
-            if (_continuousMode)
-                _continuous((List<IDataFrameType>[])e.UserState, false); //call continuous monitor delegate
-        }
-
-        void sa_StylusMarker(object sender, RunWorkerCompletedEventArgs e)
-        {
-#if TRACE
-            Console.WriteLine("StylusMarker " + trueCancellation.ToString() + " " + e.Cancelled.ToString());
-#endif
-            if (e.Error != null)
-                throw e.Error;
-            List<IDataFrameType>[] t = e.Cancelled ? null : (List<IDataFrameType>[])e.Result;
-            //NB: in the following last calls to the delegates, if t is null and trueCancellation is false =>
-            // extrinsic conclusion to frame; if t is not null and trueCancellation is false => intrisic
-            // end to frame; if trueCancellation is true, then abnormal end to frame: a true cancellation of
-            // the process. Extrinsic means that the frame has been ended by the delegate in the previous call,
-            // while intrinsic means that the frame has ended by release of the stylus button.
-            if (_monitor != null)
-                _monitor(t, !trueCancellation);
-            if (_continuousMode)
-                _continuous(t, !trueCancellation); //make last callback
-            else if (!trueCancellation)
-                _singleShot(t);
-        }
-
-        /// <summary>
-        /// This is the routine that is executed on the background thread to acquire "frames" of data
-        ///  from Polhemus by repeatedly doing SingleDataRecordData commands (P) on the Polhemus device.
-        ///  After each frame is acquired from Polhemus (in synchronous mode), a ReportProgress event
-        ///  is generated which in turn executes a delegate on the home thread (if appropriate for
-        ///  the mode that the StylusAcquisition object was created with). A BackgroundWorkerCompleted
-        ///  event is created when this routine exits, resulting in another delegate execution on the
-        ///  home thread.
-        /// </summary>
-        const int sleepTime = 20; //Best value; results in about 40 samples/sec with or without monitor running
-        void Execute(object sender, DoWorkEventArgs e)
-        {
-            BackgroundWorker bw = (BackgroundWorker)sender;
-            do //wait for stylus button to be in released state
-            {
-                Thread.Sleep(sleepTime);
-                currentFrame = _controller.SingleDataRecordOutput();
-                if (bw.CancellationPending) {
-#if TRACE
-                    Console.WriteLine("BW: Cancel 1");
-#endif
-                    e.Result = currentFrame; //truecancellation vs extrinsic
-                    e.Cancel = true;
-                    return;
-                }
-                if (_monitor != null)
-                    bw.ReportProgress(0, currentFrame); //monitor only while waiting for button release
-            } while (((StylusFlag)currentFrame[0][stylusFrameLoc]).Flag == 1); //Wait for stylus button to be released
-            do //wait for stylus button to be pushed
-            {
-                Thread.Sleep(sleepTime);
-                currentFrame = _controller.SingleDataRecordOutput();
-                if (bw.CancellationPending) {
-#if TRACE
-                    Console.WriteLine("BW: Cancel 2");
-#endif
-                    e.Result = currentFrame; //truecancellation vs extrinsic
-                    e.Cancel = true;
-                    return;
-                }
-                if (((StylusFlag)currentFrame[0][stylusFrameLoc]).Flag == 1) break; //stylus button just pushed
-                if (_monitor != null)
-                    bw.ReportProgress(0, currentFrame); //monitor until stylus button push
-            } while (true); //Wait for button to be pushed
-            if (_continuousMode)
-            {
-                do //wait for stylus button to be released
-                {
-                    bw.ReportProgress(1, currentFrame); //monitor and wait for button release
-                    Thread.Sleep(sleepTime);
-                    currentFrame = _controller.SingleDataRecordOutput();
-                    if (bw.CancellationPending)
-                    {
-#if TRACE
-                        Console.WriteLine("BW: Cancel 3");
-#endif
-                        e.Result = currentFrame;
-                        e.Cancel = true;
-                        return;
-                    }
-                } while (((StylusFlag)currentFrame[0][stylusFrameLoc]).Flag == 1); //Wait for button to be released
-            }
-            e.Result = currentFrame; //intrinsic exit
         }
     }
 

@@ -54,12 +54,14 @@ namespace Polhemus
             string templateFileName;
             string ETRFileName;
             bool useMonitor;
-            if (standAlone)
+            if (standAlone) //not started via command line
             {
                 w = new Window1();
+                string templatesPath =
+                    System.IO.Path.Combine(Directory.Exists(networkFolder) ? networkFolder : Environment.CurrentDirectory, templatesFolder);
                 try
                 {
-                    foreach (string s in Directory.EnumerateFiles(networkFolder + System.IO.Path.DirectorySeparatorChar + templatesFolder))
+                    foreach (string s in Directory.EnumerateFiles(templatesPath))
                     {
                         string f = System.IO.Path.GetFileNameWithoutExtension(s);
                         w.Templates.Items.Add(f);
@@ -81,18 +83,25 @@ namespace Polhemus
                 else if (mode == 3) threshold = w._SDThresh;
                 voice = (bool)w.Voice.IsChecked;
                 hemisphere = w.Hemisphere.SelectedIndex;
-                templateFileName = (string)w.Templates.SelectedValue;
-                ETRFileName = System.IO.Path.GetFileNameWithoutExtension(w._etrFileName);
+                templateFileName = System.IO.Path.Combine(Directory.Exists(networkFolder) ? networkFolder : Environment.CurrentDirectory,
+                    templatesFolder, (string)w.Templates.SelectedValue);
+                string str = System.IO.Path.GetFullPath(w._etrFileName);
+                ETRFileName = System.IO.Path.Combine(
+                    System.IO.Path.GetDirectoryName(str), System.IO.Path.GetFileNameWithoutExtension(str)); //need to drop extension
                 useMonitor = (bool)w.Monitor.IsChecked;
             }
-            else
+            else //started via command line
             {
                 mode = 0; //always single click
                 samples = 1; //single sample only
                 voice = true;
                 hemisphere = 0; //X+
-                templateFileName = Environment.GetCommandLineArgs()[1];
-                ETRFileName = networkFolder + System.IO.Path.DirectorySeparatorChar + Environment.GetCommandLineArgs()[2];
+                string s = System.IO.Path.GetFullPath(Environment.GetCommandLineArgs()[1]);
+                templateFileName = System.IO.Path.Combine(
+                    System.IO.Path.GetDirectoryName(s), System.IO.Path.GetFileNameWithoutExtension(s)); //first argument is template file path
+                s = System.IO.Path.GetFullPath(Environment.GetCommandLineArgs()[2]);
+                ETRFileName = System.IO.Path.Combine(
+                    System.IO.Path.GetDirectoryName(s), System.IO.Path.GetFileNameWithoutExtension(s)); //second argument is electrode file path
                 useMonitor = true;
             }
 
@@ -102,8 +111,19 @@ namespace Polhemus
             settings.IgnoreComments = true;
             settings.IgnoreProcessingInstructions = true;
             settings.CloseInput = true;
-            XmlReader templateReader = XmlReader.Create(networkFolder + System.IO.Path.DirectorySeparatorChar +
-                templatesFolder + System.IO.Path.DirectorySeparatorChar + templateFileName + ".xml", settings); //templates are always on network drive
+
+            XmlReader templateReader = null;
+            try
+            {
+                templateReader = XmlReader.Create(templateFileName + ".xml", settings); //templates are should be on network drive
+            }
+            catch (Exception e)
+            {
+                ErrorWindow ew = new ErrorWindow();
+                ew.Message = "Unable to open template file " + templateFileName + ": " + e.Message;
+                ew.ShowDialog();
+                Environment.Exit(1);
+            }
             templateReader.MoveToContent();
             templateReader.MoveToAttribute("N");
             numberOfElectrodes = templateReader.ReadContentAsInt(); //number of items
@@ -233,10 +253,13 @@ namespace Polhemus
         {
             Skip.IsEnabled = false;
 #if TRACE
-            Console.WriteLine("SinglePoint " + pointCount.ToString("0") + " " + (frame == null).ToString());
+            Console.WriteLine("SinglePoint " + Dcount.ToString("0") + " " + (frame == null).ToString());
 #endif
             if (frame != null)
             {
+                //each point is created by calculating the displacement vector between reference and electrode site
+                //in source cordinates and transforming to reference cordinates; this is necessary to compensate
+                //for any motion of the subject's head between samples
                 Triple newP = ((CartesianCoordinates)p.ResponseFrameDescription[0][0]).ToTriple() -
                     ((CartesianCoordinates)p.ResponseFrameDescription[1][0]).ToTriple();
                 DirectionCosineMatrix t = (DirectionCosineMatrix)p.ResponseFrameDescription[1][1];
@@ -274,6 +297,9 @@ namespace Polhemus
 #endif
             if (entryType == 3/*continued*/) //add new point into running averages
             {
+                //each point is created by calculating the displacement vector between reference and electrode site
+                //in source cordinates and then transforming to reference cordinates; this is necessary to compensate
+                //for any motion of the subject's head between samples
                 Triple newP = ((CartesianCoordinates)p.ResponseFrameDescription[0][0]).ToTriple() -
                     ((CartesianCoordinates)p.ResponseFrameDescription[1][0]).ToTriple();
                 DirectionCosineMatrix t = (DirectionCosineMatrix)p.ResponseFrameDescription[1][1];
@@ -352,7 +378,7 @@ namespace Polhemus
             if (!executeSkip)
             {
                 SystemSounds.Beep.Play();
-                if (electrodeNumber >= 0)
+                if (electrodeNumber >= 0) //normal electrode position
                 {
                     if (!e.Retry)
                     {
@@ -496,17 +522,22 @@ namespace Polhemus
         }
 
         Triple Origin;
-        Triple[] Transform = new Triple[3];
+        Triple[] Transform = new Triple[3]; //DCM of head coordinate axes in reference sensor coordinates
+        //Create direction cosine matrix of head with respect to reference sensor
+        //To convert reference sensor coordinates to head coordinates multiply by transpose of DCM
         private void CreateCoordinateTransform()
-        {
+        {   
+            //here we calculate the (fixed) offset between the reference sensor and the origin of the head coordinates
+            //and the rotation between reference and head coordinates
             Origin = 0.5D * (PR + PL);
             Triple pr = PR - Origin;
             Triple pn = PN - Origin;
-            Transform[0] = pr.Norm();
-            Transform[2] = (Triple.Cross(pr, pn)).Norm();
-            Transform[1] = Triple.Cross(Transform[2], Transform[0]);
+            Transform[0] = pr.Norm(); //x-axis points to right pre-auricular point
+            Transform[2] = (Triple.Cross(pr, pn)).Norm(); //z-axis is perpendicular to pr-pn plane
+            Transform[1] = Triple.Cross(Transform[2], Transform[0]); //y-axis is perpendicular to z-x plane; it does not necessarily point to nasion
         }
 
+        //Multiply by transpose of DCM
         private Triple DoCoordinateTransform(Triple t)
         {
             Triple p = t - Origin;
