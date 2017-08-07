@@ -204,11 +204,26 @@ namespace CCIUtilities
             return A;
         }
 
+        public NVector Conjugate(RQuaternion Q, bool forward = true)
+        {
+            RQuaternion V = new RQuaternion(this);
+            if (forward)
+                return (Q * V * Q.Inverse()).ExtractV();
+            else
+                return (Q.Inverse() * V * Q).ExtractV();
+        }
+        public override string ToString()
+        {
+            return this.ToString("G");
+        }
+
         public string ToString(string format)
         {
-            StringBuilder sb = new StringBuilder();
+            StringBuilder sb = new StringBuilder("{");
             for (int i = 0; i < _n; i++)
-                sb.Append(" " + _vector[i].ToString(format));
+                sb.Append(_vector[i].ToString(format) + ", ");
+            sb.Remove(sb.Length - 2, 2);
+            sb.Append("}");
             return sb.ToString();
         }
 

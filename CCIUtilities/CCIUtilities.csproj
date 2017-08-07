@@ -71,6 +71,7 @@
     <Compile Include="ErrorWindow.xaml.cs">
       <DependentUpon>ErrorWindow.xaml</DependentUpon>
     </Compile>
+    <Compile Include="RQuaternion.cs" />
     <Compile Include="Utilities.cs" />
   </ItemGroup>
   <ItemGroup>

@@ -55,6 +55,7 @@
     <Compile Include="CircularBufferTest.cs" />
     <Compile Include="DatasetViewerTest.cs" />
     <Compile Include="NMMatrixTest.cs" />
+    <Compile Include="RQuaternionTest.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\CCIUtilities\CCIUtilities.csproj">
