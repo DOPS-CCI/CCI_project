@@ -1,4 +1,5 @@
-﻿using System;
+﻿#define EccentricOrigin
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
@@ -263,7 +264,7 @@ namespace Polhemus
                 Triple newP = ((CartesianCoordinates)p.ResponseFrameDescription[0][0]).ToTriple() -
                     ((CartesianCoordinates)p.ResponseFrameDescription[1][0]).ToTriple();
                 DirectionCosineMatrix t = (DirectionCosineMatrix)p.ResponseFrameDescription[1][1];
-                Triple P = t.Transform(newP);
+                Triple P = t.Transform(newP); //this is now the point in reference coordinates
                 sumP += P;
                 double dr = P.Length();
                 Dsum += dr;
@@ -303,7 +304,7 @@ namespace Polhemus
                 Triple newP = ((CartesianCoordinates)p.ResponseFrameDescription[0][0]).ToTriple() -
                     ((CartesianCoordinates)p.ResponseFrameDescription[1][0]).ToTriple();
                 DirectionCosineMatrix t = (DirectionCosineMatrix)p.ResponseFrameDescription[1][1];
-                Triple P = t.Transform(newP);
+                Triple P = t.Transform(newP); //point now referenced to reference sensor coordinates
                 sumP += P;
                 double dr = P.Length();
                 Dsum += dr;
@@ -378,62 +379,67 @@ namespace Polhemus
             if (!executeSkip)
             {
                 SystemSounds.Beep.Play();
-                if (electrodeNumber >= 0) //normal electrode position
+                switch (electrodeNumber)
                 {
-                    if (!e.Retry)
-                    {
-                        Triple t = DoCoordinateTransform(e.result);
-                        string name = templateList[electrodeNumber].Name;
-                        output1.Text = name + ": " + t.ToString();
-                        XYZRecord xyz = new XYZRecord(name, t.v1, t.v2, t.v3);
-                        if (electrodeLocations.Where(l => l.Name == name).Count() == 0) //assure unique electrode name
+                    case -3: //first entry: Nasion
                         {
-                            electrodeLocations.Add(xyz);
-                            addPointToView(xyz);
-                            Delete.IsEnabled = true;
+                            if (e != null && !e.Retry)
+                            {
+                                PN = e.result; //save Nasion; in reference coordinates
+                                electrodeNumber++;
+                                Redo.IsEnabled = true;
+                            }
+                            DoPrompting((e != null) && e.Retry);
+                            ((StylusAcquisition)sa).Start();
+                            return;
                         }
-                        else //this is a replacement
+                    case -2: //second entry: Right Preauricular
                         {
-                            XYZRecord oldXYZ = electrodeLocations.Where(l => l.Name == name).First(); //get item to be replaced
-                            int n = electrodeLocations.IndexOf(oldXYZ); //and replace old
-                            electrodeLocations.Remove(oldXYZ); //remove
-                            electrodeLocations.Insert(n, xyz); //replace with new
-                            updateView(); //and redraw
+                            if (!e.Retry) //save Right preauricular; in reference coordinate
+                            {
+                                PR = e.result;
+                                electrodeNumber++;
+                            }
+                            break;
                         }
-                        electrodeNumber++; //on to next electrode location
-                    }
-                }
-                else if (electrodeNumber == -3) //first entry
-                {
-                    if (e != null && !e.Retry)
-                    {
-                        PN = e.result; //save Nasion
-                        electrodeNumber++;
-                        Redo.IsEnabled = true;
-                    }
-                    DoPrompting((e != null) && e.Retry);
-                    ((StylusAcquisition)sa).Start();
-                    return;
-                }
-                else if (electrodeNumber == -2)
-                {
-                    //save previous result
-                    if (!e.Retry) //save Right preauricular
-                    {
-                        PR = e.result;
-                        electrodeNumber++;
-                    }
-                }
-                else //electrodeNumber == -1
-                {
-                    //save previous result
-                    if (!e.Retry) //save Left preauricular
-                    {
-                        PL = e.result;
-                        CreateCoordinateTransform(); //calculate coordinate transformtion
-                        electrodeNumber++;
-                        drawAxes();
-                    }
+                    case -1: //third entry: Left Preauricular
+                        {
+                            if (!e.Retry) //save Left preauricular; in reference coordinate
+                            {
+                                PL = e.result; //now we have all three head reference points, so
+                                CreateCoordinateTransform(); //calculate coordinate transformation and offset to origin
+                                electrodeNumber++;
+                                drawAxes();
+                            }
+                            break;
+                        }
+                    default: //normal electrode position
+                        {
+                            if (!e.Retry)
+                            {
+                                //e.Result is in reference sensor coordinates
+                                Triple t = DoCoordinateTransform(e.result); //offset and rotate to head cordinates
+                                string name = templateList[electrodeNumber].Name;
+                                output1.Text = name + ": " + t.ToString();
+                                XYZRecord xyz = new XYZRecord(name, t.v1, t.v2, t.v3);
+                                if (electrodeLocations.Where(l => l.Name == name).Count() == 0) //assure unique electrode name
+                                {
+                                    electrodeLocations.Add(xyz);
+                                    addPointToView(xyz);
+                                    Delete.IsEnabled = true;
+                                }
+                                else //this is a replacement
+                                {
+                                    XYZRecord oldXYZ = electrodeLocations.Where(l => l.Name == name).First(); //get item to be replaced
+                                    int n = electrodeLocations.IndexOf(oldXYZ); //and replace old
+                                    electrodeLocations.Remove(oldXYZ); //remove
+                                    electrodeLocations.Insert(n, xyz); //replace with new, in same location
+                                    updateView(); //and redraw
+                                }
+                                electrodeNumber++; //on to next electrode location
+                            }
+                            break;
+                        }
                 }
             }
             else //executing skip
@@ -456,7 +462,7 @@ namespace Polhemus
                 writeElectrodeFile();
                 return; //done
             }
-            DoPrompting(e.Retry);
+            DoPrompting(e.Retry); //prompt for next electrode or retry current
             ((StylusAcquisition)sa).Start();
             return;
         }
@@ -522,22 +528,27 @@ namespace Polhemus
         }
 
         Triple Origin;
-        Triple[] Transform = new Triple[3]; //DCM of head coordinate axes in reference sensor coordinates
+        Triple[] Transform = new Triple[3]; //DCM of head coordinate axes in reference coordinates
         //Create direction cosine matrix of head with respect to reference sensor
         //To convert reference sensor coordinates to head coordinates multiply by transpose of DCM
         private void CreateCoordinateTransform()
         {   
             //here we calculate the (fixed) offset between the reference sensor and the origin of the head coordinates
             //and the rotation between reference and head coordinates
-            Origin = 0.5D * (PR + PL);
-            Triple pr = PR - Origin;
-            Triple pn = PN - Origin;
-            Transform[0] = pr.Norm(); //x-axis points to right pre-auricular point
-            Transform[2] = (Triple.Cross(pr, pn)).Norm(); //z-axis is perpendicular to pr-pn plane
-            Transform[1] = Triple.Cross(Transform[2], Transform[0]); //y-axis is perpendicular to z-x plane; it does not necessarily point to nasion
+            Triple pr;
+            pr = Transform[0] = (PR - PL).Norm(); //x-axis points to right pre-auricular point
+#if EccentricOrigin
+            Origin = PL + ((PN - PL) * pr) * pr; //origin with y-axis pointing at nasion point
+#else
+            Origin = 0.5D * (PR + PL); //origin 1/2-way between preauricular points
+#endif
+            Transform[2] = (Triple.Cross(pr, PN - Origin)).Norm(); //z-axis is perpendicular to pr-PN plane
+            Transform[1] = Triple.Cross(Transform[2], Transform[0]); //y-axis is perpendicular to z-x plane; 
+            // it does not necessarily point to nasion (see above)
         }
 
-        //Multiply by transpose of DCM
+        //Displace and rotate point in reference sensor coordinates to head coordinates
+        //Multiply by transpose of DCM; thus Transform[] are unit vectors
         private Triple DoCoordinateTransform(Triple t)
         {
             Triple p = t - Origin;

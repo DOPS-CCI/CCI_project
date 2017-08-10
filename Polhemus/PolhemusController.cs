@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading;
 using System.Text.RegularExpressions;
 using System.Windows.Documents;
+using CCIUtilities;
 
 namespace Polhemus
 {
@@ -994,7 +995,7 @@ namespace Polhemus
                 if (i == 0) return v1;
                 if (i == 1) return v2;
                 if (i == 2) return v3;
-                throw new IndexOutOfRangeException("Triple get index out of range: " +i.ToString("0"));
+                throw new IndexOutOfRangeException("Triple get index out of range: " + i.ToString("0"));
             }
             set
             {
@@ -1500,6 +1501,8 @@ namespace Polhemus
         public double Y { get; private set; }
         public double Z { get; private set; }
 
+        public NVector V { get; private set; }
+
         public int ParameterValue { get { return 2; } }
 
         public int ASCIILength { get { return 27; } }
@@ -1511,6 +1514,7 @@ namespace Polhemus
             X = (double)PolhemusController.parseASCIIStream(sr, "Sxxx.xxxB");
             Y = (double)PolhemusController.parseASCIIStream(sr, "Sxxx.xxxB");
             Z = (double)PolhemusController.parseASCIIStream(sr, "Sxxx.xxxB");
+            V = new NVector(new double[] { X, Y, Z });
         }
 
         public void FromBinary(BinaryReader br)
@@ -1518,6 +1522,7 @@ namespace Polhemus
             X = br.ReadSingle();
             Y = br.ReadSingle();
             Z = br.ReadSingle();
+            V = new NVector(new double[] { X, Y, Z });
         }
 
         public Triple ToTriple()
@@ -1537,6 +1542,8 @@ namespace Polhemus
         public double Y { get; private set; }
         public double Z { get; private set; }
 
+        public NVector V { get; private set; }
+
         public int ParameterValue { get { return 3; } }
 
         public int ASCIILength { get { return 42; } }
@@ -1548,6 +1555,7 @@ namespace Polhemus
             X = (double)PolhemusController.parseASCIIStream(sr, "Sx.xxxxxxESxxB");
             Y = (double)PolhemusController.parseASCIIStream(sr, "Sx.xxxxxxESxxB");
             Z = (double)PolhemusController.parseASCIIStream(sr, "Sx.xxxxxxESxxB");
+            V = new NVector(new double[] { X, Y, Z });
         }
 
         public void FromBinary(BinaryReader br)
@@ -1555,6 +1563,7 @@ namespace Polhemus
             X = br.ReadSingle();
             Y = br.ReadSingle();
             Z = br.ReadSingle();
+            V = new NVector(new double[] { X, Y, Z });
         }
 
         public Triple ToTriple()
@@ -1650,12 +1659,11 @@ namespace Polhemus
 
         public void FromASCII(StreamReader sr)
         {
-            //Assumes row-first order
             int i = 0;
             for (int j = 0; j < 3; j++)
-#if DCMTranspose
+#if DCMTranspose //Assumes column-first order
                 Matrix[i][j] = (double)PolhemusController.parseASCIIStream(sr, "Sx.xxxxxB");
-#else
+#else //assume row-first order
                 Matrix[j][i] = (double)PolhemusController.parseASCIIStream(sr, "Sx.xxxxxB");
 #endif
             PolhemusController.parseASCIIStream(sr, "<>");
@@ -1680,10 +1688,13 @@ namespace Polhemus
 
         public void FromBinary(BinaryReader br)
         {
-            //Assumes row-first order
             for (int i = 0; i < 3; i++)
                 for (int j = 0; j < 3; j++)
+#if DCMTranspose //Assume column-first order
+                    Matrix[i][j] = br.ReadSingle();
+#else //Assume row-first order
                     Matrix[j][i] = br.ReadSingle();
+#endif
         }
 
         public Triple Transform(Triple v)
@@ -1703,10 +1714,7 @@ namespace Polhemus
 
     public class Quaternion : IDataFrameType
     {
-        public double q0 { get; private set; }
-        public double q1 { get; private set; }
-        public double q2 { get; private set; }
-        public double q3 { get; private set; }
+        public RQuaternion Q { get; private set; }
 
         public int ParameterValue { get { return 7; } }
 
@@ -1715,39 +1723,39 @@ namespace Polhemus
         public int BinaryLength { get { return 16; } }
         public void FromASCII(StreamReader sr)
         {
-            q0 = (double)PolhemusController.parseASCIIStream(sr, "Sx.xxxxxB");
-            q1 = (double)PolhemusController.parseASCIIStream(sr, "Sx.xxxxxB");
-            q2 = (double)PolhemusController.parseASCIIStream(sr, "Sx.xxxxxB");
-            q3 = (double)PolhemusController.parseASCIIStream(sr, "Sx.xxxxxB");
+            double q0 = (double)PolhemusController.parseASCIIStream(sr, "Sx.xxxxxB");
+            double q1 = (double)PolhemusController.parseASCIIStream(sr, "Sx.xxxxxB");
+            double q2 = (double)PolhemusController.parseASCIIStream(sr, "Sx.xxxxxB");
+            double q3 = (double)PolhemusController.parseASCIIStream(sr, "Sx.xxxxxB");
+            Q = new RQuaternion(q0, q1, q2, q3);
         }
 
         public void FromBinary(BinaryReader br)
         {
-            q0 = br.ReadSingle();
-            q1 = br.ReadSingle();
-            q2 = br.ReadSingle();
-            q3 = br.ReadSingle();
+            double q0 = br.ReadSingle();
+            double q1 = br.ReadSingle();
+            double q2 = br.ReadSingle();
+            double q3 = br.ReadSingle();
+            Q = new RQuaternion(q0, q1, q2, q3);
         }
+
         public override string ToString()
         {
-            return q0.ToString("0.000") + ", " +
-                q1.ToString("0.000") + ", " +
-                q2.ToString("0.000") + ", " +
-                q3.ToString("0.000");
+            return Q.ToString("0.000");
         }
 
         public DirectionCosineMatrix ConvertToDCM()
         {
-            double q0s = q0 * q0;
-            double q1s = q1 * q1;
-            double q2s = q2 * q2;
-            double q3s = q3 * q3;
-            double q01 = q0 * q1;
-            double q12 = q1 * q2;
-            double q03 = q0 * q3;
-            double q13 = q1 * q3;
-            double q02 = q0 * q2;
-            double q23 = q2 * q3;
+            double q0s = Q[0] * Q[0];
+            double q1s = Q[1] * Q[1];
+            double q2s = Q[2] * Q[2];
+            double q3s = Q[3] * Q[3];
+            double q01 = Q[0] * Q[1];
+            double q12 = Q[1] * Q[2];
+            double q03 = Q[0] * Q[3];
+            double q13 = Q[1] * Q[3];
+            double q02 = Q[0] * Q[2];
+            double q23 = Q[2] * Q[3];
 
             DirectionCosineMatrix dcm = new DirectionCosineMatrix();
 
