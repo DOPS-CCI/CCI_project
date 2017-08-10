@@ -20,7 +20,7 @@ namespace ElectrodeDisplay
     {
         Projection projection = new Projection(200D);
 
-        internal Dictionary<string, Tuple<ElectrodeRecord, Ellipse>> electrodeLocations = new Dictionary<string, Tuple<ElectrodeRecord, Ellipse>>();
+        internal Dictionary<string, Tuple<ElectrodeRecord, Ellipse, TextBlock>> electrodeLocations = new Dictionary<string, Tuple<ElectrodeRecord, Ellipse, TextBlock>>();
 
         public MainWindow()
         {
@@ -37,10 +37,11 @@ namespace ElectrodeDisplay
                 Ellipse circle = new Ellipse();
                 circle.ToolTip = new TextBlock(new Run(e.Key));
                 circle.MouseDown += new MouseButtonEventHandler(circle_MouseDown);
-                electrodeLocations.Add(e.Key, new Tuple<ElectrodeRecord, Ellipse>(e.Value, circle));
+                TextBlock tb = new TextBlock();
+                tb.Text = e.Key;
+                electrodeLocations.Add(e.Key, new Tuple<ElectrodeRecord, Ellipse, TextBlock>(e.Value, circle, tb));
             }
             InitializeComponent();
-            updateView();
         }
 
         const double radius = 30;
@@ -52,7 +53,7 @@ namespace ElectrodeDisplay
         double eyeDistance = Math.Pow(10D, 1.5D);
         const double viewScale = 20D;
 
-        internal void addPointToView(Tuple<ElectrodeRecord, Ellipse> xyz)
+        internal void addPointToView(Tuple<ElectrodeRecord, Ellipse, TextBlock> xyz)
         {
             Point3D p = xyz.Item1.convertXYZ(); //assure in XYZ coordinates
             Triple t = new Triple(p.X, p.Y, p.Z);
@@ -68,14 +69,25 @@ namespace ElectrodeDisplay
             Canvas.SetLeft(circle, Draw.ActualWidth / 2 + viewScale * t.v1 - r);
             Canvas.SetZIndex(circle, (int)(10000D / t.v3));
             Draw.Children.Add(circle);
+            if ((bool)IncludeNames.IsChecked)
+            {
+                TextBlock tb = xyz.Item3;
+                Canvas.SetBottom(tb, Draw.ActualHeight / 2 + viewScale * t.v2);
+                Canvas.SetLeft(tb, Draw.ActualWidth / 2 + viewScale * t.v1 + 0.8 * r);
+                Canvas.SetZIndex(tb, (int)(10000D / t.v3));
+                Draw.Children.Add(tb);
+            }
         }
 
         internal void updateView()
         {
-            Draw.Children.Clear(); //redraw all, since new Eye position
-            foreach (KeyValuePair<string, Tuple<ElectrodeRecord, Ellipse>> el in electrodeLocations)
-                addPointToView(el.Value);
-            drawAxes();
+            if (IsLoaded)
+            {
+                Draw.Children.Clear(); //redraw all, since new Eye position
+                foreach (KeyValuePair<string, Tuple<ElectrodeRecord, Ellipse, TextBlock>> el in electrodeLocations)
+                    addPointToView(el.Value);
+                drawAxes();
+            }
         }
 
         const double axisThickness = 2D;
@@ -234,6 +246,16 @@ namespace ElectrodeDisplay
         }
 
         private void Draw_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            updateView();
+        }
+
+        private void IncludeNames_Click(object sender, RoutedEventArgs e)
+        {
+            updateView();
+        }
+
+        private void Window_Loaded(object sender, RoutedEventArgs e)
         {
             updateView();
         }
