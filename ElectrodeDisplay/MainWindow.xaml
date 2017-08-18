@@ -52,5 +52,18 @@
             </Grid>
             <CheckBox Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="2" Name="IncludeNames" HorizontalAlignment="Left" VerticalAlignment="Center" Click="IncludeNames_Click">Display electrode names</CheckBox> 
             <Button Grid.Row="4" Grid.Column="1" Height="32" Width="120" FontSize="16" FontWeight="Bold" Click="Exit_Click" HorizontalAlignment="Right" HorizontalContentAlignment="Center">Exit</Button>
+        <StackPanel Orientation="Horizontal" Grid.Row="4" Grid.ColumnSpan="3" HorizontalAlignment="Center" VerticalAlignment="Center" >
+            <StackPanel.Resources>
+                <Style TargetType="TextBlock">
+                    <Setter Property="FontSize" Value="14"/>
+                    <Setter Property="FontWeight" Value="Bold"/>
+                    <Setter Property="Margin" Value="4,0"/>
+                </Style>
+            </StackPanel.Resources>
+            <TextBlock>Phi =</TextBlock>
+            <TextBlock Name ="Phi"/>
+            <TextBlock >Theta =</TextBlock>
+            <TextBlock Name="Theta"/>
+        </StackPanel>
     </Grid>
 </Window>

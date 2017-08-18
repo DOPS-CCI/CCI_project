@@ -53,6 +53,10 @@ namespace ElectrodeDisplay
         double eyeDistance = Math.Pow(10D, 1.5D);
         const double viewScale = 20D;
 
+        const int mostPinkValue = 200;
+        const double mostPinkDistance = 5D;
+        const double redFactor = 0.7;
+
         internal void addPointToView(Tuple<ElectrodeRecord, Ellipse, TextBlock> xyz)
         {
             Point3D p = xyz.Item1.convertXYZ(); //assure in XYZ coordinates
@@ -61,7 +65,11 @@ namespace ElectrodeDisplay
             if (t.v3 <= 0) return; //behind projection plane
             Ellipse circle = xyz.Item2;
             circle.Stroke = circle != lastCircle ? Brushes.Transparent : Brushes.Blue;
-            int pink = Math.Min((int)Math.Pow(Math.Max(t.v3 - 20D, 0D), 1.75), 200); //fade color as farther away
+            int pink = Math.Min(mostPinkValue,
+                (int)Math.Pow(
+                mostPinkValue * Math.Max(0D,
+                (t.v3 - eyeDistance * redFactor) / (mostPinkDistance + eyeDistance * (1D - redFactor))),
+                1.5)); //fade color as farther away
             circle.Fill = new SolidColorBrush(Color.FromRgb(255, (byte)pink, (byte)pink));
             double r = Math.Max(10D * viewScale / t.v3, 2.5D); //larger as closer to Eye
             circle.Height = circle.Width = r * 2D;
@@ -87,6 +95,9 @@ namespace ElectrodeDisplay
                 foreach (KeyValuePair<string, Tuple<ElectrodeRecord, Ellipse, TextBlock>> el in electrodeLocations)
                     addPointToView(el.Value);
                 drawAxes();
+                Tuple<double, double> t = projection.PhiTheta();
+                Phi.Text = (t.Item1 * 180D / Math.PI).ToString("000.0");
+                Theta.Text = (t.Item2 * 180D / Math.PI).ToString("+000.0;-000.0");
             }
         }
 
@@ -440,6 +451,17 @@ namespace ElectrodeDisplay
             p.v1 = factor * (Tx * point); //rotate and scale projected point
             p.v2 = factor * (Ty * point);
             return p;
+        }
+
+        public Tuple<double, double> PhiTheta()
+        {
+            double x = Tz.v1;
+            double y = Tz.v2;
+            double z = Tz.v3;
+            double phi = Math.Asin(Math.Sqrt(x * x + y * y));
+            if (z < 0) phi = Math.PI - phi;
+            double theta = Math.Atan2(-x, y);
+            return new Tuple<double, double>(phi, theta);
         }
 
         static double C30 = Math.Cos(Math.PI / 6D);
