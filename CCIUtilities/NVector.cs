@@ -156,6 +156,13 @@ namespace CCIUtilities
             return c;
         }
 
+        public NVector Normalize()
+        {
+            double p = Math.Sqrt(Norm2());
+            for (int i = 0; i < N; i++) _vector[i] /= p;
+            return this;
+        }
+
         public double Max()
         {
             double c = double.MinValue;
@@ -225,6 +232,11 @@ namespace CCIUtilities
             sb.Remove(sb.Length - 2, 2);
             sb.Append("}");
             return sb.ToString();
+        }
+
+        public double[] ToArray()
+        {
+            return _vector;
         }
 
         internal void Exchange(int p, int q)

@@ -56,6 +56,7 @@
   <ItemGroup>
     <Compile Include="CircularBuffer.cs" />
     <Compile Include="CompoundList.cs" />
+    <Compile Include="GeneralizedLinearRegression.cs" />
     <Compile Include="IValidate.cs" />
     <Compile Include="LevenbergMarquardt.cs" />
     <Compile Include="Log.cs" />
@@ -72,6 +73,7 @@
       <DependentUpon>ErrorWindow.xaml</DependentUpon>
     </Compile>
     <Compile Include="RQuaternion.cs" />
+    <Compile Include="SphericalHarmonics.cs" />
     <Compile Include="Utilities.cs" />
   </ItemGroup>
   <ItemGroup>

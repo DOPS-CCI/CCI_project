@@ -1,7 +1,9 @@
-﻿namespace CCIUtilities
+﻿using System;
+namespace CCIUtilities
 {
     public interface IValidate
     {
-        bool Validate();
+        bool Validate(object o = null);
+        event EventHandler ErrorCheckReq;
     }
 }
