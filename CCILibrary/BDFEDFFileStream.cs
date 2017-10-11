@@ -118,6 +118,18 @@ namespace BDFEDFFileStream
         }
 
         /// <summary>
+        /// Look up channel label to find corresponding channel number
+        /// </summary>
+        /// <param name="label">label to search for</param>
+        /// <returns>channel number (zero-based) for label, else returns -1 if not found</returns>
+        public int GetChannelNumber(string label)
+        {
+            for (int i = 0; i < NumberOfChannels; i++)
+                if (header.channelLabels[i] == label) return i;
+            return -1;
+        }
+
+        /// <summary>
         /// Reads transducer value
         /// </summary>
         /// <param name="index">Channel number; zero based</param>
