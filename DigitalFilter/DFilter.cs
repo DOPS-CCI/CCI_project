@@ -31,6 +31,8 @@ namespace DigitalFilter
 
         public abstract void Reset();
 
+        public abstract string ToString(string format);
+
         protected double Cot(double z)
         {
             return 1D / Math.Tan(z);
@@ -43,11 +45,12 @@ namespace DigitalFilter
 
         protected double ArcSinh(double z)
         {
-            return Math.Log(z + Math.Sqrt(1 + z * z));
+            return Math.Log(z + Math.Sqrt(z * z + 1));
         }
 
         protected double ArcCosh(double z)
         {
+            if (z < 1) throw new NotImplementedException("In ArcCosh: argument less than 1.0");
             return Math.Log(z + Math.Sqrt(z * z - 1));
         }
     }
@@ -80,6 +83,18 @@ namespace DigitalFilter
         {
             x1 = x2 = y1 = y2 = 0D;
         }
+
+        public override string ToString()
+        {
+            return this.ToString("0.0000");
+        }
+
+        public override string ToString(string format)
+        {
+            string f = " + " + format + "; - " + format; //force signs
+            string s = "({0:" + format + "}z^2{1:" + f + "}z{2:" + f + "})/(z^2{3:" + f + "}z{4:" + f + "})";
+            return String.Format(s, new object[] { b2, b1, b0, a1, a2 });
+        }
     }
 
     public class Cascade: DFilter
@@ -102,6 +117,21 @@ namespace DigitalFilter
         {
             foreach (DFilter f in filters) f.Reset();
         }
+
+        public override string ToString(string format)
+        {
+            StringBuilder sb = new StringBuilder("Cascade:" + Environment.NewLine);
+            for (int i = 0; i < filters.Length; i++)
+                sb.Append(filters[i].ToString(format) + Environment.NewLine);
+            return sb.ToString();           
+        }
+        public override string ToString()
+        {
+            StringBuilder sb = new StringBuilder("Cascade:" + Environment.NewLine);
+            for (int i = 0; i < filters.Length; i++)
+                sb.Append(filters[i].ToString() + Environment.NewLine);
+            return sb.ToString();
+        }
     }
 
     public class ChebyshevHP : DFilter
@@ -111,6 +141,7 @@ namespace DigitalFilter
         public ChebyshevHP(int L, double cutoff, double stopBand, double samplingRate)
         {
             if (L % 2 == 1) throw new NotImplementedException("In ChebyshevHP.cotr: odd number of poles not implemented");
+            if (cutoff < stopBand) throw new Exception("In ChebyshevHP.cotr: cutoff frequency < stopBand frequency");
             BiQuad[] f = new BiQuad[L / 2];
             double tan = Math.Tan(Math.PI * cutoff / samplingRate);
             double cot = Cot(Math.PI * stopBand / samplingRate);
@@ -122,15 +153,30 @@ namespace DigitalFilter
                 double cos = Math.Cos(Math.PI * (2D * m - 1D) / L);
                 double cos2 = Math.Cos(Math.PI * (2D * m - 1D) / (2 * L));
 
-                double p1 = -cos + cosh + 2 * cot * cot - 4 * cos2 * cot * sinh;
+                double p1 = -cos + cosh + 2 * cot * cot + 4 * cos2 * cot * sinh;
                 double a1 = (-2 * cos + 2 * cosh - 4 * cot * cot) / p1;
-                double a2 = (-cos + cosh + 2 * cot * cot + 4 * cos2 * cot * sinh) / p1;
+                double a2 = (-cos + cosh + 2 * cot * cot - 4 * cos2 * cot * sinh) / p1;
+/*
+                double p1 = cos + cosh + 2 * cot * cot - 4 * cos2 * cot * sinh;
+                double a1 = (2 * cos + 2 * cosh - 4 * cot * cot) / p1;
+                double a2 = (cos + cosh + 2 * cot * cot + 4 * cos2 * cot * sinh) / p1;
+*/
                 double b0 = (1 + cos + 2 * cot * cot) / p1;
                 double b1 = (2 + 2 * cos - 4 * cot * cot) / p1;
-                double b2 = b0;
-                f[m - 1] = new BiQuad(a1, a2, b0, b1, b2);
+                f[m - 1] = new BiQuad(a1, a2, b0, b1, b0);
             }
             this.c = new Cascade(f);
+        }
+        public int DesignL(double stopAmpdB, double fc, double fs, double SR)
+        {
+            double etaC = fc / SR;
+            double etaS = fs / SR;
+            if (fc <= fs || etaC >= 0.5 || etaS >= 0.5 || etaS < 0 || etaC <= 0)
+                throw new ArgumentException("In Chebyshev.DesignL: invalid value of fc, fs, or SR");
+            if (fs == 0) return 2;
+            if (stopAmpdB > 0) stopAmpdB = -stopAmpdB;
+            return Math.Max(2, 2 * (int)Math.Ceiling(0.0575374 * (6.02 - stopAmpdB) /
+                ArcCosh(Math.Tan(Math.PI * etaC) / Math.Tan(Math.PI * etaS))));
         }
 
         public override double Filter(double x0)
@@ -142,6 +188,16 @@ namespace DigitalFilter
         {
             c.Reset();
         }
+
+        public override string ToString(string format)
+        {
+            return c.ToString(format);
+        }
+
+        public override string ToString()
+        {
+            return c.ToString();
+        }
     }
 
     public class ChebyshevLP : DFilter
@@ -151,6 +207,7 @@ namespace DigitalFilter
         public ChebyshevLP(int L, double cutoff, double stopBand, double samplingRate)
         {
             if (L % 2 == 1) throw new NotImplementedException("In ChebyshevLP.cotr: odd number of poles not implemented");
+            if (cutoff > stopBand) throw new Exception("In ChebyshevLP.cotr: cutoff frequency > stopBand frequency");
             BiQuad[] f = new BiQuad[L / 2];
             double tan = Math.Tan(Math.PI * stopBand / samplingRate);
             double cot = Cot(Math.PI * cutoff / samplingRate);
@@ -162,15 +219,26 @@ namespace DigitalFilter
                 double cos = Math.Cos(Math.PI * (2D * m - 1D) / L);
                 double cos2 = Math.Cos(Math.PI * (2D * m - 1D) / (2 * L));
 
-                double p1 = -cos + cosh + 2 * tan * tan - 4 * cos2 * tan * sinh;
+                double p1 = cos - cosh - 2 * tan * tan - 4 * cos2 * tan * sinh;
                 double a1 = (-2 * cos + 2 * cosh - 4 * tan * tan) / p1;
-                double a2 = (cos - cosh - 2 * tan * tan - 4 * cos2 * tan * sinh) / p1;
+                double a2 = (cos - cosh + 4 * cos2 * tan * sinh - 2 * tan * tan) / p1;
+/*
+                double sin2 = Math.Sin(Math.PI * (2D * m - 1D) / (2 * L));
+                double p1 = cos + cosh - 4 * sin2 * tan * sinh + 2 * tan * tan;
+                double a1 = (-2 * cos - 2 * cosh + 4 * tan * tan) / p1;
+                double a2 = (cos + cosh + 4 * sin2 * tan * sinh + 2 * tan * tan) / p1;
+*/
                 double b0 = (1 + cos + 2 * tan * tan) / p1;
                 double b1 = (-2 - 2 * cos + 4 * tan * tan) / p1;
-                double b2 = b0;
-                f[m - 1] = new BiQuad(a1, a2, b0, b1, b2);
+                f[m - 1] = new BiQuad(a1, a2, b0, b1, b0);
             }
             this.c = new Cascade(f);
+        }
+
+        public int DesignL(double stopAmpdB, double etaC, double etaS)
+        {
+            return 2 * (int)Math.Ceiling(0.0575374 * (6.02 - stopAmpdB) /
+                ArcCosh(Math.Tan(Math.PI * etaS) / Math.Tan(Math.PI * etaC)));
         }
 
         public override double Filter(double x0)
@@ -181,6 +249,16 @@ namespace DigitalFilter
         public override void Reset()
         {
             c.Reset();
+        }
+
+        public override string ToString(string format)
+        {
+            return c.ToString(format);
+        }
+
+        public override string ToString()
+        {
+            return c.ToString();
         }
     }
 
@@ -197,14 +275,13 @@ namespace DigitalFilter
 
             for (int m = 1; m <= L / 2; m++)
             {
-                double sin = -Math.Sin(Math.PI * (2D * m - 1D) / L);
+                double sin = -Math.Sin(Math.PI * (2D * m - 1D) / (2 * L));
 
                 double p1 = sec2 - 2 * sin * tan;
                 double a1 = (2 * sec2 - 4) / p1;
                 double a2 = (sec2 + 2 * sin * tan) / p1;
                 double b0;
                 double b1;
-                double b2;
                 if (HP)
                 {
                     b0 = 1D / p1;
@@ -215,8 +292,7 @@ namespace DigitalFilter
                     b0 = tan * tan / p1;
                     b1 = 2D * tan * tan / p1;
                 }
-                b2 = b0;
-                f[m - 1] = new BiQuad(a1, a2, b0, b1, b2);
+                f[m - 1] = new BiQuad(a1, a2, b0, b1, b0);
             }
             this.c = new Cascade(f);
         }
@@ -229,6 +305,16 @@ namespace DigitalFilter
         public override void Reset()
         {
             c.Reset();
+        }
+
+        public override string ToString()
+        {
+            return c.ToString();
+        }
+
+        public override string ToString(string format)
+        {
+            return c.ToString(format);
         }
     }
 
@@ -267,6 +353,16 @@ namespace DigitalFilter
         public override void Reset()
         {
             c.Reset();
+        }
+
+        public override string ToString()
+        {
+            return c.ToString();
+        }
+
+        public override string ToString(string format)
+        {
+            return c.ToString(format);
         }
     }
 
@@ -316,6 +412,16 @@ namespace DigitalFilter
         public override void Reset()
         {
             c.Reset();
+        }
+
+        public override string ToString()
+        {
+            return c.ToString();
+        }
+
+        public override string ToString(string format)
+        {
+            return c.ToString(format);
         }
     }
 
@@ -370,6 +476,16 @@ namespace DigitalFilter
         public override void Reset()
         {
             c.Reset();
+        }
+
+        public override string ToString()
+        {
+            return c.ToString();
+        }
+
+        public override string ToString(string format)
+        {
+            return c.ToString(format);
         }
     }
 }
