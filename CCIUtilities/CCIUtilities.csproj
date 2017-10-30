@@ -60,6 +60,7 @@
     <Compile Include="IValidate.cs" />
     <Compile Include="LevenbergMarquardt.cs" />
     <Compile Include="Log.cs" />
+    <Compile Include="MLTypes.cs" />
     <Compile Include="NMMatrix.cs" />
     <Compile Include="NVector.cs" />
     <Compile Include="Polynomial.cs" />
