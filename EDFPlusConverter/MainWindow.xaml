@@ -65,7 +65,7 @@
                             <TextBlock VerticalAlignment="Center" Margin="4">Event offset adjustment</TextBlock>
                             <TextBox Height="24" MinWidth="60" Name="EventOffset" TextAlignment="Right" TextChanged="EventOffset_TextChanged">
                                 <TextBox.Text>0</TextBox.Text>
-                                <TextBox.ToolTip>Enter name of GV that identifies events</TextBox.ToolTip>
+                                <TextBox.ToolTip>Enter amount to offset Events from recorded time</TextBox.ToolTip>
                             </TextBox>
                         </StackPanel>
                         <StackPanel Name="GVNamePanel" Orientation="Horizontal" Grid.Column="1">
@@ -76,7 +76,7 @@
                             </TextBox>
                         </StackPanel>
                         <CheckBox Name="DeleteAsZero" Grid.Column="2" VerticalContentAlignment="Center" VerticalAlignment="Center"
-                                  Margin="4" IsChecked="True" Visibility="Collapsed">Show deleted events as zero in BDF: Status</CheckBox>
+                                  Margin="4" IsChecked="True" Visibility="Collapsed">Show deleted events as zero in BDF Status channel</CheckBox>
                     </Grid>
             </Grid>
         </GroupBox>

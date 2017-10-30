@@ -103,7 +103,7 @@ namespace EDFPlusConverter
             }
             if (GVMapElements.Count == 0)
             {
-                System.Windows.MessageBox.Show("EDF+ file " + dlg.FileName + " does not any valid event markers.",
+                System.Windows.MessageBox.Show("EDF+ file " + dlg.FileName + " does not contain any valid event markers.",
                     "No valid event markers", MessageBoxButton.OK, MessageBoxImage.Error);
                 Environment.Exit(1);
             }
@@ -418,15 +418,15 @@ namespace EDFPlusConverter
         private void Window_ContentRendered(object sender, EventArgs e)
         {
             StringBuilder sb = new StringBuilder("1-" + ((int)annotationChannel).ToString("0"));
-            if (annotationChannel != (edfPlus.NumberOfChannels - 1))
+            if (annotationChannel != (edfPlus.NumberOfChannels - 1)) //is it not the last channel?
             {
                 sb.Append(","+((int)annotationChannel + 2).ToString("0"));
-                if (((int)annotationChannel + 2) != edfPlus.NumberOfChannels)
+                if (((int)annotationChannel + 2) <= edfPlus.NumberOfChannels)
                     sb.Append("-" + edfPlus.NumberOfChannels.ToString("0"));
             }
             string s = sb.ToString();
             SelChan.Text = RefChan.Text = s;
-            RefChanExpression.Text = "(" + sb + ")~{" + s + "}";
+            RefChanExpression.Text = "(" + s  + ")~{" + s + "}";
         }
 
         private void Window_Closed(object sender, EventArgs e)

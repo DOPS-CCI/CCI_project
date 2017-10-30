@@ -79,7 +79,7 @@ namespace EDFPlusConverter
 
             BDFLoc stp = edfPlus.LocationFactory.New();
             BDFLoc lastEvent = edfPlus.LocationFactory.New();
-            outLoc = BDFWriter.LocationFactory.New();
+            outLoc = (new BDFLocFactory(BDFWriter)).New();
             lastStatus = 0;
 
             /***** MAIN LOOP *****/
