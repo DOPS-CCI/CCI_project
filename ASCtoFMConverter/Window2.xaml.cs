@@ -711,7 +711,7 @@ namespace ASCtoFMConverter
             CCIUtilities.Log.writeToLog("ASCtoFMConverter ending");
         }
 
-        public bool Validate()
+        public bool Validate(object o = null)
         {
             if (!this.IsLoaded) return true;
 
@@ -937,5 +937,6 @@ namespace ASCtoFMConverter
             RefChan.Text = SelChan.Text;
         }
 
+        public event EventHandler ErrorCheckReq;
     }
 }

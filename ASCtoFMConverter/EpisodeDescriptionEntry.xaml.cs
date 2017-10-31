@@ -267,8 +267,10 @@ namespace ASCtoFMConverter
             validate.Validate();
         }
 
+        public event EventHandler ErrorCheckReq;
+
 //*********** Validation routine ************
-        public bool Validate()
+        public bool Validate(object sender = null)
         {
             bool valid = true;
 

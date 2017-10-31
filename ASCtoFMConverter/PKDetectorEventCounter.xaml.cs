@@ -47,7 +47,7 @@ namespace ASCtoFMConverter
             validate.Validate();
         }
 
-        public bool Validate()
+        public bool Validate(object o = null)
         {
             if (EventSelection.SelectedItems.Count < 1) return false;
             if ((bool)Chi2.IsChecked && chi2 < 0D) return false;
@@ -211,5 +211,7 @@ namespace ASCtoFMConverter
             xml.ReadEndElement(/* PKDetectorCounter */);
             return t;
         }
+
+        public event EventHandler ErrorCheckReq;
     }
 }
