@@ -10,7 +10,7 @@ using EventDictionary;
 
 namespace BDFEDFFileStream
 {
-    public class BDFEDFFileStream : IDisposable
+    public class BDFEDFFileStream : IDisposable, IBDFEDFFileStream
     {
         internal BDFEDFHeader header;
         public BDFEDFHeader Header
@@ -190,6 +190,8 @@ namespace BDFEDFFileStream
         /// <returns>Number of samples in the channel</returns>
         public int NumberOfSamples(int channel)
         {
+            if (header._EDFPlusFile && header._hasAnnotations && channel == header._AnnotationChannel)
+                return header.AnnotationLength;
             return header.numberSamples[channel];
         }
 
@@ -346,7 +348,7 @@ namespace BDFEDFFileStream
         }
 
         int _fileLength;
-        public int FileLengthInPts { get { return _fileLength; } } //Length of file in bytes
+        public int FileLengthInPts { get { return _fileLength; } } //Length of file in points
         protected BDFLocFactory _locationFactory;
         public BDFLocFactory LocationFactory
         {
@@ -929,15 +931,22 @@ namespace BDFEDFFileStream
     /// <summary>
     /// Unit test interface for BDFEDFReader
     /// </summary>
-    public interface IBDFEDFFileReader
+    public interface IBDFEDFFileReader: IBDFEDFFileStream
+    {
+        uint[] readAllStatus();
+        BDFLocFactory LocationFactory { get; }
+    }
+
+    /// <summary>
+    /// Unit test interface
+    /// </summary>
+    public interface IBDFEDFFileStream
     {
         int NumberOfChannels { get; }
         double SampleTime(int channel);
-        uint[] readAllStatus();
         int NSamp { get; }
         int NumberOfRecords { get; }
         double RecordDurationDouble { get; }
-        BDFLocFactory LocationFactory { get; }
     }
 
     /// <summary>
@@ -947,7 +956,7 @@ namespace BDFEDFFileStream
     {
         protected BinaryWriter writer;
 
-    //****** DEPRECATED: recordDuration and samplingRate may be double ******//
+        [Obsolete("Prefer use of double samplingRate parameter")]
         public BDFEDFFileWriter(Stream str, int nChan, int recordDuration, int samplingRate, bool isBDF)
         {
             if (!str.CanWrite) throw new BDFEDFException("BDFEDFFileStream must be able to write to Stream.");
@@ -1149,6 +1158,7 @@ namespace BDFEDFFileStream
         /// <param name="duration">Duration of each record in seconds</param>
         /// <param name="samplingRate">General sampling rate for this data stream. NB: currently permit only single 
         /// sampling rate for all channels.</param>
+        [Obsolete("Prefer use of double as type for sampling rate.", false)]
         internal BDFEDFHeader(int nChan, int duration, int samplingRate)
         { //Usual write constructor
             channelLabels = new string[nChan];
@@ -1711,13 +1721,13 @@ namespace BDFEDFFileStream
         internal int _recSize; //number of points in record of underlying BDF/EDF file
         internal double _sec; //record length in seconds of underlying BDF/EDF file
         internal double _st; //calculated sample time of underlying BDF/EDF file
-        internal IBDFEDFFileReader _bdf;
+        internal IBDFEDFFileStream _bdf;
 
         /// <summary>
         /// Use a factory to create BDFLocs to assure all based on same file parameters
         /// </summary>
         /// <param name="bdf">BDF file stream on which to base BDFLocs</param>
-        public BDFLocFactory(IBDFEDFFileReader bdf)
+        public BDFLocFactory(IBDFEDFFileStream bdf)
         {
             _recSize = bdf.NSamp;
             _sec = bdf.RecordDurationDouble;
