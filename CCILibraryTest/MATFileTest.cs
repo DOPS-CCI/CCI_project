@@ -14,7 +14,7 @@ namespace CCILibraryTest
         Stream f;
         public MATFileReaderTest()
         {
-            string p = @"../../Test files/testABC";
+            string p = @"../../Test files/TestMATFile";
             f = new FileStream(p, FileMode.Open, FileAccess.Read);
         }
 
