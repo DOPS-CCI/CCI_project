@@ -66,16 +66,17 @@ namespace MATFile
             string name;
             while (_reader.PeekChar() != -1) //not EOF
             {
-                IMLType t = (IMLType)parseCompoundDataType(out name); //should always be a matrix
-                DataVariables.Add(name, t);
+                IMLType t = (IMLType)parseCompoundDataType(out name); //should be array type or compressed
+                if (!(t is MLUnknown))
+                    DataVariables.Add(name, t);
             }
         }
 
         object parseSimpleDataType()
         {
-            uint type;
-            uint length;
-            bool shortTag = readTag(out type, out length);
+            int type;
+            int length;
+            readTag(out type, out length);
             if (length == 0) return null;
             int count;
             switch (type)
@@ -144,17 +145,36 @@ namespace MATFile
 
         IMLType parseCompoundDataType(out string name)
         {
-            uint type;
-            uint length;
+            int type;
+            int length;
             name = null;
-            bool shortTag = readTag(out type, out length);
-            if (length == 0) return null;
+            readTag(out type, out length);
+            if (length == 0)
+            {
+                MLArray<MLUnknown> t = new MLArray<MLUnknown>(0);
+                return t;
+            }
             switch (type)
             {
                 case miMATRIX: //MATRIX
                     return parseArrayDataElement(length, out name);
 
                 case miCOMPRESSED: //COMPRESSED
+                    MLUnknown t = new MLUnknown();
+                    t.ClassID = miCOMPRESSED;
+                    t.Length = length;
+                    t.exception =
+                        new NotImplementedException("Cannot implement miCOMPRESSED format -- " +
+                        "does not match publshed format");
+                    _reader.ReadBytes(length);
+/*                    Stream originalReader = _reader.BaseStream;
+                    MemoryStream ms = new MemoryStream(_reader.ReadBytes(length));
+                    GZipStream gz = new GZipStream(ms, CompressionMode.Decompress);
+                    _reader =
+                        new BinaryReader(gz);
+                    IMLType t = parseCompoundDataType(out name);
+                    _reader = new BinaryReader(originalReader); */
+                    return t;
 
                 default:
                     throw new NotImplementedException("In MATFileReader: Unimplemented compound data type (" +
@@ -168,18 +188,34 @@ namespace MATFile
             return parseCompoundDataType(out dummyName);
         }
 
-        IMLType parseArrayDataElement(uint length, out string name)
+        IMLType parseArrayDataElement(int length, out string name)
         {
-            int[] arrayFlags = (int[])parseSimpleDataType();
+            name = "";
+            int remainingLength = length;
+            uint[] arrayFlags = (uint[])parseSimpleDataType();
             byte _class = (byte)(arrayFlags[0] & 0x000000FF); //Array Class
             byte _flag = (byte)((arrayFlags[0] & 0x0000FF00) >> 8); //Flags
+            remainingLength -= 16;
+            if (_class < mxCELL_CLASS || _class > mxUINT64_CLASS)
+            {
+                MLUnknown unk = new MLUnknown();
+                unk.ClassID = _class;
+                unk.Length = length;
+                _reader.ReadBytes(remainingLength);
+                return unk;
+            }
+            long filepos = _reader.BaseStream.Position;
             int[] dimensionsArray = (int[])parseSimpleDataType(); //Dimensions array
+            long filepos1 = _reader.BaseStream.Position;
+            remainingLength -= (int)(filepos1 - filepos);
+            filepos = filepos1;
             int expectedSize = 1;
             for (int i = 0; i < dimensionsArray.Length; i++)
                 expectedSize *= dimensionsArray[i];
             // Array name
             sbyte[] nameBuffer = (sbyte[])parseSimpleDataType();
-            name = "";
+            filepos1 = _reader.BaseStream.Position;
+            remainingLength -= (int)(filepos1 - filepos);
             if (nameBuffer != null)
             {
                 char[] t = new char[nameBuffer.Length];
@@ -187,51 +223,58 @@ namespace MATFile
                 name = new string(t);
             }
 
-            if (_class >= mxDOUBLE_CLASS) //numeric array
+            if (_class >= mxDOUBLE_CLASS && _class <= mxUINT32_CLASS) //numeric array
             {
-                IMLType a = readNumericArray(_class, expectedSize, dimensionsArray);
-                return a;
+                bool complex = (_flag & 0x08) != 0;
+                dynamic re =
+                    readNumericArray(_class, expectedSize, dimensionsArray);
+                if (!complex) return re;
+                dynamic im =
+                    readNumericArray(_class, expectedSize, dimensionsArray);
+                MLArray<MLComplex> c = new MLArray<MLComplex>(dimensionsArray);
+                for (int i = 0; i < c.Length; i++)
+                    c[i] = new MLComplex(re[i], im[i]);
+                return c;
             }
             else //non-numeric "array"
                 switch (_class)
                 {
                     case mxCHAR_CLASS:
+                        MLString s;
                         ushort[] buffer = (ushort[])parseSimpleDataType();
+                        if (buffer == null) { s.Value = ""; return s; }
                         if (buffer.Length != dimensionsArray[1])
                             throw new Exception("Incompatable lengths in mxCHAR_CLASS strings");
                         char[] charBuffer = new char[buffer.Length];
                         for (int i = 0; i < buffer.Length; i++)
                             charBuffer[i] = Convert.ToChar(buffer[i]);
-                        MLString s;
                         s.Value = new string(charBuffer);
                         return s;
 
                     case mxCELL_CLASS:
-                        if (expectedSize == 0) return null;
-                        int dim1 = dimensionsArray[0]; //always 2 dimensions
-                        int dim2 = dimensionsArray[1];
-                        MLCellArray cellArray = new MLCellArray(dim1, dim2);
-                        for (int j = 0; j < dim2; j++)
-                            for (int i = 0; i < dim1; i++)
-                            {
-                                cellArray[i, j] = parseCompoundDataType();
-                            }
+                        MLCellArray cellArray = new MLCellArray(dimensionsArray);
+                        if (expectedSize == 0) return cellArray;
+                        int[] indices = new int[cellArray.NDimensions];
+                        int d = 0;
+                        while (d < cellArray.NDimensions)
+                        {
+                            cellArray[indices] = parseCompoundDataType();
+                            d = cellArray.IncrementIndex(indices, false);
+                        }
                         return cellArray;
 
                     case mxSTRUCT_CLASS:
                         //establish dimensionality of the structure
                         MLStruct newStruct = new MLStruct(dimensionsArray);
-                        int arraySize = 1;
-                        for (int i = 0; i < dimensionsArray.Length; i++) arraySize *= dimensionsArray[i];
 
                         //get field names, keeping list so we can put values in correct places
                         int fieldNameLength = ((int[])parseSimpleDataType())[0];
-                        uint type;
-                        uint totalFieldNameLength;
+                        int type;
+                        int totalFieldNameLength;
                         readTag(out type, out totalFieldNameLength);
                         int totalFields = (int)totalFieldNameLength / fieldNameLength;
-                        char[] t = new char[fieldNameLength];
-                        string[] fieldNames = new string[totalFields];
+                        charBuffer = new char[fieldNameLength];
+                        string[] fieldNames = new string[totalFields]; //indexed list of fieldNames
                         for (int i = 0; i < totalFields; i++)
                         {
                             byte[] fieldNameBuffer = _reader.ReadBytes(fieldNameLength);
@@ -239,32 +282,80 @@ namespace MATFile
                             for (; c < fieldNameLength; c++)
                             {
                                 if (fieldNameBuffer[c] == 0) break;
-                                t[c] = Convert.ToChar(fieldNameBuffer[c]);
+                                charBuffer[c] = Convert.ToChar(fieldNameBuffer[c]);
                             }
-                            fieldNames[i] = new string(t, 0, c);
+                            fieldNames[i] = new string(charBuffer, 0, c);
                             newStruct.AddField(fieldNames[i]);
                         }
                         alignStream();
 
                         //now read the values into the structure
-                        for (int i = 0; i < arraySize; i++)
+                        indices = new int[newStruct.NDimensions];
+                        d = 0;
+                        while (d < newStruct.NDimensions)
                         {
                             for (int j = 0; j < totalFields; j++)
                             {
                                 MLArray<IMLType> mla = newStruct.GetArrayForFieldName(fieldNames[j]);
-                                mla[i] = parseCompoundDataType();
+                                mla[indices] = parseCompoundDataType();
                             }
-
+                            d = newStruct.IncrementIndex(indices, false);
                         }
                         return newStruct;
 
-                    case mxSPARSE_CLASS:
                     case mxOBJECT_CLASS:
+                        string className;
+                        nameBuffer = (sbyte[])parseSimpleDataType();
+                        charBuffer = new char[nameBuffer.Length];
+                        for (int i = 0; i < nameBuffer.Length; i++)
+                            charBuffer[i] = Convert.ToChar(nameBuffer[i]);
+                        className = new string(charBuffer);
+                        MLObject obj = new MLObject(className, dimensionsArray);
+
+                        //get field names, keeping list so we can put values in correct places
+                        fieldNameLength = ((int[])parseSimpleDataType())[0];
+                        readTag(out type, out totalFieldNameLength);
+                        totalFields = (int)totalFieldNameLength / fieldNameLength;
+                        charBuffer = new char[fieldNameLength];
+                        fieldNames = new string[totalFields]; //indexed list of fieldNames
+                        for (int i = 0; i < totalFields; i++)
+                        {
+                            byte[] fieldNameBuffer = _reader.ReadBytes(fieldNameLength);
+                            int c = 0;
+                            for (; c < fieldNameLength; c++)
+                            {
+                                if (fieldNameBuffer[c] == 0) break;
+                                charBuffer[c] = Convert.ToChar(fieldNameBuffer[c]);
+                            }
+                            fieldNames[i] = new string(charBuffer, 0, c);
+                            obj.AddField(fieldNames[i]);
+                        }
+                        alignStream();
+
+                        //now read the values into the structure
+                        indices = new int[obj.NDimensions];
+                        d = 0;
+                        while (d < obj.NDimensions)
+                        {
+                            for (int j = 0; j < totalFields; j++)
+                            {
+                                MLArray<IMLType> mla = obj.GetArrayForFieldName(fieldNames[j]);
+                                mla[indices] = parseCompoundDataType();
+                            }
+                            d = obj.IncrementIndex(indices, false); //in column major order
+                        }
+                        return obj;
+
+                    case mxSPARSE_CLASS:
                     default:
-                        throw new NotImplementedException("In MATFileReader: Unimplemented array type (" +
+                        MLUnknown unk = new MLUnknown();
+                        unk.ClassID = _class;
+                        unk.Length = (int)length;
+                        unk.exception = new NotImplementedException("In MATFileReader: Unimplemented array type (" +
                             _class.ToString("0") + ")");
+                        _reader.ReadBytes(remainingLength);
+                        return unk;
                 }
-            return null;
         }
 
         /// <summary>
@@ -272,22 +363,20 @@ namespace MATFile
         /// </summary>
         /// <param name="type">Output tag type (mi tag)</param>
         /// <param name="dataLength">Output number of bytes of data this tag preceeds</param>
-        /// <returns>True if short tag, false if long</returns>
-        bool readTag(out uint type, out uint dataLength)
+        void readTag(out int type, out int dataLength)
         {
-            type = _reader.ReadUInt32();
+            type = _reader.ReadInt32();
             if ((type & 0xFFFF0000) == 0)
             {//32 bits long
-                dataLength = _reader.ReadUInt32();
-                return false;
+                dataLength = _reader.ReadInt32();
             }
             else
             {//16 bits long
                 dataLength = type >> 16;
                 type = type & 0x0000FFFF;
-                return true;
             }
         }
+
         /// <summary>
         /// Align stream to double word boundary
         /// </summary>
@@ -307,76 +396,115 @@ namespace MATFile
         /// <returns>MLArray of native type representing _class</returns>
         IMLType readNumericArray(byte _class, int expectedSize, int[] dimensionsArray)
         {
-            uint intype;
-            uint length;
-            bool sh = readTag(out intype, out length);
+            int intype;
+            int length;
+            readTag(out intype, out length);
             if (miSizes[intype] == 0 || length / miSizes[intype] != expectedSize)
                 throw new Exception("In readNumerciArray: invalid data type or mismatched data and array sizes");
             IMLType output = null;
-            if(expectedSize != 0)
-                switch (_class)
-                {
-                    case mxDOUBLE_CLASS:
+            switch (_class)
+            {
+                case mxDOUBLE_CLASS:
+                    if (expectedSize != 0)
+                    {
                         double[] doubleArray = new double[expectedSize];
                         for (int i = 0; i < expectedSize; i++)
                             doubleArray[i] = (double)readBinaryType(intype);
                         output = new MLArray<double>(doubleArray, dimensionsArray);
-                        break;
+                    }
+                    else
+                        output = new MLArray<double>(0);
+                    break;
 
-                    case mxSINGLE_CLASS:
+                case mxSINGLE_CLASS:
+                    if (expectedSize != 0)
+                    {
                         float[] singleArray = new float[expectedSize];
                         for (int i = 0; i < expectedSize; i++)
                             singleArray[i] = (float)readBinaryType(intype);
                         output = new MLArray<float>(singleArray, dimensionsArray);
-                        break;
+                    }
+                    else
+                        output = new MLArray<float>(0);
+                    break;
 
-                    case mxINT32_CLASS:
+                case mxINT32_CLASS:
+                    if (expectedSize != 0)
+                    {
                         int[] int32Array = new int[expectedSize];
                         for (int i = 0; i < expectedSize; i++)
                             int32Array[i] = (int)readBinaryType(intype);
                         output = new MLArray<int>(int32Array, dimensionsArray);
-                        break;
+                    }
+                    else
+                        output = new MLArray<int>(0);
+                    break;
 
-                    case mxUINT32_CLASS:
+                case mxUINT32_CLASS:
+                    if (expectedSize != 0)
+                    {
                         uint[] uint32Array = new uint[expectedSize];
                         for (int i = 0; i < expectedSize; i++)
                             uint32Array[i] = (uint)readBinaryType(intype);
                         output = new MLArray<uint>(uint32Array, dimensionsArray);
-                        break;
+                    }
+                    else
+                        output = new MLArray<uint>(0);
+                    break;
 
-                    case mxINT16_CLASS:
+                case mxINT16_CLASS:
+                    if (expectedSize != 0)
+                    {
                         short[] int16Array = new short[expectedSize];
                         for (int i = 0; i < expectedSize; i++)
                             int16Array[i] = (short)readBinaryType(intype);
                         output = new MLArray<short>(int16Array, dimensionsArray);
-                        break;
+                    }
+                    else
+                        output = new MLArray<short>(0);
+                    break;
 
-                    case mxUINT16_CLASS:
+                case mxUINT16_CLASS:
+                    if (expectedSize != 0)
+                    {
                         ushort[] uint16Array = new ushort[expectedSize];
                         for (int i = 0; i < expectedSize; i++)
                             uint16Array[i] = (ushort)readBinaryType(intype);
                         output = new MLArray<ushort>(uint16Array, dimensionsArray);
-                        break;
+                    }
+                    else
+                        output = new MLArray<ushort>(0);
+                    break;
 
-                    case mxINT8_CLASS:
+                case mxINT8_CLASS:
+                    if (expectedSize != 0)
+                    {
                         sbyte[] int8Array = new sbyte[expectedSize];
                         for (int i = 0; i < expectedSize; i++)
                             int8Array[i] = (sbyte)readBinaryType(intype);
                         output = new MLArray<sbyte>(int8Array, dimensionsArray);
-                        break;
+                    }
+                    else
+                        output = new MLArray<sbyte>(0);
+                    break;
 
-                    case mxUINT8_CLASS:
+                case mxUINT8_CLASS:
+                    if (expectedSize != 0)
+                    {
                         byte[] uint8Array = new byte[expectedSize];
                         for (int i = 0; i < expectedSize; i++)
                             uint8Array[i] = (byte)readBinaryType(intype);
                         output = new MLArray<byte>(uint8Array, dimensionsArray);
-                        break;
-                }
+                    }
+                    else
+                        output = new MLArray<byte>(0);
+                    break;
+            }
             alignStream();
             return output;
         }
 
-        dynamic readBinaryType(uint inClass)
+        dynamic readBinaryType(int inClass)
         {
             switch (inClass)
             {
@@ -407,48 +535,5 @@ namespace MATFile
             }
             return null;
         }
-/*
-        IMLType IMLWrap(object v)
-        {
-            Type t = v.GetType();
-            switch (t.Name)
-            {
-                case "sbyte":
-                    MLInt8 vsbyte;
-                    vsbyte.Value = (sbyte)v;
-                    return vsbyte;
-                case "byte":
-                    MLUInt8 vbyte;
-                    vbyte.Value = (byte)v;
-                    return vbyte;
-                case "int":
-                    MLInt32 vint;
-                    vint.Value = (int)v;
-                    return vint;
-                case "uint":
-                    MLUInt32 vuint;
-                    vuint.Value = (uint)v;
-                    return vuint;
-                case "short":
-                    MLInt16 vshort;
-                    vshort.Value = (short)v;
-                    return vshort;
-                case "ushort":
-                    MLUInt16 vushort;
-                    vushort.Value = (ushort)v;
-                    return vushort;
-                case "double":
-                    MLDouble vdouble;
-                    vdouble.Value = (double)v;
-                    return vdouble;
-                case "float":
-                    MLFloat vfloat;
-                    vfloat.Value = (float)v;
-                    return vfloat;
-                default:
-                    throw new ArgumentException();
-            }
-        }
- * */
     }
 }
