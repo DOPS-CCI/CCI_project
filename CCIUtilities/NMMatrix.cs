@@ -263,10 +263,6 @@ namespace CCIUtilities
         public NMMatrix LeftDiv(NMMatrix B)
         {
             return (B.Transpose() / this.Transpose()).Transpose();
-            NMMatrix C = this.Transpose().Augment(B.Transpose());
-            C.GaussJordanElimination();
-
-            return C.ExtractMatrix(N, B.N).Transpose();
         }
 
         public NMMatrix RightDiv(NMMatrix B)
