@@ -168,13 +168,82 @@ namespace MLTypes
         }
     }
 
-    public struct MLString : IMLType
+    public class MLString : IMLType
     {
-        public string Value;
+        //First dimension => number of "lines" of text
+        //Second dimension => (maximum) length of each line of text; this is in a sense "dropped"
+        //Third and subsequent dimensions => array of "text blocks" (handled within MLArray)
+        //The "wrapping" MLArray is omitted if type is defined with only two dimensions
+        string[] _text;
+        int _size;
+
+        public string this[int i]
+        {
+            get { return _text[i]; }
+            set { _text[i] = value.TrimEnd(new char[] { ' ', '\r', '\n' }); }
+        }
+
+        public int[] Dimensions
+        {
+            get
+            {
+                int[] dim = new int[2];
+                if (_size > 0)
+                {
+                    dim[0] = _size;
+                    dim[1] = 0;
+                    for (int i = 0; i < _text.Length; i++)
+                        if (_text[i] != null && _text[i].Length > dim[1])
+                            dim[1] = _text[i].Length;
+                }
+                return dim;
+            }
+        }
+
+        /// <summary>
+        /// Principle "read" constructor
+        /// </summary>
+        /// <param name="dims">Array of at least first two dimensions</param>
+        /// <param name="text">Character array, as read in from MAT file (interleaved lines of text!)</param>
+        public MLString(int[] dims, char[] text)
+        {
+            _size = dims[0];
+            if (_size > 0)
+            {
+                _text = new string[_size];
+                StringBuilder[] sb = new StringBuilder[_size];
+                for (int i = 0; i < _size; i++) sb[i] = new StringBuilder();
+                int ch = 0;
+                for (int c = 0; c < dims[1]; c++)
+                    for (int l = 0; l < _size; l++) sb[l].Append(text[ch++]);
+                for (int l = 0; l < _size; l++) this[l] = sb[l].ToString();
+            }
+        }
+
+        /// <summary>
+        /// Principle "write" constructor
+        /// </summary>
+        /// <param name="lines">Number of lines of text to allocate</param>
+        public MLString(int lines)
+        {
+            if (lines > 0)
+            {
+                _text = new string[lines];
+                _size = lines;
+            }
+        }
+
+        public MLString()
+            : this(1) { }
 
         public override string ToString()
         {
-            return "'" + Value + "'";
+            if (_size == 1) //simple "string" case
+                return "'" + _text[0] + "'";
+            StringBuilder sb = new StringBuilder(); //otherwise we've got multi-line text
+            for (int i = 0; i < _size; i++)
+                sb.Append(_text[i] + Environment.NewLine);
+            return sb.ToString();
         }
     }
 

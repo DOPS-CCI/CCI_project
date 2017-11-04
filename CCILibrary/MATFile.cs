@@ -31,7 +31,7 @@ namespace MATFile
         const int miUTF8 = 16;
         const int miUTF16 = 17;
         const int miUTF32 = 18;
-        static uint[] miSizes = { 0, 1, 1, 2, 2, 4, 4, 4, 0, 8, 0, 0, 8, 8, 0, 0, 0, 2, 4 };
+        static int[] miSizes = { 0, 1, 1, 2, 2, 4, 4, 4, 0, 8, 0, 0, 8, 8, 0, 0, 1, 2, 4 };
 
         const int mxCELL_CLASS = 1;
         const int mxSTRUCT_CLASS = 2;
@@ -57,7 +57,9 @@ namespace MATFile
             char[] chars = new char[116];
             (new StreamReader(reader, Encoding.ASCII)).Read(chars, 0, 116);
             _headerString = (new string(chars)).Trim();
-            _reader = new BinaryReader(reader);
+            if (_headerString.Substring(0, 10) != "MATLAB 5.0")
+                throw new Exception("IN MATFileReader: invalid MAT file version");
+            _reader = new BinaryReader(reader, Encoding.UTF8);
             _reader.BaseStream.Position = 124;
             if (_reader.ReadInt16() != 0x0100)
                 throw new Exception("In MATFileReader: invalid MAT file version"); //version 1 only
@@ -66,76 +68,84 @@ namespace MATFile
             string name;
             while (_reader.PeekChar() != -1) //not EOF
             {
-                IMLType t = (IMLType)parseCompoundDataType(out name); //should be array type or compressed
+                IMLType t = parseCompoundDataType(out name); //should be array type or compressed
                 if (!(t is MLUnknown))
                     DataVariables.Add(name, t);
             }
         }
 
-        object parseSimpleDataType()
+        object parseSimpleDataType(out int length)
         {
             int type;
-            int length;
-            readTag(out type, out length);
+            int tagLength = readTag(out type, out length);
             if (length == 0) return null;
-            int count;
+            int count = length / miSizes[type];
+            length += tagLength;
             switch (type)
             {
                 case miINT8: //INT8
-                    count = (int)length;
                     sbyte[] V1 = new sbyte[count];
                     for (int i = 0; i < count; i++) V1[i] = _reader.ReadSByte();
-                    alignStream();
+                    alignStream(ref length);
                     return V1;
 
                 case miUINT8: //UINT8
-                    count = (int)length;
                     byte[] V2 = _reader.ReadBytes(count);
-                    alignStream();
+                    alignStream(ref length);
                     return V2;
 
                 case miINT16: //INT16
-                    count = (int)length >> 1;
                     short[] V3 = new short[count];
                     for (int i = 0; i < count; i++) V3[i] = _reader.ReadInt16();
-                    alignStream();
+                    alignStream(ref length);
                     return V3;
 
                 case miUINT16: //UINT16
-                    count = (int)length >> 1;
                     ushort[] V4 = new ushort[count];
                     for (int i = 0; i < count; i++) V4[i] = _reader.ReadUInt16();
-                    alignStream();
+                    alignStream(ref length);
                     return V4;
 
                 case miINT32: //INT32
-                    count = (int)length >> 2;
                     int[] V5 = new int[count];
                     for (int i = 0; i < count; i++) V5[i] = _reader.ReadInt32();
-                    alignStream();
+                    alignStream(ref length);
                     return V5;
 
                 case miUINT32: //UINT32
-                    count = (int)length >> 2;
                     uint[] V6 = new uint[count];
                     for (int i = 0; i < count; i++) V6[i] = _reader.ReadUInt32();
-                    alignStream();
+                    alignStream(ref length);
                     return V6;
 
                 case miSINGLE: //SINGLE
-                    count = (int)length >> 2;
                     float[] V7 = new float[count];
                     for (int i = 0; i < count; i++) V7[i] = _reader.ReadSingle();
-                    alignStream();
+                    alignStream(ref length);
                     return V7;
 
                 case miDOUBLE: //DOUBLE
-                    count = (int)length >> 3;
                     double[] V8 = new double[count];
                     for (int i = 0; i < count; i++) V8[i] = _reader.ReadDouble();
-                    alignStream();
+                    alignStream(ref length);
                     return V8;
+                    
+                case miUTF8:
+                    byte[] bytes = _reader.ReadBytes(count);
+                    Decoder e = Encoding.UTF8.GetDecoder();
+                    char[] c = new char[count];
+                    int p = e.GetChars(bytes, 0, count, c, 0);
+                    char[] chars = new char[p];
+                    for (int i = 0; i < p; i++) chars[i] = c[i];
+                    alignStream(ref length);
+                    return chars;
+                    
+                case miUTF16:
+                    chars = _reader.ReadChars(count);
+                    alignStream(ref length);
+                    return chars;
 
+                case miUTF32:
                 default:
                     throw new NotImplementedException("In MATFileReader: Unimplemented simple data type (" +
                         type.ToString("0") + ")");
@@ -160,20 +170,16 @@ namespace MATFile
                     return parseArrayDataElement(length, out name);
 
                 case miCOMPRESSED: //COMPRESSED
-                    MLUnknown t = new MLUnknown();
-                    t.ClassID = miCOMPRESSED;
-                    t.Length = length;
-                    t.exception =
-                        new NotImplementedException("Cannot implement miCOMPRESSED format -- " +
-                        "does not match publshed format");
-                    _reader.ReadBytes(length);
-/*                    Stream originalReader = _reader.BaseStream;
                     MemoryStream ms = new MemoryStream(_reader.ReadBytes(length));
-                    GZipStream gz = new GZipStream(ms, CompressionMode.Decompress);
+                    if (ms.ReadByte() != 0x78 || ms.ReadByte() != 0x9C) //have to skip the first two bytes!
+                        throw new IOException("Unable to read Compressed data");
+                    DeflateStream defStr = new DeflateStream(ms, CompressionMode.Decompress);
+                    Stream originalReader = _reader.BaseStream;
                     _reader =
-                        new BinaryReader(gz);
+                        new BinaryReader(defStr);
+
                     IMLType t = parseCompoundDataType(out name);
-                    _reader = new BinaryReader(originalReader); */
+                    _reader = new BinaryReader(originalReader, Encoding.UTF8);
                     return t;
 
                 default:
@@ -192,10 +198,11 @@ namespace MATFile
         {
             name = "";
             int remainingLength = length;
-            uint[] arrayFlags = (uint[])parseSimpleDataType();
+            int lt;
+            uint[] arrayFlags = (uint[])parseSimpleDataType(out lt);
             byte _class = (byte)(arrayFlags[0] & 0x000000FF); //Array Class
             byte _flag = (byte)((arrayFlags[0] & 0x0000FF00) >> 8); //Flags
-            remainingLength -= 16;
+            remainingLength -= lt;
             if (_class < mxCELL_CLASS || _class > mxUINT64_CLASS)
             {
                 MLUnknown unk = new MLUnknown();
@@ -204,18 +211,14 @@ namespace MATFile
                 _reader.ReadBytes(remainingLength);
                 return unk;
             }
-            long filepos = _reader.BaseStream.Position;
-            int[] dimensionsArray = (int[])parseSimpleDataType(); //Dimensions array
-            long filepos1 = _reader.BaseStream.Position;
-            remainingLength -= (int)(filepos1 - filepos);
-            filepos = filepos1;
+            int[] dimensionsArray = (int[])parseSimpleDataType(out lt); //Dimensions array
+            remainingLength -= lt;
             int expectedSize = 1;
             for (int i = 0; i < dimensionsArray.Length; i++)
                 expectedSize *= dimensionsArray[i];
             // Array name
-            sbyte[] nameBuffer = (sbyte[])parseSimpleDataType();
-            filepos1 = _reader.BaseStream.Position;
-            remainingLength -= (int)(filepos1 - filepos);
+            sbyte[] nameBuffer = (sbyte[])parseSimpleDataType(out lt);
+            remainingLength -= lt;
             if (nameBuffer != null)
             {
                 char[] t = new char[nameBuffer.Length];
@@ -240,16 +243,27 @@ namespace MATFile
                 switch (_class)
                 {
                     case mxCHAR_CLASS:
-                        MLString s;
-                        ushort[] buffer = (ushort[])parseSimpleDataType();
-                        if (buffer == null) { s.Value = ""; return s; }
-                        if (buffer.Length != dimensionsArray[1])
-                            throw new Exception("Incompatable lengths in mxCHAR_CLASS strings");
-                        char[] charBuffer = new char[buffer.Length];
-                        for (int i = 0; i < buffer.Length; i++)
-                            charBuffer[i] = Convert.ToChar(buffer[i]);
-                        s.Value = new string(charBuffer);
-                        return s;
+                        char[] charBuffer = readText(expectedSize);
+                        if (charBuffer == null) return new MLString(0);
+                        int nDims = dimensionsArray.Length;
+                        if (nDims <= 2) //single string or text block
+                            return new MLString(dimensionsArray, charBuffer);
+                        else //array of text blocks
+                        {
+                            int[] newDims = new int[nDims - 2];
+                            for (int j = 2; j < nDims; j++) newDims[j - 2] = dimensionsArray[j];
+                            MLArray<MLString> t = new MLArray<MLString>(newDims);
+                            int ichar = 0;
+                            int textLength = expectedSize / (int)t.Length;
+                            for (int iText = 0; iText < t.Length; iText++)
+                            {
+                                char[] c = new char[textLength];
+                                for (int i = 0; i < textLength; i++) c[i] = charBuffer[ichar++];
+                                MLString s = new MLString(dimensionsArray, c);
+                                t[iText] = s;
+                            }
+                            return t;
+                        }
 
                     case mxCELL_CLASS:
                         MLCellArray cellArray = new MLCellArray(dimensionsArray);
@@ -268,7 +282,7 @@ namespace MATFile
                         MLStruct newStruct = new MLStruct(dimensionsArray);
 
                         //get field names, keeping list so we can put values in correct places
-                        int fieldNameLength = ((int[])parseSimpleDataType())[0];
+                        int fieldNameLength = ((int[])parseSimpleDataType(out lt))[0];
                         int type;
                         int totalFieldNameLength;
                         readTag(out type, out totalFieldNameLength);
@@ -287,7 +301,7 @@ namespace MATFile
                             fieldNames[i] = new string(charBuffer, 0, c);
                             newStruct.AddField(fieldNames[i]);
                         }
-                        alignStream();
+                        alignStream(ref totalFieldNameLength);
 
                         //now read the values into the structure
                         indices = new int[newStruct.NDimensions];
@@ -305,7 +319,7 @@ namespace MATFile
 
                     case mxOBJECT_CLASS:
                         string className;
-                        nameBuffer = (sbyte[])parseSimpleDataType();
+                        nameBuffer = (sbyte[])parseSimpleDataType(out lt);
                         charBuffer = new char[nameBuffer.Length];
                         for (int i = 0; i < nameBuffer.Length; i++)
                             charBuffer[i] = Convert.ToChar(nameBuffer[i]);
@@ -313,7 +327,7 @@ namespace MATFile
                         MLObject obj = new MLObject(className, dimensionsArray);
 
                         //get field names, keeping list so we can put values in correct places
-                        fieldNameLength = ((int[])parseSimpleDataType())[0];
+                        fieldNameLength = ((int[])parseSimpleDataType(out lt))[0];
                         readTag(out type, out totalFieldNameLength);
                         totalFields = (int)totalFieldNameLength / fieldNameLength;
                         charBuffer = new char[fieldNameLength];
@@ -330,7 +344,7 @@ namespace MATFile
                             fieldNames[i] = new string(charBuffer, 0, c);
                             obj.AddField(fieldNames[i]);
                         }
-                        alignStream();
+                        alignStream(ref totalFieldNameLength);
 
                         //now read the values into the structure
                         indices = new int[obj.NDimensions];
@@ -363,28 +377,64 @@ namespace MATFile
         /// </summary>
         /// <param name="type">Output tag type (mi tag)</param>
         /// <param name="dataLength">Output number of bytes of data this tag preceeds</param>
-        void readTag(out int type, out int dataLength)
+        /// <returns>number of bytes in this tag (4 or 8)</returns>
+        int readTag(out int type, out int dataLength)
         {
             type = _reader.ReadInt32();
             if ((type & 0xFFFF0000) == 0)
             {//32 bits long
                 dataLength = _reader.ReadInt32();
+                return 8;
             }
             else
             {//16 bits long
                 dataLength = type >> 16;
                 type = type & 0x0000FFFF;
+                return 4;
             }
         }
 
         /// <summary>
         /// Align stream to double word boundary
         /// </summary>
-        void alignStream()
+        void alignStream(ref int fieldLength)
         {
-            int s = (int)(_reader.BaseStream.Position % 8);
+            int s = fieldLength % 8;
             if (s != 0)
+            {
                 _reader.ReadBytes(8 - s);
+                fieldLength += 8 - s;
+            }
+        }
+
+        char[] readText(int expectedSize)
+        {
+            int lt;
+            char[] charBuffer = null;
+            object buffer = parseSimpleDataType(out lt);
+            if (buffer == null) return null;
+            if (buffer is ushort[]) //~UTF16 -- two byte characters only
+            {
+                ushort[] usbuffer = (ushort[])buffer;
+                charBuffer = new char[usbuffer.Length];
+                for (int i = 0; i < usbuffer.Length; i++)
+                    charBuffer[i] = Convert.ToChar(usbuffer[i]);
+            }
+            else
+                if (buffer is char[]) //UTF8
+                    charBuffer = (char[])buffer;
+                else
+                    if (buffer is sbyte[]) //ASCII
+                    {
+                        sbyte[] sbytebuffer = (sbyte[])buffer;
+                        charBuffer = new char[sbytebuffer.Length];
+                        for (int i = 0; i < sbytebuffer.Length; i++) charBuffer[i] = Convert.ToChar(sbytebuffer[i]);
+                    }
+                    else
+                        throw new Exception("Incompatible character type: " + buffer.GetType().Name);
+            if (charBuffer.Length != expectedSize)
+                throw new Exception("Incompatable lengths in mxCHAR_CLASS strings");
+            return charBuffer;
         }
 
         /// <summary>
@@ -398,9 +448,10 @@ namespace MATFile
         {
             int intype;
             int length;
-            readTag(out intype, out length);
+            int tagLength = readTag(out intype, out length);
             if (miSizes[intype] == 0 || length / miSizes[intype] != expectedSize)
                 throw new Exception("In readNumerciArray: invalid data type or mismatched data and array sizes");
+            length += tagLength;
             IMLType output = null;
             switch (_class)
             {
@@ -500,7 +551,7 @@ namespace MATFile
                         output = new MLArray<byte>(0);
                     break;
             }
-            alignStream();
+            alignStream(ref length);
             return output;
         }
 
@@ -531,7 +582,7 @@ namespace MATFile
 
                 case miUINT8:
                     return _reader.ReadByte();
-                    
+
             }
             return null;
         }
