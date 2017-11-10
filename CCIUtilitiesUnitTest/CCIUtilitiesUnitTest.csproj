@@ -35,6 +35,9 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="CCILibrary">
+      <HintPath>..\CCILibrary\bin\Debug\CCILibrary.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
   </ItemGroup>
   <Choose>
@@ -56,6 +59,7 @@
     <Compile Include="DatasetViewerTest.cs" />
     <Compile Include="NMMatrixTest.cs" />
     <Compile Include="RQuaternionTest.cs" />
+    <Compile Include="MLTypesSelectorTest.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\CCIUtilities\CCIUtilities.csproj">

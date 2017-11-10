@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Numerics;
 using System.Text;
 using MLTypes;
 
@@ -13,7 +14,7 @@ namespace MATFile
         BinaryReader _reader;
         string _headerString;
         public string HeaderString { get { return _headerString; } }
-        public Dictionary<string, IMLType> DataVariables = new Dictionary<string, IMLType>();
+        public Dictionary<string, MLType> DataVariables = new Dictionary<string, MLType>();
 
         //CONSTANTS
         const int miINT8 = 1;
@@ -68,10 +69,11 @@ namespace MATFile
             string name;
             while (_reader.PeekChar() != -1) //not EOF
             {
-                IMLType t = parseCompoundDataType(out name); //should be array type or compressed
+                MLType t = parseCompoundDataType(out name); //should be array type or compressed
                 if (!(t is MLUnknown))
                     DataVariables.Add(name, t);
             }
+            _reader.Close();
         }
 
         object parseSimpleDataType(out int length)
@@ -153,7 +155,7 @@ namespace MATFile
 
         }
 
-        IMLType parseCompoundDataType(out string name)
+        MLType parseCompoundDataType(out string name)
         {
             int type;
             int length;
@@ -171,14 +173,16 @@ namespace MATFile
 
                 case miCOMPRESSED: //COMPRESSED
                     MemoryStream ms = new MemoryStream(_reader.ReadBytes(length));
-                    if (ms.ReadByte() != 0x78 || ms.ReadByte() != 0x9C) //have to skip the first two bytes!
-                        throw new IOException("Unable to read Compressed data");
+                    ushort hdr = (ushort)((ms.ReadByte() << 8) + ms.ReadByte()); //have to skip the first two bytes!
+                    if ((hdr & 0xFF20) != 0x7800 || hdr % 31 != 0) //check valid header bytes
+                        //Deflate/32K/no preset dictionary/check bits OK
+                        throw new IOException("Unable to read Compressed data; header bytes = " + hdr.ToString("X4"));
                     DeflateStream defStr = new DeflateStream(ms, CompressionMode.Decompress);
                     Stream originalReader = _reader.BaseStream;
                     _reader =
                         new BinaryReader(defStr);
 
-                    IMLType t = parseCompoundDataType(out name);
+                    MLType t = parseCompoundDataType(out name);
                     _reader = new BinaryReader(originalReader, Encoding.UTF8);
                     return t;
 
@@ -188,13 +192,13 @@ namespace MATFile
             }
         }
 
-        IMLType parseCompoundDataType() //for anonymous types
+        MLType parseCompoundDataType() //for anonymous types
         {
             string dummyName;
             return parseCompoundDataType(out dummyName);
         }
 
-        IMLType parseArrayDataElement(int length, out string name)
+        MLType parseArrayDataElement(int length, out string name)
         {
             name = "";
             int remainingLength = length;
@@ -234,9 +238,9 @@ namespace MATFile
                 if (!complex) return re;
                 dynamic im =
                     readNumericArray(_class, expectedSize, dimensionsArray);
-                MLArray<MLComplex> c = new MLArray<MLComplex>(dimensionsArray);
+                MLArray<Complex> c = new MLArray<Complex>(dimensionsArray);
                 for (int i = 0; i < c.Length; i++)
-                    c[i] = new MLComplex(re[i], im[i]);
+                    c[i] = new Complex(re[i], im[i]);
                 return c;
             }
             else //non-numeric "array"
@@ -310,7 +314,7 @@ namespace MATFile
                         {
                             for (int j = 0; j < totalFields; j++)
                             {
-                                MLArray<IMLType> mla = newStruct.GetArrayForFieldName(fieldNames[j]);
+                                MLArray<MLType> mla = newStruct.GetMLArrayForFieldName(fieldNames[j]);
                                 mla[indices] = parseCompoundDataType();
                             }
                             d = newStruct.IncrementIndex(indices, false);
@@ -353,7 +357,7 @@ namespace MATFile
                         {
                             for (int j = 0; j < totalFields; j++)
                             {
-                                MLArray<IMLType> mla = obj.GetArrayForFieldName(fieldNames[j]);
+                                MLArray<MLType> mla = obj.GetMLArrayForFieldName(fieldNames[j]);
                                 mla[indices] = parseCompoundDataType();
                             }
                             d = obj.IncrementIndex(indices, false); //in column major order
@@ -444,7 +448,7 @@ namespace MATFile
         /// <param name="expectedSize">expected number of elements in array</param>
         /// <param name="dimensionsArray">dimesion descritpiton of array to be created</param>
         /// <returns>MLArray of native type representing _class</returns>
-        IMLType readNumericArray(byte _class, int expectedSize, int[] dimensionsArray)
+        MLType readNumericArray(byte _class, int expectedSize, int[] dimensionsArray)
         {
             int intype;
             int length;
@@ -452,7 +456,7 @@ namespace MATFile
             if (miSizes[intype] == 0 || length / miSizes[intype] != expectedSize)
                 throw new Exception("In readNumerciArray: invalid data type or mismatched data and array sizes");
             length += tagLength;
-            IMLType output = null;
+            MLType output = null;
             switch (_class)
             {
                 case mxDOUBLE_CLASS:

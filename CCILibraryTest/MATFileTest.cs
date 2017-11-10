@@ -23,7 +23,7 @@ namespace CCILibraryTest
                 Console.WriteLine();
                 Console.WriteLine("******** " + ((FileStream)f).Name + " ********");
                 MATFileReader mfr = new MATFileReader(f);
-                foreach (KeyValuePair<string, IMLType> kvp in mfr.DataVariables)
+                foreach (KeyValuePair<string, MLType> kvp in mfr.DataVariables)
                 {
                     Console.WriteLine(kvp.Key + " =");
                     if (kvp.Value != null)

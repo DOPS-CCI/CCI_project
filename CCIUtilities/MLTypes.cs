@@ -2,11 +2,107 @@
 using System.Collections.Generic;
 using System.Numerics;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace MLTypes
 {
-    public interface IMLType { }
- /*   public interface IMLNumericalType : IMLType {
+    public abstract class MLType
+    {
+        static Regex test =
+            new Regex(@"^((\[%(,%)*\])?\.[a-zA-Z]\w*|\{%(,%)*\})*(\[%(,%)*\])?$");
+        static Regex sel =
+            new Regex(@"^((?'Struct'(\[(?'index'%(,%)*)\])?\.(?'fieldName'[a-zA-Z]\w*))|(?'Cell'\{(?'index'%(,%)*)\})|(?'Array'\[(?'index'%(,%)*)\]))$");
+        static string[] fields;
+        static int[] index;
+        static bool[] isCell;
+        static bool[] isStruct;
+
+        public static object Select(MLType Base, string selector, params int[] indices)
+        {
+            //make sure it's a valid selector string
+            if (!test.IsMatch(selector))
+                throw new ArgumentException("In MLType.Select: invalid selector string: " + selector);
+            //split into segements
+            string[] spl = Regex.Split(selector, @"(?=[\[\{\.])");
+            int n = spl.Length;
+            fields = new string[n];
+            index = new int[n];
+            isCell = new bool[n];
+            isStruct = new bool[n];
+            //parse segments
+            for (int i = 0; i < n; i++)
+            {
+                Match m = sel.Match(spl[i]);
+                fields[i] = m.Groups["field"].Value;
+                index[i] = (m.Groups["index"].Value.Length + 1) >> 1; // = number of indices
+                isCell[i] = m.Groups["Cell"].Value != "";
+                isStruct[i] = m.Groups["Struct"].Value != "";
+            }
+            dynamic t0 = Base;
+            int ind = 0;
+            int indPlace = 0;
+            //apply segments
+            while (ind < n)
+            {
+                object t = null;
+                //handle diension calculation first
+                long I = 0; //index into array/cell to calculate
+                if (t0 is MLDimensionedType && index[ind] != 0)
+                {
+                    if (index[ind] == 1) I = (long)indices[indPlace++];
+                    else
+                    {
+                        int[] dims = new int[index[ind]];
+                        for (int i = 0; i < index[ind]; i++) dims[i] = indices[indPlace++];
+                        I = ((MLDimensionedType)t0).calculateIndex(dims);
+                    }
+                }
+
+                if (t0 is MLStruct)
+                {
+                    if (isStruct[ind])
+                        t = ((MLStruct)t0)[I,fields[ind]];
+                    else throw new Exception();
+                }
+                else if (t0 is MLObject)
+                {
+                    if (isStruct[ind])
+                        t = ((MLObject)t0)[I,fields[ind]];
+                    else throw new Exception();
+                }
+                else if (t0 is MLCellArray)
+                {
+                    if (isCell[ind])
+                        t=((MLCellArray)t0)[I];
+                    else throw new Exception();
+                }
+                else if (t0 is MLString)
+                {
+                    if (!isCell[ind] && !isStruct[ind])
+                        return ((MLString)t0)[I]; //return selected character
+                    throw new Exception();
+                }
+                else //should be MLArray<T>
+                {
+                    Type type = t0.GetType();
+                    if (type.IsGenericType && type.Name.Contains("MLArray"))
+                    {
+                        if (!isCell[ind] && !isStruct[ind]) //selector is array type
+                            return t0[I]; //since t0 is dynamic, this should work OK
+                        throw new Exception();
+                    }
+                    else
+                        throw new Exception("In MLType.Select: Unexpected MLType type: " + type.Name);
+                }
+                t0 = t;
+                ind++;
+            }
+            if (t0 is MLDimensionedType && ((MLDimensionedType)t0).Length==1) //unwrap singleton
+                return t0[0];
+            return t0; //otherwise leave as array
+        }
+    }
+ /*   public interface IMLNumericalType : MLType {
         double ToDouble();
     }
 
@@ -116,7 +212,7 @@ namespace MLTypes
         public static implicit operator MLDouble(double v) { return new MLDouble(v); }
         public double ToDouble() { return Value; }
     }
-    public struct MLComplex : IMLType
+    public struct MLComplex : MLType
     {
         IMLNumericalType real;
         IMLNumericalType imaginary;
@@ -133,9 +229,8 @@ namespace MLTypes
             imaginary = (IMLNumericalType)i;
         }
     }
-    */
 
-    public struct MLComplex : IMLType
+    public struct MLComplex
     {
         double real;
         double imaginary;
@@ -167,87 +262,9 @@ namespace MLTypes
             return "( " + sb.ToString() + " )";
         }
     }
+    */
 
-    public class MLString : IMLType
-    {
-        //First dimension => number of "lines" of text
-        //Second dimension => (maximum) length of each line of text; this is in a sense "dropped"
-        //Third and subsequent dimensions => array of "text blocks" (handled within MLArray)
-        //The "wrapping" MLArray is omitted if type is defined with only two dimensions
-        string[] _text;
-        int _size;
-
-        public string this[int i]
-        {
-            get { return _text[i]; }
-            set { _text[i] = value.TrimEnd(new char[] { ' ', '\r', '\n' }); }
-        }
-
-        public int[] Dimensions
-        {
-            get
-            {
-                int[] dim = new int[2];
-                if (_size > 0)
-                {
-                    dim[0] = _size;
-                    dim[1] = 0;
-                    for (int i = 0; i < _text.Length; i++)
-                        if (_text[i] != null && _text[i].Length > dim[1])
-                            dim[1] = _text[i].Length;
-                }
-                return dim;
-            }
-        }
-
-        /// <summary>
-        /// Principle "read" constructor
-        /// </summary>
-        /// <param name="dims">Array of at least first two dimensions</param>
-        /// <param name="text">Character array, as read in from MAT file (interleaved lines of text!)</param>
-        public MLString(int[] dims, char[] text)
-        {
-            _size = dims[0];
-            if (_size > 0)
-            {
-                _text = new string[_size];
-                StringBuilder[] sb = new StringBuilder[_size];
-                for (int i = 0; i < _size; i++) sb[i] = new StringBuilder();
-                int ch = 0;
-                for (int c = 0; c < dims[1]; c++)
-                    for (int l = 0; l < _size; l++) sb[l].Append(text[ch++]);
-                for (int l = 0; l < _size; l++) this[l] = sb[l].ToString();
-            }
-        }
-
-        /// <summary>
-        /// Principle "write" constructor
-        /// </summary>
-        /// <param name="lines">Number of lines of text to allocate</param>
-        public MLString(int lines)
-        {
-            if (lines > 0)
-            {
-                _text = new string[lines];
-                _size = lines;
-            }
-        }
-
-        public MLString()
-            : this(1) { }
-
-        public override string ToString()
-        {
-            if (_size == 1) //simple "string" case
-                return "'" + _text[0] + "'";
-            StringBuilder sb = new StringBuilder(); //otherwise we've got multi-line text
-            for (int i = 0; i < _size; i++)
-                sb.Append(_text[i] + Environment.NewLine);
-            return sb.ToString();
-        }
-    }
-
-    public abstract class MLDimensionedType
+    public class MLDimensionedType : MLType
     {
         internal int _nDim;
         public int NDimensions
@@ -276,6 +293,9 @@ namespace MLTypes
 
         internal long calculateIndex(int[] indices)
         {
+            if (indices.Length == 1) return (long)indices[0]; //just return index if singleton
+            if (indices.Length != _nDim)
+                throw new IndexOutOfRangeException("In MLDimensioned: incorrect number of indices");
             long j = 0;
             for (int i = 0; i < _nDim; i++)
             {
@@ -327,7 +347,146 @@ namespace MLTypes
         }
     }
 
-    public class MLArray<T> : MLDimensionedType, IMLType
+    public class MLString : MLDimensionedType
+    {
+        //First dimension => number of "lines" of text
+        //Second dimension => (maximum) length of each line of text; this is in a sense "dropped"
+        //Third and subsequent dimensions => array of "text blocks"
+        char[] _text;
+
+        public char this[long i]
+        {
+            get { return _text[i]; }
+            set { _text[i] = value; }
+        }
+
+        public char this[int[] indices]
+        {
+            get { return _text[calculateIndex(indices)]; }
+            set { _text[calculateIndex(indices)] = value; }
+        }
+
+        public char this[int i, int j]
+        {
+            get
+            {
+                int[] dims = new int[_nDim];
+                dims[0] = i;
+                dims[1] = j;
+                return this[dims];
+            }
+            set
+            {
+                int[] dims = new int[_nDim];
+                dims[0] = i;
+                dims[1] = j;
+                this[dims] = value;
+            }
+        }
+
+        /// <summary>
+        /// Principle "read" constructor
+        /// </summary>
+        /// <param name="dims">Array of at least first two dimensions</param>
+        /// <param name="text">Character array, as read in from MAT file (interleaved lines of text!)</param>
+        public MLString(int[] dims, char[] text)
+        {
+            processDimensions(dims);
+            if (_length != text.Length)
+                throw new ArgumentException("In MLString cotr: size implied by dims array does not match text length");
+            _text = text;
+        }
+
+        /// <summary>
+        /// Principle "write" constructor
+        /// </summary>
+        /// <param name="lines">Number of lines of text to allocate</param>
+        public MLString(int[] dims)
+        {
+            processDimensions(dims);
+            _text = new char[_length];
+        }
+
+        public MLString(string s)
+        {
+            processDimensions(new int[] { 1, s.Length });
+            _text = s.ToCharArray();
+        }
+
+        /// <summary>
+        /// Constructor for "text block"
+        /// </summary>
+        /// <param name="s">Array of strings in text block</param>
+        public MLString(string[] s)
+        {
+            int n = s.Length;
+            int sMax = 0;
+            for (int i = 0; i < n; i++)
+                if (s[i].Length > sMax) sMax = s[i].Length;
+            processDimensions(new int[] { n, sMax });
+            _text = new char[_length];
+            for (int i = 0; i < n; i++)
+            {
+                char[] c = s[i].ToCharArray();
+                int j = 0;
+                for (; j < c.Length; j++)
+                    this[i, j] = c[j];
+                for (; j < sMax; j++)
+                    this[i, j] = ' ';
+            }
+        }
+
+        public string[] GetTextBlock(int ind)
+        {
+            int lineSize = Dimension(1);
+            int linesPerBlock = Dimension(0);
+            int nTBs = (int)(_length / (linesPerBlock * lineSize));
+            if(ind<nTBs)
+            {
+                string[] result = new string[linesPerBlock];
+                int line = ind *linesPerBlock;
+                for (int i = 0; i < nTBs; i++)
+                    result[i] = getLineOfText(line++);
+                return result;
+            }
+            throw new ArgumentException();
+        }
+
+        public override string ToString()
+        {
+            if (Dimension(1) == _length) //simple "string" case
+                return "'" + (new string(_text)) + "'";
+            StringBuilder sb = new StringBuilder(); //otherwise we've got multi-line text
+            return sb.ToString();
+        }
+
+        string getLineOfText(int lineN)
+        {
+            int charsPerLine = Dimension(1);
+            char[] c = new char[charsPerLine];
+            int linesPerBlock = Dimension(0);
+            int blockN = lineN / linesPerBlock;
+            int charsPerBlock = charsPerLine * linesPerBlock;
+            int char0 = charsPerBlock * blockN + lineN % linesPerBlock;
+            for (int i = 0; i < charsPerLine; i++)
+            {
+                c[i] = _text[char0];
+                char0 += linesPerBlock;
+            }
+            return (new string(c)).TrimEnd(' ');
+        }
+    }
+
+    public class MLArray : MLDimensionedType
+    {
+        dynamic array;
+        public MLArray(dynamic a)
+        {
+
+        }
+    }
+
+    public class MLArray<T> : MLDimensionedType
     {
         //NOTE: items are stored in column-major order to match MATLAB storage order
         T[] array;
@@ -344,7 +503,7 @@ namespace MLTypes
             }
         }
 
-        public T this[int i]
+        public T this[long i]
         {
             get { return array[i]; }
             set { array[i] = value; }
@@ -402,11 +561,11 @@ namespace MLTypes
         } 
     }
 
-    public class MLStruct : MLDimensionedType, IMLType
+    public class MLStruct : MLDimensionedType
     {
-        Dictionary<string, MLArray<IMLType>> fields = new Dictionary<string, MLArray<IMLType>>();
+        Dictionary<string, MLArray<MLType>> fields = new Dictionary<string, MLArray<MLType>>();
 
-        public IMLType this[int[] dims, string fieldName]
+        public MLType this[int[] dims, string fieldName]
         {
             get
             {
@@ -426,20 +585,40 @@ namespace MLTypes
             }
         }
 
+        public MLType this[long index, string fieldName]
+        {
+            get
+            {
+                if (fields.ContainsKey(fieldName))
+                    return fields[fieldName][index];
+                throw new MissingFieldException("In MLStruct: field \"" + fieldName + "\" does not exist");
+            }
+            set
+            {
+                if (fields.ContainsKey(fieldName))
+                    fields[fieldName][index] = value;
+                else
+                {
+                    //create new field in the struct
+                    AddField(fieldName)[index] = value;
+                }
+            }
+        }
+
         /// <summary>
         /// Indexer for first element of structure with this field name
         /// </summary>
         /// <param name="fieldName">name of the field</param>
         /// <returns>MATLAB type which is the value of this field</returns>
-        public IMLType this[string fieldName]
+        public MLType this[string fieldName]
         {
             get
             {
-                return this[new int[_nDim], fieldName];
+                return this[0, fieldName];
             }
             set
             {
-                this[new int[_nDim], fieldName] = value;
+                this[0, fieldName] = value;
             }
         }
 
@@ -451,18 +630,30 @@ namespace MLTypes
             processDimensions(dims);
         }
 
-        public MLArray<IMLType> AddField(string fieldName)
+        public MLArray<MLType> AddField(string fieldName)
         {
-            MLArray<IMLType> newArray = new MLArray<IMLType>(Dimensions);
+            MLArray<MLType> newArray = new MLArray<MLType>(Dimensions);
             fields.Add(fieldName, newArray);
             return newArray;
         }
 
-        public MLArray<IMLType> GetArrayForFieldName(string fieldName)
+        public MLArray<MLType> GetMLArrayForFieldName(string fieldName)
         {
-            MLArray<IMLType> a;
+            MLArray<MLType> a;
             if (fields.TryGetValue(fieldName, out a)) return a;
-            throw new Exception("In GetArrayForFieldName: unkown field name (" + fieldName + ")");
+            throw new Exception("In GetMLArrayForFieldName: unknown field name (" + fieldName + ")");
+        }
+
+        public double GetScalarDoubleforFieldName(string fieldName)
+        {
+            try
+            {
+                return (double)((MLArray<double>)this[fieldName])[0];
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("In GetScalarDoubleForFieldName: " + ex.Message);
+            }
         }
 
         public override string ToString()
@@ -474,7 +665,7 @@ namespace MLTypes
             while (t++ < _length)
             {
                 sb.Append(MLDimensionedType.indexToString(index) + "=>" + Environment.NewLine);
-                foreach (KeyValuePair<string, MLArray<IMLType>> mvar in fields)
+                foreach (KeyValuePair<string, MLArray<MLType>> mvar in fields)
                 {
                     sb.Append(mvar.Key + '=');
                     if (mvar.Value != null && mvar.Value[index] != null)
@@ -488,7 +679,7 @@ namespace MLTypes
         }
     }
 
-    public class MLObject : MLDimensionedType, IMLType
+    public class MLObject : MLDimensionedType
     {
         string _className;
         public string ClassName
@@ -496,10 +687,10 @@ namespace MLTypes
             get { return _className; }
         }
 
-        Dictionary<string, MLArray<IMLType>> fields = new Dictionary<string, MLArray<IMLType>>();
+        Dictionary<string, MLArray<MLType>> fields = new Dictionary<string, MLArray<MLType>>();
 
 
-        public IMLType this[int[] dims, string fieldName]
+        public MLType this[int[] dims, string fieldName]
         {
             get
             {
@@ -524,7 +715,7 @@ namespace MLTypes
         /// </summary>
         /// <param name="fieldName">name of the field</param>
         /// <returns>MATLAB type which is the value of this field</returns>
-        public IMLType this[string fieldName]
+        public MLType this[string fieldName]
         {
             get
             {
@@ -533,6 +724,26 @@ namespace MLTypes
             set
             {
                 this[new int[_nDim], fieldName] = value;
+            }
+        }
+
+        public MLType this[long index, string fieldName]
+        {
+            get
+            {
+                if (fields.ContainsKey(fieldName))
+                    return fields[fieldName][index];
+                throw new MissingFieldException("In MLStruct: field \"" + fieldName + "\" does not exist");
+            }
+            set
+            {
+                if (fields.ContainsKey(fieldName))
+                    fields[fieldName][index] = value;
+                else
+                {
+                    //create new field in the struct
+                    AddField(fieldName)[index] = value;
+                }
             }
         }
 
@@ -545,18 +756,18 @@ namespace MLTypes
             processDimensions(dims);
         }
 
-        public MLArray<IMLType> AddField(string fieldName)
+        public MLArray<MLType> AddField(string fieldName)
         {
-            MLArray<IMLType> newArray = new MLArray<IMLType>(Dimensions);
+            MLArray<MLType> newArray = new MLArray<MLType>(Dimensions);
             fields.Add(fieldName, newArray);
             return newArray;
         }
 
-        public MLArray<IMLType> GetArrayForFieldName(string fieldName)
+        public MLArray<MLType> GetMLArrayForFieldName(string fieldName)
         {
-            MLArray<IMLType> a;
+            MLArray<MLType> a;
             if (fields.TryGetValue(fieldName, out a)) return a;
-            throw new Exception("In GetArrayForFieldName: unkown field name (" + fieldName + ")");
+            throw new Exception("In GetMLArrayForFieldName: unkown field name (" + fieldName + ")");
         }
 
         public override string ToString()
@@ -568,7 +779,7 @@ namespace MLTypes
             while (t++ < _length)
             {
                 sb.Append(MLDimensionedType.indexToString(index) + "=>" + Environment.NewLine);
-                foreach (KeyValuePair<string, MLArray<IMLType>> mvar in fields)
+                foreach (KeyValuePair<string, MLArray<MLType>> mvar in fields)
                 {
                     sb.Append(mvar.Key + '=');
                     if (mvar.Value != null && mvar.Value[index] != null)
@@ -582,20 +793,26 @@ namespace MLTypes
         }
     }
 
-    public class MLCellArray : MLDimensionedType, IMLType
+    public class MLCellArray : MLDimensionedType
     {
-        IMLType[] _cells;
+        MLType[] _cells;
 
-        public IMLType this[int[] indices]
+        public MLType this[int[] indices]
         {
             get { return _cells[calculateIndex(indices)]; }
             set { _cells[calculateIndex(indices)] = value; }
         }
 
+        public MLType this[long index]
+        {
+            get { return _cells[index]; }
+            set { _cells[index] = value; }
+        }
+
         public MLCellArray(int[] dims)
         {
             processDimensions(dims);
-            _cells = new IMLType[_length];
+            _cells = new MLType[_length];
         }
 
         public override string ToString()
@@ -606,7 +823,7 @@ namespace MLTypes
             int d = _nDim;
             while (d != -1)
             {
-                IMLType mlt = _cells[calculateIndex(index)];
+                MLType mlt = _cells[calculateIndex(index)];
                 if (mlt != null)
                     sb.Append(mlt.ToString() + " ");
                 else
@@ -621,7 +838,7 @@ namespace MLTypes
         }
     }
 
-    public class MLUnknown : IMLType
+    public class MLUnknown : MLType
     {
         public Exception exception = null;
         public int ClassID;
