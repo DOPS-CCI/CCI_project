@@ -5,6 +5,7 @@ using System.IO.Compression;
 using System.Linq;
 using System.Numerics;
 using System.Text;
+using System.Text.RegularExpressions;
 using MLTypes;
 
 namespace MATFile
@@ -14,7 +15,7 @@ namespace MATFile
         BinaryReader _reader;
         string _headerString;
         public string HeaderString { get { return _headerString; } }
-        public Dictionary<string, MLType> DataVariables = new Dictionary<string, MLType>();
+        MLVariables mlv = new MLVariables();
 
         //CONSTANTS
         const int miINT8 = 1;
@@ -66,13 +67,22 @@ namespace MATFile
                 throw new Exception("In MATFileReader: invalid MAT file version"); //version 1 only
             if (_reader.ReadInt16() != 0x4D49)
                 throw new Exception("In MATFileReader: MAT file not little-endian"); //MI => no swapping needed => OK
+        }
+
+        public MLVariables ReadAllVariables()
+        {
             string name;
             while (_reader.PeekChar() != -1) //not EOF
             {
                 MLType t = parseCompoundDataType(out name); //should be array type or compressed
                 if (!(t is MLUnknown))
-                    DataVariables.Add(name, t);
+                    mlv.Add(name, t);
             }
+            return mlv;
+        }
+
+        public void Close()
+        {
             _reader.Close();
         }
 
@@ -248,26 +258,8 @@ namespace MATFile
                 {
                     case mxCHAR_CLASS:
                         char[] charBuffer = readText(expectedSize);
-                        if (charBuffer == null) return new MLString(0);
-                        int nDims = dimensionsArray.Length;
-                        if (nDims <= 2) //single string or text block
-                            return new MLString(dimensionsArray, charBuffer);
-                        else //array of text blocks
-                        {
-                            int[] newDims = new int[nDims - 2];
-                            for (int j = 2; j < nDims; j++) newDims[j - 2] = dimensionsArray[j];
-                            MLArray<MLString> t = new MLArray<MLString>(newDims);
-                            int ichar = 0;
-                            int textLength = expectedSize / (int)t.Length;
-                            for (int iText = 0; iText < t.Length; iText++)
-                            {
-                                char[] c = new char[textLength];
-                                for (int i = 0; i < textLength; i++) c[i] = charBuffer[ichar++];
-                                MLString s = new MLString(dimensionsArray, c);
-                                t[iText] = s;
-                            }
-                            return t;
-                        }
+                        if (charBuffer == null) return new MLString("");
+                        return new MLString(dimensionsArray, charBuffer);
 
                     case mxCELL_CLASS:
                         MLCellArray cellArray = new MLCellArray(dimensionsArray);
@@ -346,7 +338,7 @@ namespace MATFile
                                 charBuffer[c] = Convert.ToChar(fieldNameBuffer[c]);
                             }
                             fieldNames[i] = new string(charBuffer, 0, c);
-                            obj.AddField(fieldNames[i]);
+                            obj.AddProperty(fieldNames[i]);
                         }
                         alignStream(ref totalFieldNameLength);
 
@@ -357,7 +349,7 @@ namespace MATFile
                         {
                             for (int j = 0; j < totalFields; j++)
                             {
-                                MLArray<MLType> mla = obj.GetMLArrayForFieldName(fieldNames[j]);
+                                MLArray<MLType> mla = obj.GetMLArrayForPropertyName(fieldNames[j]);
                                 mla[indices] = parseCompoundDataType();
                             }
                             d = obj.IncrementIndex(indices, false); //in column major order
@@ -589,6 +581,130 @@ namespace MATFile
 
             }
             return null;
+        }
+    }
+
+    public class MLVariables: Dictionary<string, MLType>
+    {
+        static Regex test1 =
+            new Regex(@"^[a-zA-Z]\w*((\[%(,%)*\])?\.[a-zA-Z]\w*|\{%(,%)*\})*(\[%(,%)*\])?$");
+        static Regex test2 =
+            new Regex(@"^((\[%(,%)*\])?\.[a-zA-Z]\w*|\{%(,%)*\})*(\[%(,%)*\])?$");
+        static Regex sel =
+            new Regex(@"^((?'field'[a-zA-Z]\w*)|(?'Struct'(\[(?'index'%(,%)*)\])?\.(?'field'[a-zA-Z]\w*))|(?'Cell'\{(?'index'%(,%)*)\})|(?'Array'\[(?'index'%(,%)*)\]))$");
+        static string[] fields;
+        static int[] index;
+        static bool[] isCell;
+        static bool[] isStruct;
+        static int currentSegment;
+
+        public object Select(MLType baseVar, string selector, params int[] indices)
+        {
+            //make sure it's a valid selector string
+            if (!test2.IsMatch(selector))
+                throw new ArgumentException("In MLVariables.Select: invalid selector string: " + selector);
+            parseSelector(selector);
+            currentSegment = 0;
+            return parseSegments(baseVar, indices);
+        }
+
+        public object Select(string selector, params int[] indices)
+        {
+            //make sure it's a valid selector string
+            if (!test1.IsMatch(selector))
+                throw new ArgumentException("In MLVariables.Select: invalid selector string: " + selector);
+            parseSelector(selector);
+            MLType mlt;
+            if (!TryGetValue(fields[0], out mlt))
+                throw new Exception("In MLVariables.Select: unknown variable name: " + fields[0]);
+            currentSegment = 1;
+            return parseSegments(mlt, indices);
+        }
+
+        private void parseSelector(string selector)
+        {
+            //split into segements
+            string[] spl = Regex.Split(selector, @"(?<!^)(?=\{|\[|(?<!\])\.)");
+            int n = spl.Length;
+            fields = new string[n];
+            index = new int[n];
+            isCell = new bool[n];
+            isStruct = new bool[n];
+            //parse segments
+            for (int i = 0; i < n; i++)
+            {
+                Match m = sel.Match(spl[i]);
+                fields[i] = m.Groups["field"].Value;
+                index[i] = (m.Groups["index"].Value.Length + 1) >> 1; // = number of indices
+                isCell[i] = m.Groups["Cell"].Value != "";
+                isStruct[i] = m.Groups["Struct"].Value != "";
+            }
+        }
+
+        private object parseSegments(MLType baseVar, int[] indices)
+        {
+            int n = fields.Length;
+            dynamic t0 = baseVar;
+            int indPlace = 0;
+            //apply segments
+            while (currentSegment < n)
+            {
+                object t = null;
+                //handle diension calculation first
+                long I = 0; //index into array/cell to calculate
+                if (t0 is MLDimensionedType && index[currentSegment] != 0)
+                {
+                    if (index[currentSegment] == 1) I = (long)indices[indPlace++];
+                    else
+                    {
+                        int[] dims = new int[index[currentSegment]];
+                        for (int i = 0; i < index[currentSegment]; i++) dims[i] = indices[indPlace++];
+                        I = ((MLDimensionedType)t0).CalculateIndex(dims);
+                    }
+                }
+
+                if (t0 is MLStruct)
+                {
+                    if (isStruct[currentSegment])
+                        t = ((MLStruct)t0)[I, fields[currentSegment]];
+                    else throw new Exception();
+                }
+                else if (t0 is MLObject)
+                {
+                    if (isStruct[currentSegment])
+                        t = ((MLObject)t0)[I, fields[currentSegment]];
+                    else throw new Exception();
+                }
+                else if (t0 is MLCellArray)
+                {
+                    if (isCell[currentSegment])
+                        t = ((MLCellArray)t0)[I];
+                    else throw new Exception();
+                }
+                else if (t0 is MLString)
+                {
+                    if (!isCell[currentSegment] && !isStruct[currentSegment])
+                        return ((MLString)t0)[I]; //return selected character
+                    throw new Exception();
+                }
+                else //should be MLArray<T>
+                {
+                    Type type = t0.GetType();
+                    if (type.IsGenericType && type.Name.Contains("MLArray"))
+                    {
+                        if (!isCell[currentSegment] && !isStruct[currentSegment]) // => selector is array type
+                            return t0[I]; //since t0 is dynamic, this works OK!
+                        throw new Exception();
+                    }
+                    else
+                        throw new Exception("In MLType.Select: Unexpected MLType type: " + type.Name);
+                }
+                t0 = t;
+                currentSegment++;
+            }
+            if (t0 is MLDimensionedType && ((MLDimensionedType)t0).Length == 1) //unwrap singleton
+                return t0[0]; //note: this will return a char not string if MLString.Length == 1
+            return t0; //otherwise leave as array
         }
     }
 }
