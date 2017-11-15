@@ -24,6 +24,15 @@ namespace ConvertEEG2FM
     /// </summary>
     public partial class MainWindow : Window
     {
+        string directory;
+        MLVariables eeg;
+        string prefix;
+        double srate;
+        int nChans;
+        int nRecs;
+        int nPts;
+        string[] channels;
+
         public MainWindow()
         {
             InitializeComponent();
@@ -46,37 +55,53 @@ namespace ConvertEEG2FM
             string directory = System.IO.Path.GetDirectoryName(ofd.FileName);
             Resources["LastFolder"] = directory;
             MATFileReader mfr = new MATFileReader(new FileStream(ofd.FileName, FileMode.Open, FileAccess.Read));
-            IMLType t = mfr.DataVariables["EEG"];
-            MLStruct eeg;
-            if (t is MLObject)
-            {
-                eeg = (MLStruct)((MLObject)t)["EEG"];
-            }
+            MLVariables eeg = mfr.ReadAllVariables();
+            if (eeg["EEG"] is MLObject)
+                prefix = "EEG.";
             else
-                eeg = (MLStruct)((MLArray<MLStruct>)t)[0];
-            double srate = eeg.GetScalarDoubleforFieldName("srate"); //SR
-            int nChans = (int)eeg.GetScalarDoubleforFieldName("nbchan"); //NC
-            int nRecs = (int)eeg.GetScalarDoubleforFieldName("trials"); //NR
-            int nPts = (int)eeg.GetScalarDoubleforFieldName("pnts"); //ND
-            string[] channels = new string[nChans];
-            MLStruct s = (MLStruct)eeg[0, "chanlocs"];
+                prefix="";
+            srate = (double)eeg.Select(prefix + "EEG.srate"); //SR
+            nChans = (int)(double)eeg.Select(prefix + "EEG.nbchan"); //NC
+            nRecs = (int)(double)eeg.Select(prefix + "EEG.trials"); //NR
+            nPts = (int)(double)eeg.Select(prefix + "EEG.pnts"); //ND
+            channels = new string[nChans];
             for (int i = 0; i < nChans; i++)
-            {
-                channels[i] = ((MLString)s[i, "labels"])[0];
-            }
-            string[] events = new string[nRecs];
-            s= (MLStruct)eeg[0, "event"];
+                channels[i] = ((MLString)eeg.Select(prefix + "EEG.chanlocs[%].labels", i)).GetString();
+            string[] fn = ((MLStruct)eeg.Select(prefix + "EEG.event")).FieldNames;
+            GVSelection.ItemsSource = fn;
+        }
+
+        private void Convert_Click(object sender, RoutedEventArgs e)
+        {
+            MLType ev = (MLType)eeg.Select(prefix + ".events");
+            int p = GVSelection.SelectedItems.Count;
+            string[] GVName = new string[p];
+            string[,] GVValue = new string[nRecs, p];
+            int[] latency = new int[nRecs];
+            for (int i = 0; i < p; i++)
+                GVName[i] = (string)GVSelection.SelectedItems[i];
             for (int i = 0; i < nRecs; i++)
             {
-                int epochN = (int)s[i, "epoch"][0];
+                int epochN = (int)(double)eeg.Select(ev, "[%].epoch", i);
                 if (epochN == i + 1)
-                    events[i] = ((MLString)s[i, "type"])[0];
+                {
+                    latency[i] = (int)(double)eeg.Select(ev, "[%].latency", i);
+                    for (int j = 0; j < p; j++)
+                    {
+                        GVValue[i, j] = ((MLString)eeg.Select(ev, "[%]." + GVName[j], i)).GetString();
+                    }
+                }
             }
-            string datfile = ((MLString)eeg["datfile"])[0];
+            string datfile = ((MLString)eeg.Select(prefix + "EEG.datfile")).GetString();
             BinaryReader data = new BinaryReader(
                 new FileStream(System.IO.Path.Combine(directory, datfile), FileMode.Open, FileAccess.Read));
-            float f = data.ReadSingle();
+            float[, ,] bigData = new float[nChans, nPts, nRecs];
+            for (int r = 0; r < nRecs; r++)
+                for (int p = 0; p < nPts; p++)
+                    for (int c = 0; c < nChans; c++)
+                        bigData[c, p, r] = data.ReadSingle();
             data.Close();
+
         }
     }
 }
