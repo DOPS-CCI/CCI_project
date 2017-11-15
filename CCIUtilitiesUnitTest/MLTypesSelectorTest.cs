@@ -21,15 +21,15 @@ namespace CCIUtilitiesUnitTest
             Console.WriteLine();
             Console.WriteLine("******** " + f.Name + " ********");
             MATFileReader mfr = new MATFileReader(f);
-            foreach (KeyValuePair<string, MLType> kvp in mfr.DataVariables)
+            MLVariables mlv = mfr.ReadAllVariables();
+            foreach (KeyValuePair<string, MLType> kvp in mlv)
             {
                 Console.WriteLine(kvp.Key + " =");
                 if (kvp.Value != null)
                     Console.WriteLine(kvp.Value.ToString());
             }
-            MLType t = mfr.DataVariables["EEG"];
-            double init_time = (double)MLType.Select(t, "EEG.event.[%]init_time", 5);
-            object s = MLType.Select(t, "EEG.times.[&]", 55);
+            double init_time = (double)mlv.Select("EEG.event[%].init_time", 5);
+            object s = mlv.Select("EEG.times[%]", 55);
         }
     }
 }
