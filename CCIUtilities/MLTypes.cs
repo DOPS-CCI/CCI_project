@@ -460,7 +460,7 @@ namespace MLTypes
             {
                 string[] result = new string[linesPerBlock];
                 int line = ind * linesPerBlock;
-                for (int i = 0; i < nTBs; i++)
+                for (int i = 0; i < linesPerBlock; i++)
                     result[i] = getLineOfText(line++);
                 return result;
             }
