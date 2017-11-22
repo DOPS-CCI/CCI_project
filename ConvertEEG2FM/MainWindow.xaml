@@ -1,7 +1,7 @@
 ﻿<Window x:Class="ConvertEEG2FM.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="MainWindow" FontSize="14" FontWeight="Bold" ResizeMode="NoResize" SizeToContent="WidthAndHeight">
+        Title="Convert EEGLAB to FILMAN" FontSize="14" FontWeight="Bold" ResizeMode="NoResize" SizeToContent="WidthAndHeight" WindowStartupLocation="CenterScreen">
     <StackPanel Orientation="Vertical">
         <StackPanel Orientation="Horizontal">
             <StackPanel Orientation="Vertical">
@@ -10,34 +10,52 @@
                     <ListBox Name="GVSelection" SelectionMode="Multiple" SelectionChanged="GVSelection_SelectionChanged"></ListBox>
                 </ScrollViewer>
             </StackPanel>
+            <Grid>
                 <Border BorderThickness="2" BorderBrush="#FF28A3D1" IsEnabled="False" IsHitTestVisible="False" Margin="4" Padding="4" OverridesDefaultStyle="True" VerticalAlignment="Center">
-            <StackPanel Orientation="Vertical" Width="Auto" VerticalAlignment="Center" Height="132">
-                <TextBlock Text="FILE: " Margin="0,2"/>
-                <TextBlock Name="FileName" TextWrapping="Wrap" Margin="6" Width="426"/>
-                <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="Number of Channels: "/>
-                    <TextBlock Name="NChans"/>
-                </StackPanel>
-                <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="Number of GVs: "/>
-                    <TextBlock Name="NGVs">0</TextBlock>
-                </StackPanel>
-                <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="Number of Trials: "/>
-                    <TextBlock Name="NTrials"/>
-                </StackPanel>
-                <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="Sampling Rate: "/>
-                    <TextBlock Name="SRate"/>
-                </StackPanel>
-            </StackPanel>
+                    <StackPanel Orientation="Vertical" Width="Auto" VerticalAlignment="Center">
+                        <TextBlock Text="FILE:"/>
+                        <TextBlock Name="FileName" TextWrapping="Wrap" Margin="8,0,0,2" Width="426" HorizontalAlignment="Left"/>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Number of channels: "/>
+                            <TextBlock Name="NChans"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Number of GVs: "/>
+                            <TextBlock Name="NGVs">0</TextBlock>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Number of trials: "/>
+                            <TextBlock Name="NTrials"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Length of record: "/>
+                            <TextBlock Name="RecLen"/>
+                            <TextBlock Text=" secs"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Sampling Rate: "/>
+                            <TextBlock Name="SRate"/>
+                            <TextBlock Text=" s/sec"/>
+                        </StackPanel>
+                    </StackPanel>
                 </Border>
+                <StackPanel Name="WorkProgress" Orientation="Vertical" VerticalAlignment="Bottom" IsHitTestVisible="False" Opacity="0.5">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Processing file: "/>
+                        <TextBlock Name="ProcessingFile" TextWrapping="Wrap" Width="348"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Processing record: "/>
+                        <TextBlock Name="RecordNumber">0</TextBlock>
+                    </StackPanel>
+                </StackPanel>
+            </Grid>
         </StackPanel>
-        <TextBlock Margin="8,2" Text="EDIT DESCRIPTION:"/>
+        <TextBlock Margin="8,2" Text="EDIT DESCRIPTION (in blue):"/>
         <Grid>
             <TextBox Name="CommentText" Margin="8" FontSize="13" FontWeight="Normal" Height="136" AcceptsReturn="True" FontFamily="Courier New" Panel.ZIndex="-10" Padding="1,2,1,1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Disabled"/>
             <Canvas Margin="8">
-                <Rectangle Height="93" Width="567" Fill="#3F008BFF" IsHitTestVisible="False" IsEnabled="False"/>
+                <Rectangle Height="93" Width="567" Fill="#3F007FFF" IsHitTestVisible="False" IsEnabled="False"/>
             </Canvas>
         </Grid>
         <Grid>

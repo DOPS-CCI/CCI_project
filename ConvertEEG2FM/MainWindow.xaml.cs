@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -30,7 +31,7 @@ namespace ConvertEEG2FM
         int nGVs;
         string[] channels;
         string[] comments;
-        Task IOTask = null;
+        Thread IOThread = null;
 
         public MainWindow()
         {
@@ -39,6 +40,8 @@ namespace ConvertEEG2FM
 
         private void Quit_Click(object sender, RoutedEventArgs e)
         {
+            if (IOThread != null)
+                IOThread.Join();
             Environment.Exit(0);
         }
 
@@ -51,15 +54,19 @@ namespace ConvertEEG2FM
             ofd.InitialDirectory = (string)Resources["LastFolder"];
             ofd.FilterIndex = 0;
             if (ofd.ShowDialog() != System.Windows.Forms.DialogResult.OK) return;
+
             FileName.Text = ofd.FileName;
             directory = System.IO.Path.GetDirectoryName(ofd.FileName);
             Resources["LastFolder"] = directory;
+
             MATFileReader mfr = new MATFileReader(new FileStream(ofd.FileName, FileMode.Open, FileAccess.Read));
             eeg = mfr.ReadAllVariables();
+            mfr.Close();
             if (eeg["EEG"] is MLObject)
                 prefix = "EEG.";
             else
                 prefix="";
+
             srate = (double)eeg.Select(prefix + "EEG.srate"); //SR
             SRate.Text = srate.ToString("0.0");
             nChans = (int)(double)eeg.Select(prefix + "EEG.nbchan"); //NC
@@ -67,6 +74,38 @@ namespace ConvertEEG2FM
             nRecs = (int)(double)eeg.Select(prefix + "EEG.trials"); //NR
             NTrials.Text = nRecs.ToString("0");
             nPts = (int)(double)eeg.Select(prefix + "EEG.pnts"); //ND
+            RecLen.Text = (nPts / srate).ToString("0.0");
+
+            string[] fn = ((MLStruct)eeg.Select(prefix + "EEG.event")).FieldNames;
+            GVSelection.SelectedItem = null;
+            GVSelection.ItemsSource = fn;
+
+            List<string> com = ((MLString)eeg.Select(prefix+"EEG.comments")).GetTextBlock().ToList<string>();
+            com.RemoveAll(c => c == null || c.Trim() == "");
+            StringBuilder sb = new StringBuilder();
+            foreach (string s in com) sb.AppendLine(s);
+            CommentText.Text = sb.ToString();
+
+            Convert.IsEnabled = true;
+        }
+
+        void Convert_Click(object sender, RoutedEventArgs e)
+        {
+            Convert.IsEnabled = false;
+            SaveFileDialog sfd = new SaveFileDialog();
+            sfd.Title = "FILMAN output file";
+            sfd.DefaultExt = "fmn";
+            sfd.Filter = "FILMAN files (*.fmn)|*.fmn|All files (*.*)|*.*";
+            sfd.InitialDirectory = (string)Resources["LastFolder"];
+            sfd.FilterIndex = 1;
+            sfd.OverwritePrompt = true;
+            sfd.AddExtension = true;
+            if (sfd.ShowDialog() != System.Windows.Forms.DialogResult.OK)
+            {
+                Convert.IsEnabled = true;
+                return;
+            }
+            //Now get channel names, possible location information
             channels = new string[nChans];
             MLType MLChans = (MLType)eeg.Select(prefix + "EEG.chanlocs");
             for (int i = 0; i < nChans; i++)
@@ -82,47 +121,27 @@ namespace ConvertEEG2FM
                 else
                     channels[i] = N;
             }
-            string[] fn = ((MLStruct)eeg.Select(prefix + "EEG.event")).FieldNames;
-            GVSelection.SelectedItem = null;
-            GVSelection.ItemsSource = fn;
-            List<string> com = ((MLString)eeg.Select(prefix+"EEG.comments")).GetTextBlock().ToList<string>();
-            com.RemoveAll(c => c == null || c.Trim() == "");
-            StringBuilder sb = new StringBuilder();
-            foreach (string s in com) sb.AppendLine(s);
-            CommentText.Text = sb.ToString();
-            Convert.IsEnabled = true;
-        }
-
-        private void Convert_Click(object sender, RoutedEventArgs e)
-        {
-            SaveFileDialog sfd = new SaveFileDialog();
-            sfd.Title = "FILMAN output file";
-            sfd.DefaultExt = "fmn";
-            sfd.Filter = "FILMAN files (*.fmn)|*.fmn|All files (*.*)|*.*";
-            sfd.InitialDirectory = (string)Resources["LastFolder"];
-            sfd.FilterIndex = 1;
-            sfd.OverwritePrompt = true;
-            sfd.AddExtension = true;
-            if (sfd.ShowDialog() != System.Windows.Forms.DialogResult.OK) return;
+            //Get GV names
             MLType ev = (MLType)eeg.Select(prefix + "EEG.event");
             nGVs = GVSelection.SelectedItems.Count;
             string[] GVName = new string[nGVs];
-            object[,] GVValue = new object[nRecs, nGVs];
-            int[] latency = new int[nRecs];
             for (int i = 0; i < nGVs; i++)
                 GVName[i] = (string)GVSelection.SelectedItems[i];
+
+            //Now wait for previous output thread
+            if (IOThread != null)
+                IOThread.Join();
+            IOThread = null;
+
+            object[,] GVValue = new object[nRecs, nGVs];
             for (int i = 0; i < nRecs; i++)
             {
                 int epochN = (int)(double)eeg.Select(ev, "[%].epoch", i);
-                if (epochN == i + 1)
-                {
-                    latency[i] = (int)(double)eeg.Select(ev, "[%].latency", i);
+                if (epochN == i + 1) //make sure epochs match
                     for (int j = 0; j < nGVs; j++)
-                    {
                         GVValue[i, j] = eeg.Select(ev, "[%]." + GVName[j], i);
-                    }
-                }
             }
+
             //Create FILMAN file
             FILMANOutputStream fos = new FILMANOutputStream(
                 new FileStream(sfd.FileName, FileMode.Create, FileAccess.Write),
@@ -145,35 +164,58 @@ namespace ConvertEEG2FM
             //Write header records
             fos.writeHeader();
 
-            string datfile = ((MLString)eeg.Select(prefix + "EEG.datfile")).GetString();
-            BinaryReader data = new BinaryReader(
-                new FileStream(System.IO.Path.Combine(directory, datfile), FileMode.Open, FileAccess.Read));
+            //Open main data file
+            string datfile = System.IO.Path.Combine(directory, ((MLString)eeg.Select(prefix + "EEG.datfile")).GetString());
 
-            IOTask = createNewFILMANFIle(fos, data, GVValue);
+            //start output thread
+            IOThread = new Thread(
+                () =>
+                {   //avoid captured variables
+                    int npts = nPts;
+                    int nchans = nChans;
+                    int nrecs = nRecs;
+                    createNewFILMANFIle(fos, datfile, GVValue, nrecs, npts, nchans);
+                });
+            IOThread.Start();
+
+            Convert.IsEnabled = true;
         }
 
-        async Task createNewFILMANFIle(FILMANOutputStream fos, BinaryReader data, object[,] GVValue)
+        //Main output thread routine
+        void createNewFILMANFIle(FILMANOutputStream fos, string datfile, object[,] GVValue, int nrecs, int npts, int nchans)
         {
-            float[,] bigData = new float[nChans, nPts];
-            for (int r = 0; r < nRecs; r++)
+            Action action = () => WorkProgress.Opacity = 1D;
+            Dispatcher.BeginInvoke(action);
+            action = () => ProcessingFile.Text = datfile;
+            Dispatcher.BeginInvoke(action);
+            BinaryReader data = new BinaryReader(
+                new FileStream(datfile, FileMode.Open, FileAccess.Read));
+            float[,] bigData = new float[nchans, npts];
+            int ngvs = GVValue.GetUpperBound(1);
+            int r = 0;
+            action = () => RecordNumber.Text = (r + 1).ToString("0");
+            for (; r < nrecs; r++)
             {
+                Dispatcher.BeginInvoke(action);
                 //read in episode record (interleaved channel data)
-                for (int pt = 0; pt < nPts; pt++)
-                    for (int c = 0; c < nChans; c++)
+                for (int pt = 0; pt < npts; pt++)
+                    for (int c = 0; c < nchans; c++)
                         bigData[c, pt] = data.ReadSingle();
                 //handle GVs
-                for (int g = 0; g < nGVs; g++)
-                    fos.record.GV[g + 1] = ConvertGV2Int(GVValue[r, g]);
+                for (int g = 0; g < ngvs; g++)
+                    fos.record.GV[g + 2] = ConvertGV2Int(GVValue[r, g]);
                 //create FM record for each channel
-                for (int c = 0; c < nChans; c++)
+                for (int c = 0; c < nchans; c++)
                 {
-                    for (int p = 0; p < nPts; p++)
+                    for (int p = 0; p < npts; p++)
                         fos.record[p] = bigData[c, p];
                     fos.write();
                 }
             }
             data.Close();
             fos.Close();
+            action = () => WorkProgress.Opacity = 0.5D;
+            Dispatcher.BeginInvoke(action);
         }
 
         private int ConvertGV2Int(dynamic p)

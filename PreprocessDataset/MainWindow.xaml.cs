@@ -56,7 +56,7 @@ namespace PreprocessDataset
             do //open HDR file and associated BDF file
             {
                 System.Windows.Forms.OpenFileDialog dlg = new System.Windows.Forms.OpenFileDialog();
-                dlg.Title = "Open Header file to be displayed...";
+                dlg.Title = "Open Header file to be processed...";
                 dlg.DefaultExt = ".hdr"; // Default file extension
                 dlg.Filter = "HDR Files (.hdr)|*.hdr"; // Filter files by extension
                 r = dlg.ShowDialog() == System.Windows.Forms.DialogResult.OK;
