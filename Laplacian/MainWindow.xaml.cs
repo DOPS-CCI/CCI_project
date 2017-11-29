@@ -14,7 +14,7 @@ using System.Windows.Navigation;
 using System.Windows.Shapes;
 using CCIUtilities;
 
-namespace Lalacian
+namespace Laplacian
 {
     /// <summary>
     /// Interaction logic for MainWindow.xaml

@@ -3,6 +3,8 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2012
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Laplacian", "Laplacian.csproj", "{C0F4DF28-C273-4614-BFB0-4E0C9DA13FA0}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LaplacianTest", "..\LaplacianTest\LaplacianTest.csproj", "{2B00EE64-ADDD-45C2-9A11-4463CC39853B}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -13,6 +15,10 @@ Global
 		{C0F4DF28-C273-4614-BFB0-4E0C9DA13FA0}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C0F4DF28-C273-4614-BFB0-4E0C9DA13FA0}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C0F4DF28-C273-4614-BFB0-4E0C9DA13FA0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2B00EE64-ADDD-45C2-9A11-4463CC39853B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2B00EE64-ADDD-45C2-9A11-4463CC39853B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2B00EE64-ADDD-45C2-9A11-4463CC39853B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2B00EE64-ADDD-45C2-9A11-4463CC39853B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
