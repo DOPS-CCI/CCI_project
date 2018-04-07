@@ -8,7 +8,7 @@ namespace UnitTestProject1
     public class DFilterUnitTest
     {
         [TestMethod]
-        public void TestMethod1()
+        public void ButterworthTest()
         {
             double[] X;
             Butterworth bw = new Butterworth(4, 50, 256, false);
@@ -19,21 +19,11 @@ namespace UnitTestProject1
             Console.WriteLine("0.1Hz HP: {0}", bw.ToString("0.000000"));
             bw = new Butterworth(4, 0.01, 256, true);
             Console.WriteLine("0.01Hz HP: {0}", bw.ToString("0.000000"));
-            ChebyshevHP chp = new ChebyshevHP(4, 0.1, 0.5 * 0.1, 256); //stopband -40dB
-            Console.WriteLine("Cheby 0.1Hz HP(-40dB): {0}", chp.ToString("0.000000"));
 
             double secs = 5;
             double SR = 128;
             double cutoff = 1;
             int pts = (int)(secs * SR);
-            ChebyshevLP clp = new ChebyshevLP(2, cutoff, 0.5 * SR, SR);
-            Console.WriteLine("IMPULSE: 5sec@128, 1Hz, 2pole, ChebyshevLP");
-            Console.Write(clp.ToString());
-            X = Impulse(pts);
-            clp.Reset();
-            clp.Filter(X);
-            writeImpulse(X, SR, 10);
-
             bw = new Butterworth(2, cutoff, SR, true);
             Console.WriteLine("IMPULSE: 5sec@128, 1Hz, 2pole, Butterworth high-pass");
             Console.Write(bw);
@@ -65,39 +55,6 @@ namespace UnitTestProject1
             bw.Filter(X);
             writeImpulse(X, SR, 10);
 
-            secs = 128;
-            pts = (int)(secs * SR);
-            clp = new ChebyshevLP(4, cutoff, 1.25 * cutoff, SR);
-            Console.WriteLine("64sec@128, 1Hz, 4pole, ChebyshevLP");
-            for (double f = 0.01; f < 2.0; f += 0.01)
-            {
-                X = Sine(pts, secs * f);
-                clp.Reset();
-                clp.Filter(X);
-                Console.WriteLine("X[" + f.ToString("0.000") + "]=" + maxX(X, pts / 4, 3 * pts / 4).ToString("0.0000"));
-            }
-
-            secs = 64;
-            SR = 512;
-            cutoff = 1;
-            pts = (int)(secs * SR);
-            chp = new ChebyshevHP(8, cutoff, 0.815 * cutoff, SR); //stopband 0.01
-            Console.WriteLine("IMPULSE: 64sec@512, 1Hz, 8pole, ChebyshevHP");
-            Console.Write(chp);
-            X = Impulse(pts);
-            chp.Reset();
-            chp.Filter(X);
-            writeImpulse(X, SR, 20);
-
-            Console.WriteLine("64sec@512, 1Hz, 8pole, ChebyshevHP");
-            for (double f = 0.01; f < 2.0; f += 0.01)
-            {
-                X = Sine(pts, secs * f);
-                chp.Reset();
-                chp.Filter(X);
-                Console.WriteLine("X[" + f.ToString("0.000") + "]=" + maxX(X, pts / 4, 3 * pts / 4).ToString("0.0000"));
-            }
-
             secs = 256;
             SR = 128;
             cutoff = 0.01;
@@ -110,34 +67,12 @@ namespace UnitTestProject1
             bw.Filter(X);
             writeImpulse(X, SR, 128);
 
-            secs = 256;
-            SR = 128;
-            cutoff = 0.01;
-            pts = (int)(secs * SR);
-            chp = new ChebyshevHP(8, cutoff, 0.0535 * cutoff, SR);
-            Console.WriteLine("STEP: 256sec@128, 0.01Hz, 8pole, ChebyshevHP");
-            Console.Write(chp);
-            X = Step(pts);
-            chp.Reset();
-            chp.Filter(X);
-            writeImpulse(X, SR, 128);
-
-            secs = 1024;
-            Console.WriteLine("1024sec@128, 0.01Hz, 8pole, ChebyshevHP");
-            for (double f = 0.001; f < 0.2; f += 0.001)
-            {
-                X = Sine(pts, secs * f);
-                chp.Reset();
-                chp.Filter(X);
-                Console.WriteLine("X[" + f.ToString("0.000") + "]=" + maxX(X, pts / 4, 3 * pts / 4).ToString("0.00000"));
-            }
-
             secs = 128;
             SR = 128;
             cutoff = 1;
             pts = (int)(secs * SR);
             bw = new Butterworth(8, cutoff, SR, false); //1Hz cut-off, low-pass
-            Console.WriteLine("128sec@128, 1Hz, 8pole, low pass");
+            Console.WriteLine("F-response: 128sec@128, 1Hz, 8pole, low pass");
             for (double f = 0.01; f < 2; f += 0.01)
             {
                 X = Sine(pts, secs * f);
@@ -147,7 +82,7 @@ namespace UnitTestProject1
             }
 
             bw = new Butterworth(10, 1, 128, true);
-            Console.WriteLine("128sec@128, 1Hz, 10pole, high-pass");
+            Console.WriteLine("F-response: 128sec@128, 1Hz, 10pole, high-pass");
             for (double f = 0.01; f < 2; f += 0.01) //1Hz cut-off, zero phase
             {
                 X = Sine(pts, secs * f);
@@ -155,35 +90,152 @@ namespace UnitTestProject1
                 bw.Filter(X);
                 Console.WriteLine("X[" + f.ToString("0.00") + "]=" + maxX(X, pts / 4, 3 * pts / 4).ToString("0.000"));
             }
+        }
 
-            X = new double[4096];
-            ButterworthHP4 bw4 = new ButterworthHP4(0.5, 512);
-            Console.WriteLine("8sec@512, 0.5Hz, 4pole, zero phase");
-            for (double f = 0.01; f < 2; f += 0.01) //0.5Hz cut-off, zero phase, 4-pole, 512 samples/sec
+        [TestMethod]
+        public void Chebyshev2Test()
+        {
+            ChebyshevLP clp = new ChebyshevLP(); //stopband -40dB
+            clp.SR = 256;
+            clp.PassF = 55;
+            clp.StopF = 60;
+            clp.Atten = 60;
+            testChebyFilter(clp);
+
+            clp = new ChebyshevLP();
+            clp.SR = 256;
+            clp.PassF = 20;
+            clp.StopF = 30;
+            clp.NP = 6;
+            testChebyFilter(clp);
+
+            clp = new ChebyshevLP();
+            clp.SR = 256;
+            clp.PassF = 10;
+            clp.Atten = 40;
+            clp.NP = 7;
+            testChebyFilter(clp);
+
+            ChebyshevHP chp = new ChebyshevHP();
+            chp.SR = 256;
+            chp.PassF = 5;
+            chp.StopF = 3;
+            chp.Atten = 60;
+            testChebyFilter(chp);
+
+            chp = new ChebyshevHP();
+            chp.SR = 128;
+            chp.PassF = 1;
+            chp.Atten = 40;
+            chp.NP = 9;
+            testChebyFilter(chp);
+
+            chp = new ChebyshevHP();
+            chp.SR = 256;
+            chp.PassF = 1;
+            chp.StopF = 0.5;
+            chp.NP = 6;
+            testChebyFilter(chp);
+
+        }
+
+        [TestMethod]
+        public void EllipticalTest()
+        {
+            DFilter df = new EllipticalLP(2.32821 , 3.27099, 0.91515, 40, 256);
+            Console.WriteLine(df.ToString("0.000000"));
+            Console.WriteLine(((Elliptical)df).ActualStopAmpdB);
+            Tuple<bool, int, double> t = Elliptical.PrelimDesign(false, 2.32821, 3.27099, 0.1, 40, 256);
+            Assert.AreEqual(t.Item1, true);
+            Assert.AreEqual(((Elliptical)df).NP, t.Item2);
+            Assert.AreEqual(((Elliptical)df).ActualStopAmpdB, t.Item3, 0.000001);
+            df = new EllipticalHP(5.79482, 1.9603, 0.91515, 40, 256);
+            Console.WriteLine(df.ToString("0.000000"));
+            Console.WriteLine(((Elliptical)df).ActualStopAmpdB);
+            t = Elliptical.PrelimDesign(true, 5.79482, 1.9603, 0.1, 40, 256);
+            Assert.AreEqual(t.Item1, true);
+            Assert.AreEqual(((Elliptical)df).NP, t.Item2);
+            Assert.AreEqual(((Elliptical)df).ActualStopAmpdB, t.Item3, 0.000001);
+
+            EllipticalHP ehp = new EllipticalHP(0.5, 0.45414, 0.91515, 60, 256);
+            testEllipFilter(ehp);
+
+            ehp = new EllipticalHP(0.5, 0.296659, 0.91515, 60, 256);
+            testEllipFilter(ehp);
+
+            ehp = new EllipticalHP(0.5, 0.41731, 0.445528, 80, 256);
+            testEllipFilter(ehp);
+
+            EllipticalLP elp = new EllipticalLP(2, 2.70159, 0.91515, 60, 256);
+            testEllipFilter(elp);
+        }
+
+        private void testChebyFilter(Chebyshev filter)
+        {
+            double[] X;
+            filter.Design();
+            double SR = filter.SR;
+            double cutoff = filter.PassF;
+            Console.WriteLine("\n************* Filter type {0}: {1}poles, {2:0.00}Hz cutoff, {3:0.00}Hz stop, {4:0.00}dB attenuation, {5}Hz SR",
+                filter.GetType().Name, filter.NP, cutoff, filter.StopF, filter.Atten, SR);
+            Console.Write(filter.ToString("0.000000"));
+            Console.WriteLine("\nIMPULSE");
+            double secs = 10 / cutoff;
+            int pts = (int)(secs * SR);
+            X = Impulse(pts);
+            filter.Filter(X);
+            int p = Math.Max(1, pts / 200);
+            writeImpulse(X, SR, p);
+            Console.WriteLine("\nSTEP");
+            X = Step(pts);
+            filter.Reset();
+            filter.Filter(X);
+            writeImpulse(X, SR, p);
+            secs = 100D / cutoff;
+            pts = (int)(secs * SR);
+            Console.WriteLine("\nF-RESPONSE");
+            double delta = cutoff / 50D;
+            double end = Math.Min(cutoff * 5, filter.SR / 2);
+            for (double f = delta; f < end; f += delta)
             {
-                X = Sine(4096, 8 * f);
-                bw4.Reset();
-                bw4.ZeroPhaseFilter(X);
-                Console.WriteLine("X[" + f.ToString("0.00") + "]=" + maxX(X, 1024, 3072).ToString("0.000"));
+                X = Sine(pts, secs * f);
+                filter.Reset();
+                filter.Filter(X);
+                Console.WriteLine("X[" + f.ToString("0.000") + "]=" + maxX(X, pts / 4, pts).ToString("0.00000"));
             }
+        }
 
-            ButterworthHP6 bw6 = new ButterworthHP6(0.5, 512);
-            Console.WriteLine("8sec@512, 0.5Hz, 6pole");
-            for (double f = 0.01; f < 2; f += 0.01) //0.5Hz cut-off, zero phase, 4-pole, 512 samples/sec
+        private void testEllipFilter(Elliptical filter)
+        {
+            double[] X;
+            double SR = filter.SR;
+            double cutoff = filter.PassF;
+            Console.WriteLine("\n************* Filter type {0}: {1}poles, {2}Hz cutoff, {3}Hz stop, {4}dB ripple, {5}Hz SR",
+                filter.GetType().Name, filter.NP, cutoff, filter.StopF,filter.PassAmpdB, SR);
+            Console.Write(filter.ToString("0.000000"));
+            Console.WriteLine("Attenuation = {0}", filter.ActualStopAmpdB);
+            Console.WriteLine("\nIMPULSE");
+            double secs = 10 / cutoff;
+            int pts = (int)(secs * SR);
+            X = Impulse(pts);
+            filter.Filter(X);
+            writeImpulse(X, SR, pts / 200);
+            Console.WriteLine("\nSTEP");
+            X = Step(pts);
+            filter.Reset();
+            filter.Filter(X);
+            writeImpulse(X, SR, pts / 200);
+            secs = 100D / cutoff;
+            pts = (int)(secs * SR);
+            Console.WriteLine("\nF-RESPONSE");
+            double delta = cutoff / 50D;
+            double end = cutoff * 5;
+            for (double f = delta; f < end; f += delta)
             {
-                X = Sine(4096, 8 * f);
-                bw6.Reset();
-                bw6.Filter(X);
-                Console.WriteLine("X[" + f.ToString("0.00") + "]=" + maxX(X, 1024, 3072).ToString("0.000"));
-            }
-
-            Console.WriteLine("8sec@512, 0.5Hz, 6pole, zero phase");
-            for (double f = 0.01; f < 2; f += 0.01) //0.5Hz cut-off, zero phase, 4-pole, 512 samples/sec
-            {
-                X = Sine(4096, 8 * f);
-                bw6.Reset();
-                bw6.ZeroPhaseFilter(X);
-                Console.WriteLine("X[" + f.ToString("0.00") + "]=" + maxX(X, 1024, 3072).ToString("0.000"));
+                X = Sine(pts, secs * f);
+                filter.Reset();
+                filter.Filter(X);
+                Console.WriteLine("X[" + f.ToString("0.000") + "]=" + maxX(X, pts / 4, pts).ToString("0.00000"));
             }
         }
 
