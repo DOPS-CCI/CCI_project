@@ -1,4 +1,4 @@
-﻿<UserControl x:Class="PreprocessDataset.Chebyshev2DesignControl"
+﻿<UserControl x:Class="PreprocessDataset.EllipticDesignControl"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
@@ -31,7 +31,7 @@
             <GroupBox.Header>
                 <StackPanel Orientation="Horizontal">
                     <Button Name="Remove" Height="14" Width="14" FontSize="10" Padding="1,-4" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Click="RemoveFilter_Click">X</Button>
-                    <TextBlock>Chebyshev II filter</TextBlock>
+                    <TextBlock Name="TitleBlock">Elliptical filter</TextBlock>
                 </StackPanel>
             </GroupBox.Header>
             <Grid>
@@ -55,27 +55,37 @@
                     <RadioButton Grid.Row="1" VerticalAlignment="Center" Click="Pass_Click">Low pass</RadioButton>
                 </Grid>
                 <Border Grid.Column="1" Grid.RowSpan="3" BorderBrush="CadetBlue" BorderThickness="1" Margin="2"/>
+                <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center">
+                    <TextBlock>Pass band freq</TextBlock>
+                    <TextBox Name="Cutoff" Width="40" TextChanged="Cutoff_TextChanged">1</TextBox>
+                    <TextBlock>Hz</TextBlock>
+                </StackPanel>
                 <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center">
-                    <TextBlock>Cutoff frequency</TextBlock>
-                    <TextBox Name="Cutoff" Width="50" TextChanged="Cutoff_TextChanged">1</TextBox>
-                    <TextBlock>Hz</TextBlock>              
+                    <TextBlock>Pass band ripple</TextBlock>
+                    <TextBox Name="CutoffRipple" Width="40" TextChanged="CutoffRipple_TextChanged">1</TextBox>
+                    <TextBlock>%</TextBlock>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Grid.Row="2" Grid.Column="1" HorizontalAlignment="Center">
+                    <TextBlock>Design number of poles = </TextBlock>
+                    <TextBlock Name="Poles">2</TextBlock>
                 </StackPanel>
                 <Border Grid.Column="2" Grid.RowSpan="3" BorderBrush="CadetBlue" BorderThickness="1" Margin="2"/>
                 <StackPanel Orientation="Horizontal" Grid.Row="0" Grid.Column="2" HorizontalAlignment="Center">
                     <TextBlock>Stop band frequency</TextBlock>
-                    <TextBox Name="StopBand" Width="50" TextChanged="StopBand_TextChanged">0.5</TextBox>
+                    <TextBox Name="StopBand" Width="40" TextChanged="StopBand_TextChanged">0.5</TextBox>
                     <TextBlock>Hz</TextBlock>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" Grid.Row="1" Grid.Column="2" HorizontalAlignment="Center">
-                    <TextBlock>Stop band attenuation</TextBlock>
-                    <TextBox Name="Attenuation" Width="30" TextChanged="Attenuation_TextChanged">-40</TextBox>
-                    <TextBlock>dB</TextBlock>              
+                    <TextBlock>Min stop band atten</TextBlock>
+                    <TextBox Name="Attenuation" Width="30" TextChanged="Attenuation_TextChanged">40</TextBox>
+                    <TextBlock>dB</TextBlock>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" Grid.Row="2" Grid.Column="2" HorizontalAlignment="Center">
-                    <TextBlock Text="Number of poles"/>
-                    <TextBox Name="Poles" Width="30" TextChanged="Poles_TextChanged">2</TextBox>
+                    <TextBlock>Actual stop band atten =</TextBlock>
+                    <TextBlock Name="AttenuationActual">40.0</TextBlock>
+                    <TextBlock>dB</TextBlock>
                 </StackPanel>
-            </Grid>           
+            </Grid>
         </GroupBox>
     </ListBoxItem>
 </UserControl>

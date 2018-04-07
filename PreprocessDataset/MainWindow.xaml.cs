@@ -33,18 +33,19 @@ namespace PreprocessDataset
         Header.Header head;
         BDFEDFFileReader bdf;
         double BDFLength;
-        double originalSamplingRate;
+        internal double originalSamplingRate;
 
         List<int> FinalChannelList;
         List<int> elim = new List<int>();
         ElectrodeInputFileStream eis;
 
-        int decimation = 1;
+        internal int decimation = 1;
 
         List<DFilter> filterList;
         bool reverse = false;
 
         bool doLaplacian = false;
+        bool doFiltering = false;
         double lambda = 1D;
         double aDist = 1.5;
         string ETRFullPathName;
@@ -126,6 +127,13 @@ namespace PreprocessDataset
             cdc.ErrorCheckReq += checkForError;
         }
 
+        private void AddElliptic_Click(object sender, RoutedEventArgs e)
+        {
+            EllipticDesignControl edc = new EllipticDesignControl(this);
+            FilterList.Items.Add(edc);
+            edc.ErrorCheckReq += checkForError;
+        }
+
         private void Quit_Click(object sender, RoutedEventArgs e)
         {
             Environment.Exit(0);
@@ -184,10 +192,9 @@ namespace PreprocessDataset
                     else if (ArrayDist.IsEnabled && double.IsNaN(aDist)) ok = false;
                     else if ((bool)Other.IsChecked && LaplaceETR.Text == "") ok = false;
                 }
-                foreach (IValidate uc in FilterList.Items)
-                {
-                    if (!uc.Validate(originalSamplingRate / decimation)) { ok = false; break; }
-                }
+                if (doFiltering)
+                    foreach (IValidate uc in FilterList.Items)
+                        if (!uc.Validate(originalSamplingRate / decimation)) ok = false;
             }
             Process.IsEnabled = ok;
         }
@@ -251,6 +258,12 @@ namespace PreprocessDataset
 
         private void checkForError(object sender, EventArgs e)
         {
+            ErrorCheck();
+        }
+
+        private void Filtering_Click(object sender, RoutedEventArgs e)
+        {
+            doFiltering = (bool)Filtering.IsChecked;
             ErrorCheck();
         }
     }

@@ -37,8 +37,11 @@
                 <TextBox Name="Decimation" Width="40" TextChanged="Decimation_TextChanged">1</TextBox>
             </StackPanel>
         </GroupBox>
-        <GroupBox Header="Filtering">
-            <StackPanel Orientation="Vertical">
+        <GroupBox>
+            <GroupBox.Header>
+                <CheckBox Name="Filtering" VerticalAlignment="Center" Click="Filtering_Click">Filtering</CheckBox>
+            </GroupBox.Header>
+            <StackPanel Orientation="Vertical"  IsEnabled="{Binding Path=IsChecked, ElementName=Filtering}">
                 <ListBox Name="FilterList" Width="540" Height="260" ScrollViewer.HorizontalScrollBarVisibility="Disabled"/>
                 <CheckBox Name="ZP" FontSize="12" Margin="8,2">Reversed for zero phase</CheckBox>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
@@ -52,6 +55,7 @@
                     </StackPanel.Resources>
                     <Button Click="AddButterworth_Click">Add Butterworth</Button>
                     <Button Click="AddChebyshevII_Click">Add Chebyshev II</Button>
+                    <Button Click="AddElliptic_Click">Add Elliptic</Button>
                 </StackPanel>
             </StackPanel>
         </GroupBox>
