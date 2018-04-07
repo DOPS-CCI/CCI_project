@@ -21,17 +21,17 @@ namespace Laplacian
         bool _no;
 
         /// <summary>
-        /// Constructor for P and Q matrices for spline interpolation
+        /// Constructor for P and Q matrices for 3-D spline interpolation
         /// </summary>
         /// <param name="m">Order of interpolation</param>
         /// <param name="lambda">Regularization parameter</param>
         /// <param name="NO">Use "New Orleans" interpolation</param>
         public PQMatrices(int m, double lambda, bool NO = false)
         {
-            _m = m;
-            _no = NO;
-            M = _no ? 10 : (m * (m + 1) * (m + 2)) / 6;
+            _m = NO ? 3 : m; //if NO, ignore value of m
             _lambda = lambda;
+            _no = NO;
+            M = (m * (m + 1) * (m + 2)) / 6;
         }
 
         /// <summary>
@@ -78,7 +78,7 @@ namespace Laplacian
         /// Calculate interpolated signal values at given locations
         /// </summary>
         /// <param name="V">Signal values at electrode locations</param>
-        /// <param name="pt">Locations at which interpolated values are calculated</param>
+        /// <param name="pt">Locations at which interpolated values are to be calculated</param>
         /// <returns>Array of calculated values</returns>
         public double[] InterpolatedValue(NVector V, IEnumerable<Point3D> pt)
         {
@@ -87,11 +87,17 @@ namespace Laplacian
             double[] K = new double[pt.Count()];
             int n = 2 * _m - 3;
             int j = 0;
-            foreach(Point3D ptj in pt)
+            foreach (Point3D ptj in pt)
             {
                 double s = 0;
                 for (int i = 0; i < N; i++)
-                    s += p[i] * Math.Pow(distance(points[i], ptj), n);
+                {
+                    double d = distance(points[i], ptj);
+                    if (_no)
+                        s += p[i] * (d == 0D ? 0D : Math.Pow(d, 4) * Math.Log(d));
+                    else
+                        s += p[i] * Math.Pow(d, n);
+                }
                 K[j++] = s + q.Dot(new NVector(osculatingPoly(ptj)));
             }
 
@@ -120,9 +126,21 @@ namespace Laplacian
                     double d = distance(points[i], ptj);
                     double d2 = d * d;
                     double d4 = p[i] * Math.Pow(d, n - 4);
-                    s.X += d4 * ((n - 2) * Math.Pow(ptj.X - points[i].X, 2) + d2);
-                    s.Y += d4 * ((n - 2) * Math.Pow(ptj.Y - points[i].Y, 2) + d2);
-                    s.Z += d4 * ((n - 2) * Math.Pow(ptj.Z - points[i].Z, 2) + d2);
+                    if (_no && d != 0)
+                    {
+                        double ap = Math.Pow(ptj.X - points[i].X, 2);
+                        s.X += 6D * ap + d2 + d4 * (2 * ap + d2) * Math.Log(d);
+                        ap = Math.Pow(ptj.Y - points[i].Y, 2);
+                        s.Y += 6D * ap + d2 + d4 * (2 * ap + d2) * Math.Log(d);
+                        ap = Math.Pow(ptj.Z - points[i].Z, 2);
+                        s.Z += 6D * ap + d2 + d4 * (2 * ap + d2) * Math.Log(d);
+                    }
+                    else
+                    {
+                        s.X += d4 * ((n - 2) * Math.Pow(ptj.X - points[i].X, 2) + d2);
+                        s.Y += d4 * ((n - 2) * Math.Pow(ptj.Y - points[i].Y, 2) + d2);
+                        s.Z += d4 * ((n - 2) * Math.Pow(ptj.Z - points[i].Z, 2) + d2);
+                    }
                 }
                 K[j].X = n * s.X + q.Dot(new NVector(D2osculatingPoly(ptj, 'x')));
                 K[j].Y = n * s.Y + q.Dot(new NVector(D2osculatingPoly(ptj, 'y')));
@@ -207,5 +225,4 @@ namespace Laplacian
             return Math.Sqrt(Math.Pow(r1.X - r2.X, 2) + Math.Pow(r1.Y - r2.Y, 2) + Math.Pow(r1.Z - r2.Z, 2));
         }
     }
-
 }

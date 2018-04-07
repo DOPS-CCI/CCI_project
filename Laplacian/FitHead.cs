@@ -19,7 +19,7 @@ namespace Laplacian
         /// Constructor for spherical harmonic fit for head locations
         /// </summary>
         /// <param name="locations">Measured locations as List or array of ElectrodeRecords in any coordinate system</param>
-        /// <param name="order">Maximum fit "frequency" <= 4; 0 is sphere</param>
+        /// <param name="order">Maximum fit "frequency": integer 0 to 4; 0 is sphere</param>
         public FitHead(IEnumerable<ElectrodeRecord> locations, int order)
         {
             int n = locations.Count();
@@ -34,9 +34,9 @@ namespace Laplacian
                 x[i][0] = rpt.Phi;
                 x[i++][1] = Math.PI / 2D - rpt.Theta;
             }
-            spherical = new GeneralizedLinearRegression.Function[(order + 1) * (order + 1)];
-            sphericalTheta = new GeneralizedLinearRegression.Function[(order + 1) * (order + 1)];
-            sphericalPhi = new GeneralizedLinearRegression.Function[(order + 1) * (order + 1)];
+            spherical = new GeneralizedLinearRegression.Function[(order + 1) * (order + 1)]; //spherical harmonics
+            sphericalTheta = new GeneralizedLinearRegression.Function[(order + 1) * (order + 1)]; //theta derivatives of spherical harmonics
+            sphericalPhi = new GeneralizedLinearRegression.Function[(order + 1) * (order + 1)]; //phi derivatives of spherical harmonics
             for (int l = 0, j = 0; l <= order; l++)
                 for (int m = -l; m <= l; m++, j++)
                 {
