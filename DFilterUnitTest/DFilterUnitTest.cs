@@ -142,31 +142,60 @@ namespace UnitTestProject1
         [TestMethod]
         public void EllipticalTest()
         {
-            DFilter df = new EllipticalLP(2.32821 , 3.27099, 0.91515, 40, 256);
-            Console.WriteLine(df.ToString("0.000000"));
-            Console.WriteLine(((Elliptical)df).ActualStopAmpdB);
-            Tuple<bool, int, double> t = Elliptical.PrelimDesign(false, 2.32821, 3.27099, 0.1, 40, 256);
-            Assert.AreEqual(t.Item1, true);
-            Assert.AreEqual(((Elliptical)df).NP, t.Item2);
-            Assert.AreEqual(((Elliptical)df).ActualStopAmpdB, t.Item3, 0.000001);
-            df = new EllipticalHP(5.79482, 1.9603, 0.91515, 40, 256);
-            Console.WriteLine(df.ToString("0.000000"));
-            Console.WriteLine(((Elliptical)df).ActualStopAmpdB);
-            t = Elliptical.PrelimDesign(true, 5.79482, 1.9603, 0.1, 40, 256);
-            Assert.AreEqual(t.Item1, true);
-            Assert.AreEqual(((Elliptical)df).NP, t.Item2);
-            Assert.AreEqual(((Elliptical)df).ActualStopAmpdB, t.Item3, 0.000001);
+            EllipticalLP elp = new EllipticalLP();
+            elp.SR = 256D;
+            elp.PassF = 10D;
+            elp.StopF = 15D;
+            elp.Ripple = 0.1D;
+            elp.Atten = 60D;
+            testEllipFilter(elp);
 
-            EllipticalHP ehp = new EllipticalHP(0.5, 0.45414, 0.91515, 60, 256);
-            testEllipFilter(ehp);
+            elp = new EllipticalLP();
+            elp.SR = 512D;
+            elp.PassF = 50D;
+            elp.StopF = 60D;
+            elp.Atten = 60D;
+            elp.NP = 9;
+            testEllipFilter(elp);
 
-            ehp = new EllipticalHP(0.5, 0.296659, 0.91515, 60, 256);
-            testEllipFilter(ehp);
+            elp = new EllipticalLP();
+            elp.SR = 512D;
+            elp.PassF = 50D;
+            elp.StopF = 60D;
+            elp.Atten = 60D;
+            elp.NP = 7;
+            testEllipFilter(elp);
 
-            ehp = new EllipticalHP(0.5, 0.41731, 0.445528, 80, 256);
-            testEllipFilter(ehp);
+            elp = new EllipticalLP();
+            elp.SR = 512D;
+            elp.PassF = 50D;
+            elp.StopF = 60D;
+            elp.Atten = 40D;
+            elp.NP = 5;
+            testEllipFilter(elp);
 
-            EllipticalLP elp = new EllipticalLP(2, 2.70159, 0.91515, 60, 256);
+            elp = new EllipticalLP();
+            elp.SR = 512D;
+            elp.PassF = 50D;
+            elp.StopF = 60D;
+            elp.Ripple = 0.1104;
+            elp.NP = 5;
+            testEllipFilter(elp);
+
+            elp = new EllipticalLP();
+            elp.SR = 512D;
+            elp.PassF = 50D;
+            elp.Ripple = 0.1104;
+            elp.Atten = 40D;
+            elp.NP = 5;
+            testEllipFilter(elp);
+
+            elp = new EllipticalLP();
+            elp.SR = 512D;
+            elp.PassF = 50D;
+            elp.StopF = 55D;
+            elp.Atten = 80D;
+            elp.NP = 10;
             testEllipFilter(elp);
         }
 
@@ -208,23 +237,25 @@ namespace UnitTestProject1
         private void testEllipFilter(Elliptical filter)
         {
             double[] X;
+            filter.Design();
             double SR = filter.SR;
             double cutoff = filter.PassF;
-            Console.WriteLine("\n************* Filter type {0}: {1}poles, {2}Hz cutoff, {3}Hz stop, {4}dB ripple, {5}Hz SR",
-                filter.GetType().Name, filter.NP, cutoff, filter.StopF,filter.PassAmpdB, SR);
+            Console.WriteLine("\n************* Filter type {0}: {1}poles, {2}Hz cutoff, {3}Hz stop, {4}% ripple, {5:0.00}dB attenuation, {6}Hz SR",
+                filter.GetType().Name, filter.NP, cutoff, filter.StopF, 100D * filter.Ripple, filter.Atten, SR);
             Console.Write(filter.ToString("0.000000"));
-            Console.WriteLine("Attenuation = {0}", filter.ActualStopAmpdB);
+//            Console.WriteLine("Attenuation = {0}", filter.ActualStopAmpdB);
             Console.WriteLine("\nIMPULSE");
             double secs = 10 / cutoff;
             int pts = (int)(secs * SR);
             X = Impulse(pts);
             filter.Filter(X);
-            writeImpulse(X, SR, pts / 200);
+            int p = Math.Max(1, pts / 200);
+            writeImpulse(X, SR, p);
             Console.WriteLine("\nSTEP");
             X = Step(pts);
             filter.Reset();
             filter.Filter(X);
-            writeImpulse(X, SR, pts / 200);
+            writeImpulse(X, SR, p);
             secs = 100D / cutoff;
             pts = (int)(secs * SR);
             Console.WriteLine("\nF-RESPONSE");

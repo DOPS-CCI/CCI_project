@@ -11,6 +11,8 @@ namespace DigitalFilter
     /// </summary>
     public abstract class DFilter
     {
+        protected double Nyquist;
+
         /// <summary>
         /// Filter a time-series in place
         /// </summary>
@@ -205,27 +207,126 @@ namespace DigitalFilter
         }
     }
 
-    public class Elliptical : DFilter
+    public abstract class Elliptical : DFilter
     {
         protected Cascade c;
+
+        protected double omegaC;
+        protected double omegaS;
+
         protected double q;
         protected double p0;
         protected double W;
 
-        int n_;
-        public int NP { get { return n_; } }
+        protected int _np = 0;
+        public int NP
+        {
+            set
+            {
+                if (value <= 0)
+                    throw new Exception("In Chebyshev.NP.set: attempt to reset value to 0");
+                if (canSet > 1)
+                    _np = value;
+                else
+                    throw new Exception("In Chebyshev.NP.set: attempt to set too many design criteria");
+            }
+            get { return _np; }
+        }
 
-        double As_;
-        public double ActualStopAmpdB { get { return As_; } }
+        protected double _passF = double.NaN;
+        public double PassF
+        {
+            set
+            {
+                if (double.IsNaN(value))
+                    throw new Exception("In Elliptical.PassF.set: attempt to reset value to NaN");
+                if (double.IsNaN(_passF) && canSet > 1)
+                    _passF = value;
+                else
+                    throw new Exception("In Elliptical.PassF.set: attempt to set too many design criteria");
+            }
+            get { return _passF; }
+        }
 
-        protected double Ap_;
-        public double PassAmpdB { get { return Ap_; } }
-        protected double _passF;
-        public double PassF { get { return _passF; } }
-        protected double _stopF;
-        public double StopF { get { return _stopF; } }
-        protected double _sr;
-        public double SR { get { return _sr; } }
+        protected double _stopF = double.NaN;
+        public double StopF
+        {
+            set
+            {
+                if (double.IsNaN(value))
+                    throw new Exception("In Elliptical.StopF.set: attempt to reset value to NaN");
+                if (double.IsNaN(_stopF) && canSet > 1)
+                    _stopF = value;
+                else
+                    throw new Exception("In Elliptical.StopF.set: attempt to set too many design criteria");
+            }
+            get { return _stopF; }
+        }
+
+        protected double _atten = double.NaN;
+        public double Atten
+        {
+            set
+            {
+                if (double.IsNaN(value))
+                    throw new Exception("In Elliptical.Atten.set: attempt to reset value to NaN");
+                if (double.IsNaN(_atten) && canSet > 1)
+                    _atten = value;
+                else
+                    throw new Exception("In Elliptical.Atten.set: attempt to set too many design criteria");
+            }
+            get { return _atten; }
+        }
+
+        protected double _pr = double.NaN;
+        protected double _Ap = double.NaN;
+        public double Ripple
+        {
+            set
+            {
+                if (double.IsNaN(value))
+                    throw new Exception("In Elliptical.Ripple.set: attempt to reset value to NaN");
+                if (double.IsNaN(_pr) && canSet > 1)
+                {
+                    _pr = value;
+                    _Ap = -20D * Math.Log10(1 - _pr);
+                }
+                else
+                    throw new Exception("In Elliptical.Ripple.set: attempt to set too many design criteria");
+            }
+            get { return _pr; }
+        }
+        public double Ap
+        {
+            set
+            {
+                if (double.IsNaN(value))
+                    throw new Exception("In Elliptical.Ap.set: attempt to reset value to NaN");
+                if (double.IsNaN(_Ap) && canSet > 1)
+                {
+                    _Ap = value;
+                    _pr = 1D - Math.Pow(10D, -_Ap / 20);
+                }
+                else
+                    throw new Exception("In Elliptical.Ap.set: attempt to set too many design criteria");
+            }
+
+            get { return _Ap; }
+        }
+
+        protected double _sr = double.NaN;
+        public double SR
+        {
+            set
+            {
+                if(double.IsNaN(value))
+                    throw new Exception("In Chebyshev.SR.set: attempt to reset value to NaN");
+                _sr = value;
+            }
+            get { return _sr; }
+        }
+
+        public abstract void Design();
 
         public static Tuple<bool, int, double> PrelimDesign(bool HP, double passF, double stopF, double passRipple, double stopAtten, double samplingRate)
         {
@@ -249,15 +350,10 @@ namespace DigitalFilter
             return new Tuple<bool, int, double>(true, n_, As_);
         }
 
-        protected void calculate(double k, double passAmpdB, double stopAmpdB)
+        protected void calculate(double k)
         {
-            double temp = Math.Pow(1D - k * k, 0.25);
-            double u = 0.5D * (1D - temp) / (1D + temp);
-            q = u + 2 * Math.Pow(u, 5) + 15 * Math.Pow(u, 9) + 150 * Math.Pow(u, 13);
-            double D = (Math.Pow(10D, stopAmpdB / 10D) - 1D) / (Math.Pow(10D, passAmpdB / 10D) - 1D);
-            n_ =  (int)Math.Ceiling(-Math.Log(16D * D) / Math.Log(q));
-            As_ = 10D * Math.Log10(1D + (Math.Pow(10D, passAmpdB / 10D) - 1D) / (16D * Math.Pow(q, n_)));
-            double V = Math.Log((Math.Pow(10D, passAmpdB / 20D) + 1D) / (Math.Pow(10D, passAmpdB / 20D) - 1D)) / (2D * n_);
+            double temp = 1D - _pr;
+            double V = Math.Log((2D - _pr) / _pr) / (2D * _np);
             temp = 0;
             for (int m = 0; m <= 10; m++)
                 temp += Math.Pow(-1D, m) * Math.Pow(q, m * (m + 1)) * Math.Sinh((2 * m + 1) * V);
@@ -287,27 +383,83 @@ namespace DigitalFilter
         {
             return c.ToString();
         }
-    }
+ 
+        protected int canSet
+        {
+            get
+            {
+                int v = 0;
+                if (double.IsNaN(_passF)) v++;
+                if (double.IsNaN(_stopF)) v++;
+                if (double.IsNaN(_atten)) v++;
+                if (double.IsNaN(_pr)) v++;
+                if (_np == 0) v++;
+                return v;
+            }
+        }
+
+        protected double selectivity
+        {
+            get
+            {
+                double D = (Math.Pow(10D, _atten / 10D) - 1D) / (Math.Pow(1D - _pr, -2) - 1D);
+                q = Math.Exp(-Math.Log(16D * D) / _np);
+                double u = (q + Math.Pow(q, 9) + Math.Pow(q, 25)) / (1D + 2 * (Math.Pow(q, 4) + Math.Pow(q, 16)));
+                return Math.Sqrt(1D - Math.Pow((1D - 2D * u) / (1D + 2D * u), 4));
+            }
+        }
+
+        protected double D(double k) //discriminantion factor
+        {
+            double kp = Math.Pow(1D - k * k, 0.25);
+            double u = 0.5 * (1D - kp) / (1D + kp);
+            q = u + 2D * Math.Pow(u, 5) + 15D * Math.Pow(u, 9) + 150D * Math.Pow(u, 13) + 1707D * Math.Pow(u, 17) + 20910D * Math.Pow(u, 21);
+            return Math.Pow(q, -_np) / 16D;
+        }
+
+        protected int np(double k)
+        {
+            double kp = Math.Pow(1D - k * k, 0.25);
+            double u = 0.5 * (1D - kp) / (1D + kp);
+            q = u + 2D * Math.Pow(u, 5) + 15D * Math.Pow(u, 9) + 150D * Math.Pow(u, 13) + 1707D * Math.Pow(u, 17) + 20910D * Math.Pow(u, 21);
+            double D = (Math.Pow(10D, _atten / 10D) - 1D) / (Math.Pow(1D - _pr, -2) - 1D);
+            return (int)Math.Ceiling(-Math.Log(16D * D) / Math.Log(q));
+        }
+   }
 
     public class EllipticalLP : Elliptical
     {
-
-        public EllipticalLP(double passF, double stopF, double passAmpdB, double stopAmpdB, double samplingRate)
+        public override void Design()
         {
-            double Nyquist=samplingRate/2D;
-            if (passF <= 0 || passF >= Nyquist || stopF < 0)
-                throw new ArgumentException("In EllipticalLP.cotr: invalid frequency argument)");
-            if (passF >= stopF)
-                throw new ArgumentException("In EllipticalLP.cotr: cutoff frequency >= stopBand frequency");
-            Ap_ = passAmpdB;
-            _stopF = stopF;
-            _passF = passF;
-            _sr = samplingRate;
-            double tp = Math.Tan(Math.PI * passF / samplingRate);
-            double ts = Math.Tan(Math.PI * stopF / samplingRate);
-            double k = tp / ts;
-            calculate(k, passAmpdB, stopAmpdB);
-            double alpha = Math.Sqrt(tp * ts);
+            if (!double.IsNaN(_sr) && !double.IsNaN(_passF) && canSet == 1)
+            {
+                Nyquist = _sr / 2D;
+                if (_passF <= 0 || _passF >= Nyquist)
+                    throw new ArgumentException("In ChebyshevHP.Design: invalid cutoff frequncy");
+                omegaC = Math.Tan(Math.PI * _passF / _sr);
+                if (double.IsNaN(_stopF))
+                    setStopF();
+                if (_passF >= _stopF || _stopF <= 0 || _stopF >= Nyquist)
+                    throw new Exception("In ChebyshevHP.Design: invalid stopband frequency");
+                omegaS = Math.Tan(Math.PI * _stopF / _sr);
+                if (_np == 0)
+                    setNP();
+                else if (double.IsNaN(_pr))
+                    setRipple();
+                else
+                    setAtten();
+
+                completeLPDesign();
+            }
+            else
+                throw new Exception("In ChebyshevHP.Design: insufficient parameters specified");
+        }
+
+        public void completeLPDesign()
+        {
+            double k = omegaC / omegaS;
+            calculate(k);
+            double alpha = Math.Sqrt(omegaC * omegaS);
             double ap0 = alpha * p0;
             int r = NP / 2;
             DFilter[] df;
@@ -315,18 +467,18 @@ namespace DigitalFilter
             if (2 * r == NP)
             {
                 df = new DFilter[r + 1];
-                df[0] = new Constant(Math.Pow(10D, -passAmpdB / 20D));
+                df[0] = new Constant(1 - _pr);
             }
-            else
+            else //odd pole
             {
                 df = new DFilter[r + 2];
                 df[0] = new Constant(ap0 / (ap0 + 1D));
                 df[1] = new SinglePole((ap0 - 1D) / (ap0 + 1D), 1D, 1D);
                 j = 1;
             }
-            for (int i = 0; i < r; i++)
+            for (int i = 0; i < r; i++) //each biquad section
             {
-                double mu = Math.PI * ((double)i + 0.5 * (j - 1) + 1D) / NP;
+                double mu = Math.PI * ((double)i + 0.5 * (j - 1) + 1D) / _np;
                 double temp = 0;
                 for (double m = 0; m <= 10; m++)
                     temp += Math.Pow(-1D, m) * Math.Pow(q, m * (m + 1)) * Math.Sin((2D * m + 1) * mu);
@@ -349,25 +501,50 @@ namespace DigitalFilter
             }
             this.c = new Cascade(df);
         }
+
+        private void setStopF()
+        {
+            _stopF = _sr * Math.Atan(omegaC / selectivity) / Math.PI;
+        }
+
+        private void setAtten()
+        {
+            double d = D(omegaC / omegaS);
+            _atten = 10D * Math.Log10(d / Math.Pow(1 - _pr, 2) - d + 1D);
+        }
+
+        private void setRipple()
+        {
+            double d = D(omegaC / omegaS);
+            _pr = 1D - Math.Sqrt(d / (Math.Pow(10D, _atten / 10D) + d - 1D));
+            _Ap = -20D * Math.Log10(1 - _pr);
+
+        }
+
+        private void setNP()
+        {
+            _np = np(omegaC / omegaS);
+            _atten = 10D * Math.Log10(1D + (Math.Pow(1 - _pr, -2) - 1D) / (16D * Math.Pow(q, _np))); //set newly calculated attenuation
+        }
     }
 
     public class EllipticalHP : Elliptical
     {
+        public override void Design()
+        {
 
-        public EllipticalHP(double passF, double stopF, double passAmpdB, double stopAmpdB, double samplingRate)
+        }
+
+        public void completeHPDesign(double passF, double stopF, double passAmpdB, double stopAmpdB, double samplingRate)
         {
             double Nyquist=samplingRate/2D;
             if (passF <= 0 || passF >= Nyquist || stopF < 0)
                 throw new ArgumentException("In EllipticalHP.cotr: invalid frequncy argument");
             if (passF <= stopF) throw new ArgumentException("In EllipticalHP.cotr: cutoff frequency <= stopBand frequency");
-            Ap_ = passAmpdB;
-            _stopF = stopF;
-            _passF = passF;
-            _sr = samplingRate;
             double tp = Math.Tan(Math.PI * passF / samplingRate);
             double ts = Math.Tan(Math.PI * stopF / samplingRate);
             double k = ts / tp;
-            calculate(k, passAmpdB, stopAmpdB);
+            calculate(k);
             double alpha = Math.Sqrt(tp * tp / k);
             double ap0 = alpha * p0;
             double wp2 = tp * tp;
@@ -411,6 +588,28 @@ namespace DigitalFilter
             }
             this.c = new Cascade(df);
         }
+
+        private void setStopF()
+        {
+            _stopF = _passF * selectivity;
+        }
+
+        private void setAtten()
+        {
+            double d = D(_stopF / _passF);
+            _atten = 10D * Math.Log10(d / Math.Pow(1 - _pr, 2) - d + 1D);
+        }
+
+        private void setRipple()
+        {
+            double d = D(_stopF / _passF);
+            Ripple = 1D - Math.Sqrt(d / (Math.Pow(10D, _atten / 10D) + d - 1D));
+        }
+
+        private void setNP()
+        {
+            _np = np(_stopF / _passF);
+        }
     }
 
     public abstract class Chebyshev : DFilter
@@ -419,7 +618,6 @@ namespace DigitalFilter
 
         protected double omegaC;
         protected double omegaS;
-        protected double Nyquist;
 
         protected int _np = 0;
         public int NP
