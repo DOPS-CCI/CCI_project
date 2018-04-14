@@ -142,6 +142,38 @@ namespace UnitTestProject1
         [TestMethod]
         public void EllipticalTest()
         {
+            EllipticalHP ehp = new EllipticalHP();
+            ehp.SR = 256;
+            ehp.PassF = 1D;
+            ehp.Ripple = 0.01;
+            ehp.Atten = 60D;
+            ehp.NP = 9;
+            testEllipFilter(ehp);
+
+            ehp = new EllipticalHP();
+            ehp.SR = 256;
+            ehp.PassF = 1D;
+            ehp.StopF = 0.8;
+            ehp.Ripple = 0.01;
+            ehp.Atten = 60D;
+            testEllipFilter(ehp);
+
+            ehp = new EllipticalHP();
+            ehp.SR = 256;
+            ehp.PassF = 10D;
+            ehp.StopF = 5D;
+            ehp.Atten = 40D;
+            ehp.NP = 4;
+            testEllipFilter(ehp);
+
+            ehp = new EllipticalHP();
+            ehp.SR = 256;
+            ehp.PassF = 10D;
+            ehp.StopF = 5D;
+            ehp.Ripple = 0.1;
+            ehp.NP = 7;
+            testEllipFilter(ehp);
+
             EllipticalLP elp = new EllipticalLP();
             elp.SR = 256D;
             elp.PassF = 10D;
