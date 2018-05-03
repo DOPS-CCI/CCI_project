@@ -33,10 +33,10 @@ namespace PreprocessDataset
         {
             myWindow = w;
             InitializeComponent();
-            Tuple<bool,int,double> t = Elliptical.PrelimDesign(true, cutoff, stopband, passBandRipple / 100D,
-                attenuation, w.originalSamplingRate / w.decimation);
-            Poles.Text = t.Item2.ToString("0");
-            AttenuationActual.Text = t.Item3.ToString("0.0");
+            //Tuple<bool,int,double> t = Elliptical.PrelimDesign(true, cutoff, stopband, passBandRipple / 100D,
+            //    attenuation, w.originalSamplingRate / w.decimation);
+            //Poles.Text = t.Item2.ToString("0");
+            //AttenuationActual.Text = t.Item3.ToString("0.0");
         }
         public event EventHandler ErrorCheckReq;
 
@@ -56,15 +56,15 @@ namespace PreprocessDataset
                 TitleBlock.Foreground = Brushes.Red;
                 return false;
             }
-            Tuple<bool,int,double> t = Elliptical.PrelimDesign((bool)HighPass.IsChecked,
-                cutoff, stopband, passBandRipple / 100D, attenuation, (double)SR);
-            if (!t.Item1)
-            {
-                TitleBlock.Foreground = Brushes.Red;
-                return false;
-            }
-            Poles.Text = t.Item2.ToString("0");
-            AttenuationActual.Text = t.Item3.ToString("0.0");
+            //Tuple<bool,int,double> t = Elliptical.PrelimDesign((bool)HighPass.IsChecked,
+            //    cutoff, stopband, passBandRipple / 100D, attenuation, (double)SR);
+            //if (!t.Item1)
+            //{
+            //    TitleBlock.Foreground = Brushes.Red;
+            //    return false;
+            //}
+            //Poles.Text = t.Item2.ToString("0");
+            //AttenuationActual.Text = t.Item3.ToString("0.0");
             TitleBlock.Foreground = Brushes.Black;
             return true;
         }

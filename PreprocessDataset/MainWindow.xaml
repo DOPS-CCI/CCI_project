@@ -29,6 +29,7 @@
                     <TextBlock>Remaining ETR channels =</TextBlock>
                     <TextBlock Name="RemainingETRChannels" Margin="4" Text="128"/>
                 </StackPanel>
+                <CheckBox IsChecked="True" HorizontalAlignment="Center">Include all channels for head shape and/or output locations</CheckBox>
             </StackPanel>
         </GroupBox>
         <GroupBox Header="Decimation">

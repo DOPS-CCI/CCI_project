@@ -20,6 +20,8 @@ using BDFEDFFileStream;
 using ElectrodeFileStream;
 using CCILibrary;
 using CCIUtilities;
+using MATFile;
+using MLTypes;
 
 namespace PreprocessDataset
 {
@@ -32,10 +34,18 @@ namespace PreprocessDataset
         string headerFileName;
         Header.Header head;
         BDFEDFFileReader bdf;
-        double BDFLength;
+        long BDFLength; //data length in points (datels)
         internal double originalSamplingRate;
 
-        List<int> FinalChannelList;
+        //Lists of Tuples:
+        //Item1 is "channel number" in original dataset;
+        //Item2 is the corresponding ElectrodeRecord with name and position
+        //Position of the Tuple in InitialChannelList is the column number in variable data
+        //which can then be used to reference back to the original data source
+        List<Tuple<int, ElectrodeRecord>> InitialChannelList; 
+        List<Tuple<int, ElectrodeRecord>> WorkingChannelList;
+        float[,] data; //full data file: datel x channel
+
         List<int> elim = new List<int>();
         ElectrodeInputFileStream eis;
 
@@ -54,63 +64,171 @@ namespace PreprocessDataset
         {
 
             bool r;
-            do //open HDR file and associated BDF file
+            do //open HDR or MATLAB SET file and associated BDF file
             {
                 System.Windows.Forms.OpenFileDialog dlg = new System.Windows.Forms.OpenFileDialog();
-                dlg.Title = "Open Header file to be processed...";
-                dlg.DefaultExt = ".hdr"; // Default file extension
-                dlg.Filter = "HDR Files (.hdr)|*.hdr"; // Filter files by extension
+                dlg.Title = "Open RWNL .HDR file or MATLAB .SET file to be processed...";
+                dlg.Filter = "RWNL HDR Files (.hdr)|*.hdr|EEGLAB Export files|*.set"; // Filter files by extension
                 r = dlg.ShowDialog() == System.Windows.Forms.DialogResult.OK;
                 if (!r) Environment.Exit(0); //if no file selected, quit
 
                 directory = System.IO.Path.GetDirectoryName(dlg.FileName); //will use to find other files in dataset
-                headerFileName = System.IO.Path.GetFileNameWithoutExtension(dlg.FileName);
-                try
+                if (System.IO.Path.GetExtension(dlg.FileName) == ".hdr")
                 {
-                    head = (new HeaderFileReader(dlg.OpenFile())).read();
+                    r = ProcessHDRFile(dlg.FileName);
                 }
-                catch (Exception e)
+                else //we're processing an EEGLAB .set file
                 {
-                    r = false; //loop around again
-                    ErrorWindow ew = new ErrorWindow();
-                    ew.Message = "Error reading Header file: " + e.Message;
-                    ew.ShowDialog();
-                    continue;
+                    r = ProcessSETFile(dlg.FileName);
                 }
-
-                try
-                {
-                    bdf = new BDFEDFFileReader(
-                        new FileStream(System.IO.Path.Combine(directory, head.BDFFile),
-                            FileMode.Open, FileAccess.Read));
-                }
-                catch (Exception e)
-                {
-                    r = false; //loop around again
-                    ErrorWindow ew = new ErrorWindow();
-                    ew.Message = "Error reading BDF file header: " + e.Message;
-                    ew.ShowDialog();
-                    continue;
-                }
-                BDFLength = (double)bdf.NumberOfRecords * bdf.RecordDurationDouble;
-                originalSamplingRate = 1D / bdf.SampTime; 
 
             } while (r == false);
 
+
             InitializeComponent();
 
-            FinalChannelList = new List<int>(bdf.NumberOfChannels);
-            for (int ch = 0; ch < bdf.NumberOfChannels; ch++) FinalChannelList.Add(ch);
-            RemainingChannels.Text = bdf.NumberOfChannels.ToString("0");
-
-            ETRFullPathName = System.IO.Path.Combine(directory, head.ElectrodeFile);
-            eis = new ElectrodeInputFileStream(new FileStream(ETRFullPathName, FileMode.Open, FileAccess.Read));
-            //remove electrode channels which are not in BDF file
-            foreach (string etr in eis.etrPositions.Keys)
-                if (bdf.GetChannelNumber(etr) < 0) eis.etrPositions.Remove(etr);
-            RemainingETRChannels.Text = eis.etrPositions.Count.ToString();
+            int c = InitialChannelList.Count;
+            RemainingChannels.Text = c.ToString("0");
+            RemainingETRChannels.Text = c.ToString();
+            WorkingChannelList = new List<Tuple<int, ElectrodeRecord>>(c);
+            WorkingChannelList.AddRange(InitialChannelList);
 
             filterList = new List<DFilter>();
+        }
+
+        private bool ProcessHDRFile(string fileName)
+        {
+            headerFileName = System.IO.Path.GetFileNameWithoutExtension(fileName);
+            try
+            {
+                head = (new HeaderFileReader(new FileStream(fileName, FileMode.Open, FileAccess.Read))).read();
+            }
+            catch (Exception e)
+            {
+                ErrorWindow ew = new ErrorWindow();
+                ew.Message = "Error reading Header file: " + e.Message;
+                ew.ShowDialog();
+                return false;
+            }
+
+            try
+            {
+                bdf = new BDFEDFFileReader(
+                    new FileStream(System.IO.Path.Combine(directory, head.BDFFile),
+                        FileMode.Open, FileAccess.Read));
+            }
+            catch (Exception e)
+            {
+                ErrorWindow ew = new ErrorWindow();
+                ew.Message = "Error reading BDF file header: " + e.Message;
+                ew.ShowDialog();
+                return false;
+            }
+            originalSamplingRate = 1D / bdf.SampTime;
+            BDFLength = (long)(bdf.NumberOfRecords * bdf.RecordDurationDouble * originalSamplingRate);
+
+            ETRFullPathName = System.IO.Path.Combine(directory, head.ElectrodeFile);
+            try
+            {
+                eis = new ElectrodeInputFileStream(new FileStream(ETRFullPathName, FileMode.Open, FileAccess.Read));
+            }
+            catch (Exception e)
+            {
+                ErrorWindow ew = new ErrorWindow();
+                ew.Message = "Error reading Electrode file: " + e.Message;
+                ew.ShowDialog();
+                return false;
+            }
+
+            InitialChannelList = new List<Tuple<int, ElectrodeRecord>>(bdf.NumberOfChannels);
+
+            //remove electrode channels which are not in BDF file or aren't EEG sources
+            foreach (KeyValuePair<string, ElectrodeRecord> etr in eis.etrPositions)
+            {
+                int chan = bdf.GetChannelNumber(etr.Key);
+                if (chan < 0 || bdf.transducer(chan) != "Active Electrode") continue;
+                InitialChannelList.Add(Tuple.Create<int, ElectrodeRecord>(chan, etr.Value));
+            }
+
+            data = new float[BDFLength, InitialChannelList.Count];
+            BDFEDFRecord r = null;
+            int bdfRecLenPt = bdf.NumberOfSamples(InitialChannelList[0].Item1);
+            long bdfFileLength = bdfRecLenPt * bdf.NumberOfRecords;
+            int rPt = bdfRecLenPt;
+            for (int pt = 0; pt < bdfFileLength; pt++)
+            {
+                int c = 0;
+                if (++rPt >= bdfRecLenPt)
+                {
+                    r = bdf.read();
+                    rPt = 0;
+                }
+                foreach (Tuple<int, ElectrodeRecord> t in InitialChannelList)
+                    data[pt, c++] = (float)r.getConvertedPoint(t.Item1, rPt);
+            }
+            return true;
+        }
+
+        private bool ProcessSETFile(string fileName)
+        {
+            MLVariables var = null;
+            int nChans;
+            MLType baseVar = null;
+            try
+            {
+                MATFileReader mfr = new MATFileReader(new FileStream(fileName, FileMode.Open, FileAccess.Read));
+                var = mfr.ReadAllVariables();
+                mfr.Close();
+                baseVar = var["EEG"];
+                if (baseVar.GetVariableType() == "OBJECT") baseVar = (MLType)baseVar.Select(".EEG");
+
+                nChans = (int)(double)baseVar.Select(".nbchan"); //total number of channels in the FDT file (some may not be EEG)
+                BDFLength = (long)(double)baseVar.Select(".pnts"); //number of datels in the FDT file
+                originalSamplingRate = (double)baseVar.Select(".srate");
+
+                MLStruct trodes = (MLStruct)baseVar.Select(".chanlocs");
+                InitialChannelList = new List<Tuple<int, ElectrodeRecord>>(nChans);
+                for (int i = 0; i < nChans; i++)
+                    if ((MLString)trodes.Select("[%].type", i) == "EEG")
+                    {
+                        ElectrodeRecord er = new XYZRecord((MLString)trodes.Select("[%].labels", i),
+                            (double)trodes.Select("[%].X", i), (double)trodes.Select("[%].Y", i), (double)trodes.Select("[%].Z", i));
+                        InitialChannelList.Add(Tuple.Create<int, ElectrodeRecord>(i, er));
+                    }
+            }
+            catch (Exception e)
+            {
+                ErrorWindow ew = new ErrorWindow();
+                ew.Message = "Error reading EEGLAB SET file: " + e.Message;
+                ew.ShowDialog();
+                return false;
+            }
+
+            string FDTfile = System.IO.Path.Combine(directory, (MLString)baseVar.Select(".data"));
+            data = new float[BDFLength, InitialChannelList.Count];
+            try
+            {
+                BinaryReader br = new BinaryReader(new FileStream(FDTfile, FileMode.Open, FileAccess.Read));
+                for (int pt = 0; pt < BDFLength; pt++)
+                {
+                    int c = 0;
+                    for (int chan = 0; chan < nChans; chan++)
+                    {
+                        float f = br.ReadSingle();
+                        if (InitialChannelList[c].Item1 == chan)
+                            data[pt, c++] = f;
+                    }
+                }
+
+            }
+            catch (Exception e)
+            {
+                ErrorWindow ew = new ErrorWindow();
+                ew.Message = "Error reading EEGLAB FDT file: " + e.Message;
+                ew.ShowDialog();
+                return false;
+            }
+            return true;
         }
 
         private void AddButterworth_Click(object sender, RoutedEventArgs e)
@@ -148,20 +266,19 @@ namespace PreprocessDataset
             elim.RemoveAll(t => true);
             foreach (string ch in l)
             {
-                int c = bdf.ChannelNumberFromLabel(ch);
-                if (c < 0 || elim.Contains(c))
+                Tuple<int, ElectrodeRecord> c = InitialChannelList.Find(p => p.Item2.Name == ch);
+                if (c == null || elim.Contains(c.Item1))
                 {
                     elim.RemoveAll(t => true);
-                    ErrorCheck();
-                    return;
+                    break;
                 }
-                elim.Add(c);
+                elim.Add(c.Item1);
             }
-            RemainingChannels.Text = (bdf.NumberOfChannels - elim.Count).ToString("0");
-            int et = eis.etrPositions.Count;
-            foreach (int ch in elim)
-                if (eis.etrPositions.Keys.Contains(bdf.channelLabel(ch))) et--;
-            RemainingETRChannels.Text = et.ToString("0");
+            RemainingChannels.Text = (InitialChannelList.Count - elim.Count).ToString("0");
+            //int et = eis.etrPositions.Count;
+            //foreach (int ch in elim)
+            //    if (eis.etrPositions.Keys.Contains(bdf.channelLabel(ch))) et--;
+            //RemainingETRChannels.Text = et.ToString("0");
             ErrorCheck();
         }
 

@@ -48,7 +48,7 @@ namespace PreprocessDataset
             if (double.IsNaN(stopband) || stopband <= 0D || stopband >= NyquistF) return false;
             if ((bool)HighPass.IsChecked ? (stopband >= cutoff) : (stopband <= cutoff)) return false;
             if (double.IsNaN(attenuation)) return false;
-            if (poles <= 1 || poles % 2 != 0) return false;
+            if (poles <= 1) return false;
             return true;
         }
 
