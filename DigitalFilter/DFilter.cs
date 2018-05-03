@@ -211,12 +211,26 @@ namespace DigitalFilter
     {
         protected Cascade c;
 
+        protected bool designCompleted = false;
+
         protected double omegaC;
         protected double omegaS;
 
         protected double q;
         protected double p0;
         protected double W;
+
+        protected double _passF;
+        public double PassF
+        {
+            get { return _passF; }
+        }
+
+        protected double _sr;
+        public double SR
+        {
+            get { return _sr; }
+        }
 
         protected int _np = 0;
         public int NP
@@ -231,21 +245,6 @@ namespace DigitalFilter
                     throw new Exception("In Chebyshev.NP.set: attempt to set too many design criteria");
             }
             get { return _np; }
-        }
-
-        protected double _passF = double.NaN;
-        public double PassF
-        {
-            set
-            {
-                if (double.IsNaN(value))
-                    throw new Exception("In Elliptical.PassF.set: attempt to reset value to NaN");
-                if (double.IsNaN(_passF) && canSet > 1)
-                    _passF = value;
-                else
-                    throw new Exception("In Elliptical.PassF.set: attempt to set too many design criteria");
-            }
-            get { return _passF; }
         }
 
         protected double _stopF = double.NaN;
@@ -314,47 +313,12 @@ namespace DigitalFilter
             get { return _Ap; }
         }
 
-        protected double _sr = double.NaN;
-        public double SR
-        {
-            set
-            {
-                if(double.IsNaN(value))
-                    throw new Exception("In Chebyshev.SR.set: attempt to reset value to NaN");
-                _sr = value;
-            }
-            get { return _sr; }
-        }
-
         public abstract void Design();
-
-        public static Tuple<bool, int, double> PrelimDesign(bool HP, double passF, double stopF, double passRipple, double stopAtten, double samplingRate)
-        {
-            if (passRipple <= 0 || passRipple >= 1 || stopAtten <= 0 || samplingRate <= 0)
-                return new Tuple<bool, int, double>(false, 0, 0);
-            double NyquistF = samplingRate / 2D;
-            if (stopF <= 0D || stopF >= NyquistF || passF <= 0D || passF >= NyquistF)
-                return new Tuple<bool, int, double>(false, 0, 0);
-            if (HP ? stopF >= passF : stopF <= passF) return new Tuple<bool, int, double>(false, 0, 0);
-
-            double f1 = Math.Tan(Math.PI * (HP ? stopF : passF) / samplingRate);
-            double f2 = Math.Tan(Math.PI * (HP ? passF : stopF) / samplingRate);
-            double k = f1 / f2;
-            double temp = Math.Pow(1D - k * k, 0.25);
-            double u = 0.5D * (1D - temp) / (1D + temp);
-            double q = u + 2 * Math.Pow(u, 5) + 15 * Math.Pow(u, 9) + 150 * Math.Pow(u, 13);
-            double epsilon = Math.Pow(1 - passRipple, -2) - 1D;
-            double D = (Math.Pow(10D, stopAtten / 10D) - 1D) / epsilon;
-            int n_ =  (int)Math.Ceiling(-Math.Log(16D * D) / Math.Log(q));
-            double As_ = 10D * Math.Log10(1D + epsilon / (16D * Math.Pow(q, n_)));
-            return new Tuple<bool, int, double>(true, n_, As_);
-        }
 
         protected void calculate(double k)
         {
-            double temp = 1D - _pr;
             double V = Math.Log((2D - _pr) / _pr) / (2D * _np);
-            temp = 0;
+            double temp = 0;
             for (int m = 0; m <= 10; m++)
                 temp += Math.Pow(-1D, m) * Math.Pow(q, m * (m + 1)) * Math.Sinh((2 * m + 1) * V);
             double temp1 = 0.5;
@@ -362,6 +326,28 @@ namespace DigitalFilter
                 temp1 += Math.Pow(-1D, m) * Math.Pow(q, m * m) * Math.Cosh(2D * m * V);
             p0 = Math.Abs(Math.Pow(q, 0.25) * temp / temp1);
             W = Math.Sqrt((1D + p0 * p0 / k) * (1D + k * p0 * p0));
+        }
+
+        protected double HFromK(double k)
+        {
+            double kp = Math.Pow(1D - k * k, 0.25);
+            return 0.5 * (1D - kp) / (1D + kp);
+        }
+
+        protected double QFromH(double h)
+        {
+            double t = Math.Pow(h, 4);
+            return h * (1D + t * (2D + t * (15D + t * (150D + t * (1707D + t * (20910D + t * (268616D + t * (3567400D + t * 48555069D))))))));
+        }
+
+        protected double HFromQ(double q)
+        {
+            return q * (1D + Math.Pow(q, 8) * (1D + Math.Pow(q, 16) * (1D + Math.Pow(q, 24)))) /
+                (1D + 2 * Math.Pow(q, 4) * (1D + Math.Pow(q, 12) * (1D + Math.Pow(q, 20))));
+        }
+        protected double KFromH(double h)
+        {
+            return Math.Sqrt(16D * h * (1D + 4D * h * h) / Math.Pow(1D + 2D * h, 4));
         }
 
         public override double Filter(double x0)
@@ -389,7 +375,6 @@ namespace DigitalFilter
             get
             {
                 int v = 0;
-                if (double.IsNaN(_passF)) v++;
                 if (double.IsNaN(_stopF)) v++;
                 if (double.IsNaN(_atten)) v++;
                 if (double.IsNaN(_pr)) v++;
@@ -405,26 +390,23 @@ namespace DigitalFilter
         {
             get
             {
-                double D = (Math.Pow(10D, _atten / 10D) - 1D) / (Math.Pow(1D - _pr, -2) - 1D);
-                q = Math.Exp(-Math.Log(16D * D) / _np);
-                double u = q * (1D + Math.Pow(q, 8) * (1D + Math.Pow(q, 16) * (1D + Math.Pow(q, 24)))) /
-                    (1D + 2 * Math.Pow(q, 4) * (1D + Math.Pow(q, 12) * (1D + Math.Pow(q, 20))));
-                return Math.Sqrt(1D - Math.Pow((1D - 2D * u) / (1D + 2D * u), 4));
+                double k1 = Math.Sqrt((Math.Pow(1D - _pr, -2) - 1D) / (Math.Pow(10D, _atten / 10D) - 1D));
+                double q1 = QFromH(HFromK(k1));
+                q = Math.Pow(q1, 1D / _np);
+                return KFromH(HFromQ(q));
             }
         }
 
         /// <summary>
-        /// Calculate the discrimination factor, basically the ratio between passband ripple and attenuation
+        /// Calculate the discrimination factor, basically the ratio between passband ripple and attenuation (k1)
         /// </summary>
-        /// <param name="k"></param>
+        /// <param name="k">Selectivity</param>
         /// <returns></returns>
         protected double D(double k) //discrimination factor
         {
-            double kp = Math.Pow(1D - k * k, 0.25);
-            double u = 0.5 * (1D - kp) / (1D + kp);
-            double t = Math.Pow(u,4);
-            q = u * (1D + t * (2D + t * (15D + t * (150D + t * (1707D + t * (20910D + t * (268616D + t * (3567400D + t * 48555069D))))))));
-            return Math.Pow(q, -_np) / 16D;
+            q = QFromH(HFromK(k));
+            double q1 = Math.Pow(q, _np);
+            return KFromH(HFromQ(q1));
         }
 
         /// <summary>
@@ -435,24 +417,32 @@ namespace DigitalFilter
         /// <returns>Number of poles required</returns>
         protected int np(double k)
         {
-            double kp = Math.Pow(1D - k * k, 0.25);
-            double u = 0.5 * (1D - kp) / (1D + kp);
-            double t = Math.Pow(u,4);
-            q = u * (1D + t * (2D + t * (15D + t * (150D + t * (1707D + t * (20910D + t * (268616D + t * (3567400D + t * 48555069D))))))));
-            double D = (Math.Pow(10D, _atten / 10D) - 1D) / (Math.Pow(1D - _pr, -2) - 1D);
-            return (int)Math.Ceiling(-Math.Log(16D * D) / Math.Log(q));
+            q = QFromH(HFromK(k));
+            double D = Math.Sqrt((Math.Pow(1D - _pr, -2) - 1D) / (Math.Pow(10D, _atten / 10D) - 1D));
+            double q1 = QFromH(HFromK(D));
+            return (int)Math.Ceiling(Math.Log(q1) / Math.Log(q));
         }
    }
 
     public class EllipticalLP : Elliptical
     {
+        public EllipticalLP(double passF, double samplingRate)
+        {
+            if(samplingRate<=0D)
+                throw new Exception("In EllipticalLP.cotr: invalid sampling rate");
+            _sr = samplingRate;
+            Nyquist = _sr / 2D;
+            if (passF <= 0 || passF >= Nyquist)
+                throw new ArgumentException("In EllipticalLP.cotr: invalid cutoff frequncy");
+            _passF = passF;
+        }
+
         public override void Design()
         {
-            if (!double.IsNaN(_sr) && !double.IsNaN(_passF) && canSet == 1)
+            if (designCompleted)
+                throw new Exception("In EllipticalLP.Design: attempt to redesign filter");
+            if (canSet == 1)
             {
-                Nyquist = _sr / 2D;
-                if (_passF <= 0 || _passF >= Nyquist)
-                    throw new ArgumentException("In EllipticalLP.Design: invalid cutoff frequncy");
                 omegaC = Math.Tan(Math.PI * _passF / _sr);
                 if (double.IsNaN(_stopF))
                     setStopF();
@@ -467,6 +457,8 @@ namespace DigitalFilter
                     setAtten();
 
                 completeLPDesign();
+
+                designCompleted = true;
             }
             else
                 throw new Exception("In EllipticalLP.Design: insufficient parameters specified");
@@ -478,10 +470,10 @@ namespace DigitalFilter
             calculate(k);
             double alpha = Math.Sqrt(omegaC * omegaS);
             double ap0 = alpha * p0;
-            int r = NP / 2;
             DFilter[] df;
-            int j = 0;
-            if (2 * r == NP)
+            int r = NP >> 1;
+            int odd = NP - (r << 1);
+            if (odd == 0)
             {
                 df = new DFilter[r + 1];
                 df[0] = new Constant(1 - _pr);
@@ -491,11 +483,11 @@ namespace DigitalFilter
                 df = new DFilter[r + 2];
                 df[0] = new Constant(ap0 / (ap0 + 1D));
                 df[1] = new SinglePole((ap0 - 1D) / (ap0 + 1D), 1D, 1D);
-                j = 1;
+                odd = 1;
             }
-            for (int i = 0; i < r; i++) //each biquad section
+            for (int i = 1; i <= r; i++) //each biquad section
             {
-                double mu = Math.PI * ((double)i + 0.5 * (j - 1) + 1D) / _np;
+                double mu = Math.PI * ((double)i + 0.5 * (odd - 1)) / _np;
                 double temp = 0;
                 for (double m = 0; m <= 10; m++)
                     temp += Math.Pow(-1D, m) * Math.Pow(q, m * (m + 1)) * Math.Sin((2D * m + 1) * mu);
@@ -513,7 +505,7 @@ namespace DigitalFilter
                 double a2 = (1D - b + c) / a0;
                 double b1 = 2D * (a - 1D) / (a + 1D);
                 BiQuad d = new BiQuad(a1, a2, 1, b1, 1);
-                df[i + j + 1] = d;
+                df[i + odd] = d;
                 ((Constant)df[0]).Update((1 + a1 + a2) / (2D + b1));
             }
             this.c = new Cascade(df);
@@ -526,34 +518,42 @@ namespace DigitalFilter
 
         private void setAtten()
         {
-            double d = D(omegaC / omegaS);
-            _atten = 10D * Math.Log10(d / Math.Pow(1 - _pr, 2) - d + 1D);
+            double d = Math.Pow(D(omegaC / omegaS), 2);
+            _atten = 10D * Math.Log10((Math.Pow(1 - _pr, -2) - 1D) / d + 1D);
         }
 
         private void setRipple()
         {
-            double d = D(omegaC / omegaS);
-            _pr = 1D - Math.Sqrt(d / (Math.Pow(10D, _atten / 10D) + d - 1D));
+            _pr = 1D - 1D / Math.Sqrt(Math.Pow(D(omegaC / omegaS), 2) * Math.Pow(10D, _atten / 10D) + 1D);
             _Ap = -20D * Math.Log10(1 - _pr);
-
         }
 
         private void setNP()
         {
             _np = np(omegaC / omegaS);
-            _atten = 10D * Math.Log10(1D + (Math.Pow(1 - _pr, -2) - 1D) / (16D * Math.Pow(q, _np))); //set newly calculated attenuation
+            _atten = 10D * Math.Log10(1D + (Math.Pow(1 - _pr, -2) - 1D) / Math.Pow(KFromH(HFromQ(Math.Pow(q, _np))), 2)); //set newly calculated attenuation
         }
     }
 
     public class EllipticalHP : Elliptical
     {
+        public EllipticalHP(double passF, double samplingRate)
+        {
+            if (samplingRate <= 0D)
+                throw new Exception("In EllipticalHP.cotr: invalid sampling rate");
+            _sr = samplingRate;
+            Nyquist = _sr / 2D;
+            if (passF <= 0 || passF >= Nyquist)
+                throw new ArgumentException("In EllipticalHP.cotr: invalid cutoff frequncy");
+            _passF = passF;
+        }
+
         public override void Design()
         {
-            if (!double.IsNaN(_sr) && !double.IsNaN(_passF) && canSet == 1)
+            if (designCompleted)
+                throw new Exception("In EllipticalHP.Design: attempt to redesign filter");
+            if (canSet == 1)
             {
-                Nyquist = _sr / 2D;
-                if (_passF <= 0 || _passF >= Nyquist)
-                    throw new ArgumentException("In EllipticalHP.Design: invalid cutoff frequncy");
                 omegaC = Math.Tan(Math.PI * _passF / _sr);
                 if (double.IsNaN(_stopF))
                     setStopF();
@@ -568,6 +568,8 @@ namespace DigitalFilter
                     setAtten();
 
                 completeHPDesign();
+
+                designCompleted = true;
             }
             else
                 throw new Exception("In EllipticalHP.Design: insufficient parameters specified");
@@ -577,13 +579,11 @@ namespace DigitalFilter
         {
             double k = omegaS / omegaC;
             calculate(k);
-            double wp2 = omegaC * omegaC;
-            double alpha = Math.Sqrt(wp2 / k);
-            double ap0 = alpha * p0;
-            int r = NP / 2;
+            double alpha = Math.Sqrt(omegaS * omegaC);
+            int r = _np >> 1;
             DFilter[] df;
-            int odd = 0;
-            if (2 * r == NP)
+            int odd = NP - (r << 1);
+            if (odd == 0)
             {
                 df = new DFilter[r + 1];
                 df[0] = new Constant(1 - _pr);
@@ -591,13 +591,12 @@ namespace DigitalFilter
             else
             {
                 df = new DFilter[r + 2];
-                df[0] = new Constant(ap0 / (ap0 + wp2));
-                df[1] = new SinglePole((wp2 - ap0) / (wp2 + ap0), 1D, -1D);
-                odd = 1;
+                df[0] = new Constant(p0 / (p0 + alpha));
+                df[1] = new SinglePole((alpha - p0) / (alpha + p0), 1D, -1D);
             }
-            for (int i = 0; i < r; i++)
+            for (int i = 1; i <= r; i++)
             {
-                double mu = Math.PI * ((double)i + 0.5 * (odd - 1) + 1D) / NP;
+                double mu = Math.PI * ((double)i + 0.5 * (odd - 1)) / _np;
                 double temp = 0;
                 for (double m = 0; m <= 10; m++)
                     temp += Math.Pow(-1D, m) * Math.Pow(q, m * (m + 1)) * Math.Sin((2D * m + 1) * mu);
@@ -606,16 +605,16 @@ namespace DigitalFilter
                     temp1 += Math.Pow(-1D, m) * Math.Pow(q, m * m) * Math.Cos(2D * m * mu);
                 double X = Math.Abs(Math.Pow(q, 0.25) * temp / temp1);
                 double Y = Math.Sqrt((1D - X * X / k) * (1D - k * X * X));
-                double a = wp2 * wp2 * X * X / (alpha * alpha);
+                double a = alpha * alpha * X * X;
                 temp = Math.Pow(W * X, 2) + Math.Pow(p0 * Y, 2);
-                double b = 2D * p0 * wp2 * Y * (1D + Math.Pow(p0 * X, 2)) / (alpha * temp);
-                double c = wp2 * wp2 * Math.Pow(1D + Math.Pow(p0 * X, 2), 2) / (alpha * alpha * temp);
+                double b = 2D * alpha * p0 * Y * (1D + Math.Pow(p0 * X, 2)) / temp;
+                double c = alpha * alpha * Math.Pow(1D + Math.Pow(p0 * X, 2), 2) / temp;
                 double a0 = 1D + b + c;
-                double a1 = 2d * (c - 1D) / a0;
+                double a1 = 2D * (c - 1D) / a0;
                 double a2 = (1D - b + c) / a0;
                 double b1 = 2D * (a - 1D) / (a + 1D);
                 BiQuad d = new BiQuad(a1, a2, 1D, b1, 1D);
-                df[i + odd + 1] = d;
+                df[i + odd] = d;
                 ((Constant)df[0]).Update((1 - a1 + a2) / (2 - b1));
             }
             this.c = new Cascade(df);
@@ -628,21 +627,20 @@ namespace DigitalFilter
 
         private void setAtten()
         {
-            double d = D(_stopF / _passF);
-            _atten = 10D * Math.Log10(d / Math.Pow(1 - _pr, 2) - d + 1D);
+            _atten = 10D * Math.Log10((Math.Pow(1 - _pr, -2) - 1D) / Math.Pow(D(omegaS / omegaC), 2) + 1D);
         }
 
         private void setRipple()
         {
-            double d = D(_stopF / _passF);
-            _pr = 1D - Math.Sqrt(d / (Math.Pow(10D, _atten / 10D) + d - 1D));
+            _pr = 1D - 1D / Math.Sqrt(Math.Pow(D(omegaS / omegaC), 2) * Math.Pow(10D, _atten / 10D) + 1D);
             _Ap = -20D * Math.Log10(1 - _pr);
         }
 
         private void setNP()
         {
-            _np = np(_stopF / _passF);
-            _atten = 10D * Math.Log10(1D + (Math.Pow(1 - _pr, -2) - 1D) / (16D * Math.Pow(q, _np))); //set newly calculated attenuation
+            _np = np(omegaS / omegaC);
+            double D = KFromH(HFromQ(Math.Pow(q, _np)));
+            _atten = 10D * Math.Log10(1D + (Math.Pow(1 - _pr, -2) - 1D) / Math.Pow(D, 2)); //set newly calculated attenuation
         }
     }
 
@@ -650,8 +648,22 @@ namespace DigitalFilter
     {
         protected Cascade c;
 
+        protected bool designCompleted = false;
+
         protected double omegaC;
         protected double omegaS;
+
+        protected double _passF;
+        public double PassF
+        {
+            get { return _passF; }
+        }
+
+        protected double _sr;
+        public double SR
+        {
+            get { return _sr; }
+        }
 
         protected int _np = 0;
         public int NP
@@ -668,21 +680,6 @@ namespace DigitalFilter
             get { return _np; }
         }
 
-        protected double _passF = double.NaN;
-        public double PassF
-        {
-            set
-            {
-                if (double.IsNaN(value))
-                    throw new Exception("In Chebyshev.PassF.set: attempt to reset value to NaN");
-                if (double.IsNaN(_passF) && canSet > 1)
-                    _passF = value;
-                else
-                    throw new Exception("In Chebyshev.PassF.set: attempt to set too many design criteria");
-            }
-            get { return _passF; }
-        }
-
         protected double _stopF = double.NaN;
         public double StopF
         {
@@ -696,18 +693,6 @@ namespace DigitalFilter
                     throw new Exception("In Chebyshev.StopF.set: attempt to set too many design criteria");
             }
             get { return _stopF; }
-        }
-
-        protected double _sr = double.NaN;
-        public double SR
-        {
-            set
-            {
-                if(double.IsNaN(value))
-                    throw new Exception("In Chebyshev.SR.set: attempt to reset value to NaN");
-                _sr = value;
-            }
-            get { return _sr; }
         }
 
         protected double _atten = double.NaN;
@@ -752,7 +737,6 @@ namespace DigitalFilter
             get
             {
                 int v = 0;
-                if (double.IsNaN(_passF)) v++;
                 if (double.IsNaN(_stopF)) v++;
                 if (double.IsNaN(_atten)) v++;
                 if (_np == 0) v++;
@@ -763,13 +747,23 @@ namespace DigitalFilter
 
     public class ChebyshevHP : Chebyshev
     {
+        public ChebyshevHP(double passF, double samplingRate)
+        {
+            if (samplingRate <= 0D)
+                throw new ArgumentException("In ChebyshevHP.cotr: invalid sampling frequency");
+            _sr = samplingRate;
+            Nyquist = _sr / 2D;
+            if (passF <= 0 || passF >= Nyquist)
+                throw new ArgumentException("In ChebyshevHP.Design: invalid cutoff frequncy");
+            _passF = passF;
+        }
+
         public override void Design()
         {
-            if (!double.IsNaN(_sr) && !double.IsNaN(_passF) && canSet == 1)
+            if (designCompleted)
+                throw new Exception("In ChebyshevHP.Design: attempt to redesign filter");
+            if (canSet == 1)
             {
-                Nyquist = _sr / 2D;
-                if (_passF <= 0 || _passF >= Nyquist)
-                    throw new ArgumentException("In ChebyshevHP.Design: invalid cutoff frequncy");
                 omegaC = Math.Tan(Math.PI * _passF / _sr);
                 if (double.IsNaN(_stopF))
                     setStopF();
@@ -782,6 +776,8 @@ namespace DigitalFilter
                     setAtten();
 
                 completeHPDesign();
+
+                designCompleted = true;
             }
             else
                 throw new Exception("In ChebyshevHP.Design: insufficient parameters specified");
@@ -821,34 +817,46 @@ namespace DigitalFilter
         private void setAtten()
         {
             _atten = 20D * Math.Log10(Math.Abs(1D + Math.Cosh(((double)_np) *
-                ArcCosh(Math.Tan(Math.PI * _passF / _sr) / Math.Tan(Math.PI * _stopF / _sr)))));
+                ArcCosh(omegaC / omegaS))));
         }
 
         private void setNP()
         {
             if (_stopF == 0) _np = 1;
             else
-                _np = Math.Max(1, (int)Math.Ceiling(0.1150748 * (6.02 + _atten) /
-                ArcCosh(Math.Tan(Math.PI * _passF / _sr) / Math.Tan(Math.PI * _stopF / _sr)))); //assumes positve _atten
+            {
+                double a = ArcCosh(omegaC / omegaS);
+                _np = (int)(Math.Ceiling(ArcCosh(Math.Pow(10D, _atten / 20D) - 1D) / a)); //assumes positive _atten
+                _atten = 20D * Math.Log10(Math.Abs(1D + Math.Cosh(((double)_np) * a)));
+            }
         }
 
         private void setStopF()
         {
-            double H = Math.Pow(10D, -_atten / 10D);
-            omegaS = omegaC / Math.Cosh(ArcCosh(Math.Sqrt((1D - H) / H)) / _np);
+            omegaS = omegaC / Math.Cosh(ArcCosh(Math.Pow(10D, _atten / 20D) - 1D) / _np);
             _stopF = _sr * Math.Atan(omegaS) / Math.PI;
         }
     }
 
     public class ChebyshevLP : Chebyshev
     {
+        public ChebyshevLP(double passF, double samplingRate)
+        {
+            if (samplingRate < 0D)
+                throw new ArgumentException("In ChebyshevLP.cotr: invalid sampling frequency");
+            _sr = samplingRate;
+            Nyquist = _sr / 2D;
+            if (passF <= 0 || passF >= Nyquist)
+                throw new ArgumentException("In ChebyshevLP.cotr: invalid cutoff frequncy");
+            _passF = passF;
+        }
+
         public override void Design()
         {
-            if (!double.IsNaN(_sr) && !double.IsNaN(_passF) && canSet == 1)
+            if (designCompleted)
+                throw new Exception("In Butterworth.Design: attempt to redesign filter");
+            if (canSet == 1)
             {
-                Nyquist = _sr / 2D;
-                if (_passF <= 0 || _passF >= Nyquist)
-                    throw new ArgumentException("In ChebyshevLP.Design: invalid cutoff frequncy");
                 omegaC = Math.Tan(Math.PI * _passF / _sr);
                 if (double.IsNaN(_stopF))
                     setStopF();
@@ -861,6 +869,8 @@ namespace DigitalFilter
                     setAtten();
 
                 completeLPDesign();
+
+                designCompleted = true;
             }
             else
                 throw new Exception("In ChebyshevLP.Design: insufficient parameters specified");
@@ -905,16 +915,18 @@ namespace DigitalFilter
 
         private void setNP()
         {
-            if (_stopF == 0.5) _np = 1;
+            if (_stopF == Nyquist) _np = 1;
             else
-                _np = (int)Math.Ceiling(0.1150748 * (6.02 + _atten) /
-                    ArcCosh(omegaS / omegaC)); //assumes positive _atten
+            {
+                double a = ArcCosh(omegaS / omegaC);
+                _np = (int)(Math.Ceiling(ArcCosh(Math.Pow(10D, _atten / 20D) - 1D) / a)); //assumes positive _atten
+                _atten = 20D * Math.Log10(Math.Abs(1D + Math.Cosh(((double)_np) * a))); //calculate new Attenuation
+            }
         }
 
         private void setStopF()
         {
-            double H = Math.Pow(10D, -_atten / 10D);
-            omegaS = omegaC * Math.Cosh(ArcCosh(Math.Sqrt((1D - H) / H)) / _np);
+            omegaS = omegaC * Math.Cosh(ArcCosh(Math.Pow(10D, _atten / 20D) - 1D) / _np);
             _stopF = _sr * Math.Atan(omegaS) / Math.PI;
         }
     }
@@ -922,6 +934,8 @@ namespace DigitalFilter
     public class Butterworth : DFilter
     {
         Cascade c;
+
+        bool designCompleted = false;
 
         bool _hp;
         public bool HP { get { return _hp; } }
@@ -932,16 +946,16 @@ namespace DigitalFilter
         double _sr;
         public double SR { get { return _sr; } }
 
-        int L = 0;
+        int _np = 0;
         public int NP
         {
             get { return NP; }
             set
             {
-                if (value <= 0)
-                    throw new Exception("In Butterworth.NP.set: attempt to reset value to 0");
-                if (double.IsNaN(_atten) && L == 0)
-                    L = value;
+                if (value <= 0 || designCompleted)
+                    throw new Exception("In Butterworth.NP.set: attempt to reset value");
+                if (double.IsNaN(_atten) && _np == 0)
+                    _np = value;
                 else
                     throw new Exception("In Butterworth.NP.set: attempt to set too many design criteria");
             }
@@ -954,19 +968,22 @@ namespace DigitalFilter
             {
                 if (value <= 0 || value >= _sr / 2D || (_hp ? value >= _passF : value <= _passF))
                     throw new Exception("In Butterworth.StopF.set: invalid value");
+                if (designCompleted)
+                    throw new Exception("In Butterworth.StopF.set: attempt to set new value after design completed");
+                _stopF = value;
             }
-            get { return _passF; }
+            get { return _stopF; }
         }
 
-        double _atten;
+        double _atten = double.NaN;
         public double Atten
         {
             get { return _atten; }
             set
             {
-                if (double.IsNaN(value))
-                    throw new Exception("In Butterworth.Atten.set: attempt to reset value to NaN");
-                if (double.IsNaN(_atten) && L<=0)
+                if (double.IsNaN(value) || designCompleted)
+                    throw new Exception("In Butterworth.Atten.set: attempt to reset value");
+                if (double.IsNaN(_atten) && _np <= 0)
                     _atten = value;
                 else
                     throw new Exception("In Butterworth.Atten.set: attempt to set too many design criteria");
@@ -976,32 +993,35 @@ namespace DigitalFilter
         public Butterworth(bool HP, double cutoff, double samplingRate)
         {
             _hp = HP;
-            if (samplingRate < -0D)
+            if (samplingRate < 0D)
                 throw new ArgumentException("In Butterworth.cotr: invalid sampling frequency");
-
             _sr = samplingRate;
-            if (cutoff <= 0D || cutoff >= samplingRate / 2D)
+            Nyquist = _sr / 2D;
+            if (cutoff <= 0D || cutoff >= Nyquist)
                 throw new ArgumentException("In Butterworth.cotr: invalid cutoff frequency");
             _passF = cutoff;
-            _stopF = cutoff * (HP ? 0.1 : 10D);
+            _stopF = HP ? cutoff * 0.1 : Math.Min(Nyquist, cutoff * 10D); //preliminary stop frequency
         }
 
         double omegaC;
         double omegaS;
         public void Design()
         {
+            if (designCompleted)
+                throw new Exception("In Butterworth.Design: attempt to redesign filter");
             omegaC = Math.Tan(Math.PI * _passF / _sr);
             omegaS = Math.Tan(Math.PI * _stopF / _sr);
             double k = _hp ? omegaC / omegaS : omegaS / omegaC;
 
-            if (L <= 0 ^ double.IsNaN(_atten))
+            if (_np <= 0 ^ double.IsNaN(_atten))
             {
-                if (L <= 0)
+                if (_np <= 0)
                 {
-                    L = (int)Math.Ceiling(_atten / (20 * Math.Log10(k)));
+                    _np = (int)Math.Ceiling(_atten / (20 * Math.Log10(k)));
                 }
-                _atten = L * Math.Log10(k);
+                _atten = _np * Math.Log10(k);
                 completeDesign();
+                designCompleted = true; //assure only one design per parameter set
             }
             else
                 throw new Exception("In Butterworth.Design: insufficient parameters specified");
@@ -1011,8 +1031,8 @@ namespace DigitalFilter
         {
             double tan2 = omegaC * omegaC;
 
-            int odd = L - ((L >> 1) << 1);
-            int r = (L - odd) / 2;
+            int odd = _np - ((_np >> 1) << 1);
+            int r = (_np - odd) / 2;
             DFilter[] f = new DFilter[r + odd + 1];
             if (odd > 0)
             {
@@ -1020,11 +1040,13 @@ namespace DigitalFilter
                 f[0] = new Constant((_hp ? 1D : omegaC) / a);
                 f[1] = new SinglePole((omegaC - 1) / a, 1D, _hp ? -1D : 1D);
             }
+            else
+                f[0] = new Constant(1D);
 
             double b1 = _hp ? -2D : 2D;
             for (int m = 1; m <= r; m++)
             {
-                double sin = Math.Sin(Math.PI * (2D * m - 1D) / (2D * L));
+                double sin = Math.Sin(Math.PI * (2D * m - 1D) / (2D * _np));
                 double a0 = tan2 + 2D * omegaC * sin + 1D;
                 double a1 = 2D * (tan2 - 1D) / a0;
                 double a2 = (tan2 - 2D * omegaC * sin + 1D) / a0;

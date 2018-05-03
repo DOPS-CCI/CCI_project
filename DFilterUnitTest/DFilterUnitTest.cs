@@ -11,20 +11,31 @@ namespace UnitTestProject1
         public void ButterworthTest()
         {
             double[] X;
-            Butterworth bw = new Butterworth(4, 50, 256, false);
+            Butterworth bw = new Butterworth(false, 50, 256);
+            bw.NP = 4;
+            bw.Design();
             Console.WriteLine("50Hz LP: {0}", bw.ToString("0.000000"));
-            bw = new Butterworth(4, 1, 256, true);
+            bw = new Butterworth(true, 1, 256);
+            bw.NP = 4;
+            bw.Design();
             Console.WriteLine("1Hz HP: {0}", bw.ToString("0.000000"));
-            bw = new Butterworth(4, 0.1, 256, true);
+            bw = new Butterworth(true, 0.1, 256);
+            bw.NP = 4;
+            bw.Design();
             Console.WriteLine("0.1Hz HP: {0}", bw.ToString("0.000000"));
-            bw = new Butterworth(4, 0.01, 256, true);
-            Console.WriteLine("0.01Hz HP: {0}", bw.ToString("0.000000"));
+            bw = new Butterworth(true, 1, 256);
+            bw.StopF = 0.5;
+            bw.Atten = 40;
+            bw.Design();
+            Console.WriteLine("1Hz HP: {0}", bw.ToString("0.000000"));
 
             double secs = 5;
             double SR = 128;
             double cutoff = 1;
             int pts = (int)(secs * SR);
-            bw = new Butterworth(2, cutoff, SR, true);
+            bw = new Butterworth(true, cutoff, SR);
+            bw.NP = 2;
+            bw.Design();
             Console.WriteLine("IMPULSE: 5sec@128, 1Hz, 2pole, Butterworth high-pass");
             Console.Write(bw);
             X = Impulse(pts);
@@ -41,7 +52,9 @@ namespace UnitTestProject1
             cutoff = 0.1;
             secs = 20;
             pts = (int)(secs * SR);
-            bw = new Butterworth(4, cutoff, SR, true);
+            bw = new Butterworth(true, cutoff, SR);
+            bw.NP = 4;
+            bw.Design();
             Console.WriteLine("IMPULSE: 20sec@128, 0.1Hz, 4pole, Butterworth high-pass");
             Console.Write(bw.ToString("0.000000"));
             X = Impulse(pts);
@@ -59,7 +72,9 @@ namespace UnitTestProject1
             SR = 128;
             cutoff = 0.01;
             pts = (int)(secs * SR);
-            bw = new Butterworth(10, 0.01, SR, true);
+            bw = new Butterworth(true, 0.01, SR);
+            bw.NP = 10;
+            bw.Design();
             Console.WriteLine("STEP: 256sec@128, 0.01Hz, 10pole, ButterworthHP");
             Console.Write(bw);
             X = Step(pts);
@@ -71,7 +86,9 @@ namespace UnitTestProject1
             SR = 128;
             cutoff = 1;
             pts = (int)(secs * SR);
-            bw = new Butterworth(8, cutoff, SR, false); //1Hz cut-off, low-pass
+            bw = new Butterworth(false, cutoff, SR); //1Hz cut-off, low-pass
+            bw.NP = 8;
+            bw.Design();
             Console.WriteLine("F-response: 128sec@128, 1Hz, 8pole, low pass");
             for (double f = 0.01; f < 2; f += 0.01)
             {
@@ -81,7 +98,9 @@ namespace UnitTestProject1
                 Console.WriteLine("X[" + f.ToString("0.00") + "]=" + maxX(X, pts / 4, 3 * pts / 4).ToString("0.000"));
             }
 
-            bw = new Butterworth(10, 1, 128, true);
+            bw = new Butterworth(true, 1, 128);
+            bw.NP = 10;
+            bw.Design();
             Console.WriteLine("F-response: 128sec@128, 1Hz, 10pole, high-pass");
             for (double f = 0.01; f < 2; f += 0.01) //1Hz cut-off, zero phase
             {
@@ -95,44 +114,32 @@ namespace UnitTestProject1
         [TestMethod]
         public void Chebyshev2Test()
         {
-            ChebyshevLP clp = new ChebyshevLP(); //stopband -40dB
-            clp.SR = 256;
-            clp.PassF = 55;
+            ChebyshevLP clp = new ChebyshevLP(55D, 256D);
             clp.StopF = 60;
             clp.Atten = 60;
             testChebyFilter(clp);
 
-            clp = new ChebyshevLP();
-            clp.SR = 256;
-            clp.PassF = 20;
+            clp = new ChebyshevLP(20D, 256D);
             clp.StopF = 30;
             clp.NP = 6;
             testChebyFilter(clp);
 
-            clp = new ChebyshevLP();
-            clp.SR = 256;
-            clp.PassF = 10;
+            clp = new ChebyshevLP(10D, 256D);
             clp.Atten = 40;
             clp.NP = 7;
             testChebyFilter(clp);
 
-            ChebyshevHP chp = new ChebyshevHP();
-            chp.SR = 256;
-            chp.PassF = 5;
+            ChebyshevHP chp = new ChebyshevHP(5D, 256D);
             chp.StopF = 3;
             chp.Atten = 60;
             testChebyFilter(chp);
 
-            chp = new ChebyshevHP();
-            chp.SR = 128;
-            chp.PassF = 1;
+            chp = new ChebyshevHP(1D, 256D);
             chp.Atten = 40;
             chp.NP = 9;
             testChebyFilter(chp);
 
-            chp = new ChebyshevHP();
-            chp.SR = 256;
-            chp.PassF = 1;
+            chp = new ChebyshevHP(1D, 256D);
             chp.StopF = 0.5;
             chp.NP = 6;
             testChebyFilter(chp);
@@ -142,89 +149,73 @@ namespace UnitTestProject1
         [TestMethod]
         public void EllipticalTest()
         {
-            EllipticalHP ehp = new EllipticalHP();
-            ehp.SR = 256;
-            ehp.PassF = 1D;
+            EllipticalHP ehp = new EllipticalHP(1D, 256D);
             ehp.Ripple = 0.01;
             ehp.Atten = 60D;
             ehp.NP = 9;
             testEllipFilter(ehp);
 
-            ehp = new EllipticalHP();
-            ehp.SR = 256;
-            ehp.PassF = 1D;
+            ehp = new EllipticalHP(10D, 256D);
+            ehp.StopF = 9;
+            ehp.Ripple = 0.2;
+            ehp.Atten = 40D;
+            testEllipFilter(ehp);
+
+            ehp = new EllipticalHP(1D, 256D);
             ehp.StopF = 0.8;
             ehp.Ripple = 0.01;
             ehp.Atten = 60D;
             testEllipFilter(ehp);
 
-            ehp = new EllipticalHP();
-            ehp.SR = 256;
-            ehp.PassF = 10D;
+            ehp = new EllipticalHP(10D, 256D);
             ehp.StopF = 5D;
             ehp.Atten = 40D;
             ehp.NP = 4;
             testEllipFilter(ehp);
 
-            ehp = new EllipticalHP();
-            ehp.SR = 256;
-            ehp.PassF = 10D;
+            ehp = new EllipticalHP(10D, 256D);
             ehp.StopF = 5D;
             ehp.Ripple = 0.1;
             ehp.NP = 7;
             testEllipFilter(ehp);
 
-            EllipticalLP elp = new EllipticalLP();
-            elp.SR = 256D;
-            elp.PassF = 10D;
+            EllipticalLP elp = new EllipticalLP(10D, 256D);
             elp.StopF = 15D;
             elp.Ripple = 0.1D;
             elp.Atten = 60D;
             testEllipFilter(elp);
 
-            elp = new EllipticalLP();
-            elp.SR = 512D;
-            elp.PassF = 50D;
+            elp = new EllipticalLP(50D, 512D);
             elp.StopF = 60D;
             elp.Atten = 60D;
             elp.NP = 9;
             testEllipFilter(elp);
 
-            elp = new EllipticalLP();
-            elp.SR = 512D;
-            elp.PassF = 50D;
+            elp = new EllipticalLP(50D, 512D);
             elp.StopF = 60D;
             elp.Atten = 60D;
             elp.NP = 7;
             testEllipFilter(elp);
 
-            elp = new EllipticalLP();
-            elp.SR = 512D;
-            elp.PassF = 50D;
+            elp = new EllipticalLP(50D, 512D);
             elp.StopF = 60D;
             elp.Atten = 40D;
             elp.NP = 5;
             testEllipFilter(elp);
 
-            elp = new EllipticalLP();
-            elp.SR = 512D;
-            elp.PassF = 50D;
+            elp = new EllipticalLP(50D, 512D);
             elp.StopF = 60D;
-            elp.Ripple = 0.1104;
+            elp.Ripple = 0.110202;
             elp.NP = 5;
             testEllipFilter(elp);
 
-            elp = new EllipticalLP();
-            elp.SR = 512D;
-            elp.PassF = 50D;
-            elp.Ripple = 0.1104;
+            elp = new EllipticalLP(50D, 512D);
+            elp.Ripple = 0.110202;
             elp.Atten = 40D;
             elp.NP = 5;
             testEllipFilter(elp);
 
-            elp = new EllipticalLP();
-            elp.SR = 512D;
-            elp.PassF = 50D;
+            elp = new EllipticalLP(50D, 512D);
             elp.StopF = 55D;
             elp.Atten = 80D;
             elp.NP = 10;
