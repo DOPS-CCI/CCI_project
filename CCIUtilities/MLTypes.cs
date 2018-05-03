@@ -6,10 +6,14 @@ using System.Text.RegularExpressions;
 
 namespace MLTypes
 {
+    /// <summary>
+    /// Encapsulates MATLAB types as stoted in .MAT file format Level 5
+    /// See https://www.mathworks.com/help/pdf_doc/matlab/matfile_format.pdf
+    /// </summary>
     public abstract class MLType
     {
         static Regex test =
-            new Regex(@"^((\[%(,%)*\])?\.[a-zA-Z]\w*|\{%(,%)*\})*(\[%(,%)*\])?$");
+            new Regex(@"^(?'Subfield'(\[%(,%)*\])?\.[a-zA-Z]\w*|\{%(,%)*\})*(\[%(,%)*\])?$");
         static Regex sel =
             new Regex(@"^((?'Struct'(\[(?'index'%(,%)*)\])?\.(?'fieldName'[a-zA-Z]\w*))|(?'Cell'\{(?'index'%(,%)*)\})|(?'Array'\[(?'index'%(,%)*)\]))$");
         static string[] fields;
@@ -17,14 +21,26 @@ namespace MLTypes
         static bool[] isCell;
         static bool[] isStruct;
 
-        public static object Select(MLType Base, string selector, params int[] indices)
+        /// <summary>
+        /// Obtain reference to any item within a MATLAB type
+        /// Selector string:
+        /// 1. Begins with optional array indices
+        /// 2. Array indices are enclosed within [] with dimensions separated by commas
+        /// 3. Subfields in a structure are separated by periods
+        /// 4. Cell indices are enclosed in {}, separated by commas
+        /// </summary>
+        /// <param name="Base">Reference to base type within which to obtain element</param>
+        /// <param name="selector">Selector string</param>
+        /// <param name="indices">Numeric indices to be applied to Selector string; these are marked by % in the string and referenced in order</param>
+        /// <returns></returns>
+        public object Select(string selector, params int[] indices)
         {
-            //make sure it's a valid selector string
-            if (!test.IsMatch(selector))
+            //make sure it's a valid selector string and split into subfields
+            Match match = test.Match(selector);
+            if (!match.Success)
                 throw new ArgumentException("In MLType.Select: invalid selector string: " + selector);
-            //split into segements
-            string[] spl = Regex.Split(selector, @"(?=[\[\{\.])");
-            int n = spl.Length;
+            CaptureCollection spl = match.Groups["Subfield"].Captures;
+            int n = spl.Count;
             fields = new string[n];
             index = new int[n];
             isCell = new bool[n];
@@ -32,13 +48,13 @@ namespace MLTypes
             //parse segments
             for (int i = 0; i < n; i++)
             {
-                Match m = sel.Match(spl[i]);
-                fields[i] = m.Groups["field"].Value;
+                Match m = sel.Match(spl[i].Value);
+                fields[i] = m.Groups["fieldName"].Value;
                 index[i] = (m.Groups["index"].Value.Length + 1) >> 1; // = number of indices
                 isCell[i] = m.Groups["Cell"].Value != "";
                 isStruct[i] = m.Groups["Struct"].Value != "";
             }
-            dynamic t0 = Base;
+            dynamic t0 = this;
             int ind = 0;
             int indPlace = 0;
             //apply segments
@@ -97,10 +113,12 @@ namespace MLTypes
                 t0 = t;
                 ind++;
             }
-            if (t0 is MLDimensionedType && ((MLDimensionedType)t0).Length==1) //unwrap singleton
+            if (t0 is MLDimensionedType && !(t0 is MLStruct) && ((MLDimensionedType)t0).Length == 1) //unwrap singleton
                 return t0[0];
             return t0; //otherwise leave as array
         }
+
+        public abstract string GetVariableType(); //return MATLAB datatype for this variable
     }
  /*   public interface IMLNumericalType : MLType {
         double ToDouble();
@@ -264,7 +282,7 @@ namespace MLTypes
     }
     */
 
-    public class MLDimensionedType : MLType
+    public abstract class MLDimensionedType : MLType
     {
         internal int _nDim;
         public int NDimensions
@@ -369,7 +387,7 @@ namespace MLTypes
             set { _text[i] = value; }
         }
 
-        public char this[int[] indices]
+        public char this[params int[] indices]
         {
             get { return _text[CalculateIndex(indices)]; }
             set { _text[CalculateIndex(indices)] = value; }
@@ -487,6 +505,22 @@ namespace MLTypes
             throw new ArgumentException("In MLString.GetString: invalid index set");
         }
 
+        public static implicit operator string(MLString s)
+        {
+            int nlines = (int)(s._length / s.Dimension(1));
+            if (nlines == 1)
+                return new string(s._text).TrimEnd(' ', '\u0000');
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < nlines; i++)
+                sb.AppendLine(s.getLineOfText(i));
+            return sb.ToString();
+        }
+
+        public override string GetVariableType()
+        {
+            return "STRING";
+
+        }
         public override string ToString()
         {
             if (Dimension(0) == _length || Dimension(1) == _length) //simple "string" case
@@ -527,7 +561,7 @@ namespace MLTypes
             return new string(c).TrimEnd(' ','\u0000');
         }
 
-        string getLineOfText(int[] indices)
+        string getLineOfText(params int[] indices)
         {
             int[] dimensions = (int[])indices.Clone();
             dimensions[1] = 0; //assure starting at beginning of line
@@ -553,7 +587,7 @@ namespace MLTypes
         //NOTE: items are stored in column-major order to match MATLAB storage order
         T[] array;
 
-        public T this[int[] indices]
+        public T this[params int[] indices]
         {
             get
             {
@@ -571,13 +605,13 @@ namespace MLTypes
             set { array[i] = value; }
         }
 
-        public MLArray(T[] data, int[] dims)
+        public MLArray(T[] data, params int[] dims)
         {
             processDimensions(dims);
             array = data;
         }
 
-        public MLArray(int[] dims)
+        public MLArray(params int[] dims)
         {
             processDimensions(dims);
             if (_length > 0)
@@ -603,13 +637,22 @@ namespace MLTypes
         public MLArray() :
             this(1) { }
 
+        public override string GetVariableType()
+        {
+            return "ARRAY<" + (array == null ? "UNKNOWN" : array[0].GetType().Name) + ">";
+        }
+
         const int printLimit = 20; //limit to first 20 elements in array
         public override string ToString()
         {
             if (_length == 0) return "[ ]"; //empty array
             if (_length == 1) return array[0].ToString(); //ignore scalar wrapper
             int[] index = new int[_nDim];
-            StringBuilder sb = new StringBuilder("[");
+            int[] d = this.Dimensions;
+            StringBuilder sb = new StringBuilder("("); //Lead with the size of the array
+            for (int i = 0; i < _nDim; i++) sb.Append(d[i].ToString("0") + ",");
+            sb.Remove(sb.Length - 1, 1);
+            sb.Append(")[");
             int t = 0;
             long limit = Math.Min(printLimit, _length);
             while (++t <= limit)
@@ -729,6 +772,11 @@ namespace MLTypes
             {
                 throw new Exception("In GetScalarDoubleForFieldName: " + ex.Message);
             }
+        }
+
+        public override string GetVariableType()
+        {
+            return "STRUCT";
         }
 
         public override string ToString()
@@ -857,6 +905,11 @@ namespace MLTypes
             throw new Exception("In GetMLArrayForFieldName: unkown field name (" + propertyName + ")");
         }
 
+        public override string GetVariableType()
+        {
+            return "OBJECT";
+        }
+
         public override string ToString()
         {
             if (_length == 0 || properties.Count == 0) return "[ ]";
@@ -923,6 +976,11 @@ namespace MLTypes
             }
             return sb.Remove(sb.Length - 1, 1).ToString() + '}';
         }
+
+        public override string GetVariableType()
+        {
+            return "CELL";
+        }
     }
 
     public class MLUnknown : MLType
@@ -935,6 +993,11 @@ namespace MLTypes
         {
             return "Unknown MLType: ClassID = " + ClassID.ToString("0") +
                 ", Length = " + Length.ToString("0") + "; " + exception.Message;
+        }
+
+        public override string GetVariableType()
+        {
+            return "UNKNOWN";
         }
     }
 }
