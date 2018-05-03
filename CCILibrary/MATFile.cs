@@ -52,6 +52,11 @@ namespace MATFile
         const int mxUINT64_CLASS = 15;
         static int[] mxSizes = { 0, 0, 0, 0, 0, 0, 8, 4, 1, 1, 2, 2, 4, 4, 8, 8 };
 
+        /// <summary>
+        /// Describe a MAT MATLAB file for reading
+        /// See https://www.mathworks.com/help/pdf_doc/matlab/matfile_format.pdf
+        /// </summary>
+        /// <param name="reader">Stream containing the MAT file</param>
         public MATFileReader(Stream reader)
         {
             if (!reader.CanRead)
@@ -69,13 +74,18 @@ namespace MATFile
                 throw new Exception("In MATFileReader: MAT file not little-endian"); //MI => no swapping needed => OK
         }
 
+        /// <summary>
+        /// Completely read a MAT file conforming to Level 5 standard
+        /// See https://www.mathworks.com/help/pdf_doc/matlab/matfile_format.pdf
+        /// </summary>
+        /// <returns>MLVarialbes dictionary containing the MATLAB values in the MAT file</returns>
         public MLVariables ReadAllVariables()
         {
             string name;
             while (_reader.PeekChar() != -1) //not EOF
             {
                 MLType t = parseCompoundDataType(out name); //should be array type or compressed
-                if (!(t is MLUnknown))
+                if (!(t is MLUnknown)) //ignore unknown types
                     mlv.Add(name, t);
             }
             return mlv;
@@ -584,48 +594,71 @@ namespace MATFile
         }
     }
 
+    /// <summary>
+    /// Dictionary of the MATLAB variables; key is variable name and value is the MLType
+    /// Created by reading a MAT file
+    /// </summary>
     public class MLVariables: Dictionary<string, MLType>
     {
-        static Regex test1 =
-            new Regex(@"^[a-zA-Z]\w*((\[%(,%)*\])?\.[a-zA-Z]\w*|\{%(,%)*\})*(\[%(,%)*\])?$");
-        static Regex test2 =
-            new Regex(@"^((\[%(,%)*\])?\.[a-zA-Z]\w*|\{%(,%)*\})*(\[%(,%)*\])?$");
-        static Regex sel =
+        static Regex test1 = //For use locating a variable and describing a subfield
+            new Regex(@"^(?'First'[a-zA-Z]\w*)(?'Subfield'(\[%(,%)*\])?\.[a-zA-Z]\w*|\{%(,%)*\}|\[%(,%)*\]$)*$");
+        static Regex test2 = //For use when givien a variable and describing a subfield
+            new Regex(@"^(?'Subfield'(\[%(,%)*\])?\.[a-zA-Z]\w*|\{%(,%)*\}|\[%(,%)*\]$)*$");
+        static Regex sel = //For parsing a subfield componenet
             new Regex(@"^((?'field'[a-zA-Z]\w*)|(?'Struct'(\[(?'index'%(,%)*)\])?\.(?'field'[a-zA-Z]\w*))|(?'Cell'\{(?'index'%(,%)*)\})|(?'Array'\[(?'index'%(,%)*)\]))$");
+        //parsing results: describe each subfield componenet
         static string[] fields;
         static int[] index;
         static bool[] isCell;
         static bool[] isStruct;
-        static int currentSegment;
 
-        public object Select(MLType baseVar, string selector, params int[] indices)
+        /// <summary>
+        /// Obtain reference to any subfield within a MATLAB type
+        /// Selector string:
+        /// 1. Structure reference with optional array indices
+        /// 2. Array indices are enclosed within [] with dimensions separated by commas; uses zero-based indexing
+        /// 3. Subfields in a structure are separated by periods, following optional aray indexing
+        /// 4. Cell indices are enclosed in {}, separated by commas
+        /// </summary>
+        /// <param name="baseVar">Reference to base type within which to obtain element</param>
+        /// <param name="selector">Selector string</param>
+        /// <param name="indices">Numeric indices to be applied to Selector string; these are marked by % in the string and referenced in order</param>
+        /// <returns>MATLAB variable for the described subfield, either MLType or primitive value (double, Complex, string, etc.)</returns>
+        public static object Select(MLType baseVar, string selector, params int[] indices)
         {
             //make sure it's a valid selector string
-            if (!test2.IsMatch(selector))
+            Match match = test2.Match(selector);
+            if (!match.Success)
                 throw new ArgumentException("In MLVariables.Select: invalid selector string: " + selector);
-            parseSelector(selector);
-            currentSegment = 0;
+            MLVariables.parseSelector(match);
             return parseSegments(baseVar, indices);
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="selector"></param>
+        /// <param name="indices"></param>
+        /// <returns></returns>
         public object Select(string selector, params int[] indices)
         {
             //make sure it's a valid selector string
-            if (!test1.IsMatch(selector))
+            Match match = test1.Match(selector);
+            if (!match.Success)
                 throw new ArgumentException("In MLVariables.Select: invalid selector string: " + selector);
-            parseSelector(selector);
             MLType mlt;
-            if (!TryGetValue(fields[0], out mlt))
-                throw new Exception("In MLVariables.Select: unknown variable name: " + fields[0]);
-            currentSegment = 1;
+            string firstName = match.Groups["First"].Captures[0].Value;
+            if (!TryGetValue(firstName, out mlt))
+                throw new Exception("In MLVariables.Select: variable name not in dictionary: " + firstName);
+            parseSelector(match);
+//            currentSegment = 1;
             return parseSegments(mlt, indices);
         }
 
-        private void parseSelector(string selector)
+        private static void parseSelector(Match match)
         {
-            //split into segements
-            string[] spl = Regex.Split(selector, @"(?<!^)(?=\{|\[|(?<!\])\.)");
-            int n = spl.Length;
+            CaptureCollection spl = match.Groups["Subfield"].Captures;
+            int n = spl.Count;
             fields = new string[n];
             index = new int[n];
             isCell = new bool[n];
@@ -633,7 +666,7 @@ namespace MATFile
             //parse segments
             for (int i = 0; i < n; i++)
             {
-                Match m = sel.Match(spl[i]);
+                Match m = sel.Match(spl[i].Value);
                 fields[i] = m.Groups["field"].Value;
                 index[i] = (m.Groups["index"].Value.Length + 1) >> 1; // = number of indices
                 isCell[i] = m.Groups["Cell"].Value != "";
@@ -641,25 +674,32 @@ namespace MATFile
             }
         }
 
-        private object parseSegments(MLType baseVar, int[] indices)
+        private static object parseSegments(MLType baseVar, int[] indices)
         {
             int n = fields.Length;
             dynamic t0 = baseVar;
-            int indPlace = 0;
+            int indPlace = 0; //keep track of where we are in index list
             //apply segments
-            while (currentSegment < n)
+            for (int currentSegment = 0; currentSegment < n; currentSegment++)
             {
                 object t = null;
                 //handle diension calculation first
                 long I = 0; //index into array/cell to calculate
                 if (t0 is MLDimensionedType && index[currentSegment] != 0)
                 {
-                    if (index[currentSegment] == 1) I = (long)indices[indPlace++];
-                    else
+                    try
                     {
-                        int[] dims = new int[index[currentSegment]];
-                        for (int i = 0; i < index[currentSegment]; i++) dims[i] = indices[indPlace++];
-                        I = ((MLDimensionedType)t0).CalculateIndex(dims);
+                        if (index[currentSegment] == 1) I = (long)indices[indPlace++];
+                        else
+                        {
+                            int[] dims = new int[index[currentSegment]];
+                            for (int i = 0; i < index[currentSegment]; i++) dims[i] = indices[indPlace++];
+                            I = ((MLDimensionedType)t0).CalculateIndex(dims);
+                        }
+                    }
+                    catch (IndexOutOfRangeException)
+                    {
+                        throw new Exception("In Select.parseSegments: too few index parameters");
                     }
                 }
 
@@ -700,7 +740,6 @@ namespace MATFile
                         throw new Exception("In MLType.Select: Unexpected MLType type: " + type.Name);
                 }
                 t0 = t;
-                currentSegment++;
             }
             if (t0 is MLDimensionedType && ((MLDimensionedType)t0).Length == 1) //unwrap singleton
                 return t0[0]; //note: this will return a char not string if MLString.Length == 1
