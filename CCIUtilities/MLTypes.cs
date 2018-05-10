@@ -24,12 +24,11 @@ namespace MLTypes
         /// <summary>
         /// Obtain reference to any item within a MATLAB type
         /// Selector string:
-        /// 1. Begins with optional array indices
+        /// 1. Begins with optional array indices, if pure array or structure-array
         /// 2. Array indices are enclosed within [] with dimensions separated by commas
         /// 3. Subfields in a structure are separated by periods
         /// 4. Cell indices are enclosed in {}, separated by commas
         /// </summary>
-        /// <param name="Base">Reference to base type within which to obtain element</param>
         /// <param name="selector">Selector string</param>
         /// <param name="indices">Numeric indices to be applied to Selector string; these are marked by % in the string and referenced in order</param>
         /// <returns></returns>
