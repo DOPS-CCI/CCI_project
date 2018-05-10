@@ -48,7 +48,7 @@ namespace ElectrodeFileStream
                     if (type == "PhiTheta") etrRecord = new PhiThetaRecord();
                     else if (type == "XY") etrRecord = new XYRecord();
                     else if (type == "XYZ") etrRecord = new XYZRecord();
-                    else throw new Exception("Invalid electrode type");
+                    else throw new Exception("Invalid electrode type " + type);
                     etrRecord.read(xr, nameSpace);
                 }
                 catch (XmlException e)
