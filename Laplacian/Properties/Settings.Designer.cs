@@ -22,17 +22,5 @@ namespace Laplacian.Properties {
                 return defaultInstance;
             }
         }
-        
-        [global::System.Configuration.UserScopedSettingAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("C:")]
-        public string LastFolder {
-            get {
-                return ((string)(this["LastFolder"]));
-            }
-            set {
-                this["LastFolder"] = value;
-            }
-        }
     }
 }

@@ -8,7 +8,7 @@ using CCIUtilities;
 
 namespace Laplacian
 {
-    class FitHead
+    public class FitHead
     {
         double[] beta; //regression coefficients
         GeneralizedLinearRegression.Function[] spherical; //spherical harmonics
