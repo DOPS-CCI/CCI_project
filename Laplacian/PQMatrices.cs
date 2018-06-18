@@ -43,7 +43,7 @@ namespace Laplacian
         {
             N = locations.Count();
             if (M >= N || !_no && _m <= 2)
-                throw new ArgumentException("In PQMatrices: too few locations");
+                throw new ArgumentException("In PQMatrices.CalculatePQ: too few locations");
             points = new Point3D[N];
             int p = 0;
             foreach (ElectrodeRecord er in locations)
@@ -152,7 +152,7 @@ namespace Laplacian
         /// <summary>
         /// Calculate value of terms of osculating polynomical at a point
         /// </summary>
-        /// <param name="v">Point (x, y, z) to calculate value</param>
+        /// <param name="v">Point (x, y, z) at which to calculate value</param>
         /// <returns>Value of terms of osculating polynomial at (x, y, z)</returns>
         double[] osculatingPoly(Point3D v)
         {
