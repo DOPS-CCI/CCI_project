@@ -43,6 +43,9 @@
     <Reference Include="DigitalFilter">
       <HintPath>..\DigitalFilter\bin\Debug\DigitalFilter.dll</HintPath>
     </Reference>
+    <Reference Include="Laplacian">
+      <HintPath>..\Laplacian\bin\Debug\Laplacian.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Data" />
     <Reference Include="System.Windows.Forms" />
@@ -89,10 +92,10 @@
     <Compile Include="Chebyshev2DesignControl.xaml.cs">
       <DependentUpon>Chebyshev2DesignControl.xaml</DependentUpon>
     </Compile>
+    <Compile Include="SpherePoints.cs" />
     <Compile Include="EllipticDesignControl.xaml.cs">
       <DependentUpon>EllipticDesignControl.xaml</DependentUpon>
     </Compile>
-    <Compile Include="FitHead.cs" />
     <Compile Include="MainWindow.xaml.cs">
       <DependentUpon>MainWindow.xaml</DependentUpon>
       <SubType>Code</SubType>
