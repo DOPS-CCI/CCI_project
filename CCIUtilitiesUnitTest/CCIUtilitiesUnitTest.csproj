@@ -60,6 +60,8 @@
     <Compile Include="NMMatrixTest.cs" />
     <Compile Include="RQuaternionTest.cs" />
     <Compile Include="MLTypesSelectorTest.cs" />
+    <Compile Include="LegendrePolyTest.cs" />
+    <Compile Include="SinCosCacheTest.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\CCIUtilities\CCIUtilities.csproj">

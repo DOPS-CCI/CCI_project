@@ -5,8 +5,49 @@ using System.Text;
 
 namespace CCIUtilities
 {
-    public class SphericalHarmonics
+    public class SphericalHarmonic
     {
+        int _l;
+        int _m;
+        public int L { get { return _l; } }
+        public int M { get { return _m; } }
+
+        LegendrePoly lp; //Legendre polynomial
+        double r; //constatn multiplier
+        bool? t = null; //true=>Cos, false=>-Sin, null=>1
+
+        public SphericalHarmonic(int l, int m)
+        {
+            _l = l;
+            _m = m;
+            int p = Math.Abs(m);
+            r = (p == ((p >> 1) << 1)) ? 1D : -1D;
+            r *= Math.Sqrt((2D * l + 1D) * (1D - p) / (4D * Math.PI * (1D + p)));
+            if (p != 0)
+            {
+                t = m > 0;
+                r *= Math.Sqrt(2D);
+            }
+            r *= p != 0 ? Math.Sqrt(2D) : 1D;
+            lp = new LegendrePoly(l, p);
+        }
+
+        public double EvaluateAt(SinCosCache theta, SinCosCache phi)
+        {
+            double v = r * lp.EvaluateAt(theta.Cos(1));
+            if (t == null) return v;
+            if ((bool)t) return v * phi.Cos(_m);
+            return v * phi.Sin(-_m);
+        }
+
+        public double EvaluateAt(double theta, double phi)
+        {
+            double v = r * lp.EvaluateAt(Math.Cos(theta));
+            if (t == null) return v;
+            if ((bool)t) return v * Math.Cos(_m * phi);
+            return v * Math.Sin(-_m * phi);
+        }
+
         public static double Y(int l, int m, double theta, double phi)
         {
             try
@@ -285,5 +326,6 @@ namespace CCIUtilities
             }
             return 0;
         }
+
     }
 }

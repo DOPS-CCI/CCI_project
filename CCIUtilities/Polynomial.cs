@@ -289,7 +289,7 @@ namespace CCIUtilities
                 int p = t.pow;
                 double c = t.coef;
                 sb.Append(((c > 0D && plus) ? "+" : "") +
-                    ((Math.Abs(c) == 1D && p != 0) ? (c < 0 ? "-" : "") : c.ToString("G4")) +
+                    ((Math.Abs(c) == 1D && p != 0) ? (c < 0 ? "-" : "") : c.ToString("G8")) +
                     (p == 0 ? "" : variable + (p == 1 ? "" : "^" + p.ToString("0"))));
                 plus = true; //show + sign after first term
             }
