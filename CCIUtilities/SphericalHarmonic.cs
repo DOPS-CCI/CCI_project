@@ -7,45 +7,22 @@ namespace CCIUtilities
 {
     public class SphericalHarmonic
     {
-        int _l;
-        int _m;
-        public int L { get { return _l; } }
-        public int M { get { return _m; } }
+        const int fixedOrder = 5;
+        static SH[][] HigherOrder;
+        static int maxOrder = fixedOrder;
 
-        LegendrePoly lp; //Legendre polynomial
-        double r; //constatn multiplier
-        bool? t = null; //true=>Cos, false=>-Sin, null=>1
-
-        public SphericalHarmonic(int l, int m)
+        public void CreateSHEngine(int max)
         {
-            _l = l;
-            _m = m;
-            int p = Math.Abs(m);
-            r = (p == ((p >> 1) << 1)) ? 1D : -1D;
-            r *= Math.Sqrt((2D * l + 1D) * (1D - p) / (4D * Math.PI * (1D + p)));
-            if (p != 0)
+            maxOrder = max;
+            if (max <= fixedOrder) return; //use precalculated formulas only
+            HigherOrder = new SH[max - fixedOrder][];
+            for (int l = 6; l <= max; l++)
             {
-                t = m > 0;
-                r *= Math.Sqrt(2D);
+                int k = l - fixedOrder - 1;
+                HigherOrder[k] = new SH[2 * l + 1];
+                for (int m = -l; m <= l; m++)
+                    HigherOrder[k][m + l] = new SH(l, m);
             }
-            r *= p != 0 ? Math.Sqrt(2D) : 1D;
-            lp = new LegendrePoly(l, p);
-        }
-
-        public double EvaluateAt(SinCosCache theta, SinCosCache phi)
-        {
-            double v = r * lp.EvaluateAt(theta.Cos(1));
-            if (t == null) return v;
-            if ((bool)t) return v * phi.Cos(_m);
-            return v * phi.Sin(-_m);
-        }
-
-        public double EvaluateAt(double theta, double phi)
-        {
-            double v = r * lp.EvaluateAt(Math.Cos(theta));
-            if (t == null) return v;
-            if ((bool)t) return v * Math.Cos(_m * phi);
-            return v * Math.Sin(-_m * phi);
         }
 
         public static double Y(int l, int m, double theta, double phi)
@@ -55,29 +32,32 @@ namespace CCIUtilities
                 switch (l)
                 {
                     case 0:
-                        return 1D;
+                        return 0.28209479177387814;
                     case 1:
-                        if (m == -1)
-                            return -1.7320508075688772 * Math.Sin(phi) * Math.Sin(theta);
-                        if (m == 0)
-                            return 1.7320508075688772 * Math.Cos(theta);
-                        if (m == 1)
-                            return -1.7320508075688772 * Math.Cos(phi) * Math.Sin(theta);
-                        else
-                            throw null;
+                        switch (m)
+                        {
+                            case -1:
+                                return 0.4886025119029199 * Math.Sin(theta) * Math.Sin(phi);
+                            case 0:
+                                return 0.4886025119029199 * Math.Cos(theta);
+                            case 1:
+                                return 0.4886025119029199 * Math.Cos(phi) * Math.Sin(theta);
+                            default:
+                                throw null;
+                        }
                     case 2:
                         switch (m)
                         {
                             case -2:
-                                return 1.9364916731037085 * Math.Sin(2.0 * phi) * Math.Pow(Math.Sin(theta), 2);
+                                return 1.0925484305920792 * Math.Cos(phi) * Math.Pow(Math.Sin(theta), 2) * Math.Sin(phi);
                             case -1:
-                                return -3.872983346207417 * Math.Cos(theta) * Math.Sin(phi) * Math.Sin(theta);
+                                return 1.0925484305920792 * Math.Cos(theta) * Math.Sin(theta) * Math.Sin(phi);
                             case 0:
-                                return 0.5590169943749475 * (1.0 + 3.0 * Math.Cos(2.0 * theta));
+                                return 0.15769578262626002 * (1.0 + 3.0 * Math.Cos(2.0 * theta));
                             case 1:
-                                return -3.872983346207417 * Math.Cos(phi) * Math.Cos(theta) * Math.Sin(theta);
+                                return 1.0925484305920792 * Math.Cos(theta) * Math.Cos(phi) * Math.Sin(theta);
                             case 2:
-                                return 1.9364916731037085 * Math.Cos(2.0 * phi) * Math.Pow(Math.Sin(theta), 2);
+                                return 0.5462742152960396 * Math.Cos(2.0 * phi) * Math.Pow(Math.Sin(theta), 2);
                             default:
                                 throw null;
                         }
@@ -85,19 +65,19 @@ namespace CCIUtilities
                         switch (m)
                         {
                             case -3:
-                                return -2.091650066335189 * Math.Sin(3.0 * phi) * Math.Pow(Math.Sin(theta), 3);
+                                return 0.5900435899266435 * Math.Pow(Math.Sin(theta), 3) * Math.Sin(3.0 * phi);
                             case -2:
-                                return 5.123475382979799 * Math.Sin(2.0 * phi) * Math.Cos(theta) * Math.Pow(Math.Sin(theta), 2);
+                                return 2.890611442640554 * Math.Cos(theta) * Math.Cos(phi) * Math.Pow(Math.Sin(theta), 2) * Math.Sin(phi);
                             case -1:
-                                return -0.8100925873009825 * (3.0 + 5.0 * Math.Cos(2.0 * theta)) * Math.Sin(phi) * Math.Sin(theta);
+                                return 0.11426144986611644 * (Math.Sin(theta) + 5.0 * Math.Sin(3.0 * theta)) * Math.Sin(phi);
                             case 0:
-                                return 0.33071891388307384 * (3.0 * Math.Cos(theta) + 5.0 * Math.Cos(3.0 * theta));
+                                return 0.09329408314752885 * (3.0 * Math.Cos(theta) + 5.0 * Math.Cos(3.0 * theta));
                             case 1:
-                                return -0.8100925873009825 * Math.Cos(phi) * (3.0 + 5.0 * Math.Cos(2.0 * theta)) * Math.Sin(theta);
+                                return 0.11426144986611644 * Math.Cos(phi) * (Math.Sin(theta) + 5.0 * Math.Sin(3.0 * theta));
                             case 2:
-                                return 5.123475382979799 * Math.Cos(2.0 * phi) * Math.Cos(theta) * Math.Pow(Math.Sin(theta), 2);
+                                return 1.445305721320277 * Math.Cos(theta) * Math.Cos(2.0 * phi) * Math.Pow(Math.Sin(theta), 2);
                             case 3:
-                                return -2.091650066335189 * Math.Cos(3.0 * phi) * Math.Pow(Math.Sin(theta), 3);
+                                return 0.5900435899266435 * Math.Cos(3.0 * phi) * Math.Pow(Math.Sin(theta), 3);
                             default:
                                 throw null;
                         }
@@ -105,26 +85,58 @@ namespace CCIUtilities
                         switch (m)
                         {
                             case -4:
-                                return 2.218529918662356 * Math.Sin(4.0 * phi) * Math.Pow(Math.Sin(theta), 4);
+                                return 0.6258357354491761 * Math.Pow(Math.Sin(theta), 4) * Math.Sin(4.0 * phi);
                             case -3:
-                                return -6.274950199005566 * Math.Cos(theta) * Math.Sin(3.0 * phi) * Math.Pow(Math.Sin(theta), 3);
+                                return 1.7701307697799304 * Math.Cos(theta) * Math.Pow(Math.Sin(theta), 3) * Math.Sin(3.0 * phi);
                             case -2:
-                                return 0.8385254915624212 * (5.0 + 7.0 * Math.Cos(2.0 * theta)) * Math.Sin(2.0 * phi) * Math.Pow(Math.Sin(theta), 2);
+                                return 0.23654367393939002 * (5.0 + 7.0 * Math.Cos(2.0 * theta)) * Math.Pow(Math.Sin(theta), 2) * Math.Sin(2.0 * phi);
                             case -1:
-                                return -0.5929270612815711 * (1.0 + 7.0 * Math.Cos(2.0 * theta)) * Math.Sin(phi) * Math.Sin(2.0 * theta);
+                                return 0.08363081794466115 * (2.0 * Math.Sin(2.0 * theta) + 7.0 * Math.Sin(4.0 * theta)) * Math.Sin(phi);
                             case 0:
-                                return 0.046875 * (9.0 + 20.0 * Math.Cos(2.0 * theta) + 35.0 * Math.Cos(4.0 * theta));
+                                return 0.013223193364400539 * (9.0 + 20.0 * Math.Cos(2.0 * theta) + 35.0 * Math.Cos(4.0 * theta));
                             case 1:
-                                return -0.5929270612815711 * Math.Cos(phi) * (1.0 + 7.0 * Math.Cos(2.0 * theta)) * Math.Sin(2.0 * theta);
+                                return 0.08363081794466115 * Math.Cos(phi) * (2.0 * Math.Sin(2.0 * theta) + 7.0 * Math.Sin(4.0 * theta));
                             case 2:
-                                return 0.8385254915624212 * Math.Cos(2.0 * phi) * (5.0 + 7.0 * Math.Cos(2.0 * theta)) * Math.Pow(Math.Sin(theta), 2);
+                                return 0.23654367393939002 * (5.0 + 7.0 * Math.Cos(2.0 * theta)) * Math.Cos(2.0 * phi) * Math.Pow(Math.Sin(theta), 2);
                             case 3:
-                                return -6.274950199005566 * Math.Cos(3.0 * phi) * Math.Cos(theta) * Math.Pow(Math.Sin(theta), 3);
+                                return 1.7701307697799304 * Math.Cos(theta) * Math.Cos(3.0 * phi) * Math.Pow(Math.Sin(theta), 3);
                             case 4:
-                                return 2.218529918662356 * Math.Cos(4.0 * phi) * Math.Pow(Math.Sin(theta), 4);
+                                return 0.6258357354491761 * Math.Cos(4.0 * phi) * Math.Pow(Math.Sin(theta), 4);
                             default:
                                 throw null;
                         }
+                    case 5:
+                        switch (m)
+                        {
+                            case -5:
+                                return 0.6563820568401701 * Math.Pow(Math.Sin(theta), 5) * Math.Sin(5.0 * phi);
+                            case -4:
+                                return 2.0756623148810416 * Math.Cos(theta) * Math.Pow(Math.Sin(theta), 4) * Math.Sin(4.0 * phi);
+                            case -3:
+                                return 0.2446191497176252 * (7.0 + 9.0 * Math.Cos(2.0 * theta)) * Math.Pow(Math.Sin(theta), 3) * Math.Sin(3.0 * phi);
+                            case -2:
+                                return 0.5991920981216655 * (5.0 * Math.Cos(theta) + 3.0 * Math.Cos(3.0 * theta)) * Math.Pow(Math.Sin(theta), 2) * Math.Sin(2.0 * phi);
+                            case -1:
+                                return 0.02830916569973106 * (2.0 * Math.Sin(theta) + 7.0 * (Math.Sin(3.0 * theta) + 3.0 * Math.Sin(5.0 * theta))) * Math.Sin(phi);
+                            case 0:
+                                return 0.007309395153338975 * (30.0 * Math.Cos(theta) + 35.0 * Math.Cos(3.0 * theta) + 63.0 * Math.Cos(5.0 * theta));
+                            case 1:
+                                return 0.02830916569973106 * Math.Cos(phi) * (2.0 * Math.Sin(theta) + 7.0 * (Math.Sin(3.0 * theta) + 3.0 * Math.Sin(5.0 * theta)));
+                            case 2:
+                                return 0.5991920981216655 * (5.0 * Math.Cos(theta) + 3.0 * Math.Cos(3.0 * theta)) * Math.Cos(2.0 * phi) * Math.Pow(Math.Sin(theta), 2);
+                            case 3:
+                                return 0.2446191497176252 * (7.0 + 9.0 * Math.Cos(2.0 * theta)) * Math.Cos(3.0 * phi) * Math.Pow(Math.Sin(theta), 3);
+                            case 4:
+                                return 2.0756623148810416 * Math.Cos(theta) * Math.Cos(4.0 * phi) * Math.Pow(Math.Sin(theta), 4);
+                            case 5:
+                                return 0.6563820568401701 * Math.Cos(5.0 * phi) * Math.Pow(Math.Sin(theta), 5);
+                            default:
+                                throw null;
+                        }
+                    default:
+                        if (l > maxOrder)
+                            return (new SH(l, m)).EvaluateAt(theta, phi);
+                        return HigherOrder[l - fixedOrder - 1][m + l].EvaluateAt(theta, phi);
                 }
             }
             catch (Exception e)
@@ -139,193 +151,96 @@ namespace CCIUtilities
 
         public static double DYtheta(int l, int m, double theta, double phi)
         {
-            try
-            {
-                switch (l)
-                {
-                    case 0:
-                        return 0D;
-                    case 1:
-                        if (m == -1)
-                            return -1.7320508075688772 * Math.Cos(theta) * Math.Sin(phi);
-                        if (m == 0)
-                            return -1.7320508075688772 * Math.Sin(theta);
-                        if (m == 1)
-                            return -1.7320508075688772 * Math.Cos(phi) * Math.Cos(theta);
-                        else
-                            throw null;
-                    case 2:
-                        switch (m)
-                        {
-                            case -2:
-                                return 3.872983346207417 * Math.Cos(theta) * Math.Sin(2.0 * phi) * Math.Sin(theta);
-                            case -1:
-                                return -3.872983346207417 * Math.Pow(Math.Cos(theta), 2) * Math.Sin(phi) +
-                                    3.872983346207417 * Math.Sin(phi) * Math.Pow(Math.Sin(theta), 2);
-                            case 0:
-                                return -3.3541019662496847 * Math.Sin(2.0 * theta);
-                            case 1:
-                                return -3.872983346207417 * Math.Cos(phi) * Math.Pow(Math.Cos(theta), 2) +
-                                    3.872983346207417 * Math.Cos(phi) * Math.Pow(Math.Sin(theta), 2);;
-                            case 2:
-                                return 3.872983346207417 * Math.Cos(2.0 * phi) * Math.Cos(theta) * Math.Sin(theta);
-                            default:
-                                throw null;
-                        }
-                    case 3:
-                        switch (m)
-                        {
-                            case -3:
-                                return -6.274950199005566 * Math.Cos(theta) * Math.Sin(3.0 * phi) * Math.Pow(Math.Sin(theta), 2);
-                            case -2:
-                                return 10.246950765959598 * Math.Pow(Math.Cos(theta), 2) * Math.Sin(2.0 * phi) * Math.Sin(theta) -
-                                    5.123475382979799 * Math.Sin(2.0 * phi) * Math.Pow(Math.Sin(theta), 3);
-                            case -1:
-                                return -0.8100925873009825 * Math.Cos(theta) * (3.0 + 5.0 * Math.Cos(2.0 * theta)) * Math.Sin(phi) +
-                                    8.100925873009825 * Math.Sin(phi) * Math.Sin(theta) * Math.Sin(2.0 * theta);
-                            case 0:
-                                return 0.33071891388307384 * (-3.0 * Math.Sin(theta) - 15.0 * Math.Sin(3.0 * theta));
-                            case 1:
-                                return -0.8100925873009825 * Math.Cos(phi) * Math.Cos(theta) * (3.0 + 5.0 * Math.Cos(2.0 * theta)) +
-                                    8.100925873009825 * Math.Cos(phi) * Math.Sin(theta) * Math.Sin(2.0 * theta);
-                            case 2:
-                                return 10.246950765959598 * Math.Cos(2.0 * phi) * Math.Pow(Math.Cos(theta), 2) * Math.Sin(theta) -
-                                    5.123475382979799 * Math.Cos(2.0 * phi) * Math.Pow(Math.Sin(theta), 3);
-                            case 3:
-                                return -6.274950199005566 * Math.Cos(3.0 * phi) * Math.Cos(theta) * Math.Pow(Math.Sin(theta), 2);
-                            default:
-                                throw null;
-                        }
-                    case 4:
-                        switch (m)
-                        {
-                            case -4:
-                                return 8.874119674649425 * Math.Cos(theta) * Math.Sin(4.0 * phi) * Math.Pow(Math.Sin(theta), 3);
-                            case -3:
-                                return -18.8248505970167 * Math.Pow(Math.Cos(theta), 2) * Math.Sin(3.0 * phi) * Math.Pow(Math.Sin(theta), 2) +
-                                    6.274950199005566 * Math.Sin(3.0 * phi) * Math.Pow(Math.Sin(theta), 4);
-                            case -2:
-                                return 1.6770509831248424 * Math.Cos(theta) * (5.0 + 7.0 * Math.Cos(2.0 * theta)) * Math.Sin(2.0 * phi) * Math.Sin(theta) -
-                                    11.739356881873896 * Math.Sin(2.0 * phi) * Math.Pow(Math.Sin(theta), 2) * Math.Sin(2.0 * theta);
-                            case -1:
-                                return -1.1858541225631423 * Math.Cos(2.0 * theta) * (1.0 + 7.0 * Math.Cos(2.0 * theta)) * Math.Sin(phi) +
-                                    8.300978857941995 * Math.Sin(phi) * Math.Pow(Math.Sin(2.0 * theta), 2);
-                            case 0:
-                                return 0.046875 * (-40.0 * Math.Sin(2.0 * theta) - 140.0 * Math.Sin(4.0 * theta));
-                            case 1:
-                                return -1.1858541225631423 * Math.Cos(phi) * Math.Cos(2.0 * theta) * (1.0 + 7.0 * Math.Cos(2.0 * theta)) +
-                                    8.300978857941995 * Math.Cos(phi) * Math.Pow(Math.Sin(2.0 * theta), 2);
-                            case 2:
-                                return 1.6770509831248424 * Math.Cos(2.0 * phi) * Math.Cos(theta) * (5.0 + 7.0 * Math.Cos(2.0 * theta)) * Math.Sin(theta) -
-                                    11.739356881873896 * Math.Cos(2.0 * phi) * Math.Pow(Math.Sin(theta), 2) * Math.Sin(2.0 * theta);
-                            case 3:
-                                return -18.8248505970167 * Math.Cos(3.0 * phi) * Math.Pow(Math.Cos(theta), 2) * Math.Pow(Math.Sin(theta), 2) +
-                                    6.274950199005566 * Math.Cos(3.0 * phi) * Math.Pow(Math.Sin(theta), 4);
-                            case 4:
-                                return 8.874119674649425 * Math.Cos(4.0 * phi) * Math.Cos(theta) * Math.Pow(Math.Sin(theta), 3);
-                            default:
-                                throw null;
-                        }
-                }
-            }
-            catch (Exception e)
-            {
-                if (e == null)
-                    throw new ArgumentOutOfRangeException("Invalid (m, l) = (" + l.ToString("0") + ", " + m.ToString("0") + ")");
-                else
-                    throw e;
-            }
-            return 0;
+            if (theta == 0D || theta == Math.PI) return 0D;
+            double l1 = l + 1;
+            double l2 = (l << 1) + 1; //2l + 1
+            double m2 = m * m;
+            return (l * Math.Sqrt((l1 + l1 - m2) / (l2 * (l2 + 2D))) * Y(l + 1, m, theta, phi) -
+                l1 * Math.Sqrt((l * l - m2) / (l2 * (l2 - 2D))) * Y(l - 1, m, theta, phi)) / Math.Sin(theta);
         }
 
         public static double DYphi(int l, int m, double theta, double phi)
         {
-            try
-            {
-                switch (l)
-                {
-                    case 0:
-                        return 0D;
-                    case 1:
-                        if (m == -1)
-                            return -1.7320508075688772 * Math.Cos(phi) * Math.Sin(theta);
-                        if (m == 0)
-                            return 0D;
-                        if (m == 1)
-                            return -1.7320508075688772 * Math.Sin(phi) * Math.Sin(theta);
-                        else
-                            throw null;
-                    case 2:
-                        switch (m)
-                        {
-                            case -2:
-                                return 3.872983346207417 * Math.Cos(2.0 * phi) * Math.Pow(Math.Sin(theta), 2);
-                            case -1:
-                                return -3.872983346207417 * Math.Cos(phi) * Math.Cos(theta) * Math.Sin(theta);
-                            case 0:
-                                return 0D;
-                            case 1:
-                                return 3.872983346207417 * Math.Cos(theta) * Math.Sin(phi) * Math.Sin(theta);
-                            case 2:
-                                return -3.872983346207417 * Math.Sin(2.0 * phi) * Math.Pow(Math.Sin(theta), 2);
-                            default:
-                                throw null;
-                        }
-                    case 3:
-                        switch (m)
-                        {
-                            case -3:
-                                return -6.274950199005566 * Math.Cos(3.0 * phi) * Math.Pow(Math.Sin(theta), 3);
-                            case -2:
-                                return 10.246950765959598 * Math.Cos(2.0 * phi) * Math.Cos(theta) * Math.Pow(Math.Sin(theta), 2);
-                            case -1:
-                                return -0.8100925873009825 * Math.Cos(phi) * (3.0 + 5.0 * Math.Cos(2.0 * theta)) * Math.Sin(theta);
-                            case 0:
-                                return 0D;
-                            case 1:
-                                return 0.8100925873009825 * (3.0 + 5.0 * Math.Cos(2.0 * theta)) * Math.Sin(phi) * Math.Sin(theta);
-                            case 2:
-                                return -10.246950765959598 * Math.Cos(theta) * Math.Sin(2.0 * phi) * Math.Pow(Math.Sin(theta), 2);
-                            case 3:
-                                return 6.274950199005566 * Math.Sin(3.0 * phi) * Math.Pow(Math.Sin(theta), 3);
-                            default:
-                                throw null;
-                        }
-                    case 4:
-                        switch (m)
-                        {
-                            case -4:
-                                return 8.874119674649425 * Math.Cos(4.0 * phi) * Math.Pow(Math.Sin(theta), 4);
-                            case -3:
-                                return -18.8248505970167 * Math.Cos(3.0 * phi) * Math.Cos(theta) * Math.Pow(Math.Sin(theta), 3);
-                            case -2:
-                                return 1.6770509831248424 * Math.Cos(2.0 * phi) * (5.0 + 7.0 * Math.Cos(2.0 * theta)) * Math.Pow(Math.Sin(theta), 2);
-                            case -1:
-                                return -0.5929270612815711 * Math.Cos(phi) * (1.0 + 7.0 * Math.Cos(2.0 * theta)) * Math.Sin(2.0 * theta);
-                            case 0:
-                                return 0D;
-                            case 1:
-                                return 0.5929270612815711 * (1.0 + 7.0 * Math.Cos(2.0 * theta)) * Math.Sin(phi) * Math.Sin(2.0 * theta);
-                            case 2:
-                                return -1.6770509831248424 * (5.0 + 7.0 * Math.Cos(2.0 * theta)) * Math.Sin(2.0 * phi) * Math.Pow(Math.Sin(theta), 2);
-                            case 3:
-                                return 18.8248505970167 * Math.Cos(theta) * Math.Sin(3.0 * phi) * Math.Pow(Math.Sin(theta), 3);
-                            case 4:
-                                return -8.874119674649425 * Math.Sin(4.0 * phi) * Math.Pow(Math.Sin(theta), 4);
-                            default:
-                                throw null;
-                        }
-                }
-            }
-            catch (Exception e)
-            {
-                if (e == null)
-                    throw new ArgumentOutOfRangeException("Invalid (m, l) = (" + l.ToString("0") + ", " + m.ToString("0") + ")");
-                else
-                    throw e;
-            }
-            return 0;
+            if (m == 0) return 0D;
+            if (m > 0)
+                return -m * Y(l, m, theta, phi) * Math.Tan(m * phi);
+            return m * Y(l, m, theta, phi) / Math.Tan(m * phi);
         }
 
+        public static double DYtheta2(int l, int m, double theta, double phi)
+        {
+            if (theta == 0D || theta == Math.PI) return 0D;
+            double l1 = l + 1;
+            double l2 = (l << 1) + 1; //2l + 1
+            double m2 = m * m;
+            double f1 = l * Math.Sqrt((l1 + l1 - m2) / (l2 * (l2 + 2D)));
+            double f2 = l1 * Math.Sqrt((l * l - m2) / (l2 * (l2 - 2D)));
+            double r = f1 * l1 * Math.Sqrt(((l1 + 1) * (l1 + 1) - m2) / ((l2 + 2) * (l2 + 4))) * Y(l + 2, m, theta, phi);
+            r -= f1 * Math.Cos(theta) * Y(l + 1, m, theta, phi);
+            r += (-3D * m * m - 2D * l * l1 * (-1D + l + l * l - m * m)) / (-3D + 4D * l * l1) * Y(l, m, theta, phi);
+            r += f2 * Math.Cos(theta) * Y(l - 1, m, theta, phi);
+            l1 -= 2D;
+            r += f2 * l * Math.Sqrt((l1*l1 - m2) / (l1 * (l1 - 2D))) * Y(l - 2, m, theta, phi);
+            return r / Math.Pow(Math.Sin(theta), 2);
+        }
+
+        public static double DYphi2(int l, int m, double theta, double phi)
+        {
+            if (m == 0) return 0D;
+            return -m * m * Y(l, m, theta, phi);
+        }
+
+        public static double DYthetaphi(int l, int m, double theta, double phi)
+        {
+            if (m == 0 || theta == 0D || theta == Math.PI) return 0D;
+            double l1 = l + 1;
+            double l2 = (l << 1) + 1; //2l + 1
+            double m2 = m * m;
+            return m * Math.Sin(phi) * (l1 * Math.Sqrt((l * l - m2) / (l2 * (l2 - 2D))) * Y(l - 1, m, theta, phi) -
+                l * Math.Sqrt((l1 + l1 - m2) / (l2 * (l2 + 2D))) * Y(l + 1, m, theta, phi)) / (Math.Sin(theta) * Math.Cos(phi));
+        }
+
+        class SH
+        {
+            int _l;
+            int _m;
+
+            LegendrePoly lp; //Legendre polynomial
+            double r; //constatn multiplier
+            bool? t = null; //true=>Cos, false=>-Sin, null=>1
+
+            internal SH(int l, int m)
+            {
+                _l = l;
+                _m = m;
+                int p = Math.Abs(m);
+                r = (p == ((p >> 1) << 1)) ? 1D : -1D;
+                double q = 1D;
+                for (double qi = l - p + 1; qi <= l + p; qi++) q *= qi;
+                r *= Math.Sqrt((2D * l + 1D) / (4D * Math.PI * q));
+                if (p != 0)
+                {
+                    t = m > 0;
+                    r *= Math.Sqrt(2D);
+                }
+                lp = new LegendrePoly(l, p);
+            }
+
+            internal double EvaluateAt(SinCosCache theta, SinCosCache phi)
+            {
+                double v = r * lp.EvaluateAt(theta.Cos(1));
+                if (t == null) return v;
+                if ((bool)t) return v * phi.Cos(_m);
+                return v * phi.Sin(-_m);
+            }
+
+            internal double EvaluateAt(double theta, double phi)
+            {
+                double v = r * lp.EvaluateAt(Math.Cos(theta));
+                if (t == null) return v;
+                if ((bool)t) return v * Math.Cos(_m * phi);
+                return v * Math.Sin(-_m * phi);
+            }
+        }
     }
 }
