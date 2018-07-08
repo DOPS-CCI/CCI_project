@@ -29,7 +29,14 @@ namespace CCIUtilities
             Reset(angle);
         }
 
-        public unsafe double Sin(int n, int p = 1)
+        public SinCosCache(int size = 20)
+        {
+            _vLength = size;
+            Vs = new double[size, size];
+            Vc = new double[size, size];
+        }
+
+        public unsafe double Sin(int n = 1, int p = 1)
         {
             fixed (double* ptr = &Vs[n - 1, p - 1])
             {
@@ -49,7 +56,7 @@ namespace CCIUtilities
             }
         }
 
-        public unsafe double Cos(int n, int p = 1)
+        public unsafe double Cos(int n = 1, int p = 1)
         {
             fixed (double* ptr = &Vc[n - 1, p - 1])
             {
