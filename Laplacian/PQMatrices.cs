@@ -13,12 +13,17 @@ namespace Laplacian
     {
         NMMatrix P;
         NMMatrix Q;
-        Point3D[] points;
-        int N;
-        int M;
+
+        //Order of interpolation -- use solutions to m-order polyharmonic PDQ
+        //Degree of osculating polynomial = m - 1
+        //Power of radial basis functions in 3-D = 2 * m - 3 (solutions to PDQ)
         int _m;
+
         double _lambda;
         bool _no;
+        Point3D[] points; //Electrode locations => input points
+        int N; //number of electrode sites
+        int M; //number of coefficients in osculating polynomial = (m * (m + 1) * (m + 2)) / 6
 
         /// <summary>
         /// Constructor for P and Q matrices for 3-D spline interpolation
@@ -37,7 +42,7 @@ namespace Laplacian
         /// <summary>
         /// Calculate values of P and Q matrices using given electrode locations
         /// </summary>
-        /// <param name="locations">List or array of electrode locations</param>
+        /// <param name="locations">List or array of signal locations</param>
         /// <remarks>electrode locations must have valid signals to be used in later calculations</remarks>
         public void CalculatePQ(IEnumerable<ElectrodeRecord> locations)
         {
@@ -78,12 +83,12 @@ namespace Laplacian
         /// Calculate interpolated signal values at given locations
         /// </summary>
         /// <param name="V">Signal values at electrode locations</param>
-        /// <param name="pt">Locations at which interpolated values are to be calculated</param>
+        /// <param name="pt">Locations at which interpolated values are to be calculated => output points</param>
         /// <returns>Array of calculated values</returns>
         public double[] InterpolatedValue(NVector V, IEnumerable<Point3D> pt)
         {
-            NVector q = Q * V;
-            NVector p = P * V;
+            NVector q = Q * V; //osculating polynomial coefficients
+            NVector p = P * V; //spline component coefficients
             double[] K = new double[pt.Count()];
             int n = 2 * _m - 3;
             int j = 0;
@@ -104,50 +109,76 @@ namespace Laplacian
             return K;
         }
 
-
+        public static Tuple<int, int, int>[] DVOrder = new Tuple<int, int, int>[]{
+            new Tuple<int,int,int>(1, 0, 0),
+            new Tuple<int,int,int>(0, 1 ,0),
+            new Tuple<int,int,int>(0, 0, 1),
+            new Tuple<int,int,int>(2, 0, 0),
+            new Tuple<int,int,int>(1, 1, 0),
+            new Tuple<int,int,int>(1, 0, 1),
+            new Tuple<int,int,int>(0, 2, 0),
+            new Tuple<int,int,int>(0, 1, 1),
+            new Tuple<int,int,int>(0, 0, 2)};
         /// <summary>
         /// Calculate Laplacian components based on interpolation function
         /// </summary>
         /// <param name="V">Signal values at electrode locations</param>
         /// <param name="pt">Locations at which Laplacian component values are calculated</param>
         /// <returns>Array of calculated 3-components</returns>
-        public Point3D[] LaplacianComponents(NVector V, IEnumerable<Point3D> pt)
+        public double[,] LaplacianComponents(NVector V, IEnumerable<Point3D> pt)
         {
             NVector q = Q * V;
             NVector p = P * V;
-            Point3D[] K = new Point3D[pt.Count()];
+            double[,] K = new double[pt.Count(), 9];
             int n = 2 * _m - 3;
             int j = 0;
             foreach(Point3D ptj in pt)
             {
-                Point3D s = new Point3D(); //zero out sum
+                double[] s = new double[9]; //zero out sum
                 for (int i = 0; i < N; i++)
                 {
                     double d = distance(points[i], ptj);
                     double d2 = d * d;
-                    double d4 = p[i] * Math.Pow(d, n - 4);
-                    if (_no && d != 0)
+                    double d4 = Math.Pow(d, n - 4);
+                    double dx = ptj.X - points[i].X;
+                    double dy = ptj.Y - points[i].Y;
+                    double dz = ptj.Z - points[i].Z;
+                    if (_no && d != 0) //"New Orleans"
                     {
-                        double ap = Math.Pow(ptj.X - points[i].X, 2);
-                        s.X += 6D * ap + d2 + d4 * (2 * ap + d2) * Math.Log(d);
-                        ap = Math.Pow(ptj.Y - points[i].Y, 2);
-                        s.Y += 6D * ap + d2 + d4 * (2 * ap + d2) * Math.Log(d);
-                        ap = Math.Pow(ptj.Z - points[i].Z, 2);
-                        s.Z += 6D * ap + d2 + d4 * (2 * ap + d2) * Math.Log(d);
+                        double ap = Math.Log(d4) + 1;
+                        s[0] += 4D * dx * d2 * ap; //Vx
+                        s[1] += 4D * dy * d2 * ap; //Vy
+                        s[2] += 4D * dz * d2 * ap; //Vz
+                        s[3] += 4D * (2D * dx * dx * (ap + 2D) + d2 * ap); //Vxx
+                        s[4] += 8D * (ap + 2) * dx * dy; //Vxy
+                        s[5] += 8D * (ap + 2) * dx * dz; //Vxz
+                        s[6] += 4D * (2D * dy * dy * (ap + 2D) + d2 * ap); //Vyy
+                        s[7] += 8D * (ap + 2) * dy * dz; //Vyz
+                        s[8] += 4D * (2D * dz * dz * (ap + 2D) + d2 * ap); //Vzz
                     }
-                    else
+                    else //Polyharmonic spline
                     {
-                        s.X += d4 * ((n - 2) * Math.Pow(ptj.X - points[i].X, 2) + d2);
-                        s.Y += d4 * ((n - 2) * Math.Pow(ptj.Y - points[i].Y, 2) + d2);
-                        s.Z += d4 * ((n - 2) * Math.Pow(ptj.Z - points[i].Z, 2) + d2);
+                        d4 *= p[i];
+                        double n2 = n - 2;
+                        s[0] += d4 * dx * d2; //Vx
+                        s[1] += d4 * dy * d2; //Vy
+                        s[2] += d4 * dz * d2; //Vz
+                        s[3] += d4 * (n2 * dx * dx + d2); //Vxx
+                        s[4] += d4 * n2 * dx * dy; //Vxy
+                        s[5] += d4 * n2 * dx * dz; //Vxz
+                        s[6] += d4 * (n2 * dy * dy + d2); //Vyy
+                        s[7] += d4 * n2 * dy * dz; //Vyz
+                        s[8] += d4 * (n2 * dz * dz + d2); //Vzz
                     }
                 }
-                K[j].X = n * s.X + q.Dot(new NVector(D2osculatingPoly(ptj, 'x')));
-                K[j].Y = n * s.Y + q.Dot(new NVector(D2osculatingPoly(ptj, 'y')));
-                K[j++].Z = n * s.Z + q.Dot(new NVector(D2osculatingPoly(ptj, 'z')));
+                //add in osculating function
+                for (int i = 0; i < 9; i++)
+                    K[j,i] = n * s[i] + q.Dot(new NVector(DnosculatingPoly(ptj, DVOrder[i])));
+                j++;
             }
             return K;
         }
+
 
         /// <summary>
         /// Calculate value of terms of osculating polynomical at a point
@@ -172,6 +203,48 @@ namespace Laplacian
         }
 
         /// <summary>
+        /// Calculate values of terms of partial derivative of osculating polynomial at a point
+        /// </summary>
+        /// <param name="pt">Point3D (x, y, z) at which to calculate value</param>
+        /// <param name="dxyz">3-tuple of number of derivatives of x, y, z in order</param>
+        /// <returns>Value of terms of the derivative of osculating polynomial at v = (x, y, z)</returns>
+        /// <summary>
+        double[] DnosculatingPoly(Point3D pt, Tuple<int,int,int> dxyz)
+        {
+            int d = 0;
+            double[] p = new double[M];
+            for (int i = 0; i < _m; i++) //iterate over z powers
+            {
+                double vz = 0D;
+                if (i >= dxyz.Item3)
+                {
+                    vz = Math.Pow(pt.Z, i - dxyz.Item3);
+                    for (int l = 0; l < dxyz.Item3; l++) vz *= i - l;
+                }
+                for (int j = 0; j < _m - i; j++) //iterate over y powers
+                {
+                    double vyz = 0D;
+                    if (j >= dxyz.Item2)
+                    {
+                        vyz = Math.Pow(pt.Y, j - dxyz.Item2) * vz;
+                        for (int l = 0; l < dxyz.Item2; l++) vyz *= j - l;
+                    }
+                    for (int k = 0; k < _m - i - j; k++) //iterate over x powers
+                    {
+                        double vxyz = 0D;
+                        if (k >= dxyz.Item1)
+                        {
+                            vxyz = Math.Pow(pt.X, k - dxyz.Item1) * vyz;
+                            for (int l = 0; l < dxyz.Item1; l++) vxyz *= k - l;
+                            p[d++] = vxyz;
+                        }
+                        else
+                            d++;
+                    }
+                }
+            }
+            return p;
+        }
         /// Calculate value of terms of second derivative of osculating polynomial at a point
         /// </summary>
         /// <param name="v">Point (x, y, z) to calculate value</param>

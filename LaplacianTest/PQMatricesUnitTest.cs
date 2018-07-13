@@ -8,7 +8,7 @@ using CCIUtilities;
 namespace LaplacianTest
 {
     [TestClass]
-    public class UnitTest1
+    public class PQMatricesUnitTest
     {
         [TestMethod]
         public void TestOsculatingPoly()
@@ -23,44 +23,76 @@ namespace LaplacianTest
                 result);
             parameters = new object[2];
             parameters[0] = new Point3D(2, -3, -2);
-            parameters[1] = 'x';
-            result = (double[])pt.Invoke("D2osculatingPoly", parameters);
+            parameters[1] = new Tuple<int, int, int>(2, 0, 0);
+            result = (double[])pt.Invoke("DnosculatingPoly", parameters);
             CollectionAssert.AreEqual(
                 new double[] { 0, 0, 2, 12, 0, 0, -6, 0, 0, 0, 0, 0, -4, 0, 0, 0, 0, 0, 0, 0 },
                 result);
-            parameters[1] = 'y';
-            result = (double[])pt.Invoke("D2osculatingPoly", parameters);
+            parameters[1] = new Tuple<int, int, int>(0, 2, 0);
+            result = (double[])pt.Invoke("DnosculatingPoly", parameters);
             CollectionAssert.AreEqual(
                 new double[] { 0, 0, 0, 0, 0, 0, 0, 2, 4, -18, 0, 0, 0, 0, 0, -4, 0, 0, 0, 0 },
                 result);
-            parameters[1] = 'z';
-            result = (double[])pt.Invoke("D2osculatingPoly", parameters);
+            parameters[1] = new Tuple<int, int, int>(0, 0, 2);
+            result = (double[])pt.Invoke("DnosculatingPoly", parameters);
             CollectionAssert.AreEqual(
                 new double[] { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 4, -6, -12 },
                 result);
 
-            pq = new PQMatrices(5, 1D);
+            parameters[1] = new Tuple<int, int, int>(1, 0, 0);
+            result = (double[])pt.Invoke("DnosculatingPoly", parameters);
+            CollectionAssert.AreEqual(
+                new double[] { 0, 1, 4, 12, 0, -3, -12, 0, 9, 0, 0, -2, -8, 0, 6, 0, 0, 4, 0, 0 },
+                result);
+            parameters[1] = new Tuple<int, int, int>(0, 1, 0);
+            result = (double[])pt.Invoke("DnosculatingPoly", parameters);
+            CollectionAssert.AreEqual(
+                new double[] { 0, 0, 0, 0, 1, 2, 4, -6, -12, 27, 0, 0, 0, -2, -4, 12, 0, 0, 4, 0 },
+                result);
+            parameters[1] = new Tuple<int, int, int>(0, 0, 1);
+            result = (double[])pt.Invoke("DnosculatingPoly", parameters);
+            CollectionAssert.AreEqual(
+                new double[] { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 4, -3, -6, 9, -4, -8, 12, 12 },
+                result);
+
+            parameters[1] = new Tuple<int, int, int>(1, 1, 0);
+            result = (double[])pt.Invoke("DnosculatingPoly", parameters);
+            CollectionAssert.AreEqual(
+                new double[] { 0, 0, 0, 0, 0, 1, 4, 0, -6, 0, 0, 0, 0, 0, -2, 0, 0, 0, 0, 0 },
+                result);
+            parameters[1] = new Tuple<int, int, int>(0, 1, 1);
+            result = (double[])pt.Invoke("DnosculatingPoly", parameters);
+            CollectionAssert.AreEqual(
+                new double[] { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, -6, 0, 0, -4, 0 },
+                result);
+            parameters[1] = new Tuple<int, int, int>(1, 0, 1);
+            result = (double[])pt.Invoke("DnosculatingPoly", parameters);
+            CollectionAssert.AreEqual(
+                new double[] { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 4, 0, -3, 0, 0, -4, 0, 0 },
+                result);
+
+            pq = new PQMatrices(3, 1D);
             pt = new PrivateObject(pq);
             parameters = new object[] { new Point3D(5, -3, 2) };
             result = (double[])pt.Invoke("osculatingPoly", parameters);
             CollectionAssert.AreEqual(
-                new double[] { 1, 5, 25, 125, 625, -3, -15, -75, -375, 9, 45, 225, -27, -135, 81, 2, 10, 50, 250, -6, -30, -150, 18, 90, -54, 4,
-                    20, 100, -12, -60, 36, 8, 40, -24, 16 },
-                result);
+                new double[] { 1, 5, 25, -3, -15, 9, 2, 10, -6, 4 }, result);
             parameters = new object[2];
             parameters[0] = new Point3D(5, -3, 2);
-            parameters[1] = 'x';
-            result = (double[])pt.Invoke("D2osculatingPoly", parameters);
+            parameters[1] = new Tuple<int, int, int>(1, 0, 0);
+            result = (double[])pt.Invoke("DnosculatingPoly", parameters);
             CollectionAssert.AreEqual(
-                new double[] { 0, 0, 2, 30, 300, 0, 0, -6, -90, 0, 0, 18, 0, 0, 0, 0, 0, 4, 60, 0, 0, -12, 0, 0, 0, 0, 0, 8, 0, 0, 0, 0, 0, 0, 0 },
-                result);
-            parameters[1] = 'y';
-            result = (double[])pt.Invoke("D2osculatingPoly", parameters);
+                new double[] { 0, 1, 10, 0, -3, 0, 0, 2, 0, 0 }, result);
+
+            pq = new PQMatrices(5, 1D);
+            pt = new PrivateObject(pq);
+            parameters[1] = new Tuple<int, int, int>(0, 2, 0);
+            result = (double[])pt.Invoke("DnosculatingPoly", parameters);
             CollectionAssert.AreEqual(
                 new double[] { 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 10, 50, -18, -90, 108, 0, 0, 0, 0, 0, 0, 0, 4, 20, -36, 0, 0, 0, 0, 0, 8, 0, 0, 0, 0 },
                 result);
-            parameters[1] = 'z';
-            result = (double[])pt.Invoke("D2osculatingPoly", parameters);
+            parameters[1] = new Tuple<int, int, int>(0, 0, 2);
+            result = (double[])pt.Invoke("DnosculatingPoly", parameters);
             CollectionAssert.AreEqual(
                 new double[] { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 10, 50, -6, -30, 18, 12, 60, -36, 48 },
                 result);
@@ -103,6 +135,17 @@ namespace LaplacianTest
             {2, -2, 1}, {2, -2, 2}, {2, -1, -2}, {2, -1, -1}, {2, -1, 0}, {2, -1, 1}, {2, -1, 2}, {2, 0, -2},
             {2, 0, -1}, {2, 0, 0}, {2, 0, 1}, {2, 0, 2}, {2, 1, -2}, {2, 1, -1}, {2, 1, 0}, {2, 1, 1}, {2, 1, 2},
             {2, 2, -2}, {2, 2, -1}, {2, 2, 0}, {2, 2, 1}, {2, 2, 2}};
+
+            double[,] outLocs = new double[,]{{-1.5,-1.5,-1.5},{-1.5,-1.5,-0.5},{-1.5,-1.5,0.5},{-1.5,-1.5,1.5},{-1.5,-0.5,-1.5},{-1.5,-0.5,-0.5},
+                {-1.5,-0.5,0.5},{-1.5,-0.5,1.5},{-1.5,0.5,-1.5},{-1.5,0.5,-0.5},{-1.5,0.5,0.5},{-1.5,0.5,1.5},
+                {-1.5,1.5,-1.5},{-1.5,1.5,-0.5},{-1.5,1.5,0.5},{-1.5,1.5,1.5},{-0.5,-1.5,-1.5},{-0.5,-1.5,-0.5},
+                {-0.5,-1.5,0.5},{-0.5,-1.5,1.5},{-0.5,-0.5,-1.5},{-0.5,-0.5,-0.5},{-0.5,-0.5,0.5},{-0.5,-0.5,1.5},
+                {-0.5,0.5,-1.5},{-0.5,0.5,-0.5},{-0.5,0.5,0.5},{-0.5,0.5,1.5},{-0.5,1.5,-1.5},{-0.5,1.5,-0.5},
+                {-0.5,1.5,0.5},{-0.5,1.5,1.5},{0.5,-1.5,-1.5},{0.5,-1.5,-0.5},{0.5,-1.5,0.5},{0.5,-1.5,1.5},{0.5,-0.5,-1.5},
+                {0.5,-0.5,-0.5},{0.5,-0.5,0.5},{0.5,-0.5,1.5},{0.5,0.5,-1.5},{0.5,0.5,-0.5},{0.5,0.5,0.5},{0.5,0.5,1.5},
+                {0.5,1.5,-1.5},{0.5,1.5,-0.5},{0.5,1.5,0.5},{0.5,1.5,1.5},{1.5,-1.5,-1.5},{1.5,-1.5,-0.5},{1.5,-1.5,0.5},
+                {1.5,-1.5,1.5},{1.5,-0.5,-1.5},{1.5,-0.5,-0.5},{1.5,-0.5,0.5},{1.5,-0.5,1.5},{1.5,0.5,-1.5},{1.5,0.5,-0.5},
+                {1.5,0.5,0.5},{1.5,0.5,1.5},{1.5,1.5,-1.5},{1.5,1.5,-0.5},{1.5,1.5,0.5},{1.5,1.5,1.5}};
 
             double[] noiseFree = new double[] { -10.0, -5.0, 0.0, 5.0, 10.0, -5.414213562373095, -2.7071067811865475,
                 0.0, 2.7071067811865475, 5.414213562373095, 0.0, 0.0, 0.0, 0.0, 0.0, 5.414213562373095, 2.7071067811865475,
@@ -168,19 +211,35 @@ namespace LaplacianTest
    -0.00027578805380974,-2.646434172153028,-1.3179081412485107,0.0065404479659988985,1.2363308355108955,
    2.5484427933373253,-5.968112788868658,-2.9808556480698845,-0.13661350230909575,3.0026306372824636,
    5.830829361139299};
-
+            double[] expectedOutput = new double[]
+            {-4.354922223657282,-1.4516407412190941,1.4516407412190941,4.354922223657282,-1.5308970751096478,
+   -0.5102990250365492,0.5102990250365492,1.5308970751096478,1.5308970751096478,0.5102990250365492,
+   -0.5102990250365492,-1.5308970751096478,4.354922223657282,1.4516407412190941,-1.4516407412190941,
+   -4.354922223657282,-0.14507777634271746,-0.048359258780905856,0.048359258780905856,0.14507777634271746,
+   0.030897075109647787,0.010299025036549253,-0.010299025036549253,-0.030897075109647787,-0.030897075109647787,
+   -0.010299025036549253,0.010299025036549253,0.030897075109647787,0.14507777634271746,0.048359258780905856,
+   -0.048359258780905856,-0.14507777634271746,2.1049222236572827,0.7016407412190941,-0.7016407412190941,
+   -2.1049222236572827,0.7808970751096478,0.2602990250365492,-0.2602990250365492,-0.7808970751096478,
+   -0.7808970751096478,-0.2602990250365492,0.2602990250365492,0.7808970751096478,-2.1049222236572827,
+   -0.7016407412190941,0.7016407412190941,2.1049222236572827,2.395077776342718,0.7983592587809059,
+   -0.7983592587809059,-2.395077776342718,0.7191029248903522,0.23970097496345077,-0.23970097496345077,
+   -0.7191029248903522,-0.7191029248903522,-0.23970097496345077,0.23970097496345077,0.7191029248903522,
+   -2.395077776342718,-0.7983592587809059,0.7983592587809059,2.395077776342718};
             List<ElectrodeRecord> electrodes = new List<ElectrodeRecord>(signal1.Length);
-            Point3D[] outputLocations = new Point3D[signal1.Length];
+            Point3D[] outputLocations = new Point3D[outLocs.GetLength(0)];
 
-            for (int i = 0; i <= location.GetUpperBound(0); i++)
+            for (int i = 0; i < location.GetLength(0); i++)
             {
                 electrodes.Add(new XYZRecord("", location[i, 0], location[i, 1], location[i, 2]));
-                outputLocations[i] = new Point3D(location[i, 0], location[i, 1], location[i, 2]);
+            }
+            for (int i = 0; i < outLocs.GetLength(0); i++)
+            {
+                outputLocations[i] = new Point3D(outLocs[i, 0], outLocs[i, 1], outLocs[i, 2]);
             }
             double[] lambda = new double[] { 100, 50, 20, 10, 5, 2, 1 };
             Console.WriteLine("********** NOISE = 0.0 **********");
             NVector SVec = new NVector(signal);
-            NVector AVec = new NVector(noiseFree);
+            NVector AVec = new NVector(expectedOutput);
             NVector RMS;
             foreach (double l in lambda)
                 for (int m = 4; m < 6; m++)
@@ -195,17 +254,13 @@ namespace LaplacianTest
                     maxDiff = Math.Sqrt(RMS.Dot(RMS) / signal.Length);
                     Console.WriteLine("       and RMS = {0}", maxDiff);
 
-                    Point3D[] laplacian = pq.LaplacianComponents(new NVector(signal), outputLocations);
-                    for (int i = 0; i < laplacian.Length; i++)
-                    {
-                        Point3D p = laplacian[i];
-                        RVec[i] = p.X + p.Y + p.Z;
-                    }
+                    double[,] laplacian = pq.LaplacianComponents(new NVector(signal), outputLocations);
+                    for (int i = 0; i < laplacian.GetLength(0); i++)
+                        RVec[i] = laplacian[i, 3] + laplacian[i, 6] + laplacian[i, 8];
 //                    Console.WriteLine(RVec);
-                    for (int i = 0; i < laplacian.Length; i++)
+                    for (int i = 0; i < laplacian.GetLength(0); i++)
                     {
-                        Point3D p = laplacian[i];
-                        RVec[i] = Math.Abs(RVec[i] - (-3.0842513753404246*location[i,2]*Math.Cos(1.5707963267948966*location[i,0])*Math.Sin(0.7853981633974483*location[i,1])));
+                        RVec[i] = Math.Abs(RVec[i] - (-3.0842513753404246 * outLocs[i, 2] * Math.Cos(1.5707963267948966 * outLocs[i, 0]) * Math.Sin(0.7853981633974483 * outLocs[i, 1])));
                     }
                     maxDiff = RVec.Max();
                     Console.WriteLine("Laplacian max error = {0}", maxDiff);
@@ -233,11 +288,11 @@ namespace LaplacianTest
                     maxDiff = Math.Sqrt(RMS.Dot(RMS) / signal.Length);
                     Console.WriteLine("       and RMS = {0}", maxDiff);
 
-                    Point3D[] laplacian = pq.LaplacianComponents(new NVector(signal), outputLocations);
-                    for (int i = 0; i < laplacian.Length; i++)
+                    double[,] laplacian = pq.LaplacianComponents(new NVector(signal), outputLocations);
+                    for (int i = 0; i < laplacian.GetLength(0); i++)
                     {
-                        Point3D p = laplacian[i];
-                        RVec[i] = Math.Abs(p.X + p.Y + p.Z - (-3.0842513753404246*location[i,2]*Math.Cos(1.5707963267948966*location[i,0])*Math.Sin(0.7853981633974483*location[i,1])));
+                        RVec[i] = Math.Abs(laplacian[i, 3] + laplacian[i, 6] + laplacian[i, 8] -
+                            (-3.0842513753404246 * location[i, 2] * Math.Cos(1.5707963267948966 * location[i, 0]) * Math.Sin(0.7853981633974483 * location[i, 1])));
                     }
                     maxDiff = RVec.Max();
                     Console.WriteLine("Laplacian max error = {0}", maxDiff);
@@ -266,11 +321,11 @@ namespace LaplacianTest
                     maxDiff = Math.Sqrt(RMS.Dot(RMS) / signal1.Length);
                     Console.WriteLine("       and RMS = {0}", maxDiff);
 
-                    Point3D[] laplacian = pq.LaplacianComponents(new NVector(signal1), outputLocations);
-                    for (int i = 0; i < laplacian.Length; i++)
+                    double[,] laplacian = pq.LaplacianComponents(new NVector(signal1), outputLocations);
+                    for (int i = 0; i < laplacian.GetLength(0); i++)
                     {
-                        Point3D p = laplacian[i];
-                        RVec[i] = Math.Abs(p.X + p.Y + p.Z - (-3.0842513753404246*location[i,2]*Math.Cos(1.5707963267948966*location[i,0])*Math.Sin(0.7853981633974483*location[i,1])));
+                        RVec[i] = Math.Abs(laplacian[i, 3] + laplacian[i, 6] + laplacian[i, 8] -
+                            (-3.0842513753404246 * location[i, 2] * Math.Cos(1.5707963267948966 * location[i, 0]) * Math.Sin(0.7853981633974483 * location[i, 1])));
                     }
                     maxDiff = RVec.Max();
                     Console.WriteLine("Laplacian max error = {0}", maxDiff);

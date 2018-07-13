@@ -59,7 +59,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="SurfaceLaplacianEngine.cs" />
-    <Compile Include="FitHead.cs" />
+    <Compile Include="HeadGeometry.cs" />
     <Compile Include="PQMatrices.cs" />
   </ItemGroup>
   <ItemGroup>
