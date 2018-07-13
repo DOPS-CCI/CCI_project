@@ -11,22 +11,27 @@ namespace CCIUtilities
         static SH[][] HigherOrder;
         static int maxOrder = fixedOrder;
 
-        public void CreateSHEngine(int max)
+        public static void CreateSHEngine(int max)
         {
-            maxOrder = max;
-            if (max <= fixedOrder) return; //use precalculated formulas only
-            HigherOrder = new SH[max - fixedOrder][];
-            for (int l = 6; l <= max; l++)
+            if (max <= maxOrder) return; //use exisitng formulas
+
+            SH[][] tempHigherOrder = new SH[max - fixedOrder][];
+            for (int i = 0; i < maxOrder - fixedOrder; i++)
+                tempHigherOrder[i] = HigherOrder[i]; //copy exisiting across
+            HigherOrder = tempHigherOrder;
+            for (int l = maxOrder + 1; l <= max; l++)
             {
                 int k = l - fixedOrder - 1;
                 HigherOrder[k] = new SH[2 * l + 1];
                 for (int m = -l; m <= l; m++)
                     HigherOrder[k][m + l] = new SH(l, m);
             }
+            maxOrder = max;
         }
 
         public static double Y(int l, int m, double theta, double phi)
         {
+            if (l < 0 || l < Math.Abs(m)) return 0D;
             try
             {
                 switch (l)
@@ -105,10 +110,10 @@ namespace CCIUtilities
                             default:
                                 throw null;
                         }
-                    case 5:
+                    case fixedOrder:
                         switch (m)
                         {
-                            case -5:
+                            case -fixedOrder:
                                 return 0.6563820568401701 * Math.Pow(Math.Sin(theta), 5) * Math.Sin(5.0 * phi);
                             case -4:
                                 return 2.0756623148810416 * Math.Cos(theta) * Math.Pow(Math.Sin(theta), 4) * Math.Sin(4.0 * phi);
@@ -128,7 +133,7 @@ namespace CCIUtilities
                                 return 0.2446191497176252 * (7.0 + 9.0 * Math.Cos(2.0 * theta)) * Math.Cos(3.0 * phi) * Math.Pow(Math.Sin(theta), 3);
                             case 4:
                                 return 2.0756623148810416 * Math.Cos(theta) * Math.Cos(4.0 * phi) * Math.Pow(Math.Sin(theta), 4);
-                            case 5:
+                            case fixedOrder:
                                 return 0.6563820568401701 * Math.Cos(5.0 * phi) * Math.Pow(Math.Sin(theta), 5);
                             default:
                                 throw null;
@@ -146,58 +151,335 @@ namespace CCIUtilities
                 else
                     throw e;
             }
-            return 0;
         }
 
-        public static double DYtheta(int l, int m, double theta, double phi)
+        public static double Y(int l, int m, SinCosCache theta, SinCosCache phi)
         {
-            if (theta == 0D || theta == Math.PI) return 0D;
-            double l1 = l + 1;
-            double l2 = (l << 1) + 1; //2l + 1
-            double m2 = m * m;
-            return (l * Math.Sqrt((l1 + l1 - m2) / (l2 * (l2 + 2D))) * Y(l + 1, m, theta, phi) -
-                l1 * Math.Sqrt((l * l - m2) / (l2 * (l2 - 2D))) * Y(l - 1, m, theta, phi)) / Math.Sin(theta);
+            if (l < 0 || l < Math.Abs(m)) return 0D;
+            try
+            {
+                switch (l)
+                {
+                    case 0:
+                        return 0.28209479177387814;
+                    case 1:
+                        switch (m)
+                        {
+                            case -1:
+                                return 0.4886025119029199 * theta.Sin() * phi.Sin();
+                            case 0:
+                                return 0.4886025119029199 * theta.Cos();
+                            case 1:
+                                return 0.4886025119029199 * phi.Cos() * theta.Sin();
+                            default:
+                                throw null;
+                        }
+                    case 2:
+                        switch (m)
+                        {
+                            case -2:
+                                return 1.0925484305920792 * phi.Cos() * theta.Sin(1, 2) * phi.Sin();
+                            case -1:
+                                return 1.0925484305920792 * theta.Cos() * theta.Sin() * phi.Sin();
+                            case 0:
+                                return 0.15769578262626002 * (1.0 + 3.0 * theta.Cos(2));
+                            case 1:
+                                return 1.0925484305920792 * theta.Cos() * phi.Cos() * theta.Sin();
+                            case 2:
+                                return 0.5462742152960396 * phi.Cos(2) * theta.Sin(1, 2);
+                            default:
+                                throw null;
+                        }
+                    case 3:
+                        switch (m)
+                        {
+                            case -3:
+                                return 0.5900435899266435 * theta.Sin(1, 3) * phi.Sin(3);
+                            case -2:
+                                return 2.890611442640554 * theta.Cos() * phi.Cos() * theta.Sin(1, 2) * phi.Sin();
+                            case -1:
+                                return 0.11426144986611644 * (theta.Sin() + 5.0 * theta.Sin(3)) * phi.Sin();
+                            case 0:
+                                return 0.09329408314752885 * (3.0 * theta.Cos() + 5.0 * theta.Cos(3));
+                            case 1:
+                                return 0.11426144986611644 * phi.Cos() * (theta.Sin() + 5.0 * theta.Sin(3));
+                            case 2:
+                                return 1.445305721320277 * theta.Cos() * phi.Cos(2) * theta.Sin(1, 2);
+                            case 3:
+                                return 0.5900435899266435 * phi.Cos(3) * theta.Sin(1, 3);
+                            default:
+                                throw null;
+                        }
+                    case 4:
+                        switch (m)
+                        {
+                            case -4:
+                                return 0.6258357354491761 * theta.Sin(1, 4) * phi.Sin(4);
+                            case -3:
+                                return 1.7701307697799304 * theta.Cos() * theta.Sin(1, 3) * phi.Sin(3);
+                            case -2:
+                                return 0.23654367393939002 * (5.0 + 7.0 * theta.Cos(2)) * theta.Sin(1, 2) * phi.Sin(2);
+                            case -1:
+                                return 0.08363081794466115 * (2.0 * theta.Sin(2) + 7.0 * theta.Sin(4)) * phi.Sin();
+                            case 0:
+                                return 0.013223193364400539 * (9.0 + 20.0 * theta.Cos(2) + 35.0 * theta.Cos(4));
+                            case 1:
+                                return 0.08363081794466115 * phi.Cos() * (2.0 * theta.Sin(2) + 7.0 * theta.Sin(4));
+                            case 2:
+                                return 0.23654367393939002 * (5.0 + 7.0 * theta.Cos(2)) * phi.Cos(2) * theta.Sin(1, 2);
+                            case 3:
+                                return 1.7701307697799304 * theta.Cos() * phi.Cos(3) * theta.Sin(1, 3);
+                            case 4:
+                                return 0.6258357354491761 * phi.Cos(4) * theta.Sin(1, 4);
+                            default:
+                                throw null;
+                        }
+                    case 5:
+                        switch (m)
+                        {
+                            case -5:
+                                return 0.6563820568401701 * theta.Sin(1, 5) * phi.Sin(5);
+                            case -4:
+                                return 2.0756623148810416 * theta.Cos() * theta.Sin(1, 4) * phi.Sin(4);
+                            case -3:
+                                return 0.2446191497176252 * (7.0 + 9.0 * theta.Cos(2)) * theta.Sin(1, 3) * phi.Sin(3);
+                            case -2:
+                                return 0.5991920981216655 * (5.0 * theta.Cos() + 3.0 * theta.Cos(3)) * theta.Sin(1, 2) * phi.Sin(2);
+                            case -1:
+                                return 0.02830916569973106 * (2.0 * theta.Sin() + 7.0 * (theta.Sin(3) + 3.0 * theta.Sin(5))) * phi.Sin();
+                            case 0:
+                                return 0.007309395153338975 * (30.0 * theta.Cos() + 35.0 * theta.Cos(3) + 63.0 * theta.Cos(5));
+                            case 1:
+                                return 0.02830916569973106 * phi.Cos() * (2.0 * theta.Sin() + 7.0 * (theta.Sin(3) + 3.0 * theta.Sin(5)));
+                            case 2:
+                                return 0.5991920981216655 * (5.0 * theta.Cos() + 3.0 * theta.Cos(3)) * phi.Cos(2) * theta.Sin(1, 2);
+                            case 3:
+                                return 0.2446191497176252 * (7.0 + 9.0 * theta.Cos(2)) * phi.Cos(3) * theta.Sin(1, 3);
+                            case 4:
+                                return 2.0756623148810416 * theta.Cos() * phi.Cos(4) * theta.Sin(1, 4);
+                            case 5:
+                                return 0.6563820568401701 * phi.Cos(5) * theta.Sin(1, 5);
+                            default:
+                                throw null;
+                        }
+                    default:
+                        if (l > maxOrder)
+                            return (new SH(l, m)).EvaluateAt(theta, phi);
+                        return HigherOrder[l - fixedOrder - 1][m + l].EvaluateAt(theta, phi);
+                }
+            }
+            catch (Exception e)
+            {
+                if (e == null)
+                    throw new ArgumentOutOfRangeException("Invalid (m, l) = (" + l.ToString("0") + ", " + m.ToString("0") + ")");
+                else
+                    throw e;
+            }
         }
 
-        public static double DYphi(int l, int m, double theta, double phi)
+        public static double[] DY(int l, int m, double theta, double phi, Tuple<int, int> order)
         {
-            if (m == 0) return 0D;
-            if (m > 0)
-                return -m * Y(l, m, theta, phi) * Math.Tan(m * phi);
-            return m * Y(l, m, theta, phi) / Math.Tan(m * phi);
+            if (order.Item1 > 0 && (theta == 0D || theta == Math.PI)) return new double[] { 0D };
+            if (order.Item2 > 0 && m == 0) return new double[] { 0D };
+            try
+            {
+                switch (order.Item1)
+                {
+                    case 0:
+                        switch (order.Item2)
+                        {
+                            case 0: //No derivative
+                                return new double[] { 1D };
+                            case 1: //DPhi
+                                if (m > 0)
+                                    return new double[] { -m * Math.Tan(m * phi) };
+                                return new double[] { m / Math.Tan(m * phi) };
+                            case 2: //DPhi2
+                                return new double[] { (double)-m * m };
+                            default:
+                                throw null;
+                        }
+                    case 1:
+                        double el = (double)l;
+                        double m2 = m * m;
+                        double l1 = l + 1;
+                        double l2 = 2D * el + 1D; 
+                        double st = Math.Sin(theta);
+                        double p1 = l1 * Math.Sqrt((l * l - m * m) / (l2 * (l2 - 2D))) / st;
+                        double p2 = el * Math.Sqrt((l1 * l1 - m2) / (l2 * (l2 + 2D))) / st;
+                        switch (order.Item2)
+                        {
+                            case 0: //Dtheta
+                                return new double[]
+                                {
+                                    -p1,
+                                    0D,
+                                    p2
+                                };
+                            case 1: //DthetaDphi
+                                double t = Math.Tan(m * phi);
+                                if (m > 0)
+                                    return new double[]
+                                    {
+                                        m * t * p1,
+                                        0D, 
+                                        -m * t * p2
+                                    };
+                                return new double[]
+                                {
+                                    -m * p1 / t,
+                                    0D, 
+                                    m * p2 / t
+
+                                };
+                            default:
+                                throw null;
+                        }
+                    case 2: //Dtheta2
+                        el = (double)l;
+                        m2 = m * m;
+                        l1 = el + 1D;
+                        l2 = 2D * el + 1D;
+                        st = Math.Sin(theta);
+                        int ip1 = l * l - m * m;
+                        double temp;
+                        //avoid NaN from negative Sqrt of ((l-1)^2-m^2)/(2l-1)(2l-3), l > 1, l==|m|
+                        if (ip1 == 0) temp = p1 = 0D;
+                        else
+                        {
+                            p1 = l1 * Math.Sqrt(ip1 / (l2 * (l2 - 2D))) / (st * st);
+                            temp = p1 * el * Math.Sqrt(((el - 1D) * (el - 1D) - m2) / ((l2 - 2D) * (l2 - 4D)));
+                        }
+                        p2 = el * Math.Sqrt((l1 * l1 - m2) / (l2 * (l2 + 2D))) / (st * st);
+                        double ct = Math.Cos(theta);
+                        return new double[]
+                            {
+                                temp,
+                                p1 * ct,
+                                (-3D * m2 - 2D * el * l1 * (-1D + l1 * el - m2)) / ((l2 * l2 - 4D) * st * st),
+                                -p2 * ct,
+                                p2 * l1 * Math.Sqrt(((el + 2D) * (el + 2D) - m2) / ((l2 + 2D) * (l2 + 4D)))
+                            };
+                    default:
+                        throw null;
+                }
+            }
+            catch (Exception e)
+            {
+                if (e == null)
+                    throw new ArgumentOutOfRangeException("In DY: Invalid/unimplemented derivative = (" +
+                        order.Item1.ToString("0") + ", " + order.Item2.ToString("0") + ")");
+                else
+                    throw e;
+            }
         }
 
-        public static double DYtheta2(int l, int m, double theta, double phi)
+        public static double[] DY(int l, int m, SinCosCache theta, SinCosCache phi, Tuple<int, int> order)
         {
-            if (theta == 0D || theta == Math.PI) return 0D;
-            double l1 = l + 1;
-            double l2 = (l << 1) + 1; //2l + 1
-            double m2 = m * m;
-            double f1 = l * Math.Sqrt((l1 + l1 - m2) / (l2 * (l2 + 2D)));
-            double f2 = l1 * Math.Sqrt((l * l - m2) / (l2 * (l2 - 2D)));
-            double r = f1 * l1 * Math.Sqrt(((l1 + 1) * (l1 + 1) - m2) / ((l2 + 2) * (l2 + 4))) * Y(l + 2, m, theta, phi);
-            r -= f1 * Math.Cos(theta) * Y(l + 1, m, theta, phi);
-            r += (-3D * m * m - 2D * l * l1 * (-1D + l + l * l - m * m)) / (-3D + 4D * l * l1) * Y(l, m, theta, phi);
-            r += f2 * Math.Cos(theta) * Y(l - 1, m, theta, phi);
-            l1 -= 2D;
-            r += f2 * l * Math.Sqrt((l1*l1 - m2) / (l1 * (l1 - 2D))) * Y(l - 2, m, theta, phi);
-            return r / Math.Pow(Math.Sin(theta), 2);
+            if (order.Item1 > 0 && (theta.Angle == 0D || theta.Angle == Math.PI)) return new double[] { 0D };
+            if (order.Item2 > 0 && m == 0) return new double[] { 0D };
+            try
+            {
+                switch (order.Item1)
+                {
+                    case 0:
+                        switch (order.Item2)
+                        {
+                            case 0: //No derivative
+                                return new double[] { 1D };
+                            case 1: //DPhi
+                                if (m > 0)
+                                    return new double[] { -m *phi.Tan(m) };
+                                return new double[] { m * phi.Cot(m) };
+                            case 2: //DPhi2
+                                return new double[] { (double)-m * m };
+                            default:
+                                throw null;
+                        }
+                    case 1:
+                        double el = (double)l;
+                        double l1 = el + 1D;
+                        double l2 = 2D * el + 1D; 
+                        double m2 = m * m;
+                        double st = theta.Sin();
+                        double p1 = l1 * Math.Sqrt((el * el - m2) / (l2 * (l2 - 2D))) / st;
+                        double p2 = el * Math.Sqrt((l1 * l1 - m2) / (l2 * (l2 + 2D))) / st;
+                        switch (order.Item2)
+                        {
+                            case 0: //Dtheta
+                                return new double[]
+                                {
+                                    -p1,
+                                    0D,
+                                    p2
+                                };
+                            case 1: //DthetaDphi
+                                double t = phi.Tan(m);
+                                if (m > 0)
+                                    return new double[]
+                                    {
+                                        m * t * p1,
+                                        0D, 
+                                        -m * t * p2
+                                    };
+                                return new double[]
+                                {
+                                    -m * p1 / t,
+                                    0D, 
+                                    m * p2 / t
+
+                                };
+                            default:
+                                throw null;
+                        }
+                    case 2: //Dtheta2
+                        el = (double)l;
+                        l1 = el + 1;
+                        l2 = 2D * el + 1D;
+                        m2 = m * m;
+                        st = theta.Sin(1, 2);
+                        int ip1 = l * l - m * m;
+                        double temp;
+                        //avoid NaN from negative Sqrt of ((l-1)^2-m^2)/(2l-1)(2l-3), l > 1, l==|m|
+                        if (ip1 == 0) temp = p1 = 0D;
+                        else
+                        {
+                            p1 = l1 * Math.Sqrt(ip1 / (l2 * (l2 - 2D))) / st;
+                            temp = p1 * el * Math.Sqrt(((el - 1D) * (el - 1D) - m2) / ((l2 - 2D) * (l2 - 4D)));
+                        }
+                        p2 = el * Math.Sqrt((l1 * l1 - m2) / (l2 * (l2 + 2D))) / st;
+                        double ct = theta.Cos();
+                        return new double[]
+                            {
+                                temp,
+                                p1 * ct,
+                                (-3D * m2 - 2D * el * l1 * (-1D + l1 * el - m2)) / ((l2 * l2 - 4D) * st),
+                                -p2 * ct,
+                                p2 * l1 * Math.Sqrt(((l1 + 1D) * (l1 + 1D) - m2) / ((l2 + 2D) * (l2 + 4D)))
+                            };
+                    default:
+                        throw null;
+                }
+            }
+            catch (Exception e)
+            {
+                if (e == null)
+                    throw new ArgumentOutOfRangeException("In DY: Invalid/unimplemented derivative = (" +
+                        order.Item1.ToString("0") + ", " + order.Item2.ToString("0") + ")");
+                else
+                    throw e;
+            }
         }
 
-        public static double DYphi2(int l, int m, double theta, double phi)
+        public static void i2lm(int i, out int l, out int m)
         {
-            if (m == 0) return 0D;
-            return -m * m * Y(l, m, theta, phi);
+            l = (int)Math.Sqrt(i);
+            m = i - l * (l + 1);
         }
 
-        public static double DYthetaphi(int l, int m, double theta, double phi)
+        public static int lm2i(int l, int m)
         {
-            if (m == 0 || theta == 0D || theta == Math.PI) return 0D;
-            double l1 = l + 1;
-            double l2 = (l << 1) + 1; //2l + 1
-            double m2 = m * m;
-            return m * Math.Sin(phi) * (l1 * Math.Sqrt((l * l - m2) / (l2 * (l2 - 2D))) * Y(l - 1, m, theta, phi) -
-                l * Math.Sqrt((l1 + l1 - m2) / (l2 * (l2 + 2D))) * Y(l + 1, m, theta, phi)) / (Math.Sin(theta) * Math.Cos(phi));
+            return l * (l + 1) + m;
         }
 
         class SH
