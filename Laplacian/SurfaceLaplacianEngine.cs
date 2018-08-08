@@ -16,25 +16,25 @@ namespace Laplacian
         int Mout;
 
         /// <summary>
-        /// Creates an engine (makes preliminary calculations) for generating Surface Laplacians
-        /// over a "near-sphere" surface of a sum of spherical harmonics. Surface is created by
+        /// Creates an engine (making preliminary calculations) for generating Surface Laplacians
+        /// over a "near-sphere" surface of a weighted sum of spherical harmonics. Surface is created by
         /// curve-fitting to the measured locations of scalp eletrodes. Engine can then be used to
         /// calculate the SL of the voltage measurements obtained from the electrodes. Electrodes
         /// may be excluded from the input voltages, but still be used for head measurement. The
         /// locations of the calculated values may be (and probably should be) separately selected.
         /// </summary>
         /// <param name="ElectrodeLocations">Measured electrode positions</param>
-        /// <param name="order">Highest order spherical harmonic used in shead-shape estimation</param>
+        /// <param name="order">Highest order spherical harmonic used in head-shape estimation</param>
         /// <param name="OutputLocations">Location of output calculations</param>
         /// <param name="m">Order of harmonic spline used to interpolate input voltages on scalp</param>
-        /// <param name="lambda">Regulization parameter; controls "goodness" of fit of the volage field</param>
+        /// <param name="lambda">Regularization parameter; controls "goodness" of fit of the voltage field</param>
         /// <param name="NO">Set to true to use "New Orleans" scheme of voltage interpolation</param>
         /// <param name="RejectedChannels">Electrodes that are not to be used in voltage field estimation</param>
         public SurfaceLaplacianEngine(IEnumerable<ElectrodeRecord> ElectrodeLocations, //location of all electrodes
             int order, //maximum order of head shape fit; zero => spherical fit
-            IEnumerable<double[]> OutputLocations, //locations to calculate surface Laplacian
+            IEnumerable<double[]> OutputLocations, //locations {theta, phi} to calculate surface Laplacian
             int m, double lambda, bool NO = false, //parameters for voltage field fit
-            IEnumerable<ElectrodeRecord> RejectedChannels = null) //records of channels that are left out
+            IEnumerable<ElectrodeRecord> RejectedChannels = null) //records of channels that are to be left out of active channels
         {
             Mout = OutputLocations.Count();
             double [][] outputLocs = new double[Mout][];

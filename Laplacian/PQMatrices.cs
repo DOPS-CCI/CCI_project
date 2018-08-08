@@ -17,13 +17,15 @@ namespace Laplacian
         //Order of interpolation -- use solutions to m-order polyharmonic PDQ
         //Degree of osculating polynomial = m - 1
         //Power of radial basis functions in 3-D = 2 * m - 3 (solutions to PDQ)
+        //m >= 2
         int _m;
 
         double _lambda;
         bool _no;
         Point3D[] points; //Electrode locations => input points
         int N; //number of electrode sites
-        int M; //number of coefficients in osculating polynomial = (m * (m + 1) * (m + 2)) / 6
+        int M; //number of coefficients in osculating polynomial = m * (m^2 - 1) / 6;
+            // this makes the maximum power of any term <= m - 2
 
         /// <summary>
         /// Constructor for P and Q matrices for 3-D spline interpolation
@@ -47,7 +49,7 @@ namespace Laplacian
         public void CalculatePQ(IEnumerable<ElectrodeRecord> locations)
         {
             N = locations.Count();
-            if (M >= N || !_no && _m <= 2)
+            if (M >= N || !_no && _m < 2)
                 throw new ArgumentException("In PQMatrices.CalculatePQ: too few locations");
             points = new Point3D[N];
             int p = 0;
@@ -73,6 +75,8 @@ namespace Laplacian
                 for (int j = 0; j < M; j++)
                     E[i, j] = r[j];
             }
+            //Solve for P and Q
+//            Console.WriteLine("Condition number of K = {0:0.000}", K.ConditionNumber());
             K = K.Inverse();
             NMMatrix A = E.Transpose() * K * E;
             Q = A.Inverse() * E.Transpose() * K;
@@ -123,12 +127,12 @@ namespace Laplacian
         /// Calculate Laplacian components based on interpolation function
         /// </summary>
         /// <param name="V">Signal values at electrode locations</param>
-        /// <param name="pt">Locations at which Laplacian component values are calculated</param>
+        /// <param name="pt">Locations at which Laplacian component values are to be calculated</param>
         /// <returns>Array of calculated 3-components</returns>
         public double[,] LaplacianComponents(NVector V, IEnumerable<Point3D> pt)
         {
-            NVector q = Q * V;
-            NVector p = P * V;
+            NVector q = Q * V; //osculating polynomial coefficients
+            NVector p = P * V; //spline component coefficients
             double[,] K = new double[pt.Count(), 9];
             int n = 2 * _m - 3;
             int j = 0;
@@ -245,6 +249,7 @@ namespace Laplacian
             }
             return p;
         }
+        /*
         /// Calculate value of terms of second derivative of osculating polynomial at a point
         /// </summary>
         /// <param name="v">Point (x, y, z) to calculate value</param>
@@ -292,7 +297,7 @@ namespace Laplacian
             }
             return p;
         }
-
+        */
         static double distance(Point3D r1, Point3D r2)
         {
             return Math.Sqrt(Math.Pow(r1.X - r2.X, 2) + Math.Pow(r1.Y - r2.Y, 2) + Math.Pow(r1.Z - r2.Z, 2));

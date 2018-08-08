@@ -12,8 +12,9 @@ namespace Laplacian
     {
         int _order;
         double[] beta; //regression coefficients;
-                //this is the essence of the head shape from which all geometrical measures are derived
-        GeneralizedLinearRegression.Function[] spherical; //spherical harmonics
+            //this is the essence of the head shape from which all geometrical measures are derived
+
+        GeneralizedLinearRegression.Function[] spherical; //spherical harmonics: series of functions to fit
 
         /// <summary>
         /// Constructor for spherical harmonic fit for head locations
@@ -29,11 +30,9 @@ namespace Laplacian
             int i = 0;
             foreach(ElectrodeRecord er in locations)
             {
-                PointRPhiTheta rpt = er.convertRPhiTheta();
-                y[i] = rpt.R;
-                x[i] = new double[2];
-                x[i][0] = rpt.Phi; //usual theta
-                x[i++][1] = Math.PI / 2D - rpt.Theta; //usual phi
+                double[] rpt = er.convertToMathRThetaPhi();
+                y[i] = rpt[0];
+                x[i++] = new double[] { rpt[1], rpt[2] };
             }
             spherical = new GeneralizedLinearRegression.Function[(order + 1) * (order + 1)]; //spherical harmonics
             for (int l = 0, j = 0; l <= order; l++)
@@ -49,10 +48,10 @@ namespace Laplacian
         }
 
         /// <summary>
-        /// Calculate fit surface at given point
+        /// Calculate fit surface at given point, given math coordinates
         /// </summary>
-        /// <param name="theta">Angle from y-axis clockwise in xy-plane</param>
-        /// <param name="phi">Angle from z-axis down; this is Phi in head cordinates</param>
+        /// <param name="theta">Angle from z-axis down; this is Phi in head cordinates</param>
+        /// <param name="phi">Angle from x-axis counterclockwise in xy-plane (math coordinates)</param>
         /// <returns>Distance from origin to point on fit surface</returns>
         /// <remarks>NB: angles are named opposite to usual naming convention as used in fitting algorithm;
         /// conversion is made in routine</remarks>
@@ -60,7 +59,7 @@ namespace Laplacian
         {
             double s = 0D;
             for (int i = 0; i < spherical.Length; i++)
-                s += beta[i] * spherical[i](new double[] { phi, Math.PI / 2D - theta });
+                s += beta[i] * spherical[i](new double[] { theta, phi });
             return s;
         }
 
@@ -70,7 +69,7 @@ namespace Laplacian
             new Tuple<int, int>(1, 1),
             new Tuple<int, int>(0, 1),
             new Tuple<int, int>(0, 2)};
-        public Tuple<Point3D[],double[,]> CalculateSLCoefficients(IEnumerable<double[]> thetaphiCoordinates)
+        public Tuple<Point3D[], double[,]> CalculateSLCoefficients(IEnumerable<double[]> thetaphiCoordinates)
         {
             int n = thetaphiCoordinates.Count();
             double[,] H = new double[n, 9]; //
