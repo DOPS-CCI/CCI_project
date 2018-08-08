@@ -26,6 +26,11 @@ namespace CCILibraryTest
             Assert.AreEqual(xyz.Y, 2.2);
             Assert.AreEqual(xyz.Z, 3.3);
             Console.WriteLine("XYZ={0}", xyz.ToString());
+            xyz = new XYZRecord("From RPT", new double[] { 10D, Math.PI / 4, -Math.PI / 4 });
+            Assert.AreEqual(xyz.Name, "From RPT");
+            Assert.AreEqual(xyz.X, 5D, 1E-12);
+            Assert.AreEqual(xyz.Y, -5D, 1E-12);
+            Assert.AreEqual(xyz.Z, 10D * Math.Sqrt(0.5), 1E-12);
         }
 
         [TestMethod]
@@ -51,6 +56,11 @@ namespace CCILibraryTest
             Assert.AreEqual(rpt.Phi, rpt1.Phi, 0.01);
             Assert.AreEqual(rpt.Theta, rpt1.Theta, 0.01);
 
+            double[] t = xyz.convertToMathRThetaPhi();
+            Assert.AreEqual(rpt.R, t[0], 1E-10);
+            Assert.AreEqual(rpt.Phi, t[1], 1E-10);
+            Assert.AreEqual(rpt.Theta, Math.PI / 2D - t[2], 1E-10);
+
             Point3D xyz1 = xyz.convertXYZ();
             Assert.AreEqual(P3D.X, xyz1.X, 0.01);
             Assert.AreEqual(P3D.Y, xyz1.Y, 0.01);
@@ -72,6 +82,8 @@ namespace CCILibraryTest
             Assert.AreEqual(P3D.X, p3d2.X, 0.01);
             Assert.AreEqual(P3D.Y, p3d2.Y, 0.01);
             Assert.AreEqual(P3D.Z, p3d2.Z, 0.01);
+
+
         }
 
     }

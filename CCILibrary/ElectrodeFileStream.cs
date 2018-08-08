@@ -99,7 +99,11 @@ namespace ElectrodeFileStream
 
     /// <summary>
     /// Abstract ElectrodeRecord class; properties of this class and its subclasses are immutable;
-    /// conversions/projections are permitted, but only through intermediary structures: Point, Point3D and PhiTheta
+    /// conversions/projections are permitted, but only through intermediary structures: Point, Point3D and PhiTheta.
+    /// NOTE: we call these "Head coordinates" --  X-axis to right preauricular, Y-axis to nasion, and Z-axis up
+    /// NOTE: when converted to "Head coordinates in Phi/Theta" -- Phi from vertex down; and theta is from nasion, + to right
+    /// NOTE: we call "Math cordinates" usual coordintes: {X, Y, Z} unchanged; Math Theta is same as Head Phi, Math Phi is
+    /// from X-axis (right ear) towards the nasion; note also that this is reversed direction from Head Theta.
     /// </summary>
     abstract public class ElectrodeRecord
     {
@@ -120,7 +124,9 @@ namespace ElectrodeFileStream
         public abstract Point3D convertXYZ(); //convert electrode coordinates to XYZ space: X-Y and Phi-Theta convert onto
             //a sphere of standard radius
 
-        public abstract PointRPhiTheta convertRPhiTheta(); //convert electrode coordinates to {r, phi, theta} space
+        public abstract PointRPhiTheta convertRPhiTheta(); //convert electrode coordinates to Head coordinates {r, phi, theta} space
+
+        public abstract double[] convertToMathRThetaPhi(); //convert electrode coordinates to Math coordinates {r, theta, phi} space
 
         public abstract double DistanceTo(ElectrodeRecord er); //distance on surface of standard sphere between electrodes;
             //Note: this is not the actual distance between electrodes in XYZ space, but the arc length on the sphere
@@ -128,7 +134,7 @@ namespace ElectrodeFileStream
         public abstract string ToString(string format); //standard descriptive output for this record
             //Note: to obtain a simple "phi,theta" output use projectPhiTheta().ToString(format)
 
-        protected const double radius = 10D; //standard "head radius" in centimeters
+        public const double radius = 10D; //standard "head radius" in centimeters
         internal const double ToRad = Math.PI / 180D;
         internal const double ToDeg = 180D / Math.PI;
 
@@ -145,6 +151,105 @@ namespace ElectrodeFileStream
                 double d = Math.Atan2(Math.Sqrt(t1 * t1 + t2 * t2), cPhi1 * cPhi2 + sPhi1 * sPhi2 * cDTheta);
                 return radius * d;
         }
+    }
+
+    public class RPhiThetaRecord : ElectrodeRecord
+    {
+        public double R { get; private set; }
+        public double Phi { get; private set; } //should be in radians: 0 <= Phi <= PI ; angle from vertex
+        public double Theta { get; private set; } //in radians -PI < Theta <= PI ; positive angle to right from nasion
+
+        public RPhiThetaRecord() { }
+
+        /// <summary>
+        /// Constructor
+        /// </summary>
+        /// <param name="name">Electrode name</param>
+        /// <param name="r">Radial distance</param>
+        /// <param name="phi">Angle from z-axis in degrees</param>
+        /// <param name="theta">Angle from nasion in degrees; positive to right</param>
+        public RPhiThetaRecord(string name, double r, double phi, double theta)
+            : base(name)
+        {
+            R = r;
+            Phi = phi * ToRad;
+            Theta = theta * ToRad;
+        }
+
+        /// <summary>
+        /// Read a R-Phi-Theta electrode record; values are in degrees
+        /// </summary>
+        /// <param name="xr">Open Electrode File Stream</param>
+        /// <param name="nameSpace">namesSpace or null</param>
+        public override void read(XmlReader xr, string nameSpace)
+        {
+            this.Name = xr["Name", nameSpace];
+            xr.ReadStartElement(/* Electrode */);
+            this.R = xr.ReadElementContentAsDouble("R", nameSpace);
+            this.Phi = xr.ReadElementContentAsDouble("Phi", nameSpace) * ToRad;
+            this.Theta = xr.ReadElementContentAsDouble("Theta", nameSpace) * ToRad;
+            xr.ReadEndElement(/* Electrode */);
+        }
+
+        /// <summary>
+        /// Write a Phi-Theta electode record; although stored internally in radians,
+        /// record values are written in degrees for easier human readability
+        /// </summary>
+        /// <param name="ofs">Electrode output file stream</param>
+        /// <param name="nameSpace"></param>
+        public override void write(ElectrodeOutputFileStream ofs, string nameSpace)
+        {
+            if (ofs.t != typeof(RPhiThetaRecord)) throw new Exception("Attempt to mix types in ElectrodeOutputFileStream.");
+            XmlWriter xw = ofs.xw;
+            xw.WriteStartElement("Electrode", nameSpace);
+            xw.WriteAttributeString("Name", nameSpace, this.Name);
+            xw.WriteElementString("R", nameSpace, R.ToString("G"));
+            xw.WriteElementString("Phi", nameSpace, (Phi * ToDeg).ToString("G"));
+            xw.WriteElementString("Theta", nameSpace, (Theta * ToDeg).ToString("G"));
+            xw.WriteEndElement();
+        }
+
+        public override Point projectXY()
+        {
+            return new Point(Phi * Math.Sin(Theta), Phi * Math.Cos(Theta));
+        }
+
+        public override PhiTheta projectPhiTheta()
+        {
+            return new PhiTheta(Phi, Theta);
+        }
+
+        public override Point3D convertXYZ()
+        {
+            double r1 = R * Math.Sin(Phi);
+            return new Point3D(r1 * Math.Sin(Theta), r1 * Math.Cos(Theta), R * Math.Cos(Phi));
+        }
+
+        public override PointRPhiTheta convertRPhiTheta()
+        {
+            return new PointRPhiTheta(R, Phi, Theta);
+        }
+
+        public override double[] convertToMathRThetaPhi()
+        {
+            return new double[] { R, Phi, Theta > -Math.PI / 2D ? Math.PI / 2D - Theta : -3D * Math.PI / 2 - Theta };
+        }
+
+        public override double DistanceTo(ElectrodeRecord er)
+        {
+            throw new NotImplementedException("RPhiThetaRecord.DistanceTo not implemented");
+        }
+
+        public override string ToString()
+        {
+            return "RPhiTheta: " + R.ToString("0.0000") + (Phi * ToDeg).ToString("0.0") + ", " + (Theta * ToDeg).ToString("0.0");
+        }
+
+        public override string ToString(string format)
+        {
+            return R.ToString(format) + "," + (Phi * ToDeg).ToString(format) + "," + (Theta * ToDeg).ToString(format);
+        }
+
     }
 
     public class PhiThetaRecord : ElectrodeRecord
@@ -218,6 +323,11 @@ namespace ElectrodeFileStream
         public override PointRPhiTheta convertRPhiTheta()
         {
             return new PointRPhiTheta(radius, Phi, Theta);
+        }
+
+        public override double[] convertToMathRThetaPhi()
+        {
+            return new double[] { radius, Phi, Theta > -Math.PI / 2D ? -Theta + Math.PI / 2D : -3D * Math.PI / 2 - Theta };
         }
 
         public override double DistanceTo(ElectrodeRecord er)
@@ -312,6 +422,11 @@ namespace ElectrodeFileStream
             return new PointRPhiTheta(radius, p, Math.Atan2(X, Y));
         }
 
+        public override double[] convertToMathRThetaPhi()
+        {
+            return new double[] { radius, Math.Sqrt(X * X + Y * Y), Math.Atan2(Y, X) };
+        }
+
         public override double DistanceTo(ElectrodeRecord er)
         {
             if(!(er is XYRecord))
@@ -363,6 +478,20 @@ namespace ElectrodeFileStream
             Z = xyz.Z;
         }
 
+        /// <summary>
+        /// Constructor using mathematical {R, theta, phi} coordinates
+        /// </summary>
+        /// <param name="name">Electrode name</param>
+        /// <param name="RThetaPhi">Array containing {R, Theta, Phi} mathematical coordinates of the electrode</param>
+        public XYZRecord(string name, double[] RThetaPhi)
+            : base(name)
+        {
+            double r1 = RThetaPhi[0] * Math.Sin(RThetaPhi[1]);
+            X = r1 * Math.Cos(RThetaPhi[2]);
+            Y = r1 * Math.Sin(RThetaPhi[2]);
+            Z = RThetaPhi[0] * Math.Cos(RThetaPhi[1]);
+        }
+
         public override void read(XmlReader xr, string nameSpace)
         {
             this.Name = xr["Name", nameSpace];
@@ -408,6 +537,12 @@ namespace ElectrodeFileStream
             return new PointRPhiTheta(r, Math.Atan2(Math.Sqrt(X * X + Y * Y), Z), Math.Atan2(X, Y));
         }
 
+        public override double[] convertToMathRThetaPhi()
+        {
+            double r = Math.Sqrt(X * X + Y * Y + Z * Z);
+            return new double[] { r, Math.Acos(Z / r), Math.Atan2(Y, X) };
+        }
+
         /// <summary>
         /// Calculates arc distance after projection onto standard sphere
         /// </summary>
@@ -450,15 +585,21 @@ namespace ElectrodeFileStream
             Z = z;
         }
 
+        public double[] ConvertToMathRThetaPhi()
+        {
+            double r = Math.Sqrt(X * X + Y * Y + Z * Z);
+            double r1 = Math.Sqrt(X * X + Y * Y);
+            return new double[] { r, Math.Atan2(r1, Z), Math.Atan2(Y, X) };
+        }
+
         public PointRPhiTheta ConvertToRPhiTheta()
         {
             double r = Math.Sqrt(X * X + Y * Y + Z * Z);
             double r1 = Math.Sqrt(X * X + Y * Y);
-            PointRPhiTheta t = new PointRPhiTheta(r, Math.Atan2(r1, Z), Math.Atan2(X, Y));
+            return new PointRPhiTheta(r, Math.Atan2(r1, Z), Math.Atan2(X, Y));
 //          NOTE: the theta component is correct!!! 1) Atan2(Y,X) has y (opposite) before x (adjacent);
 //          2) Rotation to RIGHT makes this work out (surprisingly) correct (there's a flip as well as a 90 degree rotation)
 //          Essentially the meaning of X and Y are reversed when measuring theta
-            return t;
         }
 
         public string ToString(string format = "0.00")
@@ -480,6 +621,11 @@ namespace ElectrodeFileStream
             R = r;
             Phi = phi;
             Theta = theta;
+        }
+
+        public double[] ConvertToMathRThetaPhi()
+        {
+            return new double[] { R, Phi, Math.PI / 2 - Theta };
         }
 
         public Point3D ConvertToXYZ()
