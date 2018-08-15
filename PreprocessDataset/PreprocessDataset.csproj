@@ -93,6 +93,10 @@
     <Compile Include="Chebyshev2DesignControl.xaml.cs">
       <DependentUpon>Chebyshev2DesignControl.xaml</DependentUpon>
     </Compile>
+    <Compile Include="PreprocessingWorker.xaml.cs">
+      <DependentUpon>PreprocessingWorker.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="SamplingRate.cs" />
     <Compile Include="Settings.cs" />
     <Compile Include="SpherePoints.cs" />
     <Compile Include="EllipticDesignControl.xaml.cs">
@@ -102,6 +106,10 @@
       <DependentUpon>MainWindow.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
+    <Page Include="PreprocessingWorker.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs">

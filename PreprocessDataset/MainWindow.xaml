@@ -1,13 +1,15 @@
 ﻿<Window x:Class="PreprocessDataset.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Preprocess dataset" Width="680" FontSize="14" FontWeight="Bold" SizeToContent="Height" ResizeMode="CanMinimize" Closing="Window_Closing">
+        Title="Preprocess dataset" Width="680" FontSize="14" FontWeight="Bold"
+        SizeToContent="Height" ResizeMode="CanMinimize" Closing="Window_Closing"
+        WindowStartupLocation="CenterScreen">
     <StackPanel Orientation="Vertical">
         <StackPanel.Resources>
             <Style TargetType="GroupBox">
                 <Setter Property="BorderBrush" Value="Black"/>
                 <Setter Property="BorderThickness" Value="2"/>
-                <Setter Property="Margin" Value="2"/>
+                <Setter Property="Margin" Value="1"/>
             </Style>
             <Style TargetType="TextBlock">
                 <Setter Property="VerticalAlignment" Value="Center"/>
@@ -19,39 +21,54 @@
             <Style TargetType="RadioButton">
                 <Setter Property="VerticalAlignment" Value="Center"/>
             </Style>
+            <Style TargetType="Button">
+                <Setter Property="Height" Value="32"/>
+                <Setter Property="Width" Value="100"/>
+            </Style>
         </StackPanel.Resources>
+        <GroupBox Header="Input decimation">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Margin="4" ><Run Text="Factor"/></TextBlock>
+                <TextBox x:Name="InputDecimation" Width="40" TextChanged="InputDecimation_TextChanged" Text="1"/>
+            </StackPanel>
+        </GroupBox>
         <GroupBox BorderBrush="Black">
             <GroupBox.Header>
                 <CheckBox x:Name="Reference" VerticalAlignment="Center" Click="Reference_Click" Content="Reference"/>
             </GroupBox.Header>
             <StackPanel Orientation="Vertical" IsEnabled="{Binding IsChecked, ElementName=Reference}">
+                <StackPanel.Resources>
+                    <Style TargetType="{x:Type TextBox}">
+                        <Setter Property="Margin" Value="2"/>
+                    </Style>
+                </StackPanel.Resources>
                 <StackPanel Orientation="Horizontal">
                     <RadioButton GroupName="Ref" x:Name="RefSelectedChan" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="8,0,19,0" Width="Auto" Content="Selected channel(s)-&gt;" Checked="RBCheckForError" IsChecked="True">
                         <RadioButton.ToolTip>Enter list of channels to be used as reference for all channels</RadioButton.ToolTip>
                     </RadioButton>
                     <TextBox HorizontalAlignment="Right" VerticalAlignment="Center" x:Name="RefChan" Width="320" VerticalContentAlignment="Center" 
-        				Height="24" TextChanged="RefChan_TextChanged" IsEnabled="{Binding IsChecked, ElementName=RefSelectedChan}">
+    					Height="24" TextChanged="RefChan_TextChanged" IsEnabled="{Binding IsChecked, ElementName=RefSelectedChan}">
                         <TextBox.ToolTip>Enter comma- and hyphen-separated list of reference channels to use (e.g. "0-9,20-24")</TextBox.ToolTip>
                     </TextBox>
                     <TextBox HorizontalAlignment="Right" VerticalAlignment="Center" Margin="5,0,0,0" x:Name="RefChanName" Width="140" IsReadOnly="True"
-        				Height="24" IsEnabled="{Binding IsChecked, ElementName=radioButton2}"/>
+    					Height="24" IsEnabled="{Binding IsChecked, ElementName=radioButton2}"/>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal">
                     <RadioButton GroupName="Ref" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="8,0,6,0" x:Name="RefExpression" Checked="RBCheckForError" Content="Reference expression-&gt;"/>
                     <TextBox x:Name="RefChanExpression" Width="320" HorizontalAlignment="Right" VerticalAlignment="Center" Height="24"
-        				TextChanged="RefChanExpression_TextChanged" IsEnabled="{Binding IsChecked, ElementName=RefExpression}">
+    					TextChanged="RefChanExpression_TextChanged" IsEnabled="{Binding IsChecked, ElementName=RefExpression}">
                         <TextBox.ToolTip>Enter reference expression; e.g. (1,4)~{5-8} means channels 1 and 4 referenced to average of channels 5 to 8.</TextBox.ToolTip>
                     </TextBox>
                     <TextBox x:Name="RefChanExpDesc" Width="140" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="5,0,0,0"
-        				IsEnabled="{Binding IsChecked, ElementName=radioButton4}" IsReadOnly="True"/>
+    					IsEnabled="{Binding IsChecked, ElementName=radioButton4}" IsReadOnly="True"/>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal">
                     <RadioButton GroupName="Ref" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="8,0,8,0" x:Name="RefMatrix" Checked="RBCheckForError" Content="Reference matrix file-&gt;"/>
                     <TextBox x:Name="RefMatrixFile" Width="398" HorizontalAlignment="Right" VerticalAlignment="Center" Height="24"
-        				IsEnabled="{Binding IsChecked, ElementName=RefMatrix}" IsReadOnly="True" IsTabStop="False" IsUndoEnabled="False">
+    					IsEnabled="{Binding IsChecked, ElementName=RefMatrix}" IsReadOnly="True" IsTabStop="False" IsUndoEnabled="False">
                         <TextBox.ToolTip>Choose reference matrix</TextBox.ToolTip>
                     </TextBox>
-                    <Button Margin="6,0,0,0" Width="60" Click="ChooseRefMatrix_Click" IsEnabled="{Binding IsChecked, ElementName=RefMatrix}">Select</Button>
+                    <Button Margin="6,2" Width="60" Click="ChooseRefMatrix_Click" IsEnabled="{Binding IsChecked, ElementName=RefMatrix}" Content="Select"/>
                 </StackPanel>
             </StackPanel>
         </GroupBox>
@@ -61,7 +78,7 @@
             </GroupBox.Header>
             <StackPanel Orientation="Vertical"  IsEnabled="{Binding IsChecked, ElementName=Filtering}">
                 <ListBox x:Name="FilterList" Width="540" Height="260" ScrollViewer.HorizontalScrollBarVisibility="Disabled"/>
-                <CheckBox x:Name="ZP" FontSize="12" Margin="8,2" Content="Forward and eversed filtering for zero phase"/>
+                <CheckBox x:Name="ZP" FontSize="12" Margin="8,2" Content="Forward and reversed filtering for zero phase"/>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                     <StackPanel.Resources>
                         <Style TargetType="{x:Type Button}">
@@ -80,7 +97,7 @@
         <GroupBox Header="Output decimation">
             <StackPanel Orientation="Horizontal">
                 <TextBlock Margin="4" ><Run Text="Factor"/></TextBlock>
-                <TextBox x:Name="Decimation" Width="40" TextChanged="Decimation_TextChanged" Text="1"/>
+                <TextBox x:Name="OutputDecimation" Width="40" TextChanged="OutputDecimation_TextChanged" Text="1"/>
             </StackPanel>
         </GroupBox>
         <GroupBox Header="Exclude channels from further processing">
@@ -126,22 +143,22 @@
                 </GroupBox>
                 <GroupBox Header="Methodology">
                     <StackPanel Orientation="Vertical" Margin="8,0">
-                        <RadioButton Name="PolySpline" IsChecked="True" GroupName="Lap" Checked="RBCheckForError">Polyharmonic spline</RadioButton>
+                        <RadioButton x:Name="PolySpline" IsChecked="True" GroupName="Lap" Checked="RBCheckForError" Content="Polyharmonic spline"/>
                         <StackPanel Margin="16,0" Orientation="Vertical">
                             <StackPanel Orientation="Horizontal" IsEnabled="{Binding IsChecked, ElementName=PolySpline}">
-                                <TextBlock>Order=</TextBlock>
-                                <TextBox Name="PolyHarmOrder" Width="20" TextChanged="PolyHarmOrder_TextChanged">4</TextBox>
+                                <TextBlock><Run Text="Order="/></TextBlock>
+                                <TextBox x:Name="PolyHarmOrder" Width="20" TextChanged="PolyHarmOrder_TextChanged" Text="4"/>
                             </StackPanel>
                             <StackPanel Orientation="Horizontal" IsEnabled="{Binding IsChecked, ElementName=PolySpline}">
-                                <TextBlock>Osculating polynomial degree=</TextBlock>
-                                <TextBox Name="PolyHarmDegree" Width="20" TextChanged="PolyHarmDegree_TextChanged">3</TextBox>
+                                <TextBlock><Run Text="Osculating polynomial degree="/></TextBlock>
+                                <TextBox x:Name="PolyHarmDegree" Width="20" TextChanged="PolyHarmDegree_TextChanged" Text="3"/>
                             </StackPanel>
                             <StackPanel Orientation="Horizontal" IsEnabled="{Binding IsChecked, ElementName=PolySpline}">
-                                <TextBlock>Regularization factor=</TextBlock>
-                                <TextBox Name="PolyHarmLambda" Width="60" TextChanged="PolyHarmLambda_TextChanged">10.0</TextBox>
+                                <TextBlock><Run Text="Regularization factor="/></TextBlock>
+                                <TextBox x:Name="PolyHarmLambda" Width="60" TextChanged="PolyHarmLambda_TextChanged" Text="10.0"/>
                             </StackPanel>
                         </StackPanel>
-                        <RadioButton Name="NO" GroupName="Lap" Checked="RBCheckForError">New Orleans method (Nunez)</RadioButton>
+                        <RadioButton x:Name="NO" GroupName="Lap" Checked="RBCheckForError" Content="New Orleans method (Nunez)"/>
                         <StackPanel Orientation="Horizontal" Margin="16,0" IsEnabled="{Binding IsChecked, ElementName=NO}">
                             <TextBlock Margin="0,0,2,0"><Run Text="Looseness of fit: lambda="/></TextBlock>
                             <TextBox x:Name="NOLambda" Width="40" TextChanged="NOLambda_TextChanged" Text="1.0"/>
@@ -160,7 +177,7 @@
                         <StackPanel Orientation="Horizontal">
                             <RadioButton x:Name="Other" GroupName="OutputLocations" Content="Use electrode file: " Checked="RBCheckForError"/>
                             <TextBox x:Name="LaplaceETR" Width="360" VerticalAlignment="Center" HorizontalAlignment="Left" IsReadOnly="True" IsEnabled="{Binding IsChecked, ElementName=Other}" TextChanged="LaplaceETR_TextChanged"/>
-                            <Button Width="100" Margin="8,0" IsEnabled="{Binding IsChecked, ElementName=Other}" Click="BrowseETR_Click" Content="Browse ETR"/>
+                            <Button Margin="8,0" IsEnabled="{Binding IsChecked, ElementName=Other}" Click="BrowseETR_Click" Content="Browse ETR"/>
                         </StackPanel>
                     </StackPanel>
                 </GroupBox>
@@ -169,15 +186,15 @@
         <GroupBox Header="Output">
             <StackPanel Orientation="Vertical">
                 <StackPanel Orientation="Horizontal">
-                    <TextBlock Margin="4">File sequence</TextBlock>
-                    <TextBox Name="SequenceName" Width="80" TextChanged="SequenceName_TextChanged">Lap</TextBox>
+                    <TextBlock Margin="4"><Run Text="File sequence"/></TextBlock>
+                    <TextBox x:Name="SequenceName" Width="80" TextChanged="SequenceName_TextChanged" Text="Lap"/>
                 </StackPanel>
-                <CheckBox Margin="4">Include non-EEG channels</CheckBox>
+                <CheckBox Margin="4" Content="Include non-EEG channels"/>
             </StackPanel>
         </GroupBox>
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
             <StackPanel.Resources>
-                <Style TargetType="{x:Type Button}">
+                <Style TargetType="Button">
                     <Setter Property="Height" Value="32"/>
                     <Setter Property="Width" Value="100"/>
                     <Setter Property="Margin" Value="10,4"/>
