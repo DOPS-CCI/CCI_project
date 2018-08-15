@@ -13,20 +13,20 @@ namespace UnitTestProject1
             double[] X;
             Butterworth bw = new Butterworth(false, 50, 256);
             bw.NP = 4;
-            bw.Design();
+            bw.CompleteDesign();
             Console.WriteLine("50Hz LP: {0}", bw.ToString("0.000000"));
             bw = new Butterworth(true, 1, 256);
             bw.NP = 4;
-            bw.Design();
+            bw.CompleteDesign();
             Console.WriteLine("1Hz HP: {0}", bw.ToString("0.000000"));
             bw = new Butterworth(true, 0.1, 256);
             bw.NP = 4;
-            bw.Design();
+            bw.CompleteDesign();
             Console.WriteLine("0.1Hz HP: {0}", bw.ToString("0.000000"));
             bw = new Butterworth(true, 1, 256);
             bw.StopF = 0.5;
             bw.Atten = 40;
-            bw.Design();
+            bw.CompleteDesign();
             Console.WriteLine("1Hz HP: {0}", bw.ToString("0.000000"));
 
             double secs = 5;
@@ -35,7 +35,7 @@ namespace UnitTestProject1
             int pts = (int)(secs * SR);
             bw = new Butterworth(true, cutoff, SR);
             bw.NP = 2;
-            bw.Design();
+            bw.CompleteDesign();
             Console.WriteLine("IMPULSE: 5sec@128, 1Hz, 2pole, Butterworth high-pass");
             Console.Write(bw);
             X = Impulse(pts);
@@ -54,7 +54,7 @@ namespace UnitTestProject1
             pts = (int)(secs * SR);
             bw = new Butterworth(true, cutoff, SR);
             bw.NP = 4;
-            bw.Design();
+            bw.CompleteDesign();
             Console.WriteLine("IMPULSE: 20sec@128, 0.1Hz, 4pole, Butterworth high-pass");
             Console.Write(bw.ToString("0.000000"));
             X = Impulse(pts);
@@ -74,7 +74,7 @@ namespace UnitTestProject1
             pts = (int)(secs * SR);
             bw = new Butterworth(true, 0.01, SR);
             bw.NP = 10;
-            bw.Design();
+            bw.CompleteDesign();
             Console.WriteLine("STEP: 256sec@128, 0.01Hz, 10pole, ButterworthHP");
             Console.Write(bw);
             X = Step(pts);
@@ -88,7 +88,7 @@ namespace UnitTestProject1
             pts = (int)(secs * SR);
             bw = new Butterworth(false, cutoff, SR); //1Hz cut-off, low-pass
             bw.NP = 8;
-            bw.Design();
+            bw.CompleteDesign();
             Console.WriteLine("F-response: 128sec@128, 1Hz, 8pole, low pass");
             for (double f = 0.01; f < 2; f += 0.01)
             {
@@ -100,7 +100,7 @@ namespace UnitTestProject1
 
             bw = new Butterworth(true, 1, 128);
             bw.NP = 10;
-            bw.Design();
+            bw.CompleteDesign();
             Console.WriteLine("F-response: 128sec@128, 1Hz, 10pole, high-pass");
             for (double f = 0.01; f < 2; f += 0.01) //1Hz cut-off, zero phase
             {
@@ -225,7 +225,7 @@ namespace UnitTestProject1
         private void testChebyFilter(Chebyshev filter)
         {
             double[] X;
-            filter.Design();
+            filter.CompleteDesign();
             double SR = filter.SR;
             double cutoff = filter.PassF;
             Console.WriteLine("\n************* Filter type {0}: {1}poles, {2:0.00}Hz cutoff, {3:0.00}Hz stop, {4:0.00}dB attenuation, {5}Hz SR",
@@ -260,7 +260,7 @@ namespace UnitTestProject1
         private void testEllipFilter(Elliptical filter)
         {
             double[] X;
-            filter.Design();
+            filter.CompleteDesign();
             double SR = filter.SR;
             double cutoff = filter.PassF;
             Console.WriteLine("\n************* Filter type {0}: {1}poles, {2}Hz cutoff, {3}Hz stop, {4}% ripple, {5:0.00}dB attenuation, {6}Hz SR",
