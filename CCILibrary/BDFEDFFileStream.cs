@@ -121,11 +121,21 @@ namespace BDFEDFFileStream
         /// Look up channel label to find corresponding channel number
         /// </summary>
         /// <param name="label">label to search for</param>
+        /// <param name="type">comparison is not case dependent if = 'u', case dependent otherwise</param>
         /// <returns>channel number (zero-based) for label, else returns -1 if not found</returns>
-        public int GetChannelNumber(string label)
+        public int GetChannelNumber(string label, char type = 'l')
         {
+            string Label = label;
+            if (type == 'u')
+                Label = Label.ToUpper();
             for (int i = 0; i < NumberOfChannels; i++)
-                if (header.channelLabels[i] == label) return i;
+            {
+                if (type != 'u')
+                    if (header.channelLabels[i] == Label) return i;
+                    else continue;
+                else
+                    if (header.channelLabels[i].ToUpper() == Label) return i;
+            }
             return -1;
         }
 
