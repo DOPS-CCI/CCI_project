@@ -25,7 +25,7 @@ namespace UnitTestProject1
             Console.WriteLine("0.1Hz HP: {0}", bw.ToString("0.000000"));
             bw = new Butterworth(true, 1, 256);
             bw.StopF = 0.5;
-            bw.Atten = 40;
+            bw.StopA = 40;
             bw.CompleteDesign();
             Console.WriteLine("1Hz HP: {0}", bw.ToString("0.000000"));
 
@@ -116,7 +116,7 @@ namespace UnitTestProject1
         {
             ChebyshevLP clp = new ChebyshevLP(55D, 256D);
             clp.StopF = 60;
-            clp.Atten = 60;
+            clp.StopA = 60;
             testChebyFilter(clp);
 
             clp = new ChebyshevLP(20D, 256D);
@@ -125,17 +125,17 @@ namespace UnitTestProject1
             testChebyFilter(clp);
 
             clp = new ChebyshevLP(10D, 256D);
-            clp.Atten = 40;
+            clp.StopA = 40;
             clp.NP = 7;
             testChebyFilter(clp);
 
             ChebyshevHP chp = new ChebyshevHP(5D, 256D);
             chp.StopF = 3;
-            chp.Atten = 60;
+            chp.StopA = 60;
             testChebyFilter(chp);
 
             chp = new ChebyshevHP(1D, 256D);
-            chp.Atten = 40;
+            chp.StopA = 40;
             chp.NP = 9;
             testChebyFilter(chp);
 
@@ -151,25 +151,25 @@ namespace UnitTestProject1
         {
             EllipticalHP ehp = new EllipticalHP(1D, 256D);
             ehp.Ripple = 0.01;
-            ehp.Atten = 60D;
+            ehp.StopA = 60D;
             ehp.NP = 9;
             testEllipFilter(ehp);
 
             ehp = new EllipticalHP(10D, 256D);
             ehp.StopF = 9;
             ehp.Ripple = 0.2;
-            ehp.Atten = 40D;
+            ehp.StopA = 40D;
             testEllipFilter(ehp);
 
             ehp = new EllipticalHP(1D, 256D);
             ehp.StopF = 0.8;
             ehp.Ripple = 0.01;
-            ehp.Atten = 60D;
+            ehp.StopA = 60D;
             testEllipFilter(ehp);
 
             ehp = new EllipticalHP(10D, 256D);
             ehp.StopF = 5D;
-            ehp.Atten = 40D;
+            ehp.StopA = 40D;
             ehp.NP = 4;
             testEllipFilter(ehp);
 
@@ -182,24 +182,24 @@ namespace UnitTestProject1
             EllipticalLP elp = new EllipticalLP(10D, 256D);
             elp.StopF = 15D;
             elp.Ripple = 0.1D;
-            elp.Atten = 60D;
+            elp.StopA = 60D;
             testEllipFilter(elp);
 
             elp = new EllipticalLP(50D, 512D);
             elp.StopF = 60D;
-            elp.Atten = 60D;
+            elp.StopA = 60D;
             elp.NP = 9;
             testEllipFilter(elp);
 
             elp = new EllipticalLP(50D, 512D);
             elp.StopF = 60D;
-            elp.Atten = 60D;
+            elp.StopA = 60D;
             elp.NP = 7;
             testEllipFilter(elp);
 
             elp = new EllipticalLP(50D, 512D);
             elp.StopF = 60D;
-            elp.Atten = 40D;
+            elp.StopA = 40D;
             elp.NP = 5;
             testEllipFilter(elp);
 
@@ -211,13 +211,13 @@ namespace UnitTestProject1
 
             elp = new EllipticalLP(50D, 512D);
             elp.Ripple = 0.110202;
-            elp.Atten = 40D;
+            elp.StopA = 40D;
             elp.NP = 5;
             testEllipFilter(elp);
 
             elp = new EllipticalLP(50D, 512D);
             elp.StopF = 55D;
-            elp.Atten = 80D;
+            elp.StopA = 80D;
             elp.NP = 10;
             testEllipFilter(elp);
         }
@@ -229,7 +229,7 @@ namespace UnitTestProject1
             double SR = filter.SR;
             double cutoff = filter.PassF;
             Console.WriteLine("\n************* Filter type {0}: {1}poles, {2:0.00}Hz cutoff, {3:0.00}Hz stop, {4:0.00}dB attenuation, {5}Hz SR",
-                filter.GetType().Name, filter.NP, cutoff, filter.StopF, filter.Atten, SR);
+                filter.GetType().Name, filter.NP, cutoff, filter.StopF, filter.StopA, SR);
             Console.Write(filter.ToString("0.000000"));
             Console.WriteLine("\nIMPULSE");
             double secs = 10 / cutoff;
@@ -264,7 +264,7 @@ namespace UnitTestProject1
             double SR = filter.SR;
             double cutoff = filter.PassF;
             Console.WriteLine("\n************* Filter type {0}: {1}poles, {2}Hz cutoff, {3}Hz stop, {4}% ripple, {5:0.00}dB attenuation, {6}Hz SR",
-                filter.GetType().Name, filter.NP, cutoff, filter.StopF, 100D * filter.Ripple, filter.Atten, SR);
+                filter.GetType().Name, filter.NP, cutoff, filter.StopF, 100D * filter.Ripple, filter.StopA, SR);
             Console.Write(filter.ToString("0.000000"));
 //            Console.WriteLine("Attenuation = {0}", filter.ActualStopAmpdB);
             Console.WriteLine("\nIMPULSE");
