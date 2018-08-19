@@ -4,7 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              mc:Ignorable="d" 
-             d:DesignWidth="510" Background="White">
+             d:DesignWidth="512" Background="White">
     <ListBoxItem FontSize="12" Padding="0">
         <ListBoxItem.Resources>
             <Style TargetType="GroupBox">
@@ -15,7 +15,7 @@
                 <Setter Property="VerticalAlignment" Value="Center"/>
             </Style>
             <Style TargetType="RadioButton">
-                <Setter Property="Margin" Value="4"/>
+                <Setter Property="Margin" Value="6"/>
                 <Setter Property="VerticalAlignment" Value="Center"/>
             </Style>
             <Style TargetType="TextBox">
@@ -45,32 +45,31 @@
                     <RowDefinition Height="30"/>
                 </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="9"/>
-                    <ColumnDefinition Width="77"/>
+                    <ColumnDefinition Width="86"/>
                     <ColumnDefinition Width="190"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
-                <Border Grid.Column="0" Grid.RowSpan="2" Grid.ColumnSpan="2"/>
-                <RadioButton Name="HP" Grid.Row="0" Grid.Column="0" IsChecked="True" Grid.ColumnSpan="2" Click="HPLP_Click">High pass</RadioButton>
-                <RadioButton Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Margin="4,4,4,5" Click="HPLP_Click">Low pass</RadioButton>
-                <Border Grid.Column="2" Grid.RowSpan="2"/>
-                <StackPanel Orientation="Horizontal" Grid.Row="0" Grid.Column="2"  HorizontalAlignment="Left" >
+                <Border Grid.Column="0" Grid.RowSpan="2"/>
+                <RadioButton Name="HP" Grid.Row="0" Grid.Column="0" IsChecked="True" Click="HPLP_Click">High pass</RadioButton>
+                <RadioButton Grid.Row="1" Grid.Column="0" Click="HPLP_Click">Low pass</RadioButton>
+                <Border Grid.Column="1" Grid.RowSpan="2"/>
+                <StackPanel Orientation="Horizontal" Grid.Row="0" Grid.Column="1"  HorizontalAlignment="Left" >
                     <CheckBox Name="CutoffCB" IsChecked="True" Click="CutoffCB_Click">Cutoff frequency</CheckBox>
                     <TextBox Name="Cutoff" Width="40" TextChanged="Cutoff_TextChanged" IsEnabled="{Binding IsChecked, ElementName=CutoffCB}">1.0</TextBox>
                     <TextBlock>Hz</TextBlock>
                 </StackPanel>
-                <StackPanel Orientation="Horizontal" Grid.Row="1" Grid.Column="2" HorizontalAlignment="Left">
+                <StackPanel Orientation="Horizontal" Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left">
                     <CheckBox Name="PolesCB" IsChecked="True" Click="PolesCB_Click">Number of poles</CheckBox>
                     <TextBox Name="Poles" Width="30" TextChanged="Poles_TextChanged" IsEnabled="{Binding IsChecked, ElementName=PolesCB}">2</TextBox>
                 </StackPanel>
-                <Border Grid.Column="3" Grid.RowSpan="2"/>
-                <CheckBox Name="StopCB" Grid.Row="0" Grid.Column="3" Grid.RowSpan="2" Click="StopCB_Click"/>
-                <StackPanel Orientation="Horizontal" Grid.Row="1" Grid.Column="3" HorizontalAlignment="Left" Margin="16,0,0,0">
+                <Border Grid.Column="2" Grid.RowSpan="2"/>
+                <CheckBox Name="StopCB" Grid.Row="0" Grid.Column="2" Grid.RowSpan="2" Click="StopCB_Click"/>
+                <StackPanel Orientation="Horizontal" Grid.Row="1" Grid.Column="2" HorizontalAlignment="Left" Margin="16,0,0,0">
                     <TextBlock>Stopband attenuation</TextBlock>
                     <TextBox Name="StopA" Width="40" TextChanged="StopA_TextChanged" IsEnabled="{Binding IsChecked, ElementName=StopCB}">40.0</TextBox>
                     <TextBlock>dB</TextBlock>
                 </StackPanel>
-                <StackPanel Orientation="Horizontal" Grid.Row="0" Grid.Column="3"  HorizontalAlignment="Left" Margin="16,0,0,0">
+                <StackPanel Orientation="Horizontal" Grid.Row="0" Grid.Column="2"  HorizontalAlignment="Left" Margin="16,0,0,0">
                     <TextBlock>Stop frequency</TextBlock>
                     <TextBox Name="StopF" Width="40" TextChanged="StopF_TextChanged" IsEnabled="{Binding IsChecked, ElementName=StopCB}">0.1</TextBox>
                     <TextBlock>Hz</TextBlock>

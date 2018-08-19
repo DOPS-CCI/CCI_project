@@ -1,19 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.ComponentModel;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
-using CCIUtilities;
 using DigitalFilter;
 
 namespace PreprocessDataset
@@ -21,47 +9,54 @@ namespace PreprocessDataset
     /// <summary>
     /// Interaction logic for FilterDesignControl.xaml
     /// </summary>
-    public partial class ButterworthDesignControl : UserControl, IValidate
+    public partial class ButterworthDesignControl : UserControl, IFilterDesignControl
     {
-        ListBox myList;
+        protected ListBox myList;
 
         Butterworth filter = new Butterworth();
+        const double cutoff = 1D;
+        const int poles = 2;
 
-        double cutoff = 1D;
-        int poles = 2;
-        double passB = 0.1D;
-        double stopA = 40D;
+        public DFilter FilterDesign
+        {
+            get
+            {
+                if (filter.IsCompleted) return filter;
+                return null;
+            }
+        }
 
         public event EventHandler ErrorCheckReq;
 
         public ButterworthDesignControl(ListBox lv, SamplingRate sr)
         {
             myList = lv;
-            filter.NP = 2;
-            filter.PassF = 1D;
+            filter.NP = poles;
+            filter.PassF = cutoff;
             filter.HP = true;
-            filter.SR = sr.Current;
+            filter.SR = sr[0];
             sr.PropertyChanged += SR_PropertyChanged;
             filter.ValidateDesign();
 
             InitializeComponent();
 
-            StopA.Text = filter.Atten.ToString("0.0");
+            StopA.Text = filter.StopA.ToString("0.0");
             StopF.Text = filter.StopF.ToString("0.00");
         }
 
         private void SR_PropertyChanged(object sender, PropertyChangedEventArgs e)
         {
-            filter.SR = ((SamplingRate)sender).Current;
-            ErrorCheckReq(this, null);
+            filter.SR = ((SamplingRate)sender)[1];
+            this.ErrorCheckReq(this, null);
         }
 
-        public DFilter finishDesign(double SR)
+        public DFilter FinishDesign()
         {
-            return new Butterworth((bool)HP.IsChecked, cutoff, SR);
+            filter.CompleteDesign();
+            return filter;
         }
 
-        private void RemoveFilter_Click(object sender, RoutedEventArgs e)
+        protected void RemoveFilter_Click(object sender, RoutedEventArgs e)
         {
             myList.Items.Remove(this);
             ErrorCheckReq(null, null);
@@ -90,7 +85,7 @@ namespace PreprocessDataset
             if (StopA == null || !StopA.IsEnabled) return;
             double s;
             if (!double.TryParse(StopA.Text, out s)) s = double.NaN;
-            filter.Atten = s;
+            filter.StopA = s;
             if (ErrorCheckReq != null) ErrorCheckReq(this, null);
         }
 
@@ -124,7 +119,7 @@ namespace PreprocessDataset
                 StopA.Text = "";
                 StopF.Text = "";
                 filter.StopF = double.NaN;
-                filter.Atten = double.NaN;
+                filter.StopA = double.NaN;
                 t++;
             }
             if (t == 0) return false;
@@ -135,7 +130,7 @@ namespace PreprocessDataset
                 if (!(bool)CutoffCB.IsChecked) Cutoff.Text = filter.PassF.ToString("0.00");
                 if (!(bool)StopCB.IsChecked)
                 {
-                    StopA.Text = filter.Atten.ToString("0.0");
+                    StopA.Text = filter.StopA.ToString("0.0");
                     StopF.Text = filter.StopF.ToString("0.00");
                 }
             }
@@ -175,7 +170,7 @@ namespace PreprocessDataset
                 StopA.Text = "";
                 StopF.Text = "";
                 filter.StopF = double.NaN;
-                filter.Atten = double.NaN;
+                filter.StopA = double.NaN;
             }
             ErrorCheckReq(this, null);
         }

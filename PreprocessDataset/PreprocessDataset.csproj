@@ -93,6 +93,7 @@
     <Compile Include="Chebyshev2DesignControl.xaml.cs">
       <DependentUpon>Chebyshev2DesignControl.xaml</DependentUpon>
     </Compile>
+    <Compile Include="IFilterDesignControl.cs" />
     <Compile Include="PreprocessingWorker.xaml.cs">
       <DependentUpon>PreprocessingWorker.xaml</DependentUpon>
     </Compile>

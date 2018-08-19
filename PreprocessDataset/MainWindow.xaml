@@ -51,7 +51,7 @@
                         <TextBox.ToolTip>Enter comma- and hyphen-separated list of reference channels to use (e.g. "0-9,20-24")</TextBox.ToolTip>
                     </TextBox>
                     <TextBox HorizontalAlignment="Right" VerticalAlignment="Center" Margin="5,0,0,0" x:Name="RefChanName" Width="140" IsReadOnly="True"
-    					Height="24" IsEnabled="{Binding IsChecked, ElementName=radioButton2}"/>
+    					Height="24" IsEnabled="{Binding IsChecked, ElementName=RefSelectedChan}"/>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal">
                     <RadioButton GroupName="Ref" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="8,0,6,0" x:Name="RefExpression" Checked="RBCheckForError" Content="Reference expression-&gt;"/>
@@ -60,7 +60,7 @@
                         <TextBox.ToolTip>Enter reference expression; e.g. (1,4)~{5-8} means channels 1 and 4 referenced to average of channels 5 to 8.</TextBox.ToolTip>
                     </TextBox>
                     <TextBox x:Name="RefChanExpDesc" Width="140" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="5,0,0,0"
-    					IsEnabled="{Binding IsChecked, ElementName=radioButton4}" IsReadOnly="True"/>
+    					IsEnabled="{Binding IsChecked, ElementName=RefExpression}" IsReadOnly="True"/>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal">
                     <RadioButton GroupName="Ref" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="8,0,8,0" x:Name="RefMatrix" Checked="RBCheckForError" Content="Reference matrix file-&gt;"/>
@@ -78,7 +78,7 @@
             </GroupBox.Header>
             <StackPanel Orientation="Vertical"  IsEnabled="{Binding IsChecked, ElementName=Filtering}">
                 <ListBox x:Name="FilterList" Width="540" Height="260" ScrollViewer.HorizontalScrollBarVisibility="Disabled"/>
-                <CheckBox x:Name="ZP" FontSize="12" Margin="8,2" Content="Forward and reversed filtering for zero phase"/>
+                <CheckBox x:Name="ZP" FontSize="12" Margin="8,2" Content="Forward and reversed filtering for zero phase" Click="ZP_Click"/>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                     <StackPanel.Resources>
                         <Style TargetType="{x:Type Button}">
@@ -106,6 +106,8 @@
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                     <TextBlock><Run Text="Remaining EEG channels ="/></TextBlock>
                     <TextBlock x:Name="RemainingEEGChannels" Margin="4" Text="128"/>
+                    <TextBlock><Run Text="out of"/></TextBlock>
+                    <TextBlock x:Name="EEGChannels" Margin="4" Text="128"/>
                 </StackPanel>
                 <CheckBox IsChecked="True" HorizontalAlignment="Center" Content="Use all channels for head shape calculations" IsEnabled="{Binding IsChecked, ElementName=Laplacian}"/>
             </StackPanel>

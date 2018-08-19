@@ -13,75 +13,183 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 using CCIUtilities;
+using DigitalFilter;
 
 namespace PreprocessDataset
 {
     /// <summary>
     /// Interaction logic for Chebyshev2DesignControl.xaml
     /// </summary>
-    public partial class Chebyshev2DesignControl : UserControl, IValidate
+    public partial class Chebyshev2DesignControl : UserControl, IFilterDesignControl
     {
         ListBox myList;
 
-        double cutoff = 1D;
-        double stopband = 1.5;
-        double attenuation = -40;
-        int poles = 2;
+        Chebyshev filter = new Chebyshev();
+        const double cutoff = 1D;
+        const double stopA = 40;
+        const int poles = 2;
+
+        public DFilter FilterDesign
+        {
+            get
+            {
+                if (filter.IsCompleted) return filter;
+                return null;
+            }
+        }
 
         public event EventHandler ErrorCheckReq;
 
-        public Chebyshev2DesignControl(ListBox lb)
+        public Chebyshev2DesignControl(ListBox lb, SamplingRate sr)
         {
             myList = lb;
+
+            filter.NP = poles;
+            filter.PassF = cutoff;
+            filter.StopA = stopA;
+            filter.HP = true;
+            filter.SR = sr[1];
+            sr.PropertyChanged += SR_PropertyChanged;
+            filter.ValidateDesign();
+
             InitializeComponent();
+
+            StopF.Text = filter.StopF.ToString("0.00");
+        }
+
+        public DFilter FinishDesign()
+        {
+            filter.CompleteDesign();
+            return filter;
+        }
+
+        public bool Validate(object o)
+        {
+            if (!(bool)PolesCB.IsChecked)
+            {
+                Poles.Text = "";
+                filter.NP = 0;
+            }
+            if (!(bool)CutoffCB.IsChecked)
+            {
+                Cutoff.Text = "";
+                filter.PassF = double.NaN;
+            }
+            if (!(bool)StopACB.IsChecked)
+            {
+                Attenuation.Text = "";
+                filter.StopA = double.NaN;
+            }
+            if (!(bool)StopFCB.IsChecked)
+            {
+                StopF.Text = "";
+                filter.StopF = double.NaN;
+            }
+            if (filter.ValidateDesign())
+            {
+                if (!(bool)PolesCB.IsChecked)
+                {
+                    Poles.Text = filter.NP.ToString("0");
+//                    Attenuation.Text = filter.ActualStopA.ToString("0.0");
+                }
+                else if (!(bool)CutoffCB.IsChecked) Cutoff.Text = filter.PassF.ToString("0.00");
+                else if (!(bool)StopACB.IsChecked) Attenuation.Text = filter.StopA.ToString("0.0");
+                else if (!(bool)StopFCB.IsChecked) StopF.Text = filter.StopF.ToString("0.00");
+            }
+            return filter.IsValid;
+        }
+
+        private void SR_PropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
+        {
+            filter.SR = ((SamplingRate)sender)[1];
+            this.ErrorCheckReq(this, null);
         }
 
         private void RemoveFilter_Click(object sender, RoutedEventArgs e)
         {
             myList.Items.Remove(this);
-        }
-
-        public bool Validate(object SR)
-        {
-            double NyquistF = (double)SR / 2D;
-            if (double.IsNaN(cutoff) || cutoff <= 0D || cutoff >= NyquistF) return false;
-            if (double.IsNaN(stopband) || stopband <= 0D || stopband >= NyquistF) return false;
-            if ((bool)HighPass.IsChecked ? (stopband >= cutoff) : (stopband <= cutoff)) return false;
-            if (double.IsNaN(attenuation)) return false;
-            if (poles <= 1) return false;
-            return true;
+            ErrorCheckReq(null, null);
         }
 
         private void Cutoff_TextChanged(object sender, TextChangedEventArgs e)
         {
-            if (Cutoff == null) return;
-            if (!double.TryParse(Cutoff.Text, out cutoff)) cutoff = double.NaN;
+            if (Cutoff == null || !Cutoff.IsEnabled) return;
+            double c;
+            if (!double.TryParse(Cutoff.Text, out c)) c = double.NaN;
+            filter.PassF = c;
             if (ErrorCheckReq != null) ErrorCheckReq(this, null);
         }
 
-        private void StopBand_TextChanged(object sender, TextChangedEventArgs e)
+        private void StopF_TextChanged(object sender, TextChangedEventArgs e)
         {
-            if (StopBand == null) return;
-            if (!double.TryParse(StopBand.Text, out stopband)) stopband = double.NaN;
+            if (StopF == null || !StopF.IsEnabled) return;
+            double s;
+            if (!double.TryParse(StopF.Text, out s)) s = double.NaN;
+            filter.StopF = s;
             if (ErrorCheckReq != null) ErrorCheckReq(this, null);
         }
 
         private void Attenuation_TextChanged(object sender, TextChangedEventArgs e)
         {
-            if (Attenuation == null) return;
-            if (!double.TryParse(Attenuation.Text, out attenuation)) attenuation = double.NaN;
+            if (Attenuation == null || !Attenuation.IsEnabled) return;
+            double a;
+            if (!double.TryParse(Attenuation.Text, out a)) a = double.NaN;
+            filter.StopA = a;
             if (ErrorCheckReq != null) ErrorCheckReq(this, null);
         }
 
         private void Poles_TextChanged(object sender, TextChangedEventArgs e)
         {
-            if (Poles == null) return;
-            Int32.TryParse(Poles.Text, out poles);
+            if (Poles == null || !Poles.IsEnabled) return;
+            int n;
+            if (!Int32.TryParse(Poles.Text, out n)) n = 0;
+            filter.NP = n;
             if (ErrorCheckReq != null) ErrorCheckReq(this, null);
         }
 
-        private void Pass_Click(object sender, RoutedEventArgs e)
+        private void HPLP_Click(object sender, RoutedEventArgs e)
         {
+            filter.HP = (bool)HighPass.IsChecked;
+            ErrorCheckReq(this, null);
+        }
+
+        private void CutoffCB_Click(object sender, RoutedEventArgs e)
+        {
+            if (!(bool)CutoffCB.IsChecked)
+            {
+                Cutoff.Text = "";
+                filter.PassF = double.NaN;
+            }
+            ErrorCheckReq(this, null);
+        }
+
+        private void PolesCB_Click(object sender, RoutedEventArgs e)
+        {
+            if (!(bool)PolesCB.IsChecked)
+            {
+                Poles.Text = "";
+                filter.NP = 0;
+            }
+            ErrorCheckReq(this, null);
+        }
+
+        private void StopACB_Click(object sender, RoutedEventArgs e)
+        {
+            if (!(bool)StopACB.IsChecked)
+            {
+                Attenuation.Text = "";
+                filter.StopA = double.NaN;
+            }
+            ErrorCheckReq(this, null);
+        }
+
+        private void StopFCB_Click(object sender, RoutedEventArgs e)
+        {
+            if (!(bool)StopFCB.IsChecked)
+            {
+                StopF.Text = "";
+                filter.StopF = double.NaN;
+            }
             ErrorCheckReq(this, null);
         }
     }

@@ -12,26 +12,37 @@ namespace PreprocessDataset
         double _original;
         public double Original { get { return _original; } }
 
-        int _dec1;
+        int[] _dec;
         public int Decimation1
         {
-            get { return _dec1; }
+            get { return _dec[0]; }
             set
             {
-                if (value == _dec1) return;
-                _dec1 = value;
+                if (value == _dec[0]) return;
+                _dec[0] = value;
                 NotifyPropertyChanged();
             }
         }
-        int _dec2;
+
         public int Decimation2
         {
-            get { return _dec2; }
+            get { return _dec[1]; }
             set
             {
-                if (value == _dec2) return;
-                _dec2 = value;
+                if (value == _dec[1]) return;
+                _dec[1] = value;
                 NotifyPropertyChanged();
+            }
+        }
+
+        public double this[int i]
+        {
+            get
+            {
+                int d = decimation(i);
+                if (d > 0)
+                    return _original / d;
+                return double.NaN;
             }
         }
 
@@ -39,8 +50,8 @@ namespace PreprocessDataset
         {
             get
             {
-                if (_dec1 <= 0 || _dec2 <= 0) return double.NaN;
-                return _original / (_dec1 * _dec2);
+                if (_dec[0] <= 0 || _dec[1] <= 0) return double.NaN;
+                return _original / (_dec[0] * _dec[1]);
             }
         }
 
@@ -52,11 +63,22 @@ namespace PreprocessDataset
             }
         }
 
-        public SamplingRate(double original)
+        public SamplingRate(double original, int nDec = 1)
         {
-            _dec1 = 1;
-            _dec2 = 1;
+            _dec = new int[nDec];
+            for (int d = 0; d < nDec; d++) _dec[d] = 1;
             _original = original;
+        }
+
+        public void SetDecimation(int value, int i = 0)
+        {
+            _dec[i] = value;
+            NotifyPropertyChanged();
+        }
+
+        public int GetDecimation(int i = 0)
+        {
+            return _dec[i];
         }
 
         public event PropertyChangedEventHandler PropertyChanged;
@@ -67,7 +89,18 @@ namespace PreprocessDataset
             {
                 PropertyChanged(this, new PropertyChangedEventArgs(propertyName));
             }
-        }  
+        }
 
+        private int decimation(int last)
+        {
+            int d = 1;
+            int limit = last > _dec.Length ? _dec.Length : last;
+            for (int i = 0; i < limit; i++)
+            {
+                if (_dec[i] <= 0) return 0;
+                d *= _dec[i];
+            }
+            return d;
+        }
     }
 }

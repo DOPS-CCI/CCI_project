@@ -29,7 +29,7 @@ namespace PreprocessDataset
         BackgroundWorker bw = null;
         float[][] data; //full data file: datel x channel
         internal SamplingRate SR;
-        internal List<DFilter> filterList;
+        internal IEnumerable<DFilter> filterList;
         internal bool reverse = false;
 
         internal bool doLaplacian = false;
@@ -54,10 +54,13 @@ namespace PreprocessDataset
         internal int PHdegree = 3;
         internal double PHlambda = 10D;
         internal double NOlambda = 1D;
+
+        internal int _refType = 1;
         internal List<int> _refChan;
         internal List<List<int>> _refChanExp;
 
         int[] channelPtr;
+        int inputDataPts;
 
         public PreprocessingWorker()
         {
@@ -80,7 +83,10 @@ namespace PreprocessDataset
 
             ReadBDFFile();
 
-            if(doFiltering)
+            if (doReference)
+                ReferenceData();
+
+            if (doFiltering)
                 FilterData();
             //HeadGeometry hg = new HeadGeometry(eis.etrPositions.Values, 1);
             //foreach (ElectrodeRecord er in eis.etrPositions.Values)
@@ -90,16 +96,68 @@ namespace PreprocessDataset
 
         }
 
+        private void ReferenceData()
+        {
+            bw.ReportProgress(0, "Referencing data");
+            if (_refType == 1) //reference all channels to list of channels
+            {
+                double nRef = _refChan.Count;
+                int nChan = InitialChannels.Count;
+                for (int p = 0; p < inputDataPts; p++)
+                {
+                    double t = 0;
+                    foreach (int c in _refChan)
+                        t += data[c][p];
+                    t /= nRef;
+                    for (int c = 0; c < nChan; c++)
+                        data[c][p] -= (float)t;
+                    bw.ReportProgress(100 * (p + 1) / inputDataPts);
+                }
+            }
+            else if (_refType == 2) //complex refence statement
+            {
+                IEnumerator<List<int>> enumer = _refChanExp.GetEnumerator();
+                float[] v = new float[InitialChannels.Count];
+                for (int p = 0; p < inputDataPts; p++)
+                {
+                    for (int i = 0; i < InitialChannels.Count; i++)
+                        v[i] = data[i][p];
+                    enumer.Reset();
+                    while (enumer.MoveNext())
+                    {
+                        List<int> chans = enumer.Current;
+                        enumer.MoveNext();
+                        List<int> refer = enumer.Current;
+                        if (refer == null) continue;
+                        double t = 0;
+                        foreach (int c in refer)
+                            t += v[c];
+                        t /= refer.Count;
+                        foreach (int c in chans)
+                            data[c][p] = v[c] - (float)t;
+                    }
+                    bw.ReportProgress(100 * (p + 1) / inputDataPts);
+                }
+            }
+            else if (_refType == 3) //use matrix transform reference
+            {
+            }
+        }
+
         private void FilterData()
         {
             int f = 1;
             foreach (DFilter df in filterList)
             {
                 bw.ReportProgress(0, "Filter " + f++.ToString("0"));
+                int c = 1;
                 foreach (int ch in channelPtr)
                 {
-                    df.Filter(data[ch]);
-                    bw.ReportProgress(100 * ch / channelPtr.Length);
+                    if (reverse)
+                        df.ZeroPhaseFilter(data[ch]);
+                    else
+                        df.Filter(data[ch]);
+                    bw.ReportProgress(100 * c++ / channelPtr.Length);
                 }
             }
         }
@@ -109,7 +167,7 @@ namespace PreprocessDataset
             bw.ReportProgress(0, "Reading BDF file");
             int bdfRecLenPt = bdf.NumberOfSamples(InitialChannels[0].Item1);
             long bdfFileLength = bdfRecLenPt * bdf.NumberOfRecords;
-            long inputDataPts = (bdfFileLength + SR.Decimation1 - 1) / SR.Decimation1;
+            inputDataPts = (int)((bdfFileLength + SR.Decimation1 - 1) / SR.Decimation1);
             try
             {
                 data = new float[InitialChannels.Count][];
@@ -136,10 +194,10 @@ namespace PreprocessDataset
             {
                 if (rPt >= bdfRecLenPt) //read in next buffer
                 {
-                    bw.ReportProgress(100 * recCnt++ / bdf.NumberOfRecords);
                     r = bdf.read();
                     rPt -= bdfRecLenPt;
                     if (++bufferCnt >= 1000) { bufferCnt = 0; GC.Collect(); } //GC as we go along to clean up file buffers
+                    bw.ReportProgress(100 * ++recCnt / bdf.NumberOfRecords);
                 }
                 int c = 0;
                 foreach (Tuple<int, ElectrodeRecord> t in InitialChannels)
