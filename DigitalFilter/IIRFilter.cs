@@ -95,7 +95,7 @@ namespace DigitalFilter
             get { return _stopA; }
             set
             {
-                if (_stopA.Equals(value)) return;
+                if (Math.Abs(_stopA).Equals(Math.Abs(value))) return;
                 designValidated = false;
                 designCompleted = false;
                 _stopA = value;
@@ -565,7 +565,8 @@ namespace DigitalFilter
                 {
                     if (_hp == null) return 0D;
                     double k = (bool)_hp ? omegaS / omegaC : omegaC / omegaS;
-                    return 10D * Math.Log10(1D + (Math.Pow(1 - _pr, -2) - 1D) / (k * k)); //set newly calculated attenuation
+                    return 10D * Math.Log10(1D + (Math.Pow(1 - _pr, -2) - 1D) /
+                        Math.Pow(D(k), 2)); //get newly calculated attenuation
                 }
                 throw new Exception("In Elliptical.ActualStopA: invalid design.");
             }
@@ -575,7 +576,7 @@ namespace DigitalFilter
         {
             set
             {
-                if (_passA.Equals(value)) return;
+                if (Math.Abs(_passA).Equals(Math.Abs(value))) return;
                 designValidated = false;
                 designCompleted = false;
                 _passA = value;
@@ -614,6 +615,7 @@ namespace DigitalFilter
 
         protected bool ValidateHPDesign()
         {
+            if (designCode != 2 && (_pr <= 0D || _pr >= 1D)) { designValidated = false; return false; }
             double nyquist = _sr / 2D;
             if (designCode == 1) //missing PassF
             {
@@ -631,7 +633,7 @@ namespace DigitalFilter
             }
             else //have both frequencies
             {
-                if (_passF >= _stopF || _passF <= 0 || _stopF >= nyquist)
+                if (_passF <= _stopF || _stopF <= 0 || _passF >= nyquist)
                 {
                     designValidated = false;
                     return false;
@@ -640,11 +642,11 @@ namespace DigitalFilter
                 omegaS = Math.Tan(Math.PI * _stopF / _sr);
                 if (designCode == 2) //missing PassA/Ripple
                 {
-                    _pr = 1D - 1D / Math.Sqrt(Math.Pow(D(omegaS / omegaC), 2) * Math.Pow(10D, _stopA / 10D) + 1D);
+                    _pr = 1D - 1D / Math.Sqrt(Math.Pow(D(omegaS / omegaC), 2) * Math.Pow(10D, Math.Abs(_stopA) / 10D) + 1D);
                     _passA = -20D * Math.Log10(1 - _pr);
                 }
                 else if (designCode == 4) //missing StopA
-                    _stopA = 10D * Math.Log10((Math.Pow(1 - _pr, -2) - 1D) / Math.Pow(D(omegaS / omegaC), 2) + 1D);
+                    _stopA = 10D * Math.Log10(1D + (Math.Pow(1 - _pr, -2) - 1D) / Math.Pow(D(omegaS / omegaC), 2) );
                 else //missing NP
                     _np = np(omegaS / omegaC);
             }
@@ -680,13 +682,13 @@ namespace DigitalFilter
                 omegaS = Math.Tan(Math.PI * _stopF / _sr);
                 if (designCode == 2) //missing PassA/Ripple
                 {
-                    _pr = 1D - 1D / Math.Sqrt(Math.Pow(D(omegaC / omegaS), 2) * Math.Pow(10D, _stopA / 10D) + 1D);
+                    _pr = 1D - 1D / Math.Sqrt(Math.Pow(D(omegaC / omegaS), 2) * Math.Pow(10D, Math.Abs(_stopA) / 10D) + 1D);
                     _passA = -20D * Math.Log10(1 - _pr);
                 }
                 else if (designCode == 4) //missing StopA
                 {
                     double d = Math.Pow(D(omegaC / omegaS), 2);
-                    _stopA = 10D * Math.Log10((Math.Pow(1 - _pr, -2) - 1D) / d + 1D);
+                    _stopA = 10D * Math.Log10(1D + (Math.Pow(1 - _pr, -2) - 1D) / d);
                 }
                 else //missing NP
                     _np = np(omegaC / omegaS);
@@ -852,7 +854,7 @@ namespace DigitalFilter
         {
             get
             {
-                double k1 = Math.Sqrt((Math.Pow(1D - _pr, -2) - 1D) / (Math.Pow(10D, _stopA / 10D) - 1D));
+                double k1 = Math.Sqrt((Math.Pow(1D - _pr, -2) - 1D) / (Math.Pow(10D, Math.Abs(_stopA) / 10D) - 1D));
                 double q1 = QFromH(HFromK(k1));
                 q = Math.Pow(q1, 1D / _np);
                 return KFromH(HFromQ(q));
@@ -880,7 +882,7 @@ namespace DigitalFilter
         protected int np(double k)
         {
             q = QFromH(HFromK(k));
-            double D = Math.Sqrt((Math.Pow(1D - _pr, -2) - 1D) / (Math.Pow(10D, _stopA / 10D) - 1D));
+            double D = Math.Sqrt((Math.Pow(1D - _pr, -2) - 1D) / (Math.Pow(10D, Math.Abs(_stopA) / 10D) - 1D));
             double q1 = QFromH(HFromK(D));
             return (int)Math.Ceiling(Math.Log(q1) / Math.Log(q));
         }
