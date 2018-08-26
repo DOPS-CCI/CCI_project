@@ -13,7 +13,7 @@ namespace LaplacianTest
         [TestMethod]
         public void TestOsculatingPoly()
         {
-            PQMatrices pq = new PQMatrices(4, 1D); //create object
+            PQMatrices pq = new PQMatrices(4, 3, 1D); //create object
             PrivateObject pt = new PrivateObject(pq); //gain access to private methods and objects
             object[] parameters = new object[1];
             parameters[0] = new Point3D(2, -3, -2);
@@ -71,7 +71,7 @@ namespace LaplacianTest
                 new double[] { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 4, 0, -3, 0, 0, -4, 0, 0 },
                 result);
 
-            pq = new PQMatrices(3, 1D);
+            pq = new PQMatrices(3, 2, 1D);
             pt = new PrivateObject(pq);
             parameters = new object[] { new Point3D(5, -3, 2) };
             result = (double[])pt.Invoke("osculatingPoly", parameters);
@@ -84,7 +84,7 @@ namespace LaplacianTest
             CollectionAssert.AreEqual(
                 new double[] { 0, 1, 10, 0, -3, 0, 0, 2, 0, 0 }, result);
 
-            pq = new PQMatrices(5, 1D);
+            pq = new PQMatrices(5, 4, 1D);
             pt = new PrivateObject(pq);
             parameters[1] = new Tuple<int, int, int>(0, 2, 0);
             result = (double[])pt.Invoke("DnosculatingPoly", parameters);
@@ -201,7 +201,7 @@ namespace LaplacianTest
             foreach (double l in lambda)
                 for (int m = 4; m <= 6; m++)
                 {
-                    PQMatrices pq = new PQMatrices(m, l);
+                    PQMatrices pq = new PQMatrices(m, m - 1, l);
                     pq.CalculatePQ(electrodes);
                     double[] result = pq.InterpolatedValue(new NVector(noiseFree), outputLocations);
                     NVector RVec = new NVector(result); //result vector
@@ -304,7 +304,7 @@ namespace LaplacianTest
             foreach (double l in lambda)
                 for (int m = 4; m <= 6; m++)
                 {
-                    PQMatrices pq = new PQMatrices(m, l);
+                    PQMatrices pq = new PQMatrices(m, m - 1, l);
                     pq.CalculatePQ(electrodes);
                     double[] result = pq.InterpolatedValue(new NVector(noise01), outputLocations);
                     NVector RVec = new NVector(result); //result vector
@@ -408,7 +408,7 @@ namespace LaplacianTest
             foreach (double l in lambda)
                 for (int m = 4; m <= 6; m++)
                 {
-                    PQMatrices pq = new PQMatrices(m, l);
+                    PQMatrices pq = new PQMatrices(m, m - 1, l);
                     pq.CalculatePQ(electrodes);
                     double[] result = pq.InterpolatedValue(new NVector(noise1), outputLocations);
                     NVector RVec = new NVector(result); //result vector
@@ -950,7 +950,7 @@ namespace LaplacianTest
             foreach (double l in lambda)
                 for (int m = 3; m <= 6; m++)
                 {
-                    PQMatrices pq = new PQMatrices(m, l);
+                    PQMatrices pq = new PQMatrices(m, m - 1, l);
                     pq.CalculatePQ(electrodes);
                     double[] result = pq.InterpolatedValue(SVec, outputLocations);
                     NVector RVec = new NVector(result); //result vector
@@ -1054,7 +1054,7 @@ namespace LaplacianTest
             foreach (double l in lambda)
                 for (int m = 4; m <= 6; m++)
                 {
-                    PQMatrices pq = new PQMatrices(m, l);
+                    PQMatrices pq = new PQMatrices(m, m - 1, l);
                     pq.CalculatePQ(electrodes);
                     double[] result = pq.InterpolatedValue(new NVector(signal01), outputLocations);
                     NVector RVec = new NVector(result); //result vector
@@ -1200,7 +1200,7 @@ namespace LaplacianTest
             foreach (double l in lambda)
                 for (int m = 2; m <= 6; m++)
                 {
-                    PQMatrices pq = new PQMatrices(m, l);
+                    PQMatrices pq = new PQMatrices(m, m - 1, l);
                     pq.CalculatePQ(electrodes);
                     double[] result = pq.InterpolatedValue(new NVector(noiseFree), outputLocations);
                     NVector RVec = new NVector(result); //result vector
@@ -1303,7 +1303,7 @@ namespace LaplacianTest
             foreach (double l in lambda)
                 for (int m = 2; m <= 6; m++)
                 {
-                    PQMatrices pq = new PQMatrices(m, l);
+                    PQMatrices pq = new PQMatrices(m, m - 1, l);
                     pq.CalculatePQ(electrodes);
                     double[] result = pq.InterpolatedValue(new NVector(signal01), outputLocations);
                     NVector RVec = new NVector(result); //result vector
@@ -1407,7 +1407,7 @@ namespace LaplacianTest
             foreach (double l in lambda)
                 for (int m = 2; m <= 6; m++)
                 {
-                    PQMatrices pq = new PQMatrices(m, l);
+                    PQMatrices pq = new PQMatrices(m, m - 1, l);
                     pq.CalculatePQ(electrodes);
                     double[] result = pq.InterpolatedValue(new NVector(signal1), outputLocations);
                     NVector RVec = new NVector(result); //result vector

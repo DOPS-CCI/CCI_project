@@ -24,39 +24,41 @@ namespace Laplacian
         /// locations of the calculated values may be (and probably should be) separately selected.
         /// </summary>
         /// <param name="ElectrodeLocations">Measured electrode positions</param>
-        /// <param name="order">Highest order spherical harmonic used in head-shape estimation</param>
+        /// <param name="FitOrder">Highest order spherical harmonic used in head-shape estimation</param>
         /// <param name="OutputLocations">Location of output calculations</param>
         /// <param name="m">Order of harmonic spline used to interpolate input voltages on scalp</param>
         /// <param name="lambda">Regularization parameter; controls "goodness" of fit of the voltage field</param>
         /// <param name="NO">Set to true to use "New Orleans" scheme of voltage interpolation</param>
-        /// <param name="RejectedChannels">Electrodes that are not to be used in voltage field estimation</param>
-        public SurfaceLaplacianEngine(IEnumerable<ElectrodeRecord> ElectrodeLocations, //location of all electrodes
-            int order, //maximum order of head shape fit; zero => spherical fit
-            IEnumerable<double[]> OutputLocations, //locations {theta, phi} to calculate surface Laplacian
-            int m, double lambda, bool NO = false, //parameters for voltage field fit
-            IEnumerable<ElectrodeRecord> RejectedChannels = null) //records of channels that are to be left out of active channels
+        public SurfaceLaplacianEngine(
+            HeadGeometry geometry,
+            IEnumerable<ElectrodeRecord> InputLocations, //locations {theta, phi} used to calculate surface Laplacian
+            int m, int nP, double lambda, bool NO, //parameters for voltage field fit -- order of PH, degree of poly, regularization, ?NO
+            IEnumerable<ElectrodeRecord> OutputLocations) //locagtions for which output should be generated
         {
             Mout = OutputLocations.Count();
             double [][] outputLocs = new double[Mout][];
             int i = 0;
-            foreach (double[] p in OutputLocations)
+            foreach (ElectrodeRecord er in OutputLocations)
             {
-                outputLocs[i] = new double[2];
-                outputLocs[i][0] = p[0];
-                outputLocs[i++][ 1] = p[1];
+                double[] p = er.convertToMathRThetaPhi();
+                outputLocs[i] = new double[] { p[1], p[2] };
             }
-            HeadGeometry head = new HeadGeometry(ElectrodeLocations, order);
-            Tuple<Point3D[], double[,]> t = head.CalculateSLCoefficients(outputLocs);
+
+            //Calculate P and Q matrices for input signal locations
+            pqm = new PQMatrices(m, nP, lambda, NO);
+            pqm.CalculatePQ(InputLocations);
+
+            //Calculate surface Laplacian factors for output point locations
+            Tuple<Point3D[], double[,]> t = geometry.CalculateSLCoefficients(outputLocs);
             outputXYZ = t.Item1;
             H = t.Item2;
-            pqm = new PQMatrices(m, lambda, NO);
-            List<ElectrodeRecord> signalLocs = new List<ElectrodeRecord>(ElectrodeLocations.Count() -
-                (RejectedChannels == null ? 0 : RejectedChannels.Count()));
-            foreach (ElectrodeRecord er in ElectrodeLocations)
-                if (!RejectedChannels.Contains(er)) signalLocs.Add(er);
-            pqm.CalculatePQ(signalLocs);
         }
 
+        /// <summary>
+        /// Calculate Surface Laplacian
+        /// </summary>
+        /// <param name="V">Input signal</param>
+        /// <returns>Output signal = Surface Laplacian</returns>
         public double[] CalculateSurfaceLaplacian(double[] V)
         {
             double[,] A = pqm.LaplacianComponents(new NVector(V), outputXYZ);

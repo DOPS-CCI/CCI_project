@@ -15,30 +15,33 @@ namespace Laplacian
         NMMatrix Q;
 
         //Order of interpolation -- use solutions to m-order polyharmonic PDQ
-        //Degree of osculating polynomial = m - 1
+        //Degree of osculating polynomial _pDegree <= m - 1
         //Power of radial basis functions in 3-D = 2 * m - 3 (solutions to PDQ)
         //m >= 2
         int _m;
+        int _pDegree;
 
         double _lambda;
         bool _no;
         Point3D[] points; //Electrode locations => input points
         int N; //number of electrode sites
-        int M; //number of coefficients in osculating polynomial = m * (m^2 - 1) / 6;
-            // this makes the maximum power of any term <= m - 2
+        int M; //number of coefficients in osculating polynomial = (d + 1) * (d + 2) * (d + 3) / 6;
+            // this makes the maximum power of any term d <= m - 1
 
         /// <summary>
         /// Constructor for P and Q matrices for 3-D spline interpolation
         /// </summary>
         /// <param name="m">Order of interpolation</param>
+        /// <param name="pDegree">Degree of osculating polynomial < m</param>
         /// <param name="lambda">Regularization parameter</param>
         /// <param name="NO">Use "New Orleans" interpolation</param>
-        public PQMatrices(int m, double lambda, bool NO = false)
+        public PQMatrices(int m, int pDegree, double lambda, bool NO = false)
         {
             _m = NO ? 3 : m; //if NO, ignore value of m
+            _pDegree = NO? 2: Math.Min(m-1, pDegree);
             _lambda = lambda;
             _no = NO;
-            M = (m * (m + 1) * (m + 2)) / 6;
+            M = ((_pDegree + 1) * (_pDegree + 2) * (_pDegree + 3)) / 6; //number of polynomial coefficients
         }
 
         /// <summary>
@@ -193,13 +196,13 @@ namespace Laplacian
         {
             int d = 0;
             double[] p = new double[M];
-            for (int i = 0; i < _m; i++) //iterate over z powers
+            for (int i = 0; i <= _pDegree; i++) //iterate over z powers
             {
                 double vz = Math.Pow(v.Z, i);
-                for (int j = 0; j < _m - i; j++) //iterate over y powers
+                for (int j = 0; j <= _pDegree - i; j++) //iterate over y powers
                 {
                     double vyz = Math.Pow(v.Y, j) * vz;
-                    for (int k = 0; k < _m - i - j; k++) //iterate over x powers
+                    for (int k = 0; k <= _pDegree - i - j; k++) //iterate over x powers
                         p[d++] = Math.Pow(v.X, k) * vyz;
                 }
             }
@@ -217,7 +220,7 @@ namespace Laplacian
         {
             int d = 0;
             double[] p = new double[M];
-            for (int i = 0; i < _m; i++) //iterate over z powers
+            for (int i = 0; i <= _pDegree; i++) //iterate over z powers
             {
                 double vz = 0D;
                 if (i >= dxyz.Item3)
@@ -225,7 +228,7 @@ namespace Laplacian
                     vz = Math.Pow(pt.Z, i - dxyz.Item3);
                     for (int l = 0; l < dxyz.Item3; l++) vz *= i - l;
                 }
-                for (int j = 0; j < _m - i; j++) //iterate over y powers
+                for (int j = 0; j <= _pDegree - i; j++) //iterate over y powers
                 {
                     double vyz = 0D;
                     if (j >= dxyz.Item2)
@@ -233,7 +236,7 @@ namespace Laplacian
                         vyz = Math.Pow(pt.Y, j - dxyz.Item2) * vz;
                         for (int l = 0; l < dxyz.Item2; l++) vyz *= j - l;
                     }
-                    for (int k = 0; k < _m - i - j; k++) //iterate over x powers
+                    for (int k = 0; k <= _pDegree - i - j; k++) //iterate over x powers
                     {
                         double vxyz = 0D;
                         if (k >= dxyz.Item1)
@@ -259,33 +262,33 @@ namespace Laplacian
         {
             int d = 0;
             double[] p = new double[M];
-            for (int i = 0; i < _m; i++) //iterate over z powers
+            for (int i = 0; i <= _pDegree; i++) //iterate over z powers
             {
                 double vz;
                 if (var == 'z')
                     if (i < 2)
                     {
-                        d += (_m - i) * (_m - i + 1) / 2; //skip zero terms
+                        d += (_pDegree - i + 1) * (_pDegree - i + 2) / 2; //skip zero terms
                         continue;
                     }
                     else
                         vz = i * (i - 1) * Math.Pow(v.Z, i - 2);
                 else
                     vz = Math.Pow(v.Z, i);
-                for (int j = 0; j < _m - i; j++) //iterate over y powers
+                for (int j = 0; j <= _pDegree - i; j++) //iterate over y powers
                 {
                     double vyz;
                     if (var == 'y')
                         if (j < 2)
                         {
-                            d += _m - i - j; //skip zero terms
+                            d += _pDegree - i - j + 1; //skip zero terms
                             continue;
                         }
                         else
                             vyz = j * (j - 1) * Math.Pow(v.Y, j - 2) * vz;
                     else
                         vyz = Math.Pow(v.Y, j) * vz;
-                    for (int k = 0; k < _m - i - j; k++) //iterate over x powers
+                    for (int k = 0; k <= _pDegree - i - j; k++) //iterate over x powers
                         if (var == 'x')
                             if (k < 2)
                                 d++;

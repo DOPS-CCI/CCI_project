@@ -25,16 +25,15 @@ namespace Laplacian
         {
             _order = order;
             int n = locations.Count();
-            double[][] x = new double[n][]; //independent variable: angular direction of the electrode from origin
-            double[] y = new double[n]; //dependent variable: distance of electrode from origin
+            double[][] PhiTheta = new double[n][]; //independent variable: angular direction of the electrode from origin
+            double[] R = new double[n]; //dependent variable: distance of electrode from origin
             int i = 0;
             foreach(ElectrodeRecord er in locations)
             {
                 double[] rpt = er.convertToMathRThetaPhi();
-                y[i] = rpt[0];
-                x[i++] = new double[] { rpt[1], rpt[2] };
-            }
-            spherical = new GeneralizedLinearRegression.Function[(order + 1) * (order + 1)]; //spherical harmonics
+                R[i] = rpt[0];
+                PhiTheta[i++] = new double[] { rpt[1], rpt[2] };
+            }            spherical = new GeneralizedLinearRegression.Function[(order + 1) * (order + 1)]; //spherical harmonics
             for (int l = 0, j = 0; l <= order; l++)
                 for (int m = -l; m <= l; m++, j++)
                 {
@@ -44,7 +43,7 @@ namespace Laplacian
                 }
 
             GeneralizedLinearRegression glr = new GeneralizedLinearRegression(spherical);
-            beta = glr.Regress(x, y);
+            beta = glr.Regress(PhiTheta, R);
         }
 
         /// <summary>
