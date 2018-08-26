@@ -48,6 +48,7 @@ namespace PreprocessDataset
             filter.PassF = cutoff;
             filter.StopA = stopA;
             filter.HP = true;
+
             filter.SR = sr[1];
             sr.PropertyChanged += SR_PropertyChanged;
             filter.ValidateDesign();

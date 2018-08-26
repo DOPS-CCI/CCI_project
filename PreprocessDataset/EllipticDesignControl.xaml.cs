@@ -28,7 +28,7 @@ namespace PreprocessDataset
         Elliptical filter = new Elliptical();
         const double cutoff = 1D;
         const double attenuation = 40D;
-        const double passBandRipple = 1D;
+        const double passBandRipple = 0.1D;
         const int poles = 2;
 
         public DFilter FilterDesign
@@ -45,10 +45,13 @@ namespace PreprocessDataset
         public EllipticDesignControl(ListBox lb, SamplingRate sr)
         {
             myList = lb;
+
+            filter.HP = true;
             filter.NP = poles;
             filter.PassF = cutoff;
             filter.Ripple = passBandRipple;
             filter.StopA = attenuation;
+
             filter.SR = sr[1];
             sr.PropertyChanged += SR_PropertyChanged;
             filter.ValidateDesign();
@@ -93,6 +96,7 @@ namespace PreprocessDataset
                     AttenuationActual.Text = filter.ActualStopA.ToString("0.0");
                 }
                 else if (!(bool)PassFCB.IsChecked) Cutoff.Text = filter.PassF.ToString("0.00");
+                else if (!(bool)RippleCB.IsChecked) Ripple.Text = (filter.Ripple * 100D).ToString("0.00");
                 else if (!(bool)StopACB.IsChecked) Attenuation.Text = filter.StopA.ToString("0.0");
                 else if (!(bool)StopFCB.IsChecked) StopF.Text = filter.StopF.ToString("0.00");
             }
@@ -130,8 +134,18 @@ namespace PreprocessDataset
         {
             if (Ripple == null || !Ripple.IsEnabled) return;
             double r;
-            if (!double.TryParse(Ripple.Text, out r)) r = double.NaN;
-            filter.Ripple = r;
+            if (!double.TryParse(Ripple.Text, out r)) filter.Ripple = double.NaN;
+            else
+                filter.Ripple = r / 100D;
+            if (ErrorCheckReq != null) ErrorCheckReq(this, null);
+        }
+
+        private void Poles_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (Poles == null || !Poles.IsEnabled) return;
+            int p;
+            if (!int.TryParse(Poles.Text, out p)) p = 0;
+            filter.NP = p;
             if (ErrorCheckReq != null) ErrorCheckReq(this, null);
         }
 
@@ -146,7 +160,7 @@ namespace PreprocessDataset
 
         private void Attenuation_TextChanged(object sender, TextChangedEventArgs e)
         {
-            if (Attenuation == null) return;
+            if (Attenuation == null || !Attenuation.IsEnabled) return;
             double a;
             if (!double.TryParse(Attenuation.Text, out a)) a = double.NaN;
             filter.StopA = a;
@@ -185,7 +199,14 @@ namespace PreprocessDataset
             {
                 Poles.Text = "";
                 filter.NP = 0;
+                if (double.IsNaN(filter.StopA))
+                    AttenuationActual.Text = "";
+                else
+                    AttenuationActual.Text = filter.StopA.ToString("0.0");
+                Actual.Visibility = Visibility.Visible;
             }
+            else
+                Actual.Visibility = Visibility.Hidden;
             ErrorCheckReq(this, null);
         }
 
