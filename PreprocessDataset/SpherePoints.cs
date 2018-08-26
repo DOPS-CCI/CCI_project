@@ -1,18 +1,19 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using ElectrodeFileStream;
 
 namespace PreprocessDataset
 {
-    public class SpherePoints: IEnumerable<Point3D>
+    public class SpherePoints: IEnumerable<Tuple<double, double>>
     {
-        Point3D[] sites;
+        Tuple<double, double>[] sites;
 
         #region Public interface
-        public Point3D this[int i]
+        public Tuple<double, double> this[int i]
         {
             get
             {
@@ -22,87 +23,82 @@ namespace PreprocessDataset
 
         public int Length { get { return sites.Length; } }
 
-        IEnumerable<XYZRecord> ElectrodeRecords
-        {
-            get
-            {
-                int n = sites.Length;
-                int d = (int)Math.Ceiling(Math.Log10((double)n + 0.5));
-                string format = new String('0', d);
-                XYZRecord[] xyz = new XYZRecord[n];
-                for (int i = 0; i < n; i++)
-                    xyz[i] = new XYZRecord("S" + (i + 1).ToString(format), sites[i]);
-                return xyz;
-            }
-        }
-
-        const double pica = 0.01;
-        public SpherePoints(double spacing, double lastPhi = Math.PI / 2D)
+        public SpherePoints(double spacing, double lastTheta = Math.PI / 2D)
         {
             //Make a list of "latitudes" and number of points at the latitude
             List<Tuple<int, double>> l = new List<Tuple<int, double>>();
-            double lat = 0D;
-            double lat1;
-            int N;
-            l.Add(new Tuple<int, double>(1, lat)); //polar point
-            int n = 1; //count total number of points
-            
-            while (lat < lastPhi)
+            Tuple<int, double> t = first3(spacing);
+            l.Add(t); //polar point
+            int n = 3; //count total number of points
+            double lat1 = t.Item2;            
+            while (lat1 < lastTheta)
             {
-                lat1 = lat;
-                phi1(lat1, spacing, out N, out lat);
-                l.Add(new Tuple<int, double>(N, lat));
-                n += N;
+                l.Add(t = next(lat1, spacing));
+                n += t.Item1;
+                lat1 = t.Item2;
             }
 
             //Create new list of points on the sphere
-            sites = new Point3D[n];
+            sites = new Tuple<double, double>[n];
             Random rnd = new Random();
             int j = 0;
-            foreach (Tuple<int, double> t in l)
+            foreach (Tuple<int, double> t1 in l)
             {
-                double z = Math.Cos(t.Item2);
-                double r = Math.Sin(t.Item2);
-                double del = 2D * Math.PI / t.Item1;
-                double offset = del * rnd.NextDouble(); //Rndomize starting locatin at this latitude
-                for (int i = 0; i < t.Item1; i++) //Create correct number of equally spaced points at this latitude
+                double theta = t1.Item2;
+                double del = 2D * Math.PI / t1.Item1;
+                double offset = del * rnd.NextDouble(); //Randomize starting location at this latitude
+                for (int i = 0; i < t1.Item1; i++) //Create correct number of equally spaced points at this latitude
                 {
-                    double theta = offset + i * del;
-                    double x = r * Math.Cos(theta);
-                    double y = r * Math.Sin(theta);
-                    sites[j++] = new Point3D(x, y, z); //Store as {x,y,z} components on unit sphere
+                    double phi = offset + i * del;
+                    sites[j++] = new Tuple<double,double>(theta, phi); //Store as {theta, phi}
                 }
             }
         }
-
         #endregion
 
         #region Private routines
-        void phi1(double oldPhi, double delta, out int N, out double newPhi)
+
+        //Algorithm of 8/26/2018
+        Tuple<int, double> first3(double delta)
+        {
+            return new Tuple<int, double>(3, Math.Acos(Math.Sqrt((1 + 2 * Math.Cos(delta) / 3D))));
+        }
+
+        Tuple<int,double> next(double theta0, double delta)
         {
             double d1 = Math.Cos(delta);
-            double d2 = Math.Cos(delta / 2D);
-            double C = Math.Acos(d1 / d2);
-            double dPhi0 = 0;
-            double dPhi1 = 0.866 * delta;
-            double p;
+            double dTheta3 = 0;
+            double dTheta2 = theta0;
+            double dTheta1 = theta0 + 0.866 * delta;
+            int N1;
             do
             {
-                dPhi0 = dPhi1;
-                double phi = oldPhi + dPhi0;
-                p = Math.Sqrt((d1 - Math.Cos(2D * phi)) / 2D);
-                dPhi1 = C + Math.Acos((Math.Pow(Math.Cos(phi), 2) + p * Math.Sin(phi)) / d2);
+                dTheta3 = dTheta2;
+                dTheta2 = dTheta1;
+                double c = Math.Cos(dTheta1);
+                double s = Math.Sin(dTheta1);
+                N1 = (int)Math.Ceiling(2D * Math.PI / Math.Acos((d1 - c * c) / (s * s)));
+                dTheta1 = theta1(dTheta1, delta, N1);
 
-            } while (Math.Abs(dPhi0 - dPhi1) > 1E-6);
-            newPhi = oldPhi + dPhi1;
-            N = (int)Math.Ceiling(Math.PI / Math.Acos(p / Math.Sin(newPhi)));
+            } while (Math.Abs(dTheta2 - dTheta1) > 1E-6
+                && (Math.Abs(dTheta3 - dTheta1) > 1E-6 || dTheta1 < dTheta2));
+            return new Tuple<int, double>(N1, dTheta1);
+        }
+
+        double theta1(double theta0, double delta, int N1)
+        {
+            double ct = Math.Cos(theta0);
+            double stcn = Math.Sin(theta0) * Math.Cos(Math.PI / N1);
+            double cd = Math.Cos(delta);
+            double sq = Math.Sqrt(ct * ct + stcn * stcn - cd * cd);
+            return Math.Atan2( cd * stcn + ct * sq, ct * cd - stcn * sq);
         }
         #endregion
 
         #region Enumeration
-        public IEnumerator<Point3D> GetEnumerator()
+        public IEnumerator<Tuple<double, double>> GetEnumerator()
         {
-            foreach (Point3D pt in sites)
+            foreach (Tuple<double, double> pt in sites)
             {
                 yield return pt;
             }
