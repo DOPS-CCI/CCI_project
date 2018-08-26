@@ -3,28 +3,16 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Forms;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
-using DigitalFilter;
-using HeaderFileStream;
 using BDFEDFFileStream;
-using ElectrodeFileStream;
-using CCILibrary;
 using CCIUtilities;
-using MATFile;
-using MLTypes;
-using Laplacian;
+using DigitalFilter;
+using ElectrodeFileStream;
+using HeaderFileStream;
 
 namespace PreprocessDataset
 {
@@ -33,18 +21,12 @@ namespace PreprocessDataset
     /// </summary>
     public partial class MainWindow : Window
     {
-        //Lists of Tuples:
-        //Item1 is BDF "row number" in data array;
-        //Item2 is the corresponding ElectrodeRecord with name and position
-        List<Tuple<int, ElectrodeRecord>> WorkingChannels;
-
         string ETRFullPathName;
 
         PreprocessingWorker ppw = new PreprocessingWorker();
 
         public MainWindow()
         {
-
             bool r;
             do //open HDR file and associated BDF and ETR files
             {
@@ -73,7 +55,7 @@ namespace PreprocessDataset
             InitializeComponent();
 
             this.Title = "PreprocessDataset: " + ppw.directory;
-            int c = ppw.InitialChannels.Count;
+            int c = ppw.InitialBDFChannels.Count;
             RemainingEEGChannels.Text = c.ToString("0");
             EEGChannels.Text = c.ToString("0");
 
@@ -125,22 +107,10 @@ namespace PreprocessDataset
                 ew.ShowDialog();
                 return false;
             }
-
-            //Used as set of channels that may be excluded and as record of locations for
-            // Laplacian output if "Use all channels" checked
-            ppw.InitialChannels = new List<Tuple<int, ElectrodeRecord>>();
-            WorkingChannels = new List<Tuple<int, ElectrodeRecord>>();
-
-            //Keep BDF channels that are in ETR (match by name) and are "Active Electrode" in BDF
-            //Remove electrode channels which are not in BDF and ETR files or aren't EEG sources
-            foreach (KeyValuePair<string, ElectrodeRecord> etr in ppw.eis.etrPositions)
-            {
-                int chan = ppw.bdf.GetChannelNumber(etr.Key); //This is BDF channel number
-                if (chan < 0 || ppw.bdf.transducer(chan) != "Active Electrode") continue; //skip if not found or not EEG
-                //Link BDF channel number to ETR record, which has location and BDF/ETR name
-                WorkingChannels.Add(Tuple.Create<int, ElectrodeRecord>(ppw.InitialChannels.Count, etr.Value));
-                ppw.InitialChannels.Add(Tuple.Create<int, ElectrodeRecord>(chan, etr.Value));
-            }
+            //Keep BDF channels that are "Active Electrode" in BDF
+            for (int chan = 0; chan < ppw.bdf.NumberOfChannels; chan++)
+                if (ppw.bdf.transducer(chan) == "Active Electrode")
+                    ppw.InitialBDFChannels.Add(chan);
             return true;
         }
 
@@ -242,15 +212,16 @@ namespace PreprocessDataset
             ppw.elimChannelList.RemoveAll(t => true);
             foreach (string ch in l)
             {
-                Tuple<int, ElectrodeRecord> c = ppw.InitialChannels.Find(p => p.Item2.Name == ch.Trim(' '));
-                if (c == null || ppw.elimChannelList.Contains(ppw.InitialChannels.IndexOf(c)))
+                int chan = ppw.bdf.GetChannelNumber(ch.Trim(' '), 'U');
+                if (ppw.InitialBDFChannels.Contains(chan) && !ppw.elimChannelList.Contains(chan))
+                    ppw.elimChannelList.Add(chan);
+                else
                 {
                     ppw.elimChannelList.RemoveAll(t => true);
                     break;
                 }
-                ppw.elimChannelList.Add(ppw.InitialChannels.IndexOf(c));
             }
-            RemainingEEGChannels.Text = (ppw.InitialChannels.Count - ppw.elimChannelList.Count).ToString("0");
+            RemainingEEGChannels.Text = (ppw.InitialBDFChannels.Count - ppw.elimChannelList.Count).ToString("0");
             ErrorCheck();
         }
 
@@ -272,6 +243,15 @@ namespace PreprocessDataset
             ErrorCheck();
         }
 
+        private void FitOrder_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (!IsLoaded) return;
+            int f;
+            if (!Int32.TryParse(FitOrder.Text, out f)) f = -1;
+            ppw.HeadFitOrder = f;
+            ErrorCheck();
+        }
+
         private void ErrorCheck()
         {
             if (!IsLoaded) return;
@@ -285,16 +265,20 @@ namespace PreprocessDataset
             {
                 if (ppw.doLaplacian)
                 {
-                    if ((bool)PolySpline.IsChecked)
+                    if ((bool)Fitted.IsChecked)
                     {
-                        if (ppw.PHorder <= 0) ok = false;
-                        else if (ppw.PHdegree <= 0 || ppw.PHdegree >= ppw.PHorder) ok = false;
-                        else if (double.IsNaN(ppw.PHlambda) || ppw.PHlambda < 0D) ok = false;
+                        if (ppw.HeadFitOrder < 0) ok = false;
                     }
-                    else //New Orleans
+                    if ((bool)NO.IsChecked) //New Orleans
                         if (double.IsNaN(ppw.NOlambda) || ppw.NOlambda < 0D) ok = false;
-                    if (ArrayDist.IsEnabled && (double.IsNaN(ppw.aDist) || ppw.aDist <= 0D)) ok = false;
-                    else if ((bool)Other.IsChecked && LaplaceETR.Text == "") ok = false;
+                        else //Polyharmonic spline
+                        {
+                            if (ppw.PHorder <= 0) ok = false;
+                            else if (ppw.PHdegree < 0 || ppw.PHdegree >= ppw.PHorder) ok = false;
+                            else if (double.IsNaN(ppw.PHlambda) || ppw.PHlambda < 0D) ok = false;
+                        }
+                    if (ppw._outType == 2 && (double.IsNaN(ppw.aDist) || ppw.aDist <= 0D)) ok = false;
+                    else if (ppw._outType == 3 && LaplaceETR.Text == "") ok = false;
                 }
                 if (ppw.doFiltering)
                     //                    if (inputDecimation > 0 && outputDecimation > 0)
@@ -323,7 +307,7 @@ namespace PreprocessDataset
         {
             if (!IsLoaded) return;
             if (PolyHarmDegree == null) return;
-            if (!int.TryParse(PolyHarmDegree.Text, out ppw.PHdegree)) ppw.PHdegree = 0;
+            if (!int.TryParse(PolyHarmDegree.Text, out ppw.PHdegree)) ppw.PHdegree = -1;
             ErrorCheck();
         }
 
@@ -359,16 +343,16 @@ namespace PreprocessDataset
 
         private void BrowseETR_Click(object sender, RoutedEventArgs e)
         {
-            System.Windows.Forms.OpenFileDialog etr = new OpenFileDialog();
+            OpenFileDialog etr = new OpenFileDialog();
             etr.Title = "Open ETR file for locations...";
             etr.DefaultExt = ".etr"; // Default file extension
             etr.Filter = "ETR Files (.etr)|*.etr"; // Filter files by extension
-            if (etr.ShowDialog() == System.Windows.Forms.DialogResult.OK)
-            {
-                ETRFullPathName = etr.FileName;
-                LaplaceETR.Text = System.IO.Path.GetFileName(ETRFullPathName);
-                ErrorCheck();
-            }
+
+            if (etr.ShowDialog() != System.Windows.Forms.DialogResult.OK) return;
+
+            ppw.ETROutputFullPathName = etr.FileName;
+            LaplaceETR.Text = System.IO.Path.GetFileName(etr.FileName);
+            ErrorCheck();
         }
 
         private void Process_Click(object sender, RoutedEventArgs e)
@@ -387,6 +371,8 @@ namespace PreprocessDataset
                 ppw.filterList = filterList;
             }
 
+            if ((bool)Spherical.IsChecked) ppw.HeadFitOrder = 0;
+
             BackgroundWorker bw = new BackgroundWorker();
             bw.WorkerReportsProgress = true;
             bw.WorkerSupportsCancellation = true;
@@ -400,6 +386,7 @@ namespace PreprocessDataset
         private void LaplaceETR_TextChanged(object sender, TextChangedEventArgs e)
         {
             if (!IsLoaded) return;
+            ppw.ETROutputFullPathName = LaplaceETR.Text;
             ErrorCheck();
         }
 
@@ -433,9 +420,9 @@ namespace PreprocessDataset
 
         private void refChans_Click(object sender, RoutedEventArgs e)
         {
-//            RefChan.Text = SelChan.Text;
+            //            RefChan.Text = SelChan.Text;
         }
-            
+
         private void RefChan_TextChanged(object sender, TextChangedEventArgs e)
         {
             if (!IsLoaded) return;
@@ -457,7 +444,7 @@ namespace PreprocessDataset
             ErrorCheck();
         }
 
-        private void RBCheckForError(object sender, RoutedEventArgs e)
+        private void RefRBCheck(object sender, RoutedEventArgs e)
         {
             if (!IsLoaded) return;
             System.Windows.Controls.RadioButton rb = (System.Windows.Controls.RadioButton)sender;
@@ -485,9 +472,21 @@ namespace PreprocessDataset
             return;
         }
 
+        private void NO_Click(object sender, RoutedEventArgs e)
+        {
+            ppw.NewOrleans = (bool)NO.IsChecked;
+            ErrorCheck();
+        }
+
         private void ZP_Click(object sender, RoutedEventArgs e)
         {
             ppw.reverse = (bool)ZP.IsChecked;
+        }
+
+        private void Spherical_Checked(object sender, RoutedEventArgs e)
+        {
+            ppw.HeadFitOrder = 0;
+            ErrorCheck();
         }
 
         private void RefChanExpression_TextChanged(object sender, TextChangedEventArgs e)
@@ -527,21 +526,12 @@ namespace PreprocessDataset
             try
             {
                 //find channels for reference using channel numbers from BDF file
-                List<int> r =  CCIUtilities.Utilities.parseChannelList(str, 1, ppw.bdf.NumberOfChannels - 1, true);
-                //then convert them to the channels that will be processed -- the EEG channels that have locations
-                List<int> n = new List<int>();
-                foreach (int bdfChan in r)
-                {
-                    int i = ppw.InitialChannels.FindIndex(p => bdfChan == p.Item1);
-                    if (i != -1) n.Add(i);
-                }
-                return n;
+                return CCIUtilities.Utilities.parseChannelList(str, 1, ppw.bdf.NumberOfChannels - 1, true);
             }
             catch
             {
                 return null;
             }
-
         }
 
         private List<List<int>> parseReferenceString(string str)
@@ -581,6 +571,23 @@ namespace PreprocessDataset
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
             Properties.Settings.Default.Save();
+        }
+
+        private void OutLocRBChecked(object sender, RoutedEventArgs e)
+        {
+            if (!IsLoaded) return;
+            System.Windows.Controls.RadioButton rb = (System.Windows.Controls.RadioButton)sender;
+            switch (rb.Name)
+            {
+                case "Current":
+                    ppw._outType = 1;
+                    ppw.OutputLocations = ppw.InputLocations.ToList();
+                    break;
+                case "ArrayDist": ppw._outType = 2; break;
+                case "Other": ppw._outType = 3; break;
+                default: ppw._refType = 0; break;
+            }
+            ErrorCheck();
         }
     }
 }
