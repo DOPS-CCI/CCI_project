@@ -168,12 +168,12 @@ namespace ElectrodeFileStream
         /// <param name="r">Radial distance</param>
         /// <param name="phi">Angle from z-axis in degrees</param>
         /// <param name="theta">Angle from nasion in degrees; positive to right</param>
-        public RPhiThetaRecord(string name, double r, double phi, double theta)
+        public RPhiThetaRecord(string name, double r, double phi, double theta, bool inRadians = false)
             : base(name)
         {
             R = r;
-            Phi = phi * ToRad;
-            Theta = theta * ToRad;
+            Phi = phi * (inRadians ? 1 : ToRad);
+            Theta = theta * (inRadians ? 1 : ToRad);
         }
 
         /// <summary>
@@ -259,11 +259,11 @@ namespace ElectrodeFileStream
 
         public PhiThetaRecord() { }
 
-        public PhiThetaRecord(string name, double phi, double theta)
+        public PhiThetaRecord(string name, double phi, double theta, bool inRadians = false)
             : base(name)
         {
-            Phi = phi * ToRad;
-            Theta = theta * ToRad;
+            Phi = phi * (inRadians ? 1 : ToRad);
+            Theta = theta * (inRadians ? 1 : ToRad);
         }
 
         public PhiThetaRecord(string name, PhiTheta pt)
