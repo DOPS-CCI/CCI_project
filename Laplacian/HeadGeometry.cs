@@ -13,6 +13,11 @@ namespace Laplacian
         int _order;
         double[] beta; //regression coefficients;
             //this is the essence of the head shape from which all geometrical measures are derived
+        
+        public double MeanRadius
+        {
+            get { return beta[0]; }
+        }
 
         GeneralizedLinearRegression.Function[] spherical; //spherical harmonics: series of functions to fit
 
@@ -25,14 +30,15 @@ namespace Laplacian
         {
             _order = order;
             int n = locations.Count();
-            double[][] PhiTheta = new double[n][]; //independent variable: angular direction of the electrode from origin
+
+            double[][] ThetaPhi = new double[n][]; //independent variable: angular direction of the electrode from origin
             double[] R = new double[n]; //dependent variable: distance of electrode from origin
             int i = 0;
             foreach(ElectrodeRecord er in locations)
             {
                 double[] rpt = er.convertToMathRThetaPhi();
                 R[i] = rpt[0];
-                PhiTheta[i++] = new double[] { rpt[1], rpt[2] };
+                ThetaPhi[i++] = new double[] { rpt[1], rpt[2] };
             }            spherical = new GeneralizedLinearRegression.Function[(order + 1) * (order + 1)]; //spherical harmonics
             for (int l = 0, j = 0; l <= order; l++)
                 for (int m = -l; m <= l; m++, j++)
@@ -43,7 +49,7 @@ namespace Laplacian
                 }
 
             GeneralizedLinearRegression glr = new GeneralizedLinearRegression(spherical);
-            beta = glr.Regress(PhiTheta, R);
+            beta = glr.Regress(ThetaPhi, R);
         }
 
         /// <summary>
