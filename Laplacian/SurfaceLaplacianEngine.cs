@@ -41,7 +41,7 @@ namespace Laplacian
             foreach (ElectrodeRecord er in OutputLocations)
             {
                 double[] p = er.convertToMathRThetaPhi();
-                outputLocs[i] = new double[] { p[1], p[2] };
+                outputLocs[i++] = new double[] { p[1], p[2] };
             }
 
             //Calculate P and Q matrices for input signal locations

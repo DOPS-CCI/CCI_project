@@ -16,7 +16,7 @@ namespace Laplacian
         
         public double MeanRadius
         {
-            get { return beta[0]; }
+            get { return beta[0] * SphericalHarmonic.Y(0, 0, 0D, 0D); }
         }
 
         GeneralizedLinearRegression.Function[] spherical; //spherical harmonics: series of functions to fit
@@ -96,7 +96,7 @@ namespace Laplacian
                     {
                         double bk = beta[k];
                         R += bk * SphericalHarmonic.Y(l, m, theta, phi);
-                        for (int a = 0; a <= 5; a++)
+                        for (int a = 0; a < 5; a++)
                         {
                             double[] d = SphericalHarmonic.DY(l, m, theta, phi, dd[a]);
                             int offset = (d.Length - 1) >> 1;
