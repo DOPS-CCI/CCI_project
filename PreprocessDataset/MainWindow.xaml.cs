@@ -270,14 +270,14 @@ namespace PreprocessDataset
                     {
                         if (ppw.HeadFitOrder < 0) ok = false;
                     }
-                    if ((bool)NO.IsChecked) //New Orleans
+                    if (!(bool)NO.IsChecked)  //Polyharmonic spline
+                    {
+                        if (ppw.PHorder <= 0) ok = false;
+                        else if (ppw.PHdegree < 0 || ppw.PHdegree >= ppw.PHorder) ok = false;
+                        else if (double.IsNaN(ppw.PHlambda) || ppw.PHlambda < 0D) ok = false;
+                    }
+                    else//New Orleans
                         if (double.IsNaN(ppw.NOlambda) || ppw.NOlambda < 0D) ok = false;
-                        else //Polyharmonic spline
-                        {
-                            if (ppw.PHorder <= 0) ok = false;
-                            else if (ppw.PHdegree < 0 || ppw.PHdegree >= ppw.PHorder) ok = false;
-                            else if (double.IsNaN(ppw.PHlambda) || ppw.PHlambda < 0D) ok = false;
-                        }
                     if (ppw._outType == 2 && (double.IsNaN(ppw.aDist) || ppw.aDist <= 0D)) ok = false;
                     else if (ppw._outType == 3 && LaplaceETR.Text == "") ok = false;
                 }
@@ -307,7 +307,6 @@ namespace PreprocessDataset
         private void PolyHarmDegree_TextChanged(object sender, TextChangedEventArgs e)
         {
             if (!IsLoaded) return;
-            if (PolyHarmDegree == null) return;
             if (!int.TryParse(PolyHarmDegree.Text, out ppw.PHdegree)) ppw.PHdegree = -1;
             ErrorCheck();
         }
@@ -315,7 +314,6 @@ namespace PreprocessDataset
         private void PolyHarmLambda_TextChanged(object sender, TextChangedEventArgs e)
         {
             if (!IsLoaded) return;
-            if (PolyHarmLambda == null) return;
             if (!double.TryParse(PolyHarmLambda.Text, out ppw.PHlambda)) ppw.PHlambda = double.NaN;
             ErrorCheck();
         }
@@ -323,7 +321,6 @@ namespace PreprocessDataset
         private void NOLambda_TextChanged(object sender, TextChangedEventArgs e)
         {
             if (!IsLoaded) return;
-            if (NOLambda == null) return;
             if (!double.TryParse(NOLambda.Text, out ppw.NOlambda)) ppw.NOlambda = double.NaN;
             ErrorCheck();
         }
@@ -331,7 +328,6 @@ namespace PreprocessDataset
         private void ArrayDist_TextChanged(object sender, TextChangedEventArgs e)
         {
             if (!IsLoaded) return;
-            if (ArrayDist == null) return;
             if (!double.TryParse(ArrayDist.Text, out ppw.aDist)) ppw.aDist = double.NaN;
             ErrorCheck();
         }
@@ -583,7 +579,7 @@ namespace PreprocessDataset
                 case "Current":
                     ppw._outType = 1;
                     break;
-                case "ArrayDist": ppw._outType = 2; break;
+                case "AButt": ppw._outType = 2; break;
                 case "Other": ppw._outType = 3; break;
                 default: ppw._refType = 0; break;
             }

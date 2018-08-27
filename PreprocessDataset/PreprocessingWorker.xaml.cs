@@ -89,10 +89,10 @@ namespace PreprocessDataset
 
             ReadBDFFile();
 
+            CreateElectrodeChannelMap();
+
             if (doReference)
                 ReferenceData();
-
-            CreateElectrodeChannelMap();
 
             if (doFiltering)
                 FilterData();
@@ -128,7 +128,7 @@ namespace PreprocessDataset
                     double R = headGeometry.EvaluateAt(t.Item1, t.Item2);
                     OutputLocations.Add(new RPhiThetaRecord(
                         "S" + (i + 1).ToString(format),
-                        R, t.Item1, Math.PI / 2D - t.Item2));
+                        R, t.Item1, Math.PI / 2D - t.Item2, true));
                     i++;
                 }
             }
@@ -142,6 +142,16 @@ namespace PreprocessDataset
 
         private void CreateElectrodeChannelMap()
         {
+            //First, generate a map from BDF channel number to index of data array
+            //we need this because the reference expressions reference BDF channel #
+            BDFtoDataChannelMap = new int[bdf.NumberOfChannels];
+            int n = 0;
+            for (int chan = 0; chan < bdf.NumberOfChannels; chan++)
+                if (chan < DataBDFChannels.Length && DataBDFChannels[n] == chan)
+                    BDFtoDataChannelMap[chan] = n++;
+                else BDFtoDataChannelMap[chan] = -1;
+
+            //Now make a connection between the electrode location and the BDF signal in data[]
             FinalElectrodeChannelMap = new List<Tuple<ElectrodeRecord, int>>();
             foreach (int chan in InitialBDFChannels)
             {
@@ -170,14 +180,8 @@ namespace PreprocessDataset
         private void ReferenceData()
         {
             bw.ReportProgress(0, "Referencing data");
-            //generate a map from BDF channel number to index of data array
-            //we need this because the reference expressions reference BDF channel #
-            BDFtoDataChannelMap = new int[bdf.NumberOfChannels];
-            int n = 0;
-            for (int chan = 0; chan < bdf.NumberOfChannels; chan++)
-                if (DataBDFChannels[n] == chan) BDFtoDataChannelMap[chan] = n++;
-                else BDFtoDataChannelMap[chan] = -1;
 
+            int n;
             if (_refType == 1) //reference all channels to list of channels
             {
                 for (int p = 0; p < dataSize1; p++)

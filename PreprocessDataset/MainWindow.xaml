@@ -142,7 +142,7 @@
                 </GroupBox>
                 <GroupBox Header="Methodology">
                     <StackPanel Orientation="Vertical" Margin="8,0">
-                        <RadioButton IsChecked="True" GroupName="Lap" Content="Polyharmonic spline" Click="NO_Click"/>
+                        <RadioButton Name="PolySpline" IsChecked="True" GroupName="Lap" Content="Polyharmonic spline" Click="NO_Click"/>
                         <StackPanel Margin="16,0" Orientation="Vertical">
                             <StackPanel Orientation="Horizontal" IsEnabled="{Binding IsChecked, ElementName=PolySpline}">
                                 <TextBlock><Run Text="Order="/></TextBlock>
@@ -169,7 +169,7 @@
                     <StackPanel Orientation="Vertical" Margin="8,0,0,0">
                         <RadioButton Name="Current" IsChecked="True" GroupName="OutputLocations" Content="Current electrode locations" Checked="OutLocRBChecked"/>
                         <StackPanel Orientation="Horizontal">
-                            <RadioButton x:Name="AButt" GroupName="OutputLocations" Content="Artificial array: nominal distance =" Checked="OutLocRBChecked" Tag="2"/>
+                            <RadioButton x:Name="AButt" GroupName="OutputLocations" Content="Artificial array: nominal distance =" Checked="OutLocRBChecked"/>
                             <TextBox x:Name="ArrayDist" Width="40" TextChanged="ArrayDist_TextChanged" IsEnabled="{Binding IsChecked, ElementName=AButt}" Text="1.5"/>
                             <TextBlock><Run Text="cm"/></TextBlock>
                         </StackPanel>

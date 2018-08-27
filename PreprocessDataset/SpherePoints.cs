@@ -61,7 +61,7 @@ namespace PreprocessDataset
         //Algorithm of 8/26/2018
         Tuple<int, double> first3(double delta)
         {
-            return new Tuple<int, double>(3, Math.Acos(Math.Sqrt((1 + 2 * Math.Cos(delta) / 3D))));
+            return new Tuple<int, double>(3, Math.Acos(Math.Sqrt((1 + 2 * Math.Cos(delta)) / 3D)));
         }
 
         Tuple<int,double> next(double theta0, double delta)
@@ -78,7 +78,7 @@ namespace PreprocessDataset
                 double c = Math.Cos(dTheta1);
                 double s = Math.Sin(dTheta1);
                 N1 = (int)Math.Ceiling(2D * Math.PI / Math.Acos((d1 - c * c) / (s * s)));
-                dTheta1 = theta1(dTheta1, delta, N1);
+                dTheta1 = theta1(theta0, delta, N1);
 
             } while (Math.Abs(dTheta2 - dTheta1) > 1E-6
                 && (Math.Abs(dTheta3 - dTheta1) > 1E-6 || dTheta1 < dTheta2));
