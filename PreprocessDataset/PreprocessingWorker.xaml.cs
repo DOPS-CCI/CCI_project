@@ -44,7 +44,6 @@ namespace PreprocessDataset
 
         internal int HeadFitOrder = 3;
         internal ElectrodeInputFileStream eis; //locations of all EEG electrodes
-        internal IEnumerable<ElectrodeRecord> InputLocations;
         //List of potential EEG signal sources
         //Lists of Tuples:
         //Item1 is BDF "channel number" in original dataset;
@@ -55,7 +54,7 @@ namespace PreprocessDataset
         internal List<int> InitialBDFChannels;
         //Channels to be eliminated from EEG signal source list, index into InitialChannels
         internal List<int> elimChannelList = new List<int>();
-        int[] DataBDFChannels;
+        int[] DataBDFChannels; //Map from data[] slot to BDF channel
         List<Tuple<ElectrodeRecord, int>> FinalElectrodeChannelMap;
         internal int _outType = 1;
         internal List<ElectrodeRecord> OutputLocations;
@@ -109,7 +108,7 @@ namespace PreprocessDataset
 
         private void CalculateHeadGeometry()
         {
-            headGeometry = new HeadGeometry(InputLocations, HeadFitOrder);
+            headGeometry = new HeadGeometry(eis.etrPositions.Values.ToArray(), HeadFitOrder);
         }
 
         private void DetermineOutputLocations()
@@ -118,7 +117,7 @@ namespace PreprocessDataset
                 OutputLocations = eis.etrPositions.Values.ToList();
             else if (_outType == 2) //Use sites with "uniform" distribution
             {
-                SpherePoints sp = new SpherePoints(aDist);
+                SpherePoints sp = new SpherePoints(aDist/headGeometry.MeanRadius);
                 int n = sp.Length;
                 int d = (int)Math.Ceiling(Math.Log10((double)n + 0.5));
                 string format = new String('0', d);
@@ -143,6 +142,7 @@ namespace PreprocessDataset
 
         private void CreateElectrodeChannelMap()
         {
+            FinalElectrodeChannelMap = new List<Tuple<ElectrodeRecord, int>>();
             foreach (int chan in InitialBDFChannels)
             {
                 ElectrodeRecord r;
@@ -261,7 +261,7 @@ namespace PreprocessDataset
             int bdfRecLenPt = bdf.NumberOfSamples(InitialBDFChannels[0]);
             long bdfFileLength = bdfRecLenPt * bdf.NumberOfRecords;
             dataSize1 = (int)((bdfFileLength + SR.Decimation1 - 1) / SR.Decimation1); //decimate by "input" decimation
-            dataSize0 = InitialBDFChannels.Count - elimChannelList.Count;
+            dataSize0 = InitialBDFChannels.Count - ((doReference && _refIgnoreElim) ? elimChannelList.Count : 0);
             try
             {
                 data = new float[dataSize0][];
@@ -276,9 +276,14 @@ namespace PreprocessDataset
                 ew.ShowDialog();
                 return;
             }
+
+            //Here's where we assign slots in data[] to the BDF channels needed to be read in.
+            //They have to be in the initial BDF channel list (Active Electrodes) and possibly
+            //not eliminated, depending on if they might be used in referencing
+            DataBDFChannels = new int[dataSize0];
             int ch = 0;
             foreach(int chan in InitialBDFChannels)
-                if (!doReference || !_refIgnoreElim || !elimChannelList.Contains(chan))
+                if (!(doReference && _refIgnoreElim && elimChannelList.Contains(chan)))
                 {
                     DataBDFChannels[ch++] = chan;
                 }

@@ -108,6 +108,7 @@ namespace PreprocessDataset
                 return false;
             }
             //Keep BDF channels that are "Active Electrode" in BDF
+            ppw.InitialBDFChannels = new List<int>();
             for (int chan = 0; chan < ppw.bdf.NumberOfChannels; chan++)
                 if (ppw.bdf.transducer(chan) == "Active Electrode")
                     ppw.InitialBDFChannels.Add(chan);
@@ -581,7 +582,6 @@ namespace PreprocessDataset
             {
                 case "Current":
                     ppw._outType = 1;
-                    ppw.OutputLocations = ppw.InputLocations.ToList();
                     break;
                 case "ArrayDist": ppw._outType = 2; break;
                 case "Other": ppw._outType = 3; break;
