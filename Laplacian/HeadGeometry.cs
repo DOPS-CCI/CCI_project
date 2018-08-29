@@ -39,7 +39,8 @@ namespace Laplacian
                 double[] rpt = er.convertToMathRThetaPhi();
                 R[i] = rpt[0];
                 ThetaPhi[i++] = new double[] { rpt[1], rpt[2] };
-            }            spherical = new GeneralizedLinearRegression.Function[(order + 1) * (order + 1)]; //spherical harmonics
+            }
+            spherical = new GeneralizedLinearRegression.Function[(order + 1) * (order + 1)]; //spherical harmonics
             for (int l = 0, j = 0; l <= order; l++)
                 for (int m = -l; m <= l; m++, j++)
                 {
@@ -80,8 +81,8 @@ namespace Laplacian
             double[,] H = new double[n, 9]; //
             Point3D[] XYZ = new Point3D[n];
             int b = (_order + 3) * (_order + 3); //allow 2 extra SHs for second derivatives
-            SinCosCache theta = new SinCosCache(_order + 2); //we assume input locations are in mathematical coordinates
-            SinCosCache phi = new SinCosCache(_order + 2);
+            SinCosCache theta = new SinCosCache(Math.Max(3, _order + 2)); //we assume input locations are in mathematical coordinates
+            SinCosCache phi = new SinCosCache(Math.Max(3, _order + 2));
             int i = 0; //location index
             foreach(double[] p in thetaphiCoordinates) //calculate shape factors for each location
             {
