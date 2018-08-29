@@ -15,7 +15,7 @@
                 <Setter Property="VerticalAlignment" Value="Center"/>
             </Style>
             <Style TargetType="TextBox">
-                <Setter Property="Height" Value="22"/>
+                <Setter Property="Height" Value="24"/>
                 <Setter Property="FontWeight" Value="Normal"/>
                 <Setter Property="VerticalContentAlignment" Value="Center"/>
             </Style>
@@ -75,7 +75,7 @@
                     <TextBox x:Name="RefChanExpDesc" Width="140" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="5,0,0,0"
     					IsEnabled="{Binding IsChecked, ElementName=RefExpression}" IsReadOnly="True"/>
                 </StackPanel>
-                <StackPanel Orientation="Horizontal">
+                <StackPanel Orientation="Horizontal" IsEnabled="False">
                     <RadioButton GroupName="Ref" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="8,0,8,0" x:Name="RefMatrix" Checked="RefRBCheck" Content="Reference matrix file-&gt;"/>
                     <TextBox x:Name="RefMatrixFile" Width="398" HorizontalAlignment="Right" VerticalAlignment="Center" Height="24"
     					IsEnabled="{Binding IsChecked, ElementName=RefMatrix}" IsReadOnly="True" IsTabStop="False" IsUndoEnabled="False">

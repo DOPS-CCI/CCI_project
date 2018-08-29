@@ -19,6 +19,7 @@ using BDFEDFFileStream;
 using DigitalFilter;
 using ElectrodeFileStream;
 using Laplacian;
+using System.Threading;
 
 namespace PreprocessDataset
 {
@@ -103,11 +104,12 @@ namespace PreprocessDataset
                 DetermineOutputLocations();
                 CalculateLaplacian();
             }
-
+            Thread.Sleep(10000);
         }
 
         private void CalculateHeadGeometry()
         {
+            bw.ReportProgress(0, "Calculate head shape factors");
             headGeometry = new HeadGeometry(eis.etrPositions.Values.ToArray(), HeadFitOrder);
         }
 
@@ -117,7 +119,9 @@ namespace PreprocessDataset
                 OutputLocations = eis.etrPositions.Values.ToList();
             else if (_outType == 2) //Use sites with "uniform" distribution
             {
-                SpherePoints sp = new SpherePoints(aDist/headGeometry.MeanRadius);
+                bw.ReportProgress(0, "Calculate output locations");
+                SpherePoints sp = new SpherePoints(aDist / headGeometry.MeanRadius);
+                bw.ReportProgress(50);
                 int n = sp.Length;
                 int d = (int)Math.Ceiling(Math.Log10((double)n + 0.5));
                 string format = new String('0', d);
@@ -130,6 +134,7 @@ namespace PreprocessDataset
                         "S" + (i + 1).ToString(format),
                         R, t.Item1, Math.PI / 2D - t.Item2, true));
                     i++;
+                    bw.ReportProgress(50 + 50 * i / n);
                 }
             }
             else //_outType == 3 => Use locations in other ETR file
@@ -164,6 +169,7 @@ namespace PreprocessDataset
 
         private void CalculateLaplacian()
         {
+            bw.ReportProgress(0, "Calculate Laplacian factors");
             ElectrodeRecord[] InputSignalLocations = new ElectrodeRecord[FinalElectrodeChannelMap.Count];
             for (int i = 0; i < FinalElectrodeChannelMap.Count; i++)
                 InputSignalLocations[i] = FinalElectrodeChannelMap[i].Item1;
@@ -175,6 +181,7 @@ namespace PreprocessDataset
                 NewOrleans ? NOlambda : PHlambda,
                 NewOrleans,
                 OutputLocations);
+            bw.ReportProgress(100);
         }
 
         private void ReferenceData()
@@ -182,6 +189,8 @@ namespace PreprocessDataset
             bw.ReportProgress(0, "Referencing data");
 
             int n;
+            int progress = (dataSize1 + 99) / 100;
+            int pr = 0;
             if (_refType == 1) //reference all channels to list of channels
             {
                 for (int p = 0; p < dataSize1; p++)
@@ -198,7 +207,11 @@ namespace PreprocessDataset
                         t /= n;
                     for (int c = 0; c < dataSize0; c++)
                         data[c][p] -= (float)t;
-                    bw.ReportProgress(100 * (p + 1) / dataSize1);
+                    if (++pr >= progress)
+                    {
+                        bw.ReportProgress((int)(100D * (p + 1) / dataSize1));
+                        pr = 0;
+                    }
                 }
             }
             else if (_refType == 2) //complex refence statement
@@ -233,7 +246,11 @@ namespace PreprocessDataset
                                 data[i][p] = v[i] - (float)t;
                         }
                     }
-                    bw.ReportProgress(100 * (p + 1) / dataSize1);
+                    if (++pr >= progress)
+                    {
+                        bw.ReportProgress((int)(100D * (p + 1) / dataSize1));
+                        pr = 0;
+                    }
                 }
             }
             else if (_refType == 3) //use matrix transform reference
