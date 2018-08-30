@@ -65,7 +65,13 @@ namespace BDFEDFFileStream
         public string LocalSubjectId
         {
             get { return header.localSubjectId; }
-            set { if (!header.isValid) header.localSubjectId = value; }
+            set
+            {
+                if (header.isValid) return;
+                string s = value.Trim();
+                if (s.Length > 80) s = s.Substring(0, 80);
+                header.localSubjectId = s;
+            }
         }
 
         /// <summary>
@@ -74,7 +80,13 @@ namespace BDFEDFFileStream
         public string LocalRecordingId
         {
             get { return header.localRecordingId; }
-            set { if (!header.isValid) header.localRecordingId = value; }
+            set
+            {
+                if (header.isValid) return;
+                string s = value.Trim();
+                if (s.Length > 80) s = s.Substring(0, 80);
+                header.localRecordingId = s;
+            }
         }
 
         /// <summary>
@@ -97,7 +109,10 @@ namespace BDFEDFFileStream
         /// <param name="value">Value of prefilter string</param>
         public void prefilter(int index, string value)
         {
-            if (!header.isValid) header.channelPrefilters[index] = value;
+            if (header.isValid) return;
+            string s = value.Trim();
+            if (s.Length > 80) s = s.Substring(0, 80);
+            header.channelPrefilters[index] = s;
         }
 
         /// <summary>
@@ -114,7 +129,10 @@ namespace BDFEDFFileStream
         /// <param name="value">Value of channel label</param>
         public void channelLabel(int index, string value)
         {
-            if (!header.isValid) header.channelLabels[index] = value;
+            if (header.isValid) return;
+            string s = value.Trim();
+            if (s.Length > 16) s = s.Substring(0, 16);
+            header.channelLabels[index] = s;
         }
 
         /// <summary>
@@ -153,7 +171,10 @@ namespace BDFEDFFileStream
         /// <param name="value">Transducer string</param>
         public void transducer(int index, string value)
         {
-            if (!header.isValid) header.transducerTypes[index] = value;
+            if (header.isValid) return;
+            string s = value.Trim();
+            if (s.Length > 80) s = s.Substring(0, 80);
+            header.transducerTypes[index] = s;
         }
 
         /// <summary>
@@ -170,7 +191,10 @@ namespace BDFEDFFileStream
         /// <param name="value">Value of physical dimension</param>
         public void dimension(int index, string value)
         {
-            if (!header.isValid) header.physicalDimensions[index] = value;
+            if (header.isValid) return;
+            string s = value.Trim();
+            if (s.Length > 8) s = s.Substring(0, 8);
+            header.physicalDimensions[index] = s;
         }
         public double pMin(int index) { return header.physicalMinimums[index]; }
         public void pMin(int index, double value)
