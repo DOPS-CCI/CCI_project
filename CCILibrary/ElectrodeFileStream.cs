@@ -78,10 +78,16 @@ namespace ElectrodeFileStream
                 xw = XmlWriter.Create(str, settings);
                 xw.WriteStartDocument();
                 xw.WriteStartElement("Electrodes");
-                if (t == typeof(PhiThetaRecord)) xw.WriteAttributeString("Type", "PhiTheta");
-                else if (t == typeof(XYRecord)) xw.WriteAttributeString("Type", "XY");
-                else if (t == typeof(XYZRecord)) xw.WriteAttributeString("Type", "XYZ");
-                else throw new Exception("Invalid electrode record type.");
+                if (t == typeof(PhiThetaRecord))
+                    xw.WriteAttributeString("Type", "PhiTheta");
+                else if (t == typeof(XYRecord))
+                    xw.WriteAttributeString("Type", "XY");
+                else if (t == typeof(XYZRecord))
+                    xw.WriteAttributeString("Type", "XYZ");
+                else if (t == typeof(RPhiThetaRecord))
+                    xw.WriteAttributeString("Type", "RPhiTheta");
+                else
+                    throw new Exception("Invalid electrode record type.");
             }
             catch (XmlException x)
             {
@@ -166,8 +172,9 @@ namespace ElectrodeFileStream
         /// </summary>
         /// <param name="name">Electrode name</param>
         /// <param name="r">Radial distance</param>
-        /// <param name="phi">Angle from z-axis in degrees</param>
-        /// <param name="theta">Angle from nasion in degrees; positive to right</param>
+        /// <param name="phi">Angle from z-axis</param>
+        /// <param name="theta">Angle from nasion; positive to right</param>
+        /// <param name="inRadians">true if angles in radians; in degrees if false</param>
         public RPhiThetaRecord(string name, double r, double phi, double theta, bool inRadians = false)
             : base(name)
         {
@@ -176,12 +183,20 @@ namespace ElectrodeFileStream
             Theta = theta * (inRadians ? 1 : ToRad);
         }
 
+        public RPhiThetaRecord(string name, PointRPhiTheta rpt)
+            : base(name)
+        {
+            R = rpt.R;
+            Phi = rpt.Phi;
+            Theta = rpt.Theta;
+        }
+
         /// <summary>
         /// Read a R-Phi-Theta electrode record; values are in degrees
         /// </summary>
         /// <param name="xr">Open Electrode File Stream</param>
         /// <param name="nameSpace">namesSpace or null</param>
-        public override void read(XmlReader xr, string nameSpace)
+        public override void read(XmlReader xr, string nameSpace = "")
         {
             this.Name = xr["Name", nameSpace];
             xr.ReadStartElement(/* Electrode */);
@@ -197,7 +212,7 @@ namespace ElectrodeFileStream
         /// </summary>
         /// <param name="ofs">Electrode output file stream</param>
         /// <param name="nameSpace"></param>
-        public override void write(ElectrodeOutputFileStream ofs, string nameSpace)
+        public override void write(ElectrodeOutputFileStream ofs, string nameSpace = "")
         {
             if (ofs.t != typeof(RPhiThetaRecord)) throw new Exception("Attempt to mix types in ElectrodeOutputFileStream.");
             XmlWriter xw = ofs.xw;
@@ -278,7 +293,7 @@ namespace ElectrodeFileStream
         /// </summary>
         /// <param name="xr">Open Electrode File Stream</param>
         /// <param name="nameSpace">namesSpace or null</param>
-        public override void read(XmlReader xr, string nameSpace)
+        public override void read(XmlReader xr, string nameSpace = "")
         {
             this.Name = xr["Name", nameSpace];
             xr.ReadStartElement(/* Electrode */);
@@ -293,7 +308,7 @@ namespace ElectrodeFileStream
         /// </summary>
         /// <param name="ofs">Electrode output file stream</param>
         /// <param name="nameSpace"></param>
-        public override void write(ElectrodeOutputFileStream ofs, string nameSpace)
+        public override void write(ElectrodeOutputFileStream ofs, string nameSpace = "")
         {
             if (ofs.t != typeof(PhiThetaRecord)) throw new Exception("Attempt to mix types in ElectrodeOutputFileStream.");
             XmlWriter xw = ofs.xw;
@@ -378,7 +393,7 @@ namespace ElectrodeFileStream
             Y = xy.Y;
         }
 
-        public override void read(XmlReader xr, string nameSpace)
+        public override void read(XmlReader xr, string nameSpace = "")
         {
             this.Name = xr["Name", nameSpace];
             xr.ReadStartElement(/* Electrode */);
@@ -387,7 +402,7 @@ namespace ElectrodeFileStream
             xr.ReadEndElement(/* Electrode */);
         }
 
-        public override void write(ElectrodeOutputFileStream ofs, string nameSpace)
+        public override void write(ElectrodeOutputFileStream ofs, string nameSpace = "")
         {
             if (ofs.t != typeof(XYRecord)) throw new Exception("Attempt to mix types in ElectrodeOutputFileStream.");
             XmlWriter xw = ofs.xw;
@@ -492,7 +507,7 @@ namespace ElectrodeFileStream
             Z = RThetaPhi[0] * Math.Cos(RThetaPhi[1]);
         }
 
-        public override void read(XmlReader xr, string nameSpace)
+        public override void read(XmlReader xr, string nameSpace = "")
         {
             this.Name = xr["Name", nameSpace];
             xr.ReadStartElement(/* Electrode */);
@@ -502,7 +517,7 @@ namespace ElectrodeFileStream
             xr.ReadEndElement(/* Electrode */);
         }
 
-        public override void write(ElectrodeOutputFileStream ofs, string nameSpace)
+        public override void write(ElectrodeOutputFileStream ofs, string nameSpace = "")
         {
             if (ofs.t != typeof(XYZRecord)) throw new Exception("Attempt to mix types in ElectrodeOutputFileStream.");
             XmlWriter xw = ofs.xw;
