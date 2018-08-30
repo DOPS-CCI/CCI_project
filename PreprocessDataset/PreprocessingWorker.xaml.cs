@@ -19,7 +19,8 @@ using BDFEDFFileStream;
 using DigitalFilter;
 using ElectrodeFileStream;
 using Laplacian;
-using System.Threading;
+using HeaderFileStream;
+using Header;
 
 namespace PreprocessDataset
 {
@@ -33,6 +34,7 @@ namespace PreprocessDataset
         internal bool doFiltering = false;
         internal bool doReference = false;
         float[][] data; //full data file: datel x channel
+        int[] status; //Status channel from file
 
         internal SamplingRate SR;
         internal IEnumerable<DFilter> filterList;
@@ -55,8 +57,6 @@ namespace PreprocessDataset
         internal List<int> InitialBDFChannels;
         //Channels to be eliminated from EEG signal source list, index into InitialChannels
         internal List<int> elimChannelList = new List<int>();
-        int[] DataBDFChannels; //Map from data[] slot to BDF channel
-        List<Tuple<ElectrodeRecord, int>> FinalElectrodeChannelMap;
         internal int _outType = 1;
         internal List<ElectrodeRecord> OutputLocations;
         internal int PHorder = 4;
@@ -72,10 +72,17 @@ namespace PreprocessDataset
         internal List<List<int>> _refChanExp;
         internal bool _refIgnoreElim = true;
 
+        internal string sequenceName = "Lap";
+
+        int[] DataBDFChannels; //Map from data[] slot to BDF channel
+        int[] BDFtoDataChannelMap; //map from BDF channel number to index of data array
+        List<Tuple<ElectrodeRecord, int>> FinalElectrodeChannelMap;
         int dataSize0;
         int dataSize1; //number of data frames (datels) in data file (after 1st decimation)
-        int[] BDFtoDataChannelMap; //map from BDF channel number to index of data array
+        int dataSizeS; //fully decimated number of Status points saved
         HeadGeometry headGeometry;
+
+        BDFEDFFileWriter newBDF;
 
         public PreprocessingWorker()
         {
@@ -98,50 +105,190 @@ namespace PreprocessDataset
             if (doFiltering)
                 FilterData();
 
+            DetermineOutputLocations();
+            CreateNewRWNLDataset();
+
             if (doLaplacian)
             {
-                CalculateHeadGeometry();
-                DetermineOutputLocations();
                 CalculateLaplacian();
             }
-            Thread.Sleep(10000);
+            else
+            {
+                WriteBDFFileFromData();
+            }
+            newBDF.Close();
         }
 
-        private void CalculateHeadGeometry()
+        private void WriteBDFFileFromData()
         {
-            bw.ReportProgress(0, "Calculate head shape factors");
-            headGeometry = new HeadGeometry(eis.etrPositions.Values.ToArray(), HeadFitOrder);
+            bw.ReportProgress(0, "Write BDF file");
+            int nd = newBDF.NSamp;
+            double[] channelBuffer = new double[nd];
+            int[] statusBuffer = new int[nd];
+            int stCounter = 0;
+            for (int d = 0; d <= dataSize1 - nd * SR.Decimation2; d += nd * SR.Decimation2)
+            {
+                int slot; //which row in data[]
+                int chan = 0; //newBDF channel number
+                for (int c = 0; c < bdf.NumberOfChannels - 1; c++)
+                    if ((slot = BDFtoDataChannelMap[c]) != -1)
+                    {
+                        for (int dd = 0, d0 = 0; dd < nd; dd++, d0 += SR.Decimation2)
+                            channelBuffer[dd] = (double)data[slot][d + d0];
+                        newBDF.putChannel(chan++, channelBuffer);
+                    }
+
+                //include Status channel; already fully decimated
+                for (int dd = 0; dd < nd; dd++)
+                    statusBuffer[dd] = status[stCounter++];
+                newBDF.putChannel(newBDF.NumberOfChannels - 1, statusBuffer);
+                newBDF.write(); //and write out record
+                bw.ReportProgress((int)(100D * d / dataSize1 + 0.5D));
+            }
+        }
+
+        private void CreateNewRWNLDataset()
+        {
+            string newFilename = headerFileName + "." + sequenceName;
+
+            head.BDFFile = newFilename + ".bdf";
+            newBDF = new BDFEDFFileWriter(
+                new FileStream(System.IO.Path.Combine(directory, head.BDFFile), FileMode.CreateNew, FileAccess.Write),
+                OutputLocations.Count + 1,
+                (double)SR.Decimation1 * SR.Decimation2 * bdf.RecordDuration,
+                bdf.NSamp,
+                true);
+            int i = 0;
+            //edit file locations in Header
+            if (!(_outType == 1)) //then need to crete new ETR file
+            {
+                head.ElectrodeFile = newFilename + ".etr";
+                ElectrodeOutputFileStream eof = new ElectrodeOutputFileStream(
+                    new FileStream(System.IO.Path.Combine(directory, head.ElectrodeFile), FileMode.CreateNew, FileAccess.Write),
+                    typeof(RPhiThetaRecord));
+                foreach (ElectrodeRecord er in OutputLocations)
+                {
+                    RPhiThetaRecord rpt = new RPhiThetaRecord(er.Name, er.convertRPhiTheta());
+                    rpt.write(eof);
+                }
+                eof.Close();
+            }
+
+            //Create additional filter string
+            StringBuilder sb = new StringBuilder();
+            if (filterList != null && filterList.Count() != 0)
+            {
+                sb.Append("; Dfilt: ");
+                foreach(DFilter df in filterList)
+                {
+                    Type t = df.GetType();
+                    if(df is Butterworth)
+                    {
+                        Butterworth bw = (Butterworth)df;
+                        sb.AppendFormat("Butt" +
+                            ((bool)bw.HP ? "HP" : "LP") + "({0:0},{1:0.00})", bw.NP, bw.PassF);
+                    }
+                    else if(df is Chebyshev)
+                    {
+                        Chebyshev cb = (Chebyshev)df;
+                        sb.AppendFormat("Cheb2" +
+                            ((bool)cb.HP ? "HP" : "LP") + "({0:0},{1:0.00},{2:0.0})", cb.NP, cb.PassF, cb.StopA);
+                    }
+                    else if(df is Elliptical)
+                    {
+                        Elliptical el = (Elliptical)df;
+                        sb.AppendFormat("Ellip" +
+                            ((bool)el.HP ? "HP" : "LP") + "({0:0},{1:0.00},{2:0.0},{3:0.0}%)", el.NP, el.PassF, el.StopA, el.Ripple * 100);
+                    }
+                    sb.AppendFormat("; ");
+                }
+                sb.Remove(sb.Length - 2, 2);
+            }
+
+            string transducerString = "Active Electrode: " + (doLaplacian ? "Laplacian " : "") + "EEG";
+            int eegChannel = DataBDFChannels[0]; //typical EEG channel?
+            string filterString = bdf.prefilter(eegChannel) + sb.ToString();
+            string dimensionString = bdf.dimension(eegChannel);
+            double pMax = bdf.pMax(eegChannel);
+            double pMin = bdf.pMin(eegChannel);
+            int dMax = bdf.dMax(eegChannel);
+            int dMin = bdf.dMin(eegChannel); 
+
+            newBDF.LocalSubjectId = bdf.LocalSubjectId;
+            newBDF.LocalRecordingId = bdf.LocalRecordingId;
+            i=0;
+            foreach (ElectrodeRecord er in OutputLocations)
+            {
+                newBDF.channelLabel(i, er.Name);
+                newBDF.transducer(i, transducerString);
+                newBDF.prefilter(i, filterString);
+                newBDF.dimension(i, dimensionString);
+                newBDF.pMax(i, pMax);
+                newBDF.pMin(i, pMin);
+                newBDF.dMax(i, dMax);
+                newBDF.dMin(i, dMin);
+                i++;
+            }
+            //set Status channel parameters
+            newBDF.channelLabel(i, "Status");
+            newBDF.transducer(i, "Triggers and Status");
+            newBDF.prefilter(i, "No filtering");
+            newBDF.dimension(i, "Boolean");
+            newBDF.pMax(i, bdf.pMax(bdf.NumberOfChannels - 1));
+            newBDF.pMin(i, bdf.pMin(bdf.NumberOfChannels - 1));
+            newBDF.dMax(i, bdf.dMax(bdf.NumberOfChannels - 1));
+            newBDF.dMin(i, bdf.dMin(bdf.NumberOfChannels - 1));
+            newBDF.writeHeader();
+
+            head.Comment = (head.Comment != "" ? head.Comment + Environment.NewLine : "") + "Preprocessed dataset";
+            HeaderFileWriter hfw = new HeaderFileWriter(
+                new FileStream(System.IO.Path.Combine(directory,newFilename+".hdr"),FileMode.CreateNew,FileAccess.Write),
+                head);
         }
 
         private void DetermineOutputLocations()
         {
-            if (_outType == 1) //Use all input locations
-                OutputLocations = eis.etrPositions.Values.ToList();
-            else if (_outType == 2) //Use sites with "uniform" distribution
+            if (doLaplacian)
             {
-                bw.ReportProgress(0, "Calculate output locations");
-                SpherePoints sp = new SpherePoints(aDist / headGeometry.MeanRadius);
-                bw.ReportProgress(50);
-                int n = sp.Length;
-                int d = (int)Math.Ceiling(Math.Log10((double)n + 0.5));
-                string format = new String('0', d);
-                OutputLocations = new List<ElectrodeRecord>(n);
-                int i = 0;
-                foreach (Tuple<double, double> t in sp)
+                headGeometry = new HeadGeometry(eis.etrPositions.Values.ToArray(), HeadFitOrder);
+                if (_outType == 1) //Use all input locations
+                    OutputLocations = eis.etrPositions.Values.ToList();
+                else if (_outType == 2) //Use sites with "uniform" distribution
                 {
-                    double R = headGeometry.EvaluateAt(t.Item1, t.Item2);
-                    OutputLocations.Add(new RPhiThetaRecord(
-                        "S" + (i + 1).ToString(format),
-                        R, t.Item1, Math.PI / 2D - t.Item2, true));
-                    i++;
-                    bw.ReportProgress(50 + 50 * i / n);
+                    bw.ReportProgress(0, "Calculate output locations");
+                    SpherePoints sp = new SpherePoints(aDist / headGeometry.MeanRadius);
+                    bw.ReportProgress(50);
+                    int n = sp.Length;
+                    int d = (int)Math.Ceiling(Math.Log10((double)n + 0.5));
+                    string format = new String('0', d);
+                    OutputLocations = new List<ElectrodeRecord>(n);
+                    int i = 0;
+                    foreach (Tuple<double, double> t in sp)
+                    {
+                        double R = headGeometry.EvaluateAt(t.Item1, t.Item2);
+                        OutputLocations.Add(new RPhiThetaRecord(
+                            "S" + (i + 1).ToString(format),
+                            R, t.Item1, Math.PI / 2D - t.Item2, true));
+                        i++;
+                        bw.ReportProgress(50 + 50 * i / n);
+                    }
+                }
+                else //_outType == 3 => Use locations in other ETR file
+                {
+                    ElectrodeInputFileStream outputEIS = new ElectrodeInputFileStream(
+                        new FileStream(ETROutputFullPathName, FileMode.Open, FileAccess.Read));
+                    OutputLocations = outputEIS.etrPositions.Values.ToList();
                 }
             }
-            else //_outType == 3 => Use locations in other ETR file
+            else //non-Laplacian processing only: use input channels minus eliminated channels
             {
-                ElectrodeInputFileStream outputEIS = new ElectrodeInputFileStream(
-                    new FileStream(ETROutputFullPathName, FileMode.Open, FileAccess.Read));
-                OutputLocations = outputEIS.etrPositions.Values.ToList();
+                OutputLocations = eis.etrPositions.Values.ToList();
+                foreach (int c in elimChannelList)
+                {
+                    ElectrodeRecord er = OutputLocations.Find(r => r.Name.ToUpper() == bdf.channelLabel(c).ToUpper());
+                    if (er != null)
+                        OutputLocations.Remove(er);
+                }
             }
         }
 
@@ -282,12 +429,14 @@ namespace PreprocessDataset
             int bdfRecLenPt = bdf.NumberOfSamples(InitialBDFChannels[0]);
             long bdfFileLength = bdfRecLenPt * bdf.NumberOfRecords;
             dataSize1 = (int)((bdfFileLength + SR.Decimation1 - 1) / SR.Decimation1); //decimate by "input" decimation
-            dataSize0 = InitialBDFChannels.Count - ((doReference && _refIgnoreElim) ? elimChannelList.Count : 0);
+            dataSizeS = (int)((dataSize1 + SR.Decimation2 - 1) / SR.Decimation2); //Status length
+            dataSize0 = InitialBDFChannels.Count - ((!doReference || _refIgnoreElim) ? elimChannelList.Count : 0);
             try
             {
                 data = new float[dataSize0][];
                 for (int c = 0; c < dataSize0; c++)
                     data[c] = new float[dataSize1];
+                status = new int[dataSizeS];
             }
             catch (OutOfMemoryException)
             {
@@ -304,12 +453,14 @@ namespace PreprocessDataset
             DataBDFChannels = new int[dataSize0];
             int ch = 0;
             foreach(int chan in InitialBDFChannels)
-                if (!(doReference && _refIgnoreElim && elimChannelList.Contains(chan)))
+                if ((doReference && !_refIgnoreElim) || !elimChannelList.Contains(chan))
                 {
                     DataBDFChannels[ch++] = chan;
                 }
             BDFEDFRecord r = null;
             int rPt = 0; //counter for which point in current record
+            int StDec = SR.Decimation2; //decimation counter for Status channel only
+            int Spt = 0; //Status channel point counter
             int bufferCnt = 0; //counter for periodic garbage collection
             //By manually perfroming garbage collection during the file reading.
             // we avoid the accumulation of used buffers which could result in
@@ -318,7 +469,7 @@ namespace PreprocessDataset
             r = bdf.read(0); //assure that it's "rewound"
             for (int pt = 0; pt < dataSize1; pt++)
             {
-                if (rPt >= bdfRecLenPt) //read in next buffer
+                if (rPt >= bdfRecLenPt) //then read in next buffer
                 {
                     r = bdf.read();
                     rPt -= bdfRecLenPt; //assume decimation <= record length!!
@@ -327,7 +478,13 @@ namespace PreprocessDataset
                 }
                 for (int c = 0; c < dataSize0; c++)
                     data[c][pt] = (float)r.getConvertedPoint(DataBDFChannels[c], rPt);
-                rPt += SR.Decimation1;
+                //handle Status channel; fully decimated because no other processing occurs
+                if (++StDec >= SR.Decimation2)
+                {
+                    status[Spt++] = r.getRawPoint(bdf.NumberOfChannels - 1, rPt);
+                    StDec = 0;
+                }
+                rPt += SR.Decimation1; //use "input" decimation
             }
             GC.Collect(); //Final GC to clean up
         }

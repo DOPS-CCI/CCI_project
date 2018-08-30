@@ -35,6 +35,17 @@ namespace PreprocessDataset
             }
         }
 
+        public int DecimationTotal
+        {
+            get
+            {
+                int d = 1;
+                for (int i = 0; i < _dec.Length; i++)
+                    d *= _dec[i];
+                return d;
+            }
+        }
+
         public double this[int i]
         {
             get

@@ -261,7 +261,7 @@ namespace PreprocessDataset
             if (ExcludeList.Text != "" && ppw.elimChannelList.Count == 0) ok = false; //Error in channel elimination
             else if (ppw.SR.Decimation1 <= 0) ok = false; //error in decimation
             else if (ppw.SR.Decimation2 <= 0) ok = false;
-            else if (SequenceName.Text == "") ok = false; //must not be empty
+            else if (ppw.sequenceName == "") ok = false; //must not be empty
             else
             {
                 if (ppw.doLaplacian)
@@ -458,6 +458,7 @@ namespace PreprocessDataset
         private void SequenceName_TextChanged(object sender, TextChangedEventArgs e)
         {
             if (!IsLoaded) return;
+            ppw.sequenceName = SequenceName.Text;
             ErrorCheck();
         }
 
