@@ -107,10 +107,11 @@ namespace PreprocessDataset
                 ew.ShowDialog();
                 return false;
             }
-            //Keep BDF channels that are "Active Electrode" in BDF
+            //Keep BDF channels that are "Active Electrode" in BDF and in ETR file
             ppw.InitialBDFChannels = new List<int>();
             for (int chan = 0; chan < ppw.bdf.NumberOfChannels; chan++)
-                if (ppw.bdf.transducer(chan) == "Active Electrode")
+                if (ppw.bdf.transducer(chan) == "Active Electrode" &&
+                    ppw.eis.etrPositions.Keys.Contains(ppw.bdf.channelLabel(chan)))
                     ppw.InitialBDFChannels.Add(chan);
             return true;
         }

@@ -34,7 +34,7 @@ namespace PreprocessDataset
         internal bool doFiltering = false;
         internal bool doReference = false;
         float[][] data; //full data file: datel x channel
-        int[] status; //Status channel from file
+        int[,] NPdata; //Additional, non-processed  channels (Status, ANA) from file
 
         internal SamplingRate SR;
         internal IEnumerable<DFilter> filterList;
@@ -47,24 +47,26 @@ namespace PreprocessDataset
 
         internal int HeadFitOrder = 3;
         internal ElectrodeInputFileStream eis; //locations of all EEG electrodes
-        //List of potential EEG signal sources
-        //Lists of Tuples:
-        //Item1 is BDF "channel number" in original dataset;
-        //Item2 is the corresponding ElectrodeRecord with name and position
-        //Position of the Tuple in InitialChannelList is the row number in data array
-        //which can then be used to reference back to the original data source
-//        internal List<ElectrodeRecord> InitialSignalLocations;
+        //All "Active Electrode" channels with entries in ETR
         internal List<int> InitialBDFChannels;
         //Channels to be eliminated from EEG signal source list, index into InitialChannels
         internal List<int> elimChannelList = new List<int>();
-        internal int _outType = 1;
-        internal List<ElectrodeRecord> OutputLocations;
+        //NOTE: the list of BDF channels used to create the data[] array is created
+        // from InitialBDFChannels with or without elim channels depending on whether
+        // referencing may use the eliminated channels; channels used to calculate
+        // SL output never use the eliminated channels
         internal int PHorder = 4;
         internal int PHdegree = 3;
         internal double PHlambda = 10D;
         internal bool NewOrleans = false;
         internal double NOlambda = 1D;
+
+        internal int _outType = 1;
+        //ETR entries of sites to calculate output
+        internal List<ElectrodeRecord> OutputLocations;
+        //Nominal distance between output sites: _outType == 2
         internal double aDist = 1.5;
+        //Filename of ETR file to be used as output sites: _outType == 3
         internal string ETROutputFullPathName = "";
 
         internal int _refType = 1;
@@ -74,9 +76,16 @@ namespace PreprocessDataset
 
         internal string sequenceName = "Lap";
 
-        int[] DataBDFChannels; //Map from data[] slot to BDF channel
-        int[] BDFtoDataChannelMap; //map from BDF channel number to index of data array
+        //Map from data[] slot to BDF channel; may or may not include eliminated channels
+        int[] DataBDFChannels;
+        //map from BDF channel number to index of data array; -1 if not used
+        int[] BDFtoDataChannelMap;
+
+        //Final map of data[] slots used as input to SL calculation:
+        // locations and slot numbers; this is split up into arrays for computational
+        // efficiency just before the SL calculation performed
         List<Tuple<ElectrodeRecord, int>> FinalElectrodeChannelMap;
+        List<int> AdditionalOutputChannels;
         int dataSize0;
         int dataSize1; //number of data frames (datels) in data file (after 1st decimation)
         int dataSizeS; //fully decimated number of Status points saved
@@ -95,6 +104,9 @@ namespace PreprocessDataset
 
             bw.ReportProgress(0, "Starting Preprocessing");
 
+            DetermineOutputLocations();
+            CreateNewRWNLDataset();
+
             ReadBDFFile();
 
             CreateElectrodeChannelMap();
@@ -104,9 +116,6 @@ namespace PreprocessDataset
 
             if (doFiltering)
                 FilterData();
-
-            DetermineOutputLocations();
-            CreateNewRWNLDataset();
 
             if (doLaplacian)
             {
@@ -122,7 +131,8 @@ namespace PreprocessDataset
         private void WriteBDFFileFromData()
         {
             bw.ReportProgress(0, "Write BDF file");
-            int nd = newBDF.NSamp;
+            int nd = newBDF.NSamp; //Number of points in new BDF record
+            int outputDataCount = OutputLocations.Count;
             double[] channelBuffer = new double[nd];
             int[] statusBuffer = new int[nd];
             int stCounter = 0;
@@ -138,10 +148,14 @@ namespace PreprocessDataset
                         newBDF.putChannel(chan++, channelBuffer);
                     }
 
-                //include Status channel; already fully decimated
-                for (int dd = 0; dd < nd; dd++)
-                    statusBuffer[dd] = status[stCounter++];
-                newBDF.putChannel(newBDF.NumberOfChannels - 1, statusBuffer);
+                //include ANA and Status channels; already fully decimated
+                for (int c = 0; c < AdditionalOutputChannels.Count; c++)
+                {
+                    for (int dd = 0; dd < nd; dd++)
+                        statusBuffer[dd] = NPdata[c, stCounter + dd];
+                    newBDF.putChannel(outputDataCount + c, statusBuffer);
+                }
+                stCounter += nd;
                 newBDF.write(); //and write out record
                 bw.ReportProgress((int)(100D * d / dataSize1 + 0.5D));
             }
@@ -151,53 +165,69 @@ namespace PreprocessDataset
         {
             string newFilename = headerFileName + "." + sequenceName;
 
+            //edit Header file
+            head.Comment = (head.Comment != "" ? head.Comment + Environment.NewLine : "") + "Preprocessed dataset";
+
+            //now look for channels to include -- ANAs, e.g.
+            AdditionalOutputChannels = new List<int>();
+            foreach (KeyValuePair<string, EventDictionary.EventDictionaryEntry> ed in head.Events)
+            {
+                if (ed.Value.IsExtrinsic) //then, has associated ANA channel
+                {
+                    int chan = bdf.ChannelNumberFromLabel(ed.Value.channelName);
+                    if (!AdditionalOutputChannels.Contains(chan)) //make sure it's unique
+                        AdditionalOutputChannels.Add(chan);
+                }
+            }
+            //and always add Status channel
+            AdditionalOutputChannels.Add(bdf.NumberOfChannels - 1);
+
+            //Now we can create the new BDF file header
             head.BDFFile = newFilename + ".bdf";
             newBDF = new BDFEDFFileWriter(
                 new FileStream(System.IO.Path.Combine(directory, head.BDFFile), FileMode.CreateNew, FileAccess.Write),
-                OutputLocations.Count + 1,
+                OutputLocations.Count + AdditionalOutputChannels.Count,
                 (double)SR.Decimation1 * SR.Decimation2 * bdf.RecordDuration,
                 bdf.NSamp,
                 true);
-            int i = 0;
-            //edit file locations in Header
-            if (!(_outType == 1)) //then need to crete new ETR file
+
+            //Always create new ETR file: in case channels eliminated or
+            // ETR-BDF name mismatch
+            head.ElectrodeFile = newFilename + ".etr";
+            ElectrodeOutputFileStream eof = new ElectrodeOutputFileStream(
+                new FileStream(System.IO.Path.Combine(directory, head.ElectrodeFile), FileMode.CreateNew, FileAccess.Write),
+                typeof(RPhiThetaRecord));
+            foreach (ElectrodeRecord er in OutputLocations)
             {
-                head.ElectrodeFile = newFilename + ".etr";
-                ElectrodeOutputFileStream eof = new ElectrodeOutputFileStream(
-                    new FileStream(System.IO.Path.Combine(directory, head.ElectrodeFile), FileMode.CreateNew, FileAccess.Write),
-                    typeof(RPhiThetaRecord));
-                foreach (ElectrodeRecord er in OutputLocations)
-                {
-                    RPhiThetaRecord rpt = new RPhiThetaRecord(er.Name, er.convertRPhiTheta());
-                    rpt.write(eof);
-                }
-                eof.Close();
+                RPhiThetaRecord rpt = new RPhiThetaRecord(er.Name, er.convertRPhiTheta());
+                rpt.write(eof);
             }
+            eof.Close();
 
             //Create additional filter string
             StringBuilder sb = new StringBuilder();
             if (filterList != null && filterList.Count() != 0)
             {
-                sb.Append("; Dfilt: ");
-                foreach(DFilter df in filterList)
+                sb.Append("; DFilt: ");
+                foreach (DFilter df in filterList)
                 {
                     Type t = df.GetType();
-                    if(df is Butterworth)
+                    if (df is Butterworth)
                     {
                         Butterworth bw = (Butterworth)df;
-                        sb.AppendFormat("Butt" +
+                        sb.AppendFormat("Btt" +
                             ((bool)bw.HP ? "HP" : "LP") + "({0:0},{1:0.00})", bw.NP, bw.PassF);
                     }
-                    else if(df is Chebyshev)
+                    else if (df is Chebyshev)
                     {
                         Chebyshev cb = (Chebyshev)df;
-                        sb.AppendFormat("Cheb2" +
+                        sb.AppendFormat("Chb2" +
                             ((bool)cb.HP ? "HP" : "LP") + "({0:0},{1:0.00},{2:0.0})", cb.NP, cb.PassF, cb.StopA);
                     }
-                    else if(df is Elliptical)
+                    else if (df is Elliptical)
                     {
                         Elliptical el = (Elliptical)df;
-                        sb.AppendFormat("Ellip" +
+                        sb.AppendFormat("Ell" +
                             ((bool)el.HP ? "HP" : "LP") + "({0:0},{1:0.00},{2:0.0},{3:0.0}%)", el.NP, el.PassF, el.StopA, el.Ripple * 100);
                     }
                     sb.AppendFormat("; ");
@@ -206,43 +236,51 @@ namespace PreprocessDataset
             }
 
             string transducerString = "Active Electrode: " + (doLaplacian ? "Laplacian " : "") + "EEG";
-            int eegChannel = DataBDFChannels[0]; //typical EEG channel?
+            int eegChannel = InitialBDFChannels[0]; //typical EEG channel? Hope so!
             string filterString = bdf.prefilter(eegChannel) + sb.ToString();
             string dimensionString = bdf.dimension(eegChannel);
             double pMax = bdf.pMax(eegChannel);
             double pMin = bdf.pMin(eegChannel);
             int dMax = bdf.dMax(eegChannel);
-            int dMin = bdf.dMin(eegChannel); 
+            int dMin = bdf.dMin(eegChannel);
 
             newBDF.LocalSubjectId = bdf.LocalSubjectId;
             newBDF.LocalRecordingId = bdf.LocalRecordingId;
-            i=0;
+
+            //Set the channel-dependent header information
+            int newChan = 0;
             foreach (ElectrodeRecord er in OutputLocations)
             {
-                newBDF.channelLabel(i, er.Name);
-                newBDF.transducer(i, transducerString);
-                newBDF.prefilter(i, filterString);
-                newBDF.dimension(i, dimensionString);
-                newBDF.pMax(i, pMax);
-                newBDF.pMin(i, pMin);
-                newBDF.dMax(i, dMax);
-                newBDF.dMin(i, dMin);
-                i++;
+                newBDF.channelLabel(newChan, er.Name);
+                newBDF.transducer(newChan, transducerString);
+                newBDF.prefilter(newChan, filterString);
+                newBDF.dimension(newChan, dimensionString);
+                newBDF.pMax(newChan, pMax);
+                newBDF.pMin(newChan, pMin);
+                newBDF.dMax(newChan, dMax);
+                newBDF.dMin(newChan, dMin);
+                newChan++;
             }
-            //set Status channel parameters
-            newBDF.channelLabel(i, "Status");
-            newBDF.transducer(i, "Triggers and Status");
-            newBDF.prefilter(i, "No filtering");
-            newBDF.dimension(i, "Boolean");
-            newBDF.pMax(i, bdf.pMax(bdf.NumberOfChannels - 1));
-            newBDF.pMin(i, bdf.pMin(bdf.NumberOfChannels - 1));
-            newBDF.dMax(i, bdf.dMax(bdf.NumberOfChannels - 1));
-            newBDF.dMin(i, bdf.dMin(bdf.NumberOfChannels - 1));
-            newBDF.writeHeader();
 
-            head.Comment = (head.Comment != "" ? head.Comment + Environment.NewLine : "") + "Preprocessed dataset";
+            // and handle additional, non-processing channels
+            foreach (int chan in AdditionalOutputChannels)
+            {
+                newBDF.channelLabel(newChan, bdf.channelLabel(chan));
+                newBDF.transducer(newChan, bdf.transducer(chan));
+                newBDF.prefilter(newChan, bdf.prefilter(chan));
+                newBDF.dimension(newChan, bdf.dimension(chan));
+                newBDF.pMax(newChan, bdf.pMax(chan));
+                newBDF.pMin(newChan, bdf.pMin(chan));
+                newBDF.dMax(newChan, bdf.dMax(chan));
+                newBDF.dMin(newChan, bdf.dMin(chan));
+                newChan++;
+            }
+
+            newBDF.writeHeader(); //write BDF header record
+
+            //Now write out new HDR file
             HeaderFileWriter hfw = new HeaderFileWriter(
-                new FileStream(System.IO.Path.Combine(directory,newFilename+".hdr"),FileMode.CreateNew,FileAccess.Write),
+                new FileStream(System.IO.Path.Combine(directory, newFilename + ".hdr"), FileMode.CreateNew, FileAccess.Write),
                 head);
         }
 
@@ -282,13 +320,11 @@ namespace PreprocessDataset
             }
             else //non-Laplacian processing only: use input channels minus eliminated channels
             {
-                OutputLocations = eis.etrPositions.Values.ToList();
-                foreach (int c in elimChannelList)
-                {
-                    ElectrodeRecord er = OutputLocations.Find(r => r.Name.ToUpper() == bdf.channelLabel(c).ToUpper());
-                    if (er != null)
-                        OutputLocations.Remove(er);
-                }
+                OutputLocations = new List<ElectrodeRecord>();
+                foreach (int chan in InitialBDFChannels)
+                    if (!elimChannelList.Contains(chan))
+                        OutputLocations.Add(eis.etrPositions[bdf.channelLabel(chan)]);
+
             }
         }
 
@@ -299,27 +335,37 @@ namespace PreprocessDataset
             BDFtoDataChannelMap = new int[bdf.NumberOfChannels];
             int n = 0;
             for (int chan = 0; chan < bdf.NumberOfChannels; chan++)
-                if (chan < DataBDFChannels.Length && DataBDFChannels[n] == chan)
+                if (n < DataBDFChannels.Length && DataBDFChannels[n] == chan)
                     BDFtoDataChannelMap[chan] = n++;
                 else BDFtoDataChannelMap[chan] = -1;
 
             //Now make a connection between the electrode location and the BDF signal in data[]
             FinalElectrodeChannelMap = new List<Tuple<ElectrodeRecord, int>>();
+            //Start with all channels with entries in ETR and BDF "Active Electrodes"
             foreach (int chan in InitialBDFChannels)
-            {
-                ElectrodeRecord r;
+                //Eliminate channels, just to be sure (may not contain if not used in referencing)
                 if (!elimChannelList.Contains(chan))
-                    if (eis.etrPositions.TryGetValue(bdf.channelLabel(chan), out r))
-                        FinalElectrodeChannelMap.Add(new Tuple<ElectrodeRecord, int>(r, BDFtoDataChannelMap[chan]));
-            }
+                    //Create final list, using data[] slot number, not BDF channel number
+                    //NOTE: BDFtoData map cannot be -1 since all channels mapped are in InitialBDF
+                    FinalElectrodeChannelMap.Add(new Tuple<ElectrodeRecord, int>(
+                        eis.etrPositions[bdf.channelLabel(chan)], BDFtoDataChannelMap[chan]));
         }
 
         private void CalculateLaplacian()
         {
-            bw.ReportProgress(0, "Calculate Laplacian factors");
+            bw.ReportProgress(0, "Calculate Laplacian");
+
+            //Divide up Final Map for convenience and efficiency into array of input locations
+            // and array of input signal data[] slots
             ElectrodeRecord[] InputSignalLocations = new ElectrodeRecord[FinalElectrodeChannelMap.Count];
+            int[] InputDataSignals = new int[FinalElectrodeChannelMap.Count];
             for (int i = 0; i < FinalElectrodeChannelMap.Count; i++)
+            {
                 InputSignalLocations[i] = FinalElectrodeChannelMap[i].Item1;
+                InputDataSignals[i] = FinalElectrodeChannelMap[i].Item2;
+            }
+
+            //Set up for computation
             SurfaceLaplacianEngine engine = new SurfaceLaplacianEngine(
                 headGeometry,
                 InputSignalLocations,
@@ -328,7 +374,38 @@ namespace PreprocessDataset
                 NewOrleans ? NOlambda : PHlambda,
                 NewOrleans,
                 OutputLocations);
-            bw.ReportProgress(100);
+
+            int nd = newBDF.NSamp;
+            int outputDataCount = OutputLocations.Count;
+            int[] statusBuffer = new int[nd];
+            int stCounter = 0;
+            double[] inputBuffer = new double[InputDataSignals.Length];
+            double[] outputBuffer;
+            for (int d = 0; d <= dataSize1 - nd * SR.Decimation2; d += nd * SR.Decimation2)
+            {
+                for (int dd = 0, d0 = 0; dd < nd; dd++, d0 += SR.Decimation2)
+                {
+                    for (int c = 0; c < InputDataSignals.Length; c++)
+                        inputBuffer[c] = (double)data[InputDataSignals[c]][d + d0];
+
+                    outputBuffer = engine.CalculateSurfaceLaplacian(inputBuffer);
+
+                    for (int c = 0; c < outputBuffer.Length; c++)
+                        newBDF.putSample(c, dd, outputBuffer[c]);
+                }
+
+                //include ANA and Status channels; already fully decimated
+                for (int c = 0; c < AdditionalOutputChannels.Count; c++)
+                {
+                    for (int dd = 0; dd < nd; dd++)
+                        statusBuffer[dd] = NPdata[c, stCounter + dd];
+                    newBDF.putChannel(outputDataCount + c, statusBuffer);
+                }
+                stCounter += nd;
+
+                newBDF.write(); //and write out record
+                bw.ReportProgress((int)(100D * d / dataSize1 + 0.5D));
+            }
         }
 
         private void ReferenceData()
@@ -436,7 +513,7 @@ namespace PreprocessDataset
                 data = new float[dataSize0][];
                 for (int c = 0; c < dataSize0; c++)
                     data[c] = new float[dataSize1];
-                status = new int[dataSizeS];
+                NPdata = new int[AdditionalOutputChannels.Count, dataSizeS];
             }
             catch (OutOfMemoryException)
             {
@@ -459,8 +536,8 @@ namespace PreprocessDataset
                 }
             BDFEDFRecord r = null;
             int rPt = 0; //counter for which point in current record
-            int StDec = SR.Decimation2; //decimation counter for Status channel only
-            int Spt = 0; //Status channel point counter
+            int StDec = SR.Decimation2; //output decimation counter for non-processed channels
+            int Spt = 0; //Non-processed channel (Status, ANA) point counter
             int bufferCnt = 0; //counter for periodic garbage collection
             //By manually perfroming garbage collection during the file reading.
             // we avoid the accumulation of used buffers which could result in
@@ -481,7 +558,12 @@ namespace PreprocessDataset
                 //handle Status channel; fully decimated because no other processing occurs
                 if (++StDec >= SR.Decimation2)
                 {
-                    status[Spt++] = r.getRawPoint(bdf.NumberOfChannels - 1, rPt);
+                    int c = 0;
+                    foreach (int chan in AdditionalOutputChannels)
+                    {
+                        NPdata[c++, Spt] = r.getRawPoint(chan, rPt);
+                    }
+                    Spt++;
                     StDec = 0;
                 }
                 rPt += SR.Decimation1; //use "input" decimation
