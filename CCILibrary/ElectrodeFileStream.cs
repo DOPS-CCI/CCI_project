@@ -46,6 +46,7 @@ namespace ElectrodeFileStream
                 try
                 {
                     if (type == "PhiTheta") etrRecord = new PhiThetaRecord();
+                    else if (type == "RPhiTheta") etrRecord = new RPhiThetaRecord();
                     else if (type == "XY") etrRecord = new XYRecord();
                     else if (type == "XYZ") etrRecord = new XYZRecord();
                     else throw new Exception("Invalid electrode type " + type);
