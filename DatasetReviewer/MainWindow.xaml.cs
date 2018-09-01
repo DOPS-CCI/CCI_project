@@ -181,7 +181,7 @@ namespace DatasetReviewer
             catch (Exception e)
             {
                 ErrorWindow ew = new ErrorWindow();
-                ew.Message = "Error reading Electrode file : " + e.Message + ". Exitting DatasetReviewer.";
+                ew.Message = "Error reading Electrode file : " + e.Message + ". Exiting DatasetReviewer.";
                 ew.ShowDialog();
                 Log.writeToLog(Environment.NewLine + e.StackTrace);
                 Environment.Exit(0);
