@@ -1052,7 +1052,19 @@ namespace BDFEDFFileStream
             double g = header.Gain(channel);
             double o = header.Offset(channel);
             for (int i = 0; i < header.numberSamples[channel]; i++)
-                record.channelData[channel][i] = Convert.ToInt32((values[i] - o) / g);
+            {
+                try
+                {
+                    record.channelData[channel][i] = Convert.ToInt32((values[i] - o) / g);
+                }
+                catch (OverflowException)
+                {
+                    if ((values[i] > o) == (g > 0D))
+                        record.channelData[channel][i] = dMax(channel);
+                    else
+                        record.channelData[channel][i] = dMin(channel);
+                }
+            }
         }
 
         /// <summary>
@@ -1091,7 +1103,17 @@ namespace BDFEDFFileStream
         {
             if (channel < 0 || channel >= header.numberChannels) throw new BDFEDFException("Invalid channel number (" + channel + ")");
             if (sample < 0 || sample >= header.numberSamples[channel]) throw new BDFEDFException("Invalid sample number (" + sample + ")");
-            record.channelData[channel][sample] = Convert.ToInt32((value - header.Offset(channel)) / header.Gain(channel));
+            try
+            {
+                record.channelData[channel][sample] = Convert.ToInt32((value - header.Offset(channel)) / header.Gain(channel));
+            }
+            catch (OverflowException)
+            {
+                if ((value > header.Offset(channel)) == (header.Gain(channel) > 0D))
+                    record.channelData[channel][sample] = dMax(channel);
+                else
+                    record.channelData[channel][sample] = dMin(channel);
+            }
         }
 
         /// <summary>
