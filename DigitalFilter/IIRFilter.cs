@@ -276,7 +276,7 @@ namespace DigitalFilter
 
             designCode = getDesignCode();
 
-            if (designCode != 0x07 && designCode != 0x0E && designCode != 0x0D && designCode != 0x0B)
+            if (designCode <= 0)
             {
                 designValidated = false;
                 return false;
@@ -298,7 +298,7 @@ namespace DigitalFilter
         protected bool ValidateHPDesign()
         {
             double nyquist = _sr / 2D;
-            if (designCode == 0x0B) //stopF missing
+            if (designCode == 3) //stopF missing
             {
                 double a = Math.Pow(10D, Math.Abs(_stopA) / 20D) - 1D;
                 if (_passF <= 0D || _passF >= nyquist || a <= 1D) { designValidated = false; return false; }
@@ -306,7 +306,7 @@ namespace DigitalFilter
                 omegaS = omegaC / Math.Cosh(ArcCosh(a) / _np);
                 _stopF = _sr * Math.Atan(omegaS) / Math.PI;
             }
-            else if (designCode == 0x0D) //passF missing
+            else if (designCode == 2) //passF missing
             {
                 double a = Math.Pow(10D, Math.Abs(_stopA) / 20D) - 1D;
                 if (_stopF <= 0D || _stopF >= nyquist || a <= 1D) { designValidated = false; return false; }
@@ -323,10 +323,11 @@ namespace DigitalFilter
                 }
                 omegaC = Math.Tan(Math.PI * _passF / _sr);
                 omegaS = Math.Tan(Math.PI * _stopF / _sr);
-                if (designCode == 0x0E) //NP missing
+                if (designCode == 1) //NP missing
                 {
-                    if (_stopA == 0D) { designValidated = false; return false; }
-                    _np = (int)(Math.Ceiling(ArcCosh(Math.Pow(10D, Math.Abs(_stopA) / 20D) - 1D) / ArcCosh(omegaC / omegaS))); //assumes positive _atten
+                    double a = Math.Pow(10D, Math.Abs(_stopA) / 20D) - 1D;
+                    if (a <= 1D) { designValidated = false; return false; }
+                    _np = (int)(Math.Ceiling(ArcCosh(a) / ArcCosh(omegaC / omegaS)));
                 }
                 else //Atten missing
                     _stopA = 20D * Math.Log10(Math.Abs(1D + Math.Cosh(((double)_np) *
@@ -372,7 +373,7 @@ namespace DigitalFilter
         protected bool ValidateLPDesign()
         {
             double nyquist = _sr / 2D;
-            if (designCode == 0x0B)
+            if (designCode == 3)
             {
                 double a = Math.Pow(10D, Math.Abs(_stopA) / 20D) - 1D;
                 if (_passF <= 0D || _passF >= nyquist || a <= 1D) { designValidated = false; return false; }
@@ -380,7 +381,7 @@ namespace DigitalFilter
                 omegaS = omegaC * Math.Cosh(ArcCosh(a) / _np);
                 _stopF = _sr * Math.Atan(omegaS) / Math.PI;
             }
-            else if (designCode == 0x0D)
+            else if (designCode == 2)
             {
                 double a = Math.Pow(10D, Math.Abs(_stopA) / 20D) - 1D;
                 if (_stopF <= 0D || _stopF >= nyquist || a <= 1D) { designValidated = false; return false; }
@@ -398,8 +399,12 @@ namespace DigitalFilter
                 }
                 omegaS = Math.Tan(Math.PI * _stopF / _sr);
                 omegaC = Math.Tan(Math.PI * _passF / _sr);
-                if (designCode == 0x0E)
-                    _np = (int)(Math.Ceiling(ArcCosh(Math.Pow(10D, Math.Abs(_stopA) / 20D) - 1D) / ArcCosh(omegaS / omegaC))); //assumes positive _atten
+                if (designCode == 1)
+                {
+                    double a = Math.Pow(10D, Math.Abs(_stopA) / 20D) - 1D;
+                    if (a <= 1D) { designValidated = false; return false; }
+                    _np = (int)(Math.Ceiling(ArcCosh(a) / ArcCosh(omegaS / omegaC)));
+                }
                 else
                     _stopA = 20D * Math.Log10(Math.Abs(1D + Math.Cosh(((double)_np) *
                         ArcCosh(omegaS / omegaC))));
@@ -442,11 +447,17 @@ namespace DigitalFilter
 
         protected int getDesignCode()
         {
-            int designCode = _np > 0 ? 1 : 0;
-            designCode |= double.IsNaN(_passF) ? 0 : 0x02;
-            designCode |= double.IsNaN(_stopF) ? 0 : 0x04;
-            designCode |= double.IsNaN(_stopA) ? 0 : 0x08;
-            return designCode;
+            int v = -1;
+            if (_np <= 0) v = 1;
+            if (double.IsNaN(_passF)) v = v >= 0 ? 0 : 2;
+            if (double.IsNaN(_stopF)) v = v >= 0 ? 0 : 3;
+            if (double.IsNaN(_stopA)) v = v >= 0 ? 0 : 4;
+            //int designCode = _np > 0 ? 1 : 0;
+            //designCode |= double.IsNaN(_passF) ? 0 : 0x02;
+            //designCode |= double.IsNaN(_stopF) ? 0 : 0x04;
+            //designCode |= double.IsNaN(_stopA) ? 0 : 0x08;
+            //return designCode;
+            return v;
         }
     }
 
@@ -619,14 +630,24 @@ namespace DigitalFilter
             double nyquist = _sr / 2D;
             if (designCode == 1) //missing PassF
             {
-                if (_stopF <= 0D || _stopF >= nyquist) { designValidated = false; return false; }
+                if (_stopF <= 0D || _stopF >= nyquist ||
+                    Math.Abs(_stopA) <= 20D * Math.Log10(1 / (1 - _pr)))
+                {
+                    designValidated = false;
+                    return false;
+                }
                 omegaS = Math.Tan(Math.PI * _stopF / _sr);
                 _passF = _stopF / selectivity;
                 omegaC = Math.Tan(Math.PI * _passF / _sr);
             }
             else if (designCode == 3) //missing StopF
             {
-                if (_passF <= 0D || _passF >= nyquist) { designValidated = false; return false; }
+                if (_passF <= 0D || _passF >= nyquist ||
+                    Math.Abs(_stopA) <= 20D * Math.Log10(1 / (1 - _pr)))
+                {
+                    designValidated = false;
+                    return false;
+                }
                 omegaC = Math.Tan(Math.PI * _passF / _sr);
                 _stopF = _passF * selectivity;
                 omegaS = Math.Tan(Math.PI * _stopF / _sr);
@@ -646,9 +667,16 @@ namespace DigitalFilter
                     _passA = -20D * Math.Log10(1 - _pr);
                 }
                 else if (designCode == 4) //missing StopA
-                    _stopA = 10D * Math.Log10(1D + (Math.Pow(1 - _pr, -2) - 1D) / Math.Pow(D(omegaS / omegaC), 2) );
+                    _stopA = 10D * Math.Log10(1D + (Math.Pow(1 - _pr, -2) - 1D) / Math.Pow(D(omegaS / omegaC), 2));
                 else //missing NP
+                {
+                    if (Math.Abs(_stopA) <= 20D * Math.Log10(1 / (1 - _pr)))
+                    {
+                        designValidated = false;
+                        return false;
+                    }
                     _np = np(omegaS / omegaC);
+                }
             }
             designValidated = true;
             return true;
@@ -659,14 +687,24 @@ namespace DigitalFilter
             double nyquist = _sr/2D;
             if (designCode == 1) //missing PassF
             {
-                if (_stopF <= 0D || _stopF >= nyquist) { designValidated = false; return false; }
+                if (_stopF <= 0D || _stopF >= nyquist ||
+                    Math.Abs(_stopA) <= 20D * Math.Log10(1 / (1 - _pr)))
+                {
+                    designValidated = false;
+                    return false;
+                }
                 omegaS = Math.Tan(Math.PI * _stopF / _sr);
                 _passF = _sr * Math.Atan(omegaS * selectivity) / Math.PI;
                 omegaC = Math.Tan(Math.PI * _passF / _sr);
             }
             else if (designCode == 3) //missing StopF
             {
-                if (_passF <= 0D || _passF >= nyquist) { designValidated = false; return false; }
+                if (_stopF <= 0D || _stopF >= nyquist ||
+                    Math.Abs(_stopA) <= 20D * Math.Log10(1 / (1 - _pr)))
+                {
+                    designValidated = false;
+                    return false;
+                }
                 omegaC = Math.Tan(Math.PI * _passF / _sr);
                 _stopF = _sr * Math.Atan(omegaC / selectivity) / Math.PI;
                 omegaS = Math.Tan(Math.PI * _stopF / _sr);
@@ -691,7 +729,14 @@ namespace DigitalFilter
                     _stopA = 10D * Math.Log10(1D + (Math.Pow(1 - _pr, -2) - 1D) / d);
                 }
                 else //missing NP
+                {
+                    if (Math.Abs(_stopA) <= 20D * Math.Log10(1 / (1 - _pr)))
+                    {
+                        designValidated = false;
+                        return false;
+                    }
                     _np = np(omegaC / omegaS);
+                }
             }
                 designValidated = true;
                 return true;
@@ -839,11 +884,11 @@ namespace DigitalFilter
         protected int getDesignCode()
         {
                 int v = -1;
-                if (double.IsNaN(_passF)) v = v > 0 ? 0 : 1;
-                if (double.IsNaN(_passA)) v = v > 0 ? 0 : 2;
-                if (double.IsNaN(_stopF)) v = v > 0 ? 0 : 3;
-                if (double.IsNaN(_stopA)) v = v > 0 ? 0 : 4;
-                if (_np == 0) v = v > 0 ? 0 : 5;
+                if (double.IsNaN(_passF)) v = 1;
+                if (double.IsNaN(_passA)) v = v >= 0 ? 0 : 2;
+                if (double.IsNaN(_stopF)) v = v >= 0 ? 0 : 3;
+                if (double.IsNaN(_stopA)) v = v >= 0 ? 0 : 4;
+                if (_np == 0) v = v >= 0 ? 0 : 5;
                 return v;
         }
 
