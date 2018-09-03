@@ -87,13 +87,18 @@
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" Grid.Row="1" Grid.Column="2" HorizontalAlignment="Left">
                     <CheckBox Name="StopACB" IsChecked="True" Click="StopACB_Click">Stop band attenuation</CheckBox>
-                    <TextBox Name="Attenuation" Width="30" TextChanged="Attenuation_TextChanged" IsEnabled="{Binding IsChecked, ElementName=StopACB}">40</TextBox>
+                    <TextBox Name="Attenuation" Width="40" TextChanged="Attenuation_TextChanged" IsEnabled="{Binding IsChecked, ElementName=StopACB}">40</TextBox>
                     <TextBlock>dB</TextBlock>
                 </StackPanel>
-                <StackPanel Name="Actual" Orientation="Horizontal" Grid.Row="2" Grid.Column="2" HorizontalAlignment="Center" Visibility="Hidden">
-                    <TextBlock>Actual stop band atten =</TextBlock>
-                    <TextBlock Name="AttenuationActual">40.0</TextBlock>
-                    <TextBlock>dB</TextBlock>
+                <StackPanel Orientation="Horizontal" Grid.Row="2" Grid.Column="2" Margin="4">
+                    <StackPanel Name="Actual" Orientation="Horizontal" HorizontalAlignment="Left" Visibility="Hidden" VerticalAlignment="Center">
+                        <TextBlock>Actual stop band atten =</TextBlock>
+                        <TextBlock Name="AttenuationActual">40.0</TextBlock>
+                        <TextBlock>dB</TextBlock>
+                    </StackPanel>
+                    <Canvas Width="16" Height="16" HorizontalAlignment="Right" VerticalAlignment="Center">
+                        <Ellipse Name="Indicator" Width="12" Height="12" Fill="Green" Canvas.Top="2" Canvas.Left="6"/>
+                    </Canvas>
                 </StackPanel>
             </Grid>
         </GroupBox>

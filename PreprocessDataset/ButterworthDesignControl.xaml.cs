@@ -2,6 +2,7 @@
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 using DigitalFilter;
 
 namespace PreprocessDataset
@@ -101,18 +102,15 @@ namespace PreprocessDataset
 
         public bool Validate(object o)
         {
-            int t = 0;
             if (!(bool)PolesCB.IsChecked)
             {
                 Poles.Text = "";
                 filter.NP = 0;
-                t++;
             }
             if (!(bool)CutoffCB.IsChecked)
             {
                 Cutoff.Text = "";
                 filter.PassF = double.NaN;
-                t++;
             }
             if (!(bool)StopCB.IsChecked)
             {
@@ -120,9 +118,7 @@ namespace PreprocessDataset
                 StopF.Text = "";
                 filter.StopF = double.NaN;
                 filter.StopA = double.NaN;
-                t++;
             }
-            if (t == 0) return false;
 
             if (filter.ValidateDesign())
             {
@@ -133,7 +129,11 @@ namespace PreprocessDataset
                     StopA.Text = filter.StopA.ToString("0.0");
                     StopF.Text = filter.StopF.ToString("0.00");
                 }
+                Indicator.Fill = Brushes.Green;
             }
+            else
+                Indicator.Fill = Brushes.Red;
+
             return filter.IsValid;
         }
 

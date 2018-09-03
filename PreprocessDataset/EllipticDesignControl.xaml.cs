@@ -28,7 +28,7 @@ namespace PreprocessDataset
         Elliptical filter = new Elliptical();
         const double cutoff = 1D;
         const double attenuation = 40D;
-        const double passBandRipple = 0.1D;
+        const double passBandRipple = 0.01D;
         const int poles = 2;
 
         public DFilter FilterDesign
@@ -88,18 +88,27 @@ namespace PreprocessDataset
                 StopF.Text = "";
                 filter.StopF = double.NaN;
             }
+
+            Actual.Visibility = Visibility.Hidden;
             if (filter.ValidateDesign())
             {
                 if (!(bool)PolesCB.IsChecked)
                 {
-                    Poles.Text = filter.NP.ToString("0");
-                    AttenuationActual.Text = filter.ActualStopA.ToString("0.0");
+                    if (filter.ActualStopA != double.NaN)
+                    {
+                        Poles.Text = filter.NP.ToString("0");
+                        Actual.Visibility = Visibility.Visible;
+                        AttenuationActual.Text = filter.ActualStopA.ToString("0.0");
+                    }
                 }
                 else if (!(bool)PassFCB.IsChecked) Cutoff.Text = filter.PassF.ToString("0.00");
                 else if (!(bool)RippleCB.IsChecked) Ripple.Text = (filter.Ripple * 100D).ToString("0.00");
                 else if (!(bool)StopACB.IsChecked) Attenuation.Text = filter.StopA.ToString("0.0");
                 else if (!(bool)StopFCB.IsChecked) StopF.Text = filter.StopF.ToString("0.00");
+                Indicator.Fill = Brushes.Green;
             }
+            else
+                Indicator.Fill = Brushes.Red;
             return filter.IsValid;
         }
 
@@ -135,8 +144,10 @@ namespace PreprocessDataset
             if (Ripple == null || !Ripple.IsEnabled) return;
             double r;
             if (!double.TryParse(Ripple.Text, out r)) filter.Ripple = double.NaN;
-            else
+            else if (r > 0D && r < 100D)
                 filter.Ripple = r / 100D;
+            else
+                filter.Ripple = double.NaN;
             if (ErrorCheckReq != null) ErrorCheckReq(this, null);
         }
 
@@ -199,14 +210,14 @@ namespace PreprocessDataset
             {
                 Poles.Text = "";
                 filter.NP = 0;
-                if (double.IsNaN(filter.StopA))
-                    AttenuationActual.Text = "";
-                else
-                    AttenuationActual.Text = filter.StopA.ToString("0.0");
-                Actual.Visibility = Visibility.Visible;
+                //    if (double.IsNaN(filter.StopA))
+                //        Actual.Visibility = Visibility.Hidden;
+                //    else
+                //        Actual.Visibility = Visibility.Visible;
+                //}
+                //else
+                //    Actual.Visibility = Visibility.Hidden;
             }
-            else
-                Actual.Visibility = Visibility.Hidden;
             ErrorCheckReq(this, null);
         }
 

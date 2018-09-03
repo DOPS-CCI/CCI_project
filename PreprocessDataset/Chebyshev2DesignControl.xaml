@@ -47,6 +47,7 @@
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="26"/>
+                    <RowDefinition Height="24"/>
                     <RowDefinition Height="26"/>
                 </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
@@ -54,29 +55,51 @@
                     <ColumnDefinition Width="190"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
-                <Border Grid.Column="0" Grid.RowSpan="2"/>
-                <RadioButton Name="HighPass" Grid.Row="0" IsChecked="True" VerticalAlignment="Center" Click="HPLP_Click">High pass</RadioButton>
-                <RadioButton Grid.Row="1" VerticalAlignment="Center" Click="HPLP_Click">Low pass</RadioButton>
-                <Border Grid.Column="1" Grid.RowSpan="2"/>
-                <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Left">
-                    <CheckBox Name="CutoffCB" IsChecked="True" Click="CutoffCB_Click">Pass band freq</CheckBox>
-                    <TextBox Name="Cutoff" Width="40" TextChanged="Cutoff_TextChanged" IsEnabled="{Binding IsChecked, ElementName=CutoffCB}" >1</TextBox>
-                    <TextBlock>Hz</TextBlock>
-                </StackPanel>
-                <StackPanel Orientation="Horizontal" Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="0,1">
-                    <CheckBox Name="PolesCB" IsChecked="True" Click="PolesCB_Click">Number of poles</CheckBox>
-                    <TextBox Name="Poles" Width="30" TextChanged="Poles_TextChanged" IsEnabled="{Binding IsChecked, ElementName=PolesCB}">2</TextBox>
-                </StackPanel>
-                <Border Grid.Column="3" Grid.RowSpan="2"/>
+                <Grid Grid.Row="0" Grid.Column="0" Grid.RowSpan="3">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <Border Grid.Column="0" Grid.RowSpan="2"/>
+                    <RadioButton Name="HighPass" Grid.Row="0" IsChecked="True" VerticalAlignment="Center" Click="HPLP_Click">High pass</RadioButton>
+                    <RadioButton Grid.Row="1" VerticalAlignment="Center" Click="HPLP_Click">Low pass</RadioButton>
+                </Grid>
+                <Grid Grid.Row="0" Grid.Column="1" Grid.RowSpan="3">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <Border Grid.RowSpan="2"/>
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Left">
+                        <CheckBox Name="CutoffCB" IsChecked="True" Click="CutoffCB_Click">Pass band freq</CheckBox>
+                        <TextBox Name="Cutoff" Width="40" TextChanged="Cutoff_TextChanged" IsEnabled="{Binding IsChecked, ElementName=CutoffCB}" >1</TextBox>
+                        <TextBlock>Hz</TextBlock>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Grid.Row="1" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="0,1">
+                        <CheckBox Name="PolesCB" IsChecked="True" Click="PolesCB_Click">Number of poles</CheckBox>
+                        <TextBox Name="Poles" Width="30" TextChanged="Poles_TextChanged" IsEnabled="{Binding IsChecked, ElementName=PolesCB}">2</TextBox>
+                    </StackPanel>
+                </Grid>
+                <Border Grid.Column="3" Grid.RowSpan="3"/>
                 <StackPanel Orientation="Horizontal" Grid.Row="0" Grid.Column="2" HorizontalAlignment="Left">
                     <CheckBox Name="StopFCB" Click="StopFCB_Click">Stop band frequency</CheckBox>
                     <TextBox Name="StopF" Width="40" TextChanged="StopF_TextChanged" IsEnabled="{Binding IsChecked, ElementName=StopFCB}"/>
                     <TextBlock>Hz</TextBlock>
                 </StackPanel>
-                <StackPanel Orientation="Horizontal" Grid.Row="1" Grid.Column="2" HorizontalAlignment="Left">
+                <StackPanel Orientation="Horizontal" Grid.Row="1" Grid.Column="2" HorizontalAlignment="Left" VerticalAlignment="Center">
                     <CheckBox Name="StopACB" IsChecked="True" Click="StopACB_Click">Stop band attenuation</CheckBox>
                     <TextBox Name="Attenuation" Width="40" TextChanged="Attenuation_TextChanged" IsEnabled="{Binding IsChecked, ElementName=StopACB}">40</TextBox>
                     <TextBlock>dB</TextBlock>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Grid.Row="2" Grid.Column="2" Margin="4">
+                    <StackPanel Name="Actual" Orientation="Horizontal" HorizontalAlignment="Left" Visibility="Hidden" VerticalAlignment="Center">
+                        <TextBlock>Actual stop band atten =</TextBlock>
+                        <TextBlock Name="AttenuationActual">40.0</TextBlock>
+                        <TextBlock>dB</TextBlock>
+                    </StackPanel>
+                    <Canvas Width="16" Height="16" HorizontalAlignment="Right" VerticalAlignment="Center">
+                        <Ellipse Name="Indicator" Width="12" Height="12" Fill="Green" Canvas.Top="2" Canvas.Left="6"/>
+                    </Canvas>
                 </StackPanel>
             </Grid>
         </GroupBox>

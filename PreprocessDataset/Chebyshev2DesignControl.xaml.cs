@@ -1,18 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
-using CCIUtilities;
 using DigitalFilter;
 
 namespace PreprocessDataset
@@ -86,17 +75,26 @@ namespace PreprocessDataset
                 StopF.Text = "";
                 filter.StopF = double.NaN;
             }
+
+            Actual.Visibility = Visibility.Hidden;
             if (filter.ValidateDesign())
             {
                 if (!(bool)PolesCB.IsChecked)
                 {
-                    Poles.Text = filter.NP.ToString("0");
-//                    Attenuation.Text = filter.ActualStopA.ToString("0.0");
+                    if (!double.IsNaN(filter.ActualStopA))
+                    {
+                        Poles.Text = filter.NP.ToString("0");
+                        AttenuationActual.Text = filter.ActualStopA.ToString("0.0");
+                        Actual.Visibility = Visibility.Visible;
+                    }
                 }
                 else if (!(bool)CutoffCB.IsChecked) Cutoff.Text = filter.PassF.ToString("0.00");
                 else if (!(bool)StopACB.IsChecked) Attenuation.Text = filter.StopA.ToString("0.0");
                 else if (!(bool)StopFCB.IsChecked) StopF.Text = filter.StopF.ToString("0.00");
+                Indicator.Fill = Brushes.Green;
             }
+            else
+                Indicator.Fill = Brushes.Red;
             return filter.IsValid;
         }
 
