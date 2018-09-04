@@ -23,6 +23,20 @@ namespace PreprocessDataset
 
         public int Length { get { return sites.Length; } }
 
+        public static int Count(double spacing, double lastTheta = Math.PI/2D)
+        {
+            Tuple<int, double> t = first3(spacing);
+            int n = 3; //count total number of points
+            double lat1 = t.Item2;            
+            while (lat1 < lastTheta)
+            {
+                t = next(lat1, spacing);
+                n += t.Item1;
+                lat1 = t.Item2;
+            }
+            return n;
+        }
+
         public SpherePoints(double spacing, double lastTheta = Math.PI / 2D)
         {
             //Make a list of "latitudes" and number of points at the latitude
@@ -59,12 +73,12 @@ namespace PreprocessDataset
         #region Private routines
 
         //Algorithm of 8/26/2018
-        Tuple<int, double> first3(double delta)
+        static Tuple<int, double> first3(double delta)
         {
             return new Tuple<int, double>(3, Math.Acos(Math.Sqrt((1 + 2 * Math.Cos(delta)) / 3D)));
         }
 
-        Tuple<int,double> next(double theta0, double delta)
+        static Tuple<int,double> next(double theta0, double delta)
         {
             double d1 = Math.Cos(delta);
             double dTheta3 = 0;
@@ -85,7 +99,7 @@ namespace PreprocessDataset
             return new Tuple<int, double>(N1, dTheta1);
         }
 
-        double theta1(double theta0, double delta, int N1)
+        static double theta1(double theta0, double delta, int N1)
         {
             double ct = Math.Cos(theta0);
             double stcn = Math.Sin(theta0) * Math.Cos(Math.PI / N1);

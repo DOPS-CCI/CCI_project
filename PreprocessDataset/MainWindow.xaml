@@ -171,7 +171,9 @@
                         <StackPanel Orientation="Horizontal">
                             <RadioButton x:Name="AButt" GroupName="OutputLocations" Content="Artificial array: nominal distance =" Checked="OutLocRBChecked"/>
                             <TextBox x:Name="ArrayDist" Width="40" TextChanged="ArrayDist_TextChanged" IsEnabled="{Binding IsChecked, ElementName=AButt}" Text="1.5"/>
-                            <TextBlock><Run Text="cm"/></TextBlock>
+                            <TextBlock><Run Text="cm => "/></TextBlock>
+                            <TextBox x:Name="ArrayN" Width="50" IsEnabled="False"/>
+                            <TextBlock><Run Text=" points"/></TextBlock>
                         </StackPanel>
                         <StackPanel Orientation="Horizontal">
                             <RadioButton x:Name="Other" GroupName="OutputLocations" Content="Use electrode file: " Checked="OutLocRBChecked"/>

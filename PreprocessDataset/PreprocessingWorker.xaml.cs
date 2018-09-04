@@ -295,20 +295,20 @@ namespace PreprocessDataset
                 {
                     bw.ReportProgress(0, "Calculate output locations");
                     SpherePoints sp = new SpherePoints(aDist / headGeometry.MeanRadius);
-                    bw.ReportProgress(50);
+                    bw.ReportProgress(10);
                     int n = sp.Length;
                     int d = (int)Math.Ceiling(Math.Log10((double)n + 0.5));
                     string format = new String('0', d);
                     OutputLocations = new List<ElectrodeRecord>(n);
-                    int i = 0;
+                    int i = 1;
                     foreach (Tuple<double, double> t in sp)
                     {
                         double R = headGeometry.EvaluateAt(t.Item1, t.Item2);
                         OutputLocations.Add(new RPhiThetaRecord(
-                            "S" + (i + 1).ToString(format),
+                            "S" + i.ToString(format),
                             R, t.Item1, Math.PI / 2D - t.Item2, true));
+                        bw.ReportProgress(10 + 90 * i / n);
                         i++;
-                        bw.ReportProgress(50 + 50 * i / n);
                     }
                 }
                 else //_outType == 3 => Use locations in other ETR file

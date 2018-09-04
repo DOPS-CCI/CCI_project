@@ -22,6 +22,7 @@ namespace PreprocessDataset
     public partial class MainWindow : Window
     {
         string ETRFullPathName;
+        double meanRadius;
 
         PreprocessingWorker ppw = new PreprocessingWorker();
 
@@ -58,6 +59,8 @@ namespace PreprocessDataset
             int c = ppw.InitialBDFChannels.Count;
             RemainingEEGChannels.Text = c.ToString("0");
             EEGChannels.Text = c.ToString("0");
+            ArrayDist.Text = "3.0";
+            ArrayN.Text = SpherePoints.Count(3D / meanRadius).ToString("0");
 
             ppw.filterList = new List<DFilter>();
             this.Show();
@@ -107,6 +110,13 @@ namespace PreprocessDataset
                 ew.ShowDialog();
                 return false;
             }
+
+            //Calculate mean head radius for use in SpherePoints.Count calculation
+            meanRadius = 0;
+            foreach(ElectrodeRecord r in ppw.eis.etrPositions.Values)
+                meanRadius += r.convertRPhiTheta().R;
+            meanRadius /= ppw.eis.etrPositions.Count;
+
             //Keep BDF channels that are "Active Electrode" in BDF and in ETR file
             ppw.InitialBDFChannels = new List<int>();
             for (int chan = 0; chan < ppw.bdf.NumberOfChannels; chan++)
@@ -329,8 +339,16 @@ namespace PreprocessDataset
         private void ArrayDist_TextChanged(object sender, TextChangedEventArgs e)
         {
             if (!IsLoaded) return;
-            if (!double.TryParse(ArrayDist.Text, out ppw.aDist)) ppw.aDist = double.NaN;
-            ErrorCheck();
+            if (!double.TryParse(ArrayDist.Text, out ppw.aDist))
+            {
+                ppw.aDist = double.NaN;
+                ArrayN.Text = "";
+            }
+            else
+            {
+                ArrayN.Text = SpherePoints.Count(ppw.aDist / meanRadius).ToString("0");
+            }
+                ErrorCheck();
         }
 
         private void Laplacian_Click(object sender, RoutedEventArgs e)
