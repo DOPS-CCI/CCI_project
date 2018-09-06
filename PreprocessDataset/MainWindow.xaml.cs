@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
@@ -52,20 +53,33 @@ namespace PreprocessDataset
 
             } while (r == false);
 
-
             InitializeComponent();
 
+            this.Show();
+            this.Activate();
+
+            doInitializations();
+            ppw.Owner = this;
+        }
+
+        private void doInitializations()
+        {
             this.Title = "PreprocessDataset: " + ppw.directory;
+
             int c = ppw.InitialBDFChannels.Count;
             RemainingEEGChannels.Text = c.ToString("0");
             EEGChannels.Text = c.ToString("0");
+            InputDecimation.Text = "1";
+            RefChan.Text =
+                Utilities.intListToString(ppw.InitialBDFChannels, true).Replace(", ", ",");
+            OutputDecimation.Text = "1";
+            FitOrder.Text = "3";
+            PolyHarmOrder.Text = "4";
+            PolyHarmDegree.Text = "3";
+            PolyHarmLambda.Text = "10.0";
+            NOLambda.Text = "1.0";
             ArrayDist.Text = "3.0";
-            ArrayN.Text = SpherePoints.Count(3D / meanRadius).ToString("0");
-
-            ppw.filterList = new List<DFilter>();
-            this.Show();
-            this.Activate();
-            ppw.Owner = this;
+            SequenceName.Text="SurfLap";
         }
 
         private bool ProcessHDRFile(string fileName)
@@ -117,7 +131,7 @@ namespace PreprocessDataset
                 meanRadius += r.convertRPhiTheta().R;
             meanRadius /= ppw.eis.etrPositions.Count;
 
-            //Keep BDF channels that are "Active Electrode" in BDF and in ETR file
+            //Make list of BDF channels that are "Active Electrode" in BDF and in ETR file
             ppw.InitialBDFChannels = new List<int>();
             for (int chan = 0; chan < ppw.bdf.NumberOfChannels; chan++)
                 if (ppw.bdf.transducer(chan) == "Active Electrode" &&
@@ -225,7 +239,10 @@ namespace PreprocessDataset
             foreach (string ch in l)
             {
                 int chan = ppw.bdf.GetChannelNumber(ch.Trim(' '), 'U');
-                if (ppw.InitialBDFChannels.Contains(chan) && !ppw.elimChannelList.Contains(chan))
+                if (chan >= 0 &&
+                    ppw.InitialBDFChannels.Contains(chan) &&
+                    !ppw.elimChannelList.Contains(chan) &&
+                    !ppw.includedChannelList.Contains(chan))
                     ppw.elimChannelList.Add(chan);
                 else
                 {
@@ -234,6 +251,30 @@ namespace PreprocessDataset
                 }
             }
             RemainingEEGChannels.Text = (ppw.InitialBDFChannels.Count - ppw.elimChannelList.Count).ToString("0");
+            ErrorCheck();
+        }
+
+        private void IncludedChannels_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (!IsLoaded) return;
+            string s = IncludedChannels.Text;
+            string[] l = s.Split(comma);
+            ppw.includedChannelList.RemoveAll(t => true);
+            foreach (string ch in l)
+            {
+                int chan = ppw.bdf.GetChannelNumber(ch.Trim(' '), 'U');
+                if (chan >= 0 &&
+                    !ppw.InitialBDFChannels.Contains(chan) &&
+                    !ppw.elimChannelList.Contains(chan) &&
+                    !ppw.includedChannelList.Contains(chan))
+                    ppw.includedChannelList.Add(chan);
+                else
+                {
+                    ppw.includedChannelList.RemoveAll(t => true);
+                    break;
+                }
+            }
+
             ErrorCheck();
         }
 
@@ -269,7 +310,11 @@ namespace PreprocessDataset
             if (!IsLoaded) return;
 
             bool ok = true;
-            if (ExcludeList.Text != "" && ppw.elimChannelList.Count == 0) ok = false; //Error in channel elimination
+            if (ExcludeList.Text != "" &&
+                ppw.elimChannelList.Count == 0) ok = false; //Error in channel elimination
+            else if ((bool)IncludeNonEEG.IsChecked &&
+                IncludedChannels.Text != "" &&
+                ppw.includedChannelList.Count == 0) ok = false;
             else if (ppw.SR.Decimation1 <= 0) ok = false; //error in decimation
             else if (ppw.SR.Decimation2 <= 0) ok = false;
             else if (ppw.sequenceName == "") ok = false; //must not be empty
@@ -478,6 +523,27 @@ namespace PreprocessDataset
         {
             if (!IsLoaded) return;
             ppw.sequenceName = SequenceName.Text;
+
+            string fn = ppw.headerFileName + "." + ppw.sequenceName;
+            DirectoryInfo di = new DirectoryInfo(ppw.directory);
+            FileInfo[] fi = di.GetFiles(fn + ".bdf");
+            bool ok = true;
+            if (fi.Length > 0) { ok = false; }
+            else
+            {
+                fi = di.GetFiles(fn + ".etr");
+                if (fi.Length > 0) { ok = false; }
+                else
+                {
+                    fi = di.GetFiles(fn + ".hdr");
+                    if (fi.Length > 0) { ok = false; }
+                }
+            }
+
+            if (ok)
+                FileWarning.Visibility = Visibility.Hidden;
+            else
+                FileWarning.Visibility = Visibility.Visible;
             ErrorCheck();
         }
 
@@ -603,6 +669,12 @@ namespace PreprocessDataset
                 case "Other": ppw._outType = 3; break;
                 default: ppw._refType = 0; break;
             }
+            ErrorCheck();
+        }
+
+        private void IncludeNonEEG_Click(object sender, RoutedEventArgs e)
+        {
+            ppw.includedChannels = (bool)IncludeNonEEG.IsChecked;
             ErrorCheck();
         }
     }

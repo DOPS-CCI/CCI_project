@@ -30,7 +30,7 @@
         <GroupBox Header="Input decimation">
             <StackPanel Orientation="Horizontal">
                 <TextBlock Margin="4" ><Run Text="Factor"/></TextBlock>
-                <TextBox x:Name="InputDecimation" Width="40" TextChanged="InputDecimation_TextChanged" Text="1"/>
+                <TextBox x:Name="InputDecimation" Width="40" TextChanged="InputDecimation_TextChanged"/>
             </StackPanel>
         </GroupBox>
         <GroupBox Header="Exclude channels from further processing">
@@ -38,9 +38,9 @@
                 <TextBox x:Name="ExcludeList" Margin="4" TextChanged="ExcludeList_TextChanged"/>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                     <TextBlock><Run Text="Remaining EEG channels ="/></TextBlock>
-                    <TextBlock x:Name="RemainingEEGChannels" Margin="4" Text="128"/>
+                    <TextBlock x:Name="RemainingEEGChannels" Margin="4" />
                     <TextBlock><Run Text="out of"/></TextBlock>
-                    <TextBlock x:Name="EEGChannels" Margin="4" Text="128"/>
+                    <TextBlock x:Name="EEGChannels" Margin="4"/>
                 </StackPanel>
                 <CheckBox IsChecked="True" HorizontalAlignment="Center" Content="Exclude channels from reference calculation" IsEnabled="{Binding IsChecked, ElementName=Reference}"/>
             </StackPanel>
@@ -52,6 +52,9 @@
             <StackPanel Orientation="Vertical" IsEnabled="{Binding IsChecked, ElementName=Reference}">
                 <StackPanel.Resources>
                     <Style TargetType="{x:Type TextBox}">
+                        <Setter Property="Height" Value="24"/>
+                        <Setter Property="FontWeight" Value="Normal"/>
+                        <Setter Property="VerticalContentAlignment" Value="Center"/>
                         <Setter Property="Margin" Value="2"/>
                     </Style>
                 </StackPanel.Resources>
@@ -109,7 +112,7 @@
         <GroupBox Header="Output decimation">
             <StackPanel Orientation="Horizontal">
                 <TextBlock Margin="4" ><Run Text="Factor"/></TextBlock>
-                <TextBox x:Name="OutputDecimation" Width="40" TextChanged="OutputDecimation_TextChanged" Text="1"/>
+                <TextBox x:Name="OutputDecimation" Width="40" TextChanged="OutputDecimation_TextChanged"/>
             </StackPanel>
         </GroupBox>
         <GroupBox>
@@ -134,7 +137,7 @@
                         </StackPanel.Resources>
                         <StackPanel Orientation="Horizontal">
                             <RadioButton x:Name="Fitted" IsChecked="True" GroupName="InputLocations" Content="Fitted order="/>
-                            <TextBox Name="FitOrder" Width="20" TextChanged="FitOrder_TextChanged" IsEnabled="{Binding IsChecked, ElementName=Fitted}">3</TextBox>
+                            <TextBox Name="FitOrder" Width="20" TextChanged="FitOrder_TextChanged" IsEnabled="{Binding IsChecked, ElementName=Fitted}"/>
                         </StackPanel>
                         <RadioButton Name="Spherical" GroupName="InputLocations" Content="Spherical" Checked="Spherical_Checked"/>
                         <RadioButton x:Name="UseMatrices" GroupName="InputLocations" Content="Use previously calculated matrices" IsEnabled="False"/>
@@ -146,21 +149,21 @@
                         <StackPanel Margin="16,0" Orientation="Vertical">
                             <StackPanel Orientation="Horizontal" IsEnabled="{Binding IsChecked, ElementName=PolySpline}">
                                 <TextBlock><Run Text="Order="/></TextBlock>
-                                <TextBox x:Name="PolyHarmOrder" Width="20" TextChanged="PolyHarmOrder_TextChanged" Text="4"/>
+                                <TextBox x:Name="PolyHarmOrder" Width="20" TextChanged="PolyHarmOrder_TextChanged"/>
                             </StackPanel>
                             <StackPanel Orientation="Horizontal" IsEnabled="{Binding IsChecked, ElementName=PolySpline}">
                                 <TextBlock><Run Text="Osculating polynomial degree="/></TextBlock>
-                                <TextBox x:Name="PolyHarmDegree" Width="20" TextChanged="PolyHarmDegree_TextChanged" Text="3"/>
+                                <TextBox x:Name="PolyHarmDegree" Width="20" TextChanged="PolyHarmDegree_TextChanged"/>
                             </StackPanel>
                             <StackPanel Orientation="Horizontal" IsEnabled="{Binding IsChecked, ElementName=PolySpline}">
                                 <TextBlock><Run Text="Regularization factor="/></TextBlock>
-                                <TextBox x:Name="PolyHarmLambda" Width="60" TextChanged="PolyHarmLambda_TextChanged" Text="10.0"/>
+                                <TextBox x:Name="PolyHarmLambda" Width="60" TextChanged="PolyHarmLambda_TextChanged"/>
                             </StackPanel>
                         </StackPanel>
                         <RadioButton x:Name="NO" GroupName="Lap" Content="New Orleans method (Nunez)" Click="NO_Click"/>
                         <StackPanel Orientation="Horizontal" Margin="16,0" IsEnabled="{Binding IsChecked, ElementName=NO}">
                             <TextBlock Margin="0,0,2,0"><Run Text="Looseness of fit: lambda="/></TextBlock>
-                            <TextBox x:Name="NOLambda" Width="40" TextChanged="NOLambda_TextChanged" Text="1.0"/>
+                            <TextBox x:Name="NOLambda" Width="40" TextChanged="NOLambda_TextChanged"/>
                             <TextBlock Margin="2"><Run Text="cm"/></TextBlock>
                         </StackPanel>
                     </StackPanel>
@@ -170,7 +173,7 @@
                         <RadioButton Name="Current" IsChecked="True" GroupName="OutputLocations" Content="Current electrode locations" Checked="OutLocRBChecked"/>
                         <StackPanel Orientation="Horizontal">
                             <RadioButton x:Name="AButt" GroupName="OutputLocations" Content="Artificial array: nominal distance =" Checked="OutLocRBChecked"/>
-                            <TextBox x:Name="ArrayDist" Width="40" TextChanged="ArrayDist_TextChanged" IsEnabled="{Binding IsChecked, ElementName=AButt}" Text="1.5"/>
+                            <TextBox x:Name="ArrayDist" Width="40" TextChanged="ArrayDist_TextChanged" IsEnabled="{Binding IsChecked, ElementName=AButt}"/>
                             <TextBlock><Run Text="cm => "/></TextBlock>
                             <TextBox x:Name="ArrayN" Width="50" IsEnabled="False"/>
                             <TextBlock><Run Text=" points"/></TextBlock>
@@ -185,7 +188,7 @@
             </StackPanel>
         </GroupBox>
         <GroupBox Header="Output">
-            <StackPanel Orientation="Vertical" >
+            <StackPanel Orientation="Vertical">
                 <StackPanel.Resources>
                     <Style TargetType="TextBlock">
                         <Setter Property="FontSize" Value="12"/>
@@ -200,10 +203,16 @@
                     </Style>
                 </StackPanel.Resources>
                 <StackPanel Orientation="Horizontal">
-                    <TextBlock Margin="4"><Run Text="File sequence"/></TextBlock>
-                    <TextBox x:Name="SequenceName" Width="80" TextChanged="SequenceName_TextChanged" Text="Lap"/>
+                    <TextBlock Margin="4">
+                        <Run Text="File sequence"/>
+                    </TextBlock>
+                    <TextBox x:Name="SequenceName" Width="80" TextChanged="SequenceName_TextChanged"/>
+                    <TextBlock Name="FileWarning" Foreground="Red" VerticalAlignment="Center" Text=" WARNING: existing file(s) will be overwritten!" Visibility="Hidden"/>
                 </StackPanel>
-                <CheckBox Margin="4" Content="Include non-EEG channels"/>
+                <StackPanel Orientation="Horizontal">
+                    <CheckBox Name="IncludeNonEEG" Margin="4" Content="Include non-EEG channels " Click="IncludeNonEEG_Click"/>
+                    <TextBox Name="IncludedChannels" Width="484" IsEnabled="{Binding IsChecked, ElementName=IncludeNonEEG}" TextChanged="IncludedChannels_TextChanged"/>
+                </StackPanel>
             </StackPanel>
         </GroupBox>
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">

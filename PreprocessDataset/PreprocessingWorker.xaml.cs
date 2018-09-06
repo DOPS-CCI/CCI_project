@@ -30,6 +30,8 @@ namespace PreprocessDataset
     public partial class PreprocessingWorker : Window
     {
         BackgroundWorker bw = null;
+        DoWorkEventArgs bwArgs;
+
         internal bool doLaplacian = false;
         internal bool doFiltering = false;
         internal bool doReference = false;
@@ -37,7 +39,7 @@ namespace PreprocessDataset
         int[,] NPdata; //Additional, non-processed  channels (Status, ANA) from file
 
         internal SamplingRate SR;
-        internal IEnumerable<DFilter> filterList;
+        internal IEnumerable<DFilter> filterList = new List<DFilter>();
         internal bool reverse = false;
 
         internal string directory;
@@ -45,27 +47,29 @@ namespace PreprocessDataset
         internal Header.Header head;
         internal BDFEDFFileReader bdf;
 
-        internal int HeadFitOrder = 3;
+        internal int HeadFitOrder;
         internal ElectrodeInputFileStream eis; //locations of all EEG electrodes
         //All "Active Electrode" channels with entries in ETR
         internal List<int> InitialBDFChannels;
         //Channels to be eliminated from EEG signal source list, index into InitialChannels
         internal List<int> elimChannelList = new List<int>();
+        internal bool includedChannels = false;
+        internal List<int> includedChannelList = new List<int>();
         //NOTE: the list of BDF channels used to create the data[] array is created
         // from InitialBDFChannels with or without elim channels depending on whether
         // referencing may use the eliminated channels; channels used to calculate
         // SL output never use the eliminated channels
-        internal int PHorder = 4;
-        internal int PHdegree = 3;
-        internal double PHlambda = 10D;
+        internal int PHorder;
+        internal int PHdegree;
+        internal double PHlambda;
         internal bool NewOrleans = false;
-        internal double NOlambda = 1D;
+        internal double NOlambda;
 
         internal int _outType = 1;
         //ETR entries of sites to calculate output
         internal List<ElectrodeRecord> OutputLocations;
         //Nominal distance between output sites: _outType == 2
-        internal double aDist = 1.5;
+        internal double aDist;
         //Filename of ETR file to be used as output sites: _outType == 3
         internal string ETROutputFullPathName = "";
 
@@ -74,7 +78,7 @@ namespace PreprocessDataset
         internal List<List<int>> _refChanExp;
         internal bool _refIgnoreElim = true;
 
-        internal string sequenceName = "Lap";
+        internal string sequenceName;
 
         //Map from data[] slot to BDF channel; may or may not include eliminated channels
         int[] DataBDFChannels;
@@ -101,6 +105,7 @@ namespace PreprocessDataset
         internal void DoWork(object sender, DoWorkEventArgs e)
         {
             bw = (BackgroundWorker)sender;
+            bwArgs = e;
 
             bw.ReportProgress(0, "Starting Preprocessing");
 
@@ -138,6 +143,12 @@ namespace PreprocessDataset
             int stCounter = 0;
             for (int d = 0; d <= dataSize1 - nd * SR.Decimation2; d += nd * SR.Decimation2)
             {
+                if (bw.CancellationPending) //check for cancellation
+                {
+                    bwArgs.Cancel = true;
+                    return;
+                }
+
                 int slot; //which row in data[]
                 int chan = 0; //newBDF channel number
                 for (int c = 0; c < bdf.NumberOfChannels - 1; c++)
@@ -157,6 +168,7 @@ namespace PreprocessDataset
                 }
                 stCounter += nd;
                 newBDF.write(); //and write out record
+
                 bw.ReportProgress((int)(100D * d / dataSize1 + 0.5D));
             }
         }
@@ -170,6 +182,11 @@ namespace PreprocessDataset
 
             //now look for channels to include -- ANAs, e.g.
             AdditionalOutputChannels = new List<int>();
+            //First include non-EEG channels requested
+            if (includedChannels)
+                foreach (int chan in includedChannelList)
+                    AdditionalOutputChannels.Add(chan);
+            //then any required ANA references
             foreach (KeyValuePair<string, EventDictionary.EventDictionaryEntry> ed in head.Events)
             {
                 if (ed.Value.IsExtrinsic) //then, has associated ANA channel
@@ -179,13 +196,15 @@ namespace PreprocessDataset
                         AdditionalOutputChannels.Add(chan);
                 }
             }
-            //and always add Status channel
+            //and always add Status channel last; it has to be last channel
+            //remove if included earlier
+            AdditionalOutputChannels.Remove(bdf.NumberOfChannels - 1);
             AdditionalOutputChannels.Add(bdf.NumberOfChannels - 1);
 
             //Now we can create the new BDF file header
             head.BDFFile = newFilename + ".bdf";
             newBDF = new BDFEDFFileWriter(
-                new FileStream(System.IO.Path.Combine(directory, head.BDFFile), FileMode.CreateNew, FileAccess.Write),
+                new FileStream(System.IO.Path.Combine(directory, head.BDFFile), FileMode.Create, FileAccess.Write),
                 OutputLocations.Count + AdditionalOutputChannels.Count,
                 (double)SR.Decimation1 * SR.Decimation2 * bdf.RecordDuration,
                 bdf.NSamp,
@@ -195,7 +214,7 @@ namespace PreprocessDataset
             // ETR-BDF name mismatch
             head.ElectrodeFile = newFilename + ".etr";
             ElectrodeOutputFileStream eof = new ElectrodeOutputFileStream(
-                new FileStream(System.IO.Path.Combine(directory, head.ElectrodeFile), FileMode.CreateNew, FileAccess.Write),
+                new FileStream(System.IO.Path.Combine(directory, head.ElectrodeFile), FileMode.Create, FileAccess.Write),
                 typeof(RPhiThetaRecord));
             foreach (ElectrodeRecord er in OutputLocations)
             {
@@ -280,7 +299,7 @@ namespace PreprocessDataset
 
             //Now write out new HDR file
             HeaderFileWriter hfw = new HeaderFileWriter(
-                new FileStream(System.IO.Path.Combine(directory, newFilename + ".hdr"), FileMode.CreateNew, FileAccess.Write),
+                new FileStream(System.IO.Path.Combine(directory, newFilename + ".hdr"), FileMode.Create, FileAccess.Write),
                 head);
         }
 
@@ -303,10 +322,17 @@ namespace PreprocessDataset
                     int i = 1;
                     foreach (Tuple<double, double> t in sp)
                     {
+                        if (bw.CancellationPending) //check for cancellation
+                        {
+                            bwArgs.Cancel = true;
+                            return;
+                        }
+
                         double R = headGeometry.EvaluateAt(t.Item1, t.Item2);
                         OutputLocations.Add(new RPhiThetaRecord(
                             "S" + i.ToString(format),
                             R, t.Item1, Math.PI / 2D - t.Item2, true));
+
                         bw.ReportProgress(10 + 90 * i / n);
                         i++;
                     }
@@ -394,7 +420,7 @@ namespace PreprocessDataset
                         newBDF.putSample(c, dd, outputBuffer[c]);
                 }
 
-                //include ANA and Status channels; already fully decimated
+                //include ANA, other included, and Status channels; already fully decimated
                 for (int c = 0; c < AdditionalOutputChannels.Count; c++)
                 {
                     for (int dd = 0; dd < nd; dd++)
@@ -404,6 +430,13 @@ namespace PreprocessDataset
                 stCounter += nd;
 
                 newBDF.write(); //and write out record
+
+                if (bw.CancellationPending) //check for cancellation
+                {
+                    bwArgs.Cancel = true;
+                    return;
+                }
+
                 bw.ReportProgress((int)(100D * d / dataSize1 + 0.5D));
             }
         }
@@ -433,6 +466,12 @@ namespace PreprocessDataset
                         data[c][p] -= (float)t;
                     if (++pr >= progress)
                     {
+                        if (bw.CancellationPending) //check for cancellation
+                        {
+                            bwArgs.Cancel = true;
+                            return;
+                        }
+
                         bw.ReportProgress((int)(100D * (p + 1) / dataSize1));
                         pr = 0;
                     }
@@ -472,6 +511,12 @@ namespace PreprocessDataset
                     }
                     if (++pr >= progress)
                     {
+                        if (bw.CancellationPending) //check for cancellation
+                        {
+                            bwArgs.Cancel = true;
+                            return;
+                        }
+
                         bw.ReportProgress((int)(100D * (p + 1) / dataSize1));
                         pr = 0;
                     }
@@ -490,6 +535,12 @@ namespace PreprocessDataset
                 bw.ReportProgress(0, "Filter " + f++.ToString("0"));
                 for (int c = 0; c < dataSize0; c++)
                 {
+                    if (bw.CancellationPending) //check for cancellation
+                    {
+                        bwArgs.Cancel = true;
+                        return;
+                    }
+
                     if (!elimChannelList.Contains(DataBDFChannels[c]))
                         if (reverse)
                             df.ZeroPhaseFilter(data[c]);
@@ -548,6 +599,10 @@ namespace PreprocessDataset
             {
                 if (rPt >= bdfRecLenPt) //then read in next buffer
                 {
+                    if (bw.CancellationPending) //check for cancellation
+                    {
+                        bwArgs.Cancel = true;
+                    }
                     r = bdf.read();
                     rPt -= bdfRecLenPt; //assume decimation <= record length!!
                     if (++bufferCnt >= 1000) { bufferCnt = 0; GC.Collect(); } //GC as we go along to clean up file buffers
@@ -580,6 +635,7 @@ namespace PreprocessDataset
 
         internal void CompletedWork(object sender, RunWorkerCompletedEventArgs e)
         {
+            if (e.Cancelled && newBDF != null) newBDF.Close();
             this.Hide();
         }
 
@@ -593,7 +649,6 @@ namespace PreprocessDataset
         {
             if (bw != null)
                 bw.CancelAsync();
-            e.Cancel = true;
             this.Hide();
         }
     }
