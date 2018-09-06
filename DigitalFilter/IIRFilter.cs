@@ -134,7 +134,7 @@ namespace DigitalFilter
         }
     }
 
-    public class Butterworth : IIRFilter
+    public class Butterworth : IIRFilter, IFilterDesign
     {
         double omegaP;
         double omegaS;
@@ -246,7 +246,7 @@ namespace DigitalFilter
         }
     }
 
-    public class Chebyshev : IIRFilter
+    public class Chebyshev : IIRFilter, IFilterDesign
     {
         protected double omegaC;
         protected double omegaS;
@@ -452,16 +452,11 @@ namespace DigitalFilter
             if (double.IsNaN(_passF)) v = v >= 0 ? 0 : 2;
             if (double.IsNaN(_stopF)) v = v >= 0 ? 0 : 3;
             if (double.IsNaN(_stopA)) v = v >= 0 ? 0 : 4;
-            //int designCode = _np > 0 ? 1 : 0;
-            //designCode |= double.IsNaN(_passF) ? 0 : 0x02;
-            //designCode |= double.IsNaN(_stopF) ? 0 : 0x04;
-            //designCode |= double.IsNaN(_stopA) ? 0 : 0x08;
-            //return designCode;
             return v;
         }
     }
 
-    public class ChebyshevHP : Chebyshev
+    public class ChebyshevHP : Chebyshev, IFilterDesign
     {
         public ChebyshevHP()
         {
@@ -487,7 +482,7 @@ namespace DigitalFilter
 
             designCode = getDesignCode();
 
-            if (designCode != 0x07 && designCode != 0x0E && designCode != 0x0D && designCode != 0x0B)
+            if (designCode <= 0)
             {
                 designValidated = false;
                 return false;
@@ -501,7 +496,7 @@ namespace DigitalFilter
         }
     }
 
-    public class ChebyshevLP : Chebyshev
+    public class ChebyshevLP : Chebyshev, IFilterDesign
     {
         public ChebyshevLP()
         {
@@ -527,7 +522,7 @@ namespace DigitalFilter
 
             designCode = getDesignCode();
 
-            if (designCode != 0x07 && designCode != 0x0E && designCode != 0x0D && designCode != 0x0B)
+            if (designCode <= 0)
             {
                 designValidated = false;
                 return false;
@@ -541,7 +536,7 @@ namespace DigitalFilter
         }
     }
 
-    public class Elliptical : IIRFilter
+    public class Elliptical : IIRFilter, IFilterDesign
     {
         protected double omegaC;
         protected double omegaS;
@@ -933,7 +928,7 @@ namespace DigitalFilter
         }
     }
 
-    public class EllipticalLP : Elliptical
+    public class EllipticalLP : Elliptical, IFilterDesign
     {
         public EllipticalLP(double passF, double samplingRate)
         {
@@ -971,7 +966,7 @@ namespace DigitalFilter
         }
     }
 
-    public class EllipticalHP : Elliptical
+    public class EllipticalHP : Elliptical, IFilterDesign
     {
         public EllipticalHP(double passF, double samplingRate)
         {
@@ -1013,5 +1008,12 @@ namespace DigitalFilter
                 throw new Exception("In EllipticalHP.CompleteDesign(): attempt to complete an invalid design.");
             CompleteHPDesign();
         }
+    }
+
+    public interface IFilterDesign
+    {
+        bool ValidateDesign();
+
+        void CompleteDesign();
     }
 }
