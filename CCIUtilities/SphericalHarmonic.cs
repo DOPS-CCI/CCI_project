@@ -389,7 +389,7 @@ namespace CCIUtilities
                                 return new double[] { 1D };
                             case 1: //DPhi
                                 if (m > 0)
-                                    return new double[] { -m *phi.Tan(m) };
+                                    return new double[] { -m * phi.Tan(m) };
                                 return new double[] { m * phi.Cot(m) };
                             case 2: //DPhi2
                                 return new double[] { (double)-m * m };
@@ -488,7 +488,7 @@ namespace CCIUtilities
             int _m;
 
             LegendrePoly lp; //Legendre polynomial
-            double r; //constatn multiplier
+            double r; //constant multiplier
             bool? t = null; //true=>Cos, false=>-Sin, null=>1
 
             internal SH(int l, int m)
