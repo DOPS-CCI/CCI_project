@@ -10,7 +10,7 @@
             <TextBlock Name="ProcessingPhase"/>
         </StackPanel>
         <ProgressBar Name="Progress" Height="20" Width="350" Margin="8"/>
-        <Button Content="Cancel" HorizontalAlignment="Center" VerticalAlignment="Center " Margin="8"  Width="75" IsCancel="True" Click="Cancel_Click"/>
+        <Button Content="Cancel" HorizontalAlignment="Center" VerticalAlignment="Center " Margin="8"  Width="75" Click="Cancel_Click"/>
 
     </StackPanel>
 </Window>

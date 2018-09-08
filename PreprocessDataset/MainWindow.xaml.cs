@@ -440,8 +440,9 @@ namespace PreprocessDataset
             bw.DoWork += new DoWorkEventHandler(ppw.DoWork);
             bw.ProgressChanged += new ProgressChangedEventHandler(ppw.RecordChange);
             bw.RunWorkerCompleted += new RunWorkerCompletedEventHandler(ppw.CompletedWork);
-            bw.RunWorkerAsync();
-            ppw.ShowDialog();
+
+            bw.RunWorkerAsync(); //Start background thread
+            ppw.ShowDialog(); //Show progress window while we wait
         }
 
         private void LaplaceETR_TextChanged(object sender, TextChangedEventArgs e)

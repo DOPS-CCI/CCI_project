@@ -114,23 +114,27 @@ namespace PreprocessDataset
 
             ReadBDFFile();
 
-            CreateElectrodeChannelMap();
+            if (!bw.CancellationPending) CreateElectrodeChannelMap();
 
-            if (doReference)
+            if (doReference && !bw.CancellationPending)
                 ReferenceData();
 
-            if (doFiltering)
+            if (doFiltering && !bw.CancellationPending)
                 FilterData();
 
-            if (doLaplacian)
-            {
-                CalculateLaplacian();
-            }
-            else
-            {
-                WriteBDFFileFromData();
-            }
+            if (!bw.CancellationPending)
+                if (doLaplacian)
+                {
+                    CalculateLaplacian();
+                }
+                else
+                {
+                    WriteBDFFileFromData();
+                }
+
             newBDF.Close();
+            newBDF = null;
+            bwArgs.Cancel = bw.CancellationPending; //indicate if cancelled or not
         }
 
         private void WriteBDFFileFromData()
@@ -143,11 +147,7 @@ namespace PreprocessDataset
             int stCounter = 0;
             for (int d = 0; d <= dataSize1 - nd * SR.Decimation2; d += nd * SR.Decimation2)
             {
-                if (bw.CancellationPending) //check for cancellation
-                {
-                    bwArgs.Cancel = true;
-                    return;
-                }
+                if (bw.CancellationPending) return;
 
                 int slot; //which row in data[]
                 int chan = 0; //newBDF channel number
@@ -322,11 +322,7 @@ namespace PreprocessDataset
                     int i = 1;
                     foreach (Tuple<double, double> t in sp)
                     {
-                        if (bw.CancellationPending) //check for cancellation
-                        {
-                            bwArgs.Cancel = true;
-                            return;
-                        }
+                        if (bw.CancellationPending) return; //check for cancellation
 
                         double R = headGeometry.EvaluateAt(t.Item1, t.Item2);
                         OutputLocations.Add(new RPhiThetaRecord(
@@ -409,6 +405,8 @@ namespace PreprocessDataset
             double[] outputBuffer;
             for (int d = 0; d <= dataSize1 - nd * SR.Decimation2; d += nd * SR.Decimation2)
             {
+                if (bw.CancellationPending) return; //check for cancellation
+
                 for (int dd = 0, d0 = 0; dd < nd; dd++, d0 += SR.Decimation2)
                 {
                     for (int c = 0; c < InputDataSignals.Length; c++)
@@ -431,13 +429,7 @@ namespace PreprocessDataset
 
                 newBDF.write(); //and write out record
 
-                if (bw.CancellationPending) //check for cancellation
-                {
-                    bwArgs.Cancel = true;
-                    return;
-                }
-
-                bw.ReportProgress((int)(100D * d / dataSize1 + 0.5D));
+                bw.ReportProgress((int)(100D * (d + 1) / dataSize1 + 0.5D));
             }
         }
 
@@ -452,6 +444,13 @@ namespace PreprocessDataset
             {
                 for (int p = 0; p < dataSize1; p++)
                 {
+                    if (++pr >= progress)
+                    {
+                        if (bw.CancellationPending) return;//check for cancellation
+
+                        bw.ReportProgress((int)(100D * p / dataSize1));
+                        pr = 0;
+                    }
                     double t = 0;
                     n = 0;
                     foreach (int c in _refChan)
@@ -464,17 +463,6 @@ namespace PreprocessDataset
                         t /= n;
                     for (int c = 0; c < dataSize0; c++)
                         data[c][p] -= (float)t;
-                    if (++pr >= progress)
-                    {
-                        if (bw.CancellationPending) //check for cancellation
-                        {
-                            bwArgs.Cancel = true;
-                            return;
-                        }
-
-                        bw.ReportProgress((int)(100D * (p + 1) / dataSize1));
-                        pr = 0;
-                    }
                 }
             }
             else if (_refType == 2) //complex refence statement
@@ -511,11 +499,7 @@ namespace PreprocessDataset
                     }
                     if (++pr >= progress)
                     {
-                        if (bw.CancellationPending) //check for cancellation
-                        {
-                            bwArgs.Cancel = true;
-                            return;
-                        }
+                        if (bw.CancellationPending) return;//check for cancellation
 
                         bw.ReportProgress((int)(100D * (p + 1) / dataSize1));
                         pr = 0;
@@ -535,11 +519,7 @@ namespace PreprocessDataset
                 bw.ReportProgress(0, "Filter " + f++.ToString("0"));
                 for (int c = 0; c < dataSize0; c++)
                 {
-                    if (bw.CancellationPending) //check for cancellation
-                    {
-                        bwArgs.Cancel = true;
-                        return;
-                    }
+                    if (bw.CancellationPending) return; //check for cancellation
 
                     if (!elimChannelList.Contains(DataBDFChannels[c]))
                         if (reverse)
@@ -599,10 +579,8 @@ namespace PreprocessDataset
             {
                 if (rPt >= bdfRecLenPt) //then read in next buffer
                 {
-                    if (bw.CancellationPending) //check for cancellation
-                    {
-                        bwArgs.Cancel = true;
-                    }
+                    if (bw.CancellationPending) return; //check for cancellation
+
                     r = bdf.read();
                     rPt -= bdfRecLenPt; //assume decimation <= record length!!
                     if (++bufferCnt >= 1000) { bufferCnt = 0; GC.Collect(); } //GC as we go along to clean up file buffers
@@ -635,7 +613,6 @@ namespace PreprocessDataset
 
         internal void CompletedWork(object sender, RunWorkerCompletedEventArgs e)
         {
-            if (e.Cancelled && newBDF != null) newBDF.Close();
             this.Hide();
         }
 
@@ -649,7 +626,7 @@ namespace PreprocessDataset
         {
             if (bw != null)
                 bw.CancelAsync();
-            this.Hide();
+            e.Cancel = true;
         }
     }
 }
