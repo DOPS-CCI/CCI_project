@@ -115,6 +115,14 @@ namespace DatasetReviewer
                     Window1 w = new Window1(this);
                     r = (bool)w.ShowDialog();
 
+                    if (r && BDFLength <= 0)
+                    {
+                        ErrorWindow ew = new ErrorWindow();
+                        ew.Message = "No BDF records in this dataset";
+                        ew.ShowDialog();
+                        r = false;
+                    }
+
                 } while (r == false);
 
                 Log.writeToLog("     on dataset " + headerFileName);
