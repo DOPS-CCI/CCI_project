@@ -71,6 +71,7 @@
     <Compile Include="Header.cs" />
     <Compile Include="HeaderFileStream.cs" />
     <Compile Include="MATFile.cs" />
+    <Compile Include="MLTypes.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Properties\Resources.Designer.cs">
       <AutoGen>True</AutoGen>

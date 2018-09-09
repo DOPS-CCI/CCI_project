@@ -1,6 +1,8 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 2012
+# Visual Studio 15
+VisualStudioVersion = 15.0.28010.2019
+MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CCILibrary", "CCILibrary.csproj", "{F23A9989-9E21-4141-BA10-B6DBA0EDC72B}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CCILibraryTest", "..\CCILibraryTest\CCILibraryTest.csproj", "{EFADD9AB-8813-40E0-A722-8B75F97EA0CD}"
@@ -22,5 +24,8 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {F18F520D-A628-4200-B517-0D1311D4BC66}
 	EndGlobalSection
 EndGlobal

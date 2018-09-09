@@ -58,6 +58,7 @@
   <ItemGroup>
     <Compile Include="BDFEDFFileReaderStub.cs" />
     <Compile Include="GrayCodeTest.cs" />
+    <Compile Include="MLTypesSelectorTest.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="StatusChannelTest.cs" />
     <Compile Include="BDFLocTest.cs" />

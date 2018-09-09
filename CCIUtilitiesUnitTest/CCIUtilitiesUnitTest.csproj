@@ -59,7 +59,6 @@
     <Compile Include="DatasetViewerTest.cs" />
     <Compile Include="NMMatrixTest.cs" />
     <Compile Include="RQuaternionTest.cs" />
-    <Compile Include="MLTypesSelectorTest.cs" />
     <Compile Include="LegendrePolyTest.cs" />
     <Compile Include="SinCosCacheTest.cs" />
     <Compile Include="SphericalHarmonicTest.cs" />

@@ -2,9 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using CCIUtilities;
-using MATFile;
-using MLTypes;
+using CCILibrary;
 
 namespace CCIUtilitiesUnitTest
 {
