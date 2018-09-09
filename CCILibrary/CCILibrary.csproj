@@ -40,9 +40,6 @@
     <AssemblyOriginatorKeyFile>SigningKey.snk</AssemblyOriginatorKeyFile>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="CCIUtilities">
-      <HintPath>..\CCIUtilities\bin\Debug\CCIUtilities.dll</HintPath>
-    </Reference>
     <Reference Include="PresentationCore" />
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -60,6 +57,7 @@
     <Compile Include="BDFEDFHeaderEditor.cs" />
     <Compile Include="BDFFileStream.cs" />
     <Compile Include="BDFPoint.cs" />
+    <Compile Include="CircularBuffer.cs" />
     <Compile Include="CSVStream.cs" />
     <Compile Include="ElectrodeFileStream.cs" />
     <Compile Include="Event.cs" />

@@ -5,7 +5,6 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Event;
 using CCILibrary;
-using CCIUtilities;
 using EventDictionary;
 
 namespace BDFEDFFileStream
