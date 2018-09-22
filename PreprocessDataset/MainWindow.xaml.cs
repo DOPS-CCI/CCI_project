@@ -24,6 +24,7 @@ namespace PreprocessDataset
     {
         string ETRFullPathName;
         double meanRadius;
+        ChannelSelection channels;
 
         PreprocessingWorker ppw = new PreprocessingWorker();
 
@@ -127,7 +128,7 @@ namespace PreprocessDataset
 
             //Calculate mean head radius for use in SpherePoints.Count calculation
             meanRadius = 0;
-            foreach(ElectrodeRecord r in ppw.eis.etrPositions.Values)
+            foreach (ElectrodeRecord r in ppw.eis.etrPositions.Values)
                 meanRadius += r.convertRPhiTheta().R;
             meanRadius /= ppw.eis.etrPositions.Count;
 
@@ -137,6 +138,17 @@ namespace PreprocessDataset
                 if (ppw.bdf.transducer(chan) == "Active Electrode" &&
                     ppw.eis.etrPositions.Keys.Contains(ppw.bdf.channelLabel(chan)))
                     ppw.InitialBDFChannels.Add(chan);
+
+            channels = new ChannelSelection();
+            channels.ETRLocations.Text = ppw.eis.etrPositions.Count.ToString("0");
+            for (int chan = 0; chan < ppw.bdf.NumberOfChannels - 1; chan++)
+            {
+                bool t = (ppw.bdf.transducer(chan) == "Active Electrode") &&
+                    ppw.eis.etrPositions.Keys.Contains(ppw.bdf.channelLabel(chan));
+                ChannelDescription cd = new ChannelDescription(ppw.bdf, chan, t);
+                channels.Add(cd);
+            }
+            channels.DG.ItemsSource = channels;
             return true;
         }
 
@@ -229,61 +241,17 @@ namespace PreprocessDataset
             Environment.Exit(0);
         }
 
-        char[] comma = { ',' };
-        private void ExcludeList_TextChanged(object sender, TextChangedEventArgs e)
-        {
-            if (!IsLoaded) return;
-            string s = ExcludeList.Text;
-            string[] l = s.Split(comma);
-            ppw.elimChannelList.RemoveAll(t => true);
-            foreach (string ch in l)
-            {
-                int chan = ppw.bdf.GetChannelNumber(ch.Trim(' '), 'U');
-                if (chan >= 0 &&
-                    ppw.InitialBDFChannels.Contains(chan) &&
-                    !ppw.elimChannelList.Contains(chan) &&
-                    !ppw.includedChannelList.Contains(chan))
-                    ppw.elimChannelList.Add(chan);
-                else
-                {
-                    ppw.elimChannelList.RemoveAll(t => true);
-                    break;
-                }
-            }
-            RemainingEEGChannels.Text = (ppw.InitialBDFChannels.Count - ppw.elimChannelList.Count).ToString("0");
-            ErrorCheck();
-        }
-
-        private void IncludedChannels_TextChanged(object sender, TextChangedEventArgs e)
-        {
-            if (!IsLoaded) return;
-            string s = IncludedChannels.Text;
-            string[] l = s.Split(comma);
-            ppw.includedChannelList.RemoveAll(t => true);
-            foreach (string ch in l)
-            {
-                int chan = ppw.bdf.GetChannelNumber(ch.Trim(' '), 'U');
-                if (chan >= 0 &&
-                    !ppw.InitialBDFChannels.Contains(chan) &&
-                    !ppw.elimChannelList.Contains(chan) &&
-                    !ppw.includedChannelList.Contains(chan))
-                    ppw.includedChannelList.Add(chan);
-                else
-                {
-                    ppw.includedChannelList.RemoveAll(t => true);
-                    break;
-                }
-            }
-
-            ErrorCheck();
-        }
-
         private void InputDecimation_TextChanged(object sender, TextChangedEventArgs e)
         {
             if (!IsLoaded) return;
             int d;
             if (!Int32.TryParse(InputDecimation.Text, out d)) d = 0;
+            if (d == 0)
+                InputSR.Text = "Error";
+            else
+                InputSR.Text = (ppw.SR.OriginalSR / ppw.SR.Decimation1).ToString("0.00");
             ppw.SR.Decimation1 = d; //raises NotifyPropertyChanged event
+            UpdateFrequencies();
             ErrorCheck();
         }
 
@@ -293,7 +261,16 @@ namespace PreprocessDataset
             int d;
             if (!Int32.TryParse(OutputDecimation.Text, out d)) d = 0;
             ppw.SR.Decimation2 = d; //raises NotifyPropertyChanged event
+            UpdateFrequencies();
             ErrorCheck();
+        }
+
+        void UpdateFrequencies()
+        {
+            if (double.IsNaN(ppw.SR[1])) InputSR.Text = "Error";
+            else InputSR.Text = ppw.SR[1].ToString("0.00");
+            if (double.IsNaN(ppw.SR[2])) OutputSR.Text = "Error";
+            else OutputSR.Text = ppw.SR[2].ToString("0.00");
         }
 
         private void FitOrder_TextChanged(object sender, TextChangedEventArgs e)
@@ -310,12 +287,7 @@ namespace PreprocessDataset
             if (!IsLoaded) return;
 
             bool ok = true;
-            if (ExcludeList.Text != "" &&
-                ppw.elimChannelList.Count == 0) ok = false; //Error in channel elimination
-            else if ((bool)IncludeNonEEG.IsChecked &&
-                IncludedChannels.Text != "" &&
-                ppw.includedChannelList.Count == 0) ok = false;
-            else if (ppw.SR.Decimation1 <= 0) ok = false; //error in decimation
+            if (ppw.SR.Decimation1 <= 0) ok = false; //error in decimation
             else if (ppw.SR.Decimation2 <= 0) ok = false;
             else if (ppw.sequenceName == "") ok = false; //must not be empty
             else
@@ -526,6 +498,7 @@ namespace PreprocessDataset
             ppw.sequenceName = SequenceName.Text;
 
             string fn = ppw.headerFileName + "." + ppw.sequenceName;
+            OutputFileName.Text = System.IO.Path.Combine(ppw.directory, fn);
             DirectoryInfo di = new DirectoryInfo(ppw.directory);
             FileInfo[] fi = di.GetFiles(fn + ".bdf");
             bool ok = true;
@@ -541,10 +514,7 @@ namespace PreprocessDataset
                 }
             }
 
-            if (ok)
-                FileWarning.Visibility = Visibility.Hidden;
-            else
-                FileWarning.Visibility = Visibility.Visible;
+            FileWarning.Visibility = ok ? Visibility.Hidden : Visibility.Visible;
             ErrorCheck();
         }
 
@@ -673,10 +643,11 @@ namespace PreprocessDataset
             ErrorCheck();
         }
 
-        private void IncludeNonEEG_Click(object sender, RoutedEventArgs e)
+        private void SelectChannels_Click(object sender, RoutedEventArgs e)
         {
-            ppw.includedChannels = (bool)IncludeNonEEG.IsChecked;
-            ErrorCheck();
+            if (channels.IsActive) return; //already open
+            channels.Owner = this;
+            channels.ShowDialog();
         }
     }
 }

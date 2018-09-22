@@ -87,6 +87,10 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
+    <Page Include="ChannelSelection.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="Chebyshev2DesignControl.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
@@ -105,6 +109,9 @@
     </Compile>
     <Compile Include="ButterworthDesignControl.xaml.cs">
       <DependentUpon>ButterworthDesignControl.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="ChannelSelection.xaml.cs">
+      <DependentUpon>ChannelSelection.xaml</DependentUpon>
     </Compile>
     <Compile Include="Chebyshev2DesignControl.xaml.cs">
       <DependentUpon>Chebyshev2DesignControl.xaml</DependentUpon>

@@ -10,7 +10,7 @@ namespace PreprocessDataset
     public class SamplingRate : INotifyPropertyChanged
     {
         double _original;
-        public double Original { get { return _original; } }
+        public double OriginalSR { get { return _original; } }
 
         int[] _dec;
         public int Decimation1
@@ -35,7 +35,7 @@ namespace PreprocessDataset
             }
         }
 
-        public int DecimationTotal
+        public int DecimationFinal
         {
             get
             {
@@ -46,23 +46,30 @@ namespace PreprocessDataset
             }
         }
 
+        /// <summary>
+        /// Sampling rate at indexed level
+        /// </summary>
+        /// <param name="i">Level of decimations used; 0=>OriginalSR, 1=>SR after first level of decimation, etc.</param>
+        /// <returns>New sampling rate or NaN if any zero decimations</returns>
         public double this[int i]
         {
             get
             {
-                int d = decimation(i);
-                if (d > 0)
-                    return _original / d;
-                return double.NaN;
+                int d = 1;
+                for (int l = 0; l < i; l++)
+                {
+                    if (_dec[l] > 0) d *= _dec[l];
+                    else return double.NaN;
+                }
+                return _original / d;
             }
         }
 
-        public double Current
+        public double FinalSR
         {
             get
             {
-                if (_dec[0] <= 0 || _dec[1] <= 0) return double.NaN;
-                return _original / (_dec[0] * _dec[1]);
+                return this[_dec.Length];
             }
         }
 
@@ -70,7 +77,7 @@ namespace PreprocessDataset
         {
             get
             {
-                return Current / 2D;
+                return FinalSR / 2D;
             }
         }
 
@@ -94,7 +101,7 @@ namespace PreprocessDataset
 
         public event PropertyChangedEventHandler PropertyChanged;
 
-        public void NotifyPropertyChanged(string propertyName = "Current")
+        public void NotifyPropertyChanged(string propertyName = "FinalSR")
         {
             if (PropertyChanged != null)
             {
