@@ -86,76 +86,34 @@ namespace CCIUtilitiesUnitTest
 
             Console.WriteLine("***** No cache for Sin/Cos");
             Tuple<int,int> d = new Tuple<int, int>(0, 1);
-            double[] c = SphericalHarmonic.DY(l, m, t, p, d);
-            int offset = (1 - c.Length) >> 1;
-            double v = 0D;
-            for (int i = offset; i < c.Length + offset; i++)
-            {
-                Console.WriteLine("{0} => {1}", i, c[i - offset]);
-                v += c[i - offset] * SphericalHarmonic.Y(l + i, m, t, p);
-            }
+            double v = SphericalHarmonic.DY(l, m, t, p, d);
             Console.WriteLine("Result SH({0},{1}) D{2}{3} = {4}", l, m, d.Item1, d.Item2, v);
             Assert.AreEqual(0.0894537, v, 1E-7);
 
             d = new Tuple<int, int>(0, 2);
-            c = SphericalHarmonic.DY(l, m, t, p, d);
-            offset = (1 - c.Length) >> 1;
-            v = 0D;
-            for (int i = offset; i < c.Length + offset; i++)
-            {
-                Console.WriteLine("{0} => {1}", i, c[i - offset]);
-                v += c[i - offset] * SphericalHarmonic.Y(l + i, m, t, p);
-            }
+            v = SphericalHarmonic.DY(l, m, t, p, d);
             Console.WriteLine("Result SH({0},{1}) D{2}{3} = {4}", l, m, d.Item1, d.Item2, v);
             Assert.AreEqual(-0.136737, v, 1E-6);
 
             d = new Tuple<int, int>(1, 0);
-            c = SphericalHarmonic.DY(l, m, t, p, d);
-            offset = (1 - c.Length) >> 1;
-            v = 0D;
-            for (int i = offset; i < c.Length + offset; i++)
-            {
-                Console.WriteLine("{0} => {1}", i, c[i - offset]);
-                v += c[i - offset] * SphericalHarmonic.Y(l + i, m, t, p);
-            }
+            v = SphericalHarmonic.DY(l, m, t, p, d);
             Console.WriteLine("Result SH({0},{1}) D{2}{3} = {4}", l, m, d.Item1, d.Item2, v);
             Assert.AreEqual(0.207125, v, 1E-6);
 
             d = new Tuple<int, int>(1, 1);
-            c = SphericalHarmonic.DY(l, m, t, p, d);
-            offset = (1 - c.Length) >> 1;
-            v = 0D;
-            for (int i = offset; i < c.Length + offset; i++)
-            {
-                Console.WriteLine("{0} => {1}", i, c[i - offset]);
-                v += c[i - offset] * SphericalHarmonic.Y(l + i, m, t, p);
-            }
+            v = SphericalHarmonic.DY(l, m, t, p, d);
             Console.WriteLine("Result SH({0},{1}) D{2}{3} = {4}", l, m, d.Item1, d.Item2, v);
             Assert.AreEqual(1.21952, v, 1E-5);
 
             d = new Tuple<int, int>(2, 0);
-            c = SphericalHarmonic.DY(l, m, t, p, d);
-            offset = (1 - c.Length) >> 1;
-            v = 0D;
-            for (int i = offset; i < c.Length + offset; i++)
-            {
-                Console.WriteLine("{0} => {1}", i, c[i - offset]);
-                v += c[i - offset] * SphericalHarmonic.Y(l + i, m, t, p);
-            }
+            v = SphericalHarmonic.DY(l, m, t, p, d);
             Console.WriteLine("Result SH({0},{1}) D{2}{3} = {4}", l, m, d.Item1, d.Item2, v);
             Assert.AreEqual(1.73297, v, 1E-5);
 
             d = new Tuple<int, int>(2, 0);
             l = 2;
             m = -2;
-            c = SphericalHarmonic.DY(l, m, t, p, d);
-            offset = (1 - c.Length) >> 1;
-            v = 0D;
-            for (int i = offset; i < c.Length + offset; i++)
-            {
-                Console.WriteLine("{0} => {1}", i, c[i - offset]);
-                v += c[i - offset] * SphericalHarmonic.Y(l + i, m, t, p);
-            }
+            v = SphericalHarmonic.DY(l, m, t, p, d);
             Console.WriteLine("Result SH({0},{1}) D{2}{3} = {4}", l, m, d.Item1, d.Item2, v);
             Assert.AreEqual(0.308428, v, 1E-6);
 
@@ -165,106 +123,82 @@ namespace CCIUtilitiesUnitTest
             d = new Tuple<int, int>(0, 1);
             l = 5;
             m = -3;
-            c = SphericalHarmonic.DY(l, m, theta, phi, d);
-            offset = (1 - c.Length) >> 1;
-            v = 0D;
-            for (int i = offset; i < c.Length + offset; i++)
-            {
-                Console.WriteLine("{0} => {1}", i, c[i - offset]);
-                v += c[i - offset] * SphericalHarmonic.Y(l + i, m, theta, phi);
-            }
+            v = SphericalHarmonic.DY(l, m, theta, phi, d);
             Console.WriteLine("Result SH({0},{1}) D{2}{3} = {4}", l, m, d.Item1, d.Item2, v);
             Assert.AreEqual(0.0894537, v, 1E-7);
 
             d = new Tuple<int, int>(0, 2);
-            c = SphericalHarmonic.DY(l, m, theta, phi, d);
-            offset = (1 - c.Length) >> 1;
-            v = 0D;
-            for (int i = offset; i < c.Length + offset; i++)
-            {
-                Console.WriteLine("{0} => {1}", i, c[i - offset]);
-                v += c[i - offset] * SphericalHarmonic.Y(l + i, m, theta, phi);
-            }
+            v = SphericalHarmonic.DY(l, m, theta, phi, d);
             Console.WriteLine("Result SH({0},{1}) D{2}{3} = {4}", l, m, d.Item1, d.Item2, v);
             Assert.AreEqual(-0.136737, v, 1E-6);
 
             d = new Tuple<int, int>(1, 0);
-            c = SphericalHarmonic.DY(l, m, theta, phi, d);
-            offset = (1 - c.Length) >> 1;
-            v = 0D;
-            for (int i = offset; i < c.Length + offset; i++)
-            {
-                Console.WriteLine("{0} => {1}", i, c[i - offset]);
-                v += c[i - offset] * SphericalHarmonic.Y(l + i, m, theta, phi);
-            }
+            v = SphericalHarmonic.DY(l, m, theta, phi, d);
             Console.WriteLine("Result SH({0},{1}) D{2}{3} = {4}", l, m, d.Item1, d.Item2, v);
             Assert.AreEqual(0.207125, v, 1E-6);
 
             d = new Tuple<int, int>(1, 1);
-            c = SphericalHarmonic.DY(l, m, theta, phi, d);
-            offset = (1 - c.Length) >> 1;
-            v = 0D;
-            for (int i = offset; i < c.Length + offset; i++)
-            {
-                Console.WriteLine("{0} => {1}", i, c[i - offset]);
-                v += c[i - offset] * SphericalHarmonic.Y(l + i, m, theta, phi);
-            }
+            v = SphericalHarmonic.DY(l, m, theta, phi, d);
             Console.WriteLine("Result SH({0},{1}) D{2}{3} = {4}", l, m, d.Item1, d.Item2, v);
             Assert.AreEqual(1.21952, v, 1E-5);
 
             d = new Tuple<int, int>(2, 0);
-            c = SphericalHarmonic.DY(l, m, theta, phi, d);
-            offset = (1 - c.Length) >> 1;
-            v = 0D;
-            for (int i = offset; i < c.Length + offset; i++)
-            {
-                Console.WriteLine("{0} => {1}", i, c[i - offset]);
-                v += c[i - offset] * SphericalHarmonic.Y(l + i, m, theta, phi);
-            }
+            v = SphericalHarmonic.DY(l, m, theta, phi, d);
             Console.WriteLine("Result SH({0},{1}) D{2}{3} = {4}", l, m, d.Item1, d.Item2, v);
             Assert.AreEqual(1.73297, v, 1E-5);
 
             d = new Tuple<int, int>(2, 0);
             l = 2;
             m = -2;
-            c = SphericalHarmonic.DY(l, m, theta, phi, d);
-            offset = (1 - c.Length) >> 1;
-            v = 0D;
-            for (int i = offset; i < c.Length + offset; i++)
-            {
-                Console.WriteLine("{0} => {1}", i, c[i - offset]);
-                v += c[i - offset] * SphericalHarmonic.Y(l + i, m, theta, phi);
-            }
+            v = SphericalHarmonic.DY(l, m, theta, phi, d);
             Console.WriteLine("Result SH({0},{1}) D{2}{3} = {4}", l, m, d.Item1, d.Item2, v);
             Assert.AreEqual(0.308428, v, 1E-6);
 
             d = new Tuple<int, int>(2, 0);
             l = 3;
             m = -2;
-            c = SphericalHarmonic.DY(l, m, theta, phi, d);
-            offset = (1 - c.Length) >> 1;
-            v = 0D;
-            for (int i = offset; i < c.Length + offset; i++)
-            {
-                Console.WriteLine("{0} => {1}", i, c[i - offset]);
-                v += c[i - offset] * SphericalHarmonic.Y(l + i, m, theta, phi);
-            }
+            v = SphericalHarmonic.DY(l, m, theta, phi, d);
             Console.WriteLine("Result SH({0},{1}) D{2}{3} = {4}", l, m, d.Item1, d.Item2, v);
             Assert.AreEqual(0.703768, v, 1E-6);
 
-            d = new Tuple<int, int>(1, 0);
+            //Special cases
+
+            Console.WriteLine("\n***** Special cases: theta = 0");
+            d = new Tuple<int, int>(2, 0);
             l = 2;
-            m = -2;
-            c = SphericalHarmonic.DY(l, m, theta, phi, d);
-            offset = (1 - c.Length) >> 1;
-            v = 0D;
-            for (int i = offset; i < c.Length + offset; i++)
-            {
-                Console.WriteLine("{0} => {1}", i, c[i - offset]);
-                v += c[i - offset] * SphericalHarmonic.Y(l + i, m, theta, phi);
-            }
+            m = -1;
+            theta.Angle = 0D;
+            v = SphericalHarmonic.DY(l, m, theta, phi, d);
             Console.WriteLine("Result SH({0},{1}) D{2}{3} = {4}", l, m, d.Item1, d.Item2, v);
-            Assert.AreEqual(0.0686604, v, 1E-7);
+            Assert.AreEqual(0.0, v);
+
+            d = new Tuple<int, int>(1, 0);
+            v = SphericalHarmonic.DY(l, m, theta, phi, d);
+            Console.WriteLine("Result SH({0},{1}) D{2}{3} = {4}", l, m, d.Item1, d.Item2, v);
+            Assert.AreEqual(0.170912, v,1E-5);
+
+            l = 5;
+            m = 3;
+            v = SphericalHarmonic.DY(l, m, theta, phi, d);
+            Console.WriteLine("Result SH({0},{1}) D{2}{3} = {4}", l, m, d.Item1, d.Item2, v);
+            Assert.AreEqual(0D, v);
+
+            l = 6;
+            m = 1;
+            v = SphericalHarmonic.DY(l, m, theta, phi, d);
+            Console.WriteLine("Result SH({0},{1}) D{2}{3} = {4}", l, m, d.Item1, d.Item2, v);
+            Assert.AreEqual(4.60359D, v, 1E-5);
+
+            d = new Tuple<int, int>(2, 0);
+            m = -1;
+            v = SphericalHarmonic.DY(l, m, theta, phi, d);
+            Console.WriteLine("Result SH({0},{1}) D{2}{3} = {4}", l, m, d.Item1, d.Item2, v);
+            Assert.AreEqual(0D, v);
+
+            m = -2;
+            v = SphericalHarmonic.DY(l, m, theta, phi, d);
+            Console.WriteLine("Result SH({0},{1}) D{2}{3} = {4}", l, m, d.Item1, d.Item2, v);
+            Assert.AreEqual(4.55469, v, 1E-5);
 
         }
 
@@ -274,7 +208,6 @@ namespace CCIUtilitiesUnitTest
             int N = 100000;
             int orderMax=10;
             Random r = new Random();
-            double[] c;
             SphericalHarmonic.CreateSHEngine(orderMax + 2);
             SinCosCache theta = new SinCosCache(orderMax + 2);
             SinCosCache phi = new SinCosCache(orderMax + 2);
@@ -291,14 +224,7 @@ namespace CCIUtilitiesUnitTest
                         for (int p = 0; p <= 2; p++)
                             for (int q = p == 0 ? 1 : 0; p + q <= 2; q++)
                             {
-                                c = SphericalHarmonic.DY(l, m, t, ph, new Tuple<int, int>(p, q));
-                                int offset = (1 - c.Length) >> 1;
-                                double v = 0D;
-                                for (int j = offset; j < c.Length + offset; j++)
-                                {
-                                    if (c[j - offset] != 0D)
-                                        v += c[j - offset] * SphericalHarmonic.Y(l + j, m, t, ph);
-                                }
+                                double v = SphericalHarmonic.DY(l, m, t, ph, new Tuple<int, int>(p, q));
                             }
             }
             s.Stop();
@@ -315,14 +241,7 @@ namespace CCIUtilitiesUnitTest
                         for (int p = 0; p <= 2; p++)
                             for (int q = p == 0 ? 1 : 0; p + q <= 2; q++)
                             {
-                                c = SphericalHarmonic.DY(l, m, theta, phi, new Tuple<int, int>(p, q));
-                                int offset = (1 - c.Length) >> 1;
-                                double v = 0D;
-                                for (int j = offset; j < c.Length + offset; j++)
-                                {
-                                    if (c[j - offset] != 0D)
-                                        v += c[j - offset] * SphericalHarmonic.Y(l + j, m, theta, phi);
-                                }
+                                double v = SphericalHarmonic.DY(l, m, theta, phi, new Tuple<int, int>(p, q));
                             }
             }
             s.Stop();
