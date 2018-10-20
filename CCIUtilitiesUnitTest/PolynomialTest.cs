@@ -84,7 +84,17 @@ namespace CCIUtilitiesUnitTest
         [TestMethod]
         public void PolyEvaluateAtTest()
         {
-            Assert.AreEqual(14D, (new Polynomial("2t^2-3t+12", 't')).evaluateAt(2));
+            Polynomial p = new Polynomial("t^3 - 6 t^2 - 12", 't');
+            Assert.AreEqual(-28D, p.EvaluateAt(2D));
+            Assert.AreEqual(-12D, p.EvaluateDAt(2D));
+            Assert.AreEqual(0D, p.EvaluateD2At(2D));
+            Assert.AreEqual(6D, p.EvaluateDnAt(3, 2D));
+            p = new Polynomial("-1+50t^2-400t^4+1120t^6-1280t^8+512t^10", 't');
+            Assert.AreEqual(22619537D, p.EvaluateAt(-3D));
+            Assert.AreEqual(252754660D, p.EvaluateD2At(-3D));
+            Assert.AreEqual(-705306240D, p.EvaluateDnAt(3, -3D));
+            Assert.AreEqual(7687680D, p.EvaluateDnAt(5, 1D));
+            Assert.AreEqual(8055.4, p.EvaluateDnAt(5, 0.01D), 1E-4);
         }
     }
 }
