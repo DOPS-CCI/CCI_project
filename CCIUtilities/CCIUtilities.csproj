@@ -33,11 +33,10 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <PropertyGroup>
-    <SignAssembly>false</SignAssembly>
+    <SignAssembly>true</SignAssembly>
   </PropertyGroup>
   <PropertyGroup>
-    <AssemblyOriginatorKeyFile>
-    </AssemblyOriginatorKeyFile>
+    <AssemblyOriginatorKeyFile>SigningKey.snk</AssemblyOriginatorKeyFile>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="PresentationCore" />
@@ -60,7 +59,7 @@
     <Compile Include="CompoundList.cs" />
     <Compile Include="GeneralizedLinearRegression.cs" />
     <Compile Include="IValidate.cs" />
-    <Compile Include="LegendrePoly.cs" />
+    <Compile Include="Legendre.cs" />
     <Compile Include="LevenbergMarquardt.cs" />
     <Compile Include="Log.cs" />
     <Compile Include="NMMatrix.cs" />
@@ -86,6 +85,7 @@
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
     </None>
+    <None Include="SigningKey.snk" />
   </ItemGroup>
   <ItemGroup>
     <Page Include="ErrorWindow.xaml">
