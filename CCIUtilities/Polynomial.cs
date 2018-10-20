@@ -14,7 +14,7 @@ namespace CCIUtilities
         {
             get
             {
-                return variable.ToCharArray()[0];
+                return variable[0];
             }
             set
             {
@@ -24,9 +24,17 @@ namespace CCIUtilities
         int _minPow = -1;
         int _maxPow = -1;
 
-        public Polynomial(string s, char x)
+        double[] coefficients = null;
+
+        /// <summary>
+        /// Construct a Polynomial object from a string representation
+        /// </summary>
+        /// <param name="s">String form of apolynomical with real coefficients with n integer powers of x indicated by x^n</param>
+        /// <param name="x">Variable of the polynomial</param>
+        public Polynomial(string str, char x)
         {
             variable = x.ToString();
+            string s = str.Replace(" ", "");
             if (s == "0") return;
             Regex termRegex = new Regex(@"^(?<sign>(?:\+?|-))(?<coef>(?:\d+\.?\d*|\.\d+))?((?<v1>" + x + @")?|(?<vn>" + x + @"\^)(?<pow>\d+))?$");
             string[] term = Regex.Split(s, @"(?=[+-].)"); //split on signs to get terms, including sign
@@ -50,15 +58,23 @@ namespace CCIUtilities
                         if (t.pow < _minPow || _minPow < 0) _minPow = t.pow;
                     }
                     else if (i != 0)
-                        throw new Exception("Two consecutive signs in Polnomial input string: " + s);
+                        throw new Exception("Two consecutive signs in Polynomial input string: " + s);
                 }
                 else throw new Exception("Invalid input polynomial on " + x + ": " + s + " term: " + term[i]);
             }
             terms.Sort(new termComparer());
         }
 
+        /// <summary>
+        /// Construct new Polynomial object in 'x' from string
+        /// </summary>
+        /// <param name="s">Input string</param>
         public Polynomial(string s) : this(s, 'x') { }
 
+        /// <summary>
+        /// Copy constructor for Polynomial
+        /// </summary>
+        /// <param name="p">Polynomial to be copied</param>
         public Polynomial(Polynomial p) //copy construction
         {
             variable = p.variable;
@@ -66,6 +82,10 @@ namespace CCIUtilities
                 terms.Add(t); //pass by value => copy made
         }
 
+        /// <summary>
+        /// Construct new Polynomial object in 'x' from list of coefficients
+        /// </summary>
+        /// <param name="coefs">List of coefficients of the Polynomical from low to high powers</param>
         public Polynomial(double[] coefs)
         {
             for (int i = 0; i < coefs.Length; i++)
@@ -78,8 +98,15 @@ namespace CCIUtilities
                     if (i < _minPow || _minPow < 0) _minPow = i;
                 }
             }
+            if (coefs[coefs.Length - 1] != 0D)
+                coefficients = coefs;
         }
 
+        /// <summary>
+        /// Construct new Polynomial object in 'x' from list of coefficients
+        /// </summary>
+        /// <param name="coefs">List of coefficients of the Polynomical from low to high powers</param>
+        /// <param name="x">Variable name</param>
         public Polynomial(double[] coefs, char x): this(coefs)
         {
             variable = x.ToString();
@@ -125,32 +152,21 @@ namespace CCIUtilities
         /// <returns>New, simplified polynomial; terms sorted minimum to maximum powers</returns>
         public Polynomial simplify()
         {
-            Polynomial poly = new Polynomial(this.convertToCoefficients(), variable.ToCharArray()[0]);
+            Polynomial poly = new Polynomial(this.convertToCoefficients(), variable[0]);
             return poly;
         }
 
         /// <summary>
         /// Convert Polynomial to an array of coefficients, low power to high
         /// </summary>
-        /// <returns>Coefficients of the powers, low to high</returns>
+        /// <returns>Coefficients of the powers, 0 to highest</returns>
         public double[] convertToCoefficients()
         {
-            double[] coefs = new double[maxPower + 1];
+            if (coefficients != null) return coefficients;
+            coefficients = new double[maxPower + 1];
             foreach (termInfo t in terms)
-                coefs[t.pow] += t.coef;
-            return coefs;
-        }
-
-        public static Polynomial operator -(Polynomial A)
-        {
-            Polynomial B = new Polynomial(A);
-            for (int i = 0; i < B.terms.Count;i++ )
-            {
-                termInfo t1 = B.terms[i];
-                t1.coef = -t1.coef;
-                B.terms[i] = t1;
-            }
-            return B;
+                coefficients[t.pow] += t.coef;
+            return coefficients;
         }
 
         public static Polynomial operator +(Polynomial A)
@@ -160,7 +176,8 @@ namespace CCIUtilities
 
         public static Polynomial operator +(double d, Polynomial A)
         {
-            double[] b = A.convertToCoefficients();
+            double[] b = new double[A.maxPower + 1];
+            A.convertToCoefficients().CopyTo(b, 0);
             b[0] += d;
             return new Polynomial(b, A.Variable);
         }
@@ -177,7 +194,7 @@ namespace CCIUtilities
 
         public static Polynomial operator -(double d, Polynomial A)
         {
-            return d + (-1) * A;
+            return -(-d + A);
         }
 
         public static Polynomial operator +(Polynomial A, Polynomial B)
@@ -196,15 +213,11 @@ namespace CCIUtilities
 
         public static Polynomial operator *(double d, Polynomial A)
         {
-            if (d == 0) return new Polynomial("0", A.variable.ToCharArray()[0]);
-            Polynomial B = new Polynomial(A);
-            for (int i = 0; i < B.terms.Count; i++)
-            {
-                termInfo t = B.terms[i];
-                t.coef *= d;
-                B.terms[i] = t;
-            }
-            return B;
+            if (d == 0) return new Polynomial("0", A.variable[0]);
+            double[] b = new double[A.maxPower + 1];
+            A.convertToCoefficients().CopyTo(b, 0);
+            for (int i = 0; i < b.Length; i++) b[i] *= d;
+            return new Polynomial(b, A.Variable);
         }
 
         public static Polynomial operator *(Polynomial A, double d)
@@ -248,12 +261,29 @@ namespace CCIUtilities
             return new Polynomial(c, A.Variable);
         }
 
+        public static Polynomial operator -(Polynomial A)
+        {
+            int Amp = A.maxPower;
+            double[] b = new double[Amp + 1]; ;
+            A.convertToCoefficients().CopyTo(b, 0);
+            for (int i = 0; i <= Amp; i++) b[i] = -b[i];
+            return new Polynomial(b, A.Variable);
+        }
+        public static Polynomial operator /(Polynomial A, double d)
+        {
+            if (d == 0) throw new DivideByZeroException("Atempt to divide Polynomial by zero");
+            double[] b = new double[A.maxPower + 1];
+            A.convertToCoefficients().CopyTo(b, 0);
+            for (int i = 0; i < b.Length; i++) b[i] /= d;
+            return new Polynomial(b, A.Variable);
+        }
+
         /// <summary>
         /// Evaluate Polynomial at a point
         /// </summary>
-        /// <param name="x">Abscissa value at which to evaluate</param>
-        /// <returns>Ordinate value</returns>
-        public double evaluateAt(double x)
+        /// <param name="x">Argument value at which to evaluate</param>
+        /// <returns>Result</returns>
+        public double EvaluateAt(double x)
         {
             double[] p = this.convertToCoefficients();
             double s = 0;
@@ -263,7 +293,68 @@ namespace CCIUtilities
         }
 
         /// <summary>
-        /// Calculate exact roots of the Polynomial
+        /// Evaluate first derivative of Polynomial at a point
+        /// </summary>
+        /// <param name="x">Argument value at which to evaluate</param>
+        /// <returns>Result</returns>
+        public double EvaluateDAt(double x)
+        {
+            double[] p = this.convertToCoefficients();
+            double s = 0;
+            for (int i = maxPower; i >= 1; i--)
+                s = s * x + i * p[i];
+            return s;
+        }
+
+        /// <summary>
+        /// Evaluate second derivative of Polynomial at a point
+        /// </summary>
+        /// <param name="x">Argument value at which to evaluate</param>
+        /// <returns>Result</returns>
+        public double EvaluateD2At(double x)
+        {
+            double[] p = this.convertToCoefficients();
+            double s = 0;
+            for (int i = maxPower; i >= 2; i--)
+                s = s * x + i * (i - 1) * p[i];
+            return s;
+        }
+
+        /// <summary>
+        /// Evaluate nth derivative of Polynomial at a point
+        /// </summary>
+        /// <param name="n">order of derivative</param>
+        /// <param name="x">Argument value at which to evaluate</param>
+        /// <returns>Result</returns>
+        public double EvaluateDnAt(int n, double x)
+        {
+            double[] p = this.convertToCoefficients();
+            double s = 0;
+            for (int i = maxPower; i >= n; i--)
+            {
+                int d = 1;
+                for (int k = 0; k < n; k++) d *= i - k;
+                s = s * x + d * p[i];
+            }
+            return s;
+        }
+
+        /// <summary>
+        /// Take derivative of the Polynomial
+        /// </summary>
+        /// <returns>New derivative Polynomial</returns>
+        public Polynomial Derivative()
+        {
+            double[] p = this.convertToCoefficients();
+            double[] d = new double[p.Length - 1];
+            for (int i = 1; i < p.Length; i++)
+                d[i - 1] = i * p[i];
+            Polynomial D = new Polynomial(d, this.Variable);
+            return D;
+        }
+
+        /// <summary>
+        /// Calculate exact roots of the Polynomial up to degree 4
         /// </summary>
         /// <returns>Array of complex roots</returns>
         public Complex[] roots()
@@ -342,6 +433,15 @@ namespace CCIUtilities
             }
         }
 
+        /// <summary>
+        /// Complex roots of polyomial a + b x + c x^2 + d c^3 + e x^4 == 0
+        /// </summary>
+        /// <param name="a">coefficiant a</param>
+        /// <param name="b">coefficiant b</param>
+        /// <param name="c">coefficiant c</param>
+        /// <param name="d">coefficiant d</param>
+        /// <param name="e">coefficiant e</param>
+        /// <returns>Array of Complex roots</returns>
         public static Complex[] rootsOfPolynomial(double a, double b = 0D, double c = 0D, double d = 0D, double e = 0D)
         {
             if (e != 0D)
