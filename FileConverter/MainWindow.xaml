@@ -2,297 +2,258 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="clr-namespace:FileConverter"
-    Background="LightBlue" WindowStartupLocation="CenterScreen" MaxHeight="1024"
-    ContentRendered="Window_ContentRendered" Closed="Window_Closed" FontSize="14" FontFamily="Calibri" ResizeMode="NoResize" SizeToContent="WidthAndHeight">
-    <ScrollViewer>
-        <Grid Height="Auto">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-            </Grid.RowDefinitions>
-            <Menu Grid.Row="0">
-                <MenuItem Header="File" >
-                    <MenuItem Name="miOpenPFile" Header="Open parameter file..." Command="local:Window2.OpenPCommand"/>
-                    <MenuItem Name="miSavePFile" Header="Save parameter file..." Command="local:Window2.SavePCommand"/>
-                    <Separator/>
-                    <MenuItem Name="miProcess" Header="Process" Command="local:Window2.ProcessCommand" />
-                    <MenuItem Name="miExit" Header="Exit" Command="local:Window2.ExitCommand" />
-                </MenuItem>
-                <MenuItem Header="Edit" >
-                    <MenuItem Header="Undo" Command="ApplicationCommands.Undo"/>
-                    <MenuItem Header="Redo" Command="ApplicationCommands.Redo"/>
-                    <Separator/>
-                    <MenuItem Header="Cut" Command="ApplicationCommands.Cut"/>
-                    <MenuItem Header="Copy" Command="ApplicationCommands.Copy"/>
-                    <MenuItem Header="Paste" Command="ApplicationCommands.Paste"/>
-                </MenuItem>
-            </Menu>
-            <TextBox Grid.Row="1" FontSize="15" Margin="6,6,6,1" FontWeight="Bold" Name="TitleLine" IsReadOnly="True" TextAlignment="Center"></TextBox>
-            <StackPanel Grid.Row="2" Orientation="Horizontal">
-                <TextBlock FontSize="16" FontWeight="Bold" VerticalAlignment="Top" Margin="8,-1,0,0">Conversion to:</TextBlock>
-                <RadioButton Name="ConvertToFM" IsChecked="True" Margin="8,0,0,0" FontSize="16" FontWeight="Bold" Checked="FILMAN_Checked">FILMAN</RadioButton>
-                <RadioButton Name="ConvertToBDF" IsChecked="False" Margin="8,0,0,0" FontSize="16" FontWeight="Bold" Checked="BDF_Checked">BDF</RadioButton>
-            </StackPanel>
-            <GroupBox Grid.Row="3" Header="Event selection" BorderBrush="Black" Margin="6,0,6,0" FontSize="14">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="20*" />
-                        <ColumnDefinition Width="274*" />
-                        <ColumnDefinition Width="340*" />
-                    </Grid.ColumnDefinitions>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="130"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="28"/>
-                        <RowDefinition Height="16"/>
-                        <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
-                    <ListView VerticalAlignment="Stretch" Margin="8,4" Name="listView1" SelectionMode="Single" SelectedIndex="0"
-                      SelectionChanged="listView1_SelectionChanged" HorizontalAlignment="Stretch" Grid.ColumnSpan="3">
-                        <ListView.View>
-                            <GridView>
-                                <GridViewColumn Width="150" Header="Event" DisplayMemberBinding="{Binding Path=Name}"/>
-                                <GridViewColumn Width="26" Header="I/E" DisplayMemberBinding="{Binding Path=IE}"/>
-                                <GridViewColumn Width="Auto" Header="Description" DisplayMemberBinding="{Binding Path=Description}"/>
-                            </GridView>
-                        </ListView.View>
-                        <ListView.ToolTip>Select the Event to perform file conversion around</ListView.ToolTip>
-                    </ListView>
-                    <StackPanel Grid.Row="1" Name="ExcludeDef" Grid.ColumnSpan="3" Orientation="Horizontal">
-                        <TextBlock Margin="8,0,0,0" FontSize="13" FontWeight="Bold" VerticalAlignment="Center"><Run Text="Exclude trials overlapping "/></TextBlock>
-                        <ComboBox Name="ExcludeFrom" SelectedIndex="0" SelectionChanged="ExcludeFrom_SelectionChanged">
-                            <ComboBoxItem>None</ComboBoxItem>
-                        </ComboBox>
-                        <TextBlock FontSize="13" FontWeight="Bold" VerticalAlignment="Center"><Run Text=" to "/></TextBlock>
-                        <ComboBox Name="ExcludeTo" SelectedIndex="0" IsEnabled="False">
-                            <ComboBoxItem>Same Event</ComboBoxItem>
-                        </ComboBox>
-                    </StackPanel>
-                    <StackPanel Grid.Row="2" Name="SegType" Orientation="Horizontal" Grid.ColumnSpan="3">
-                        <TextBlock FontSize="13" FontWeight="Bold" VerticalAlignment="Center" Margin="8,0,0,0"><Run Text="Permit overlapping data segments: "/></TextBlock>
-                        <RadioButton Name="SegTypeOverlap" IsChecked="True" Margin="4,0">Yes</RadioButton>
-                        <RadioButton Name="SegTypeNoOverlap" IsChecked="False" Margin="4,0">No</RadioButton>
-                    </StackPanel>
-                    <Grid Grid.Row="3" Name="ExtRow" VerticalAlignment="Center" Height="Auto" Grid.ColumnSpan="3" Grid.RowSpan="2">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="19*" />
-                            <ColumnDefinition Width="615*" />
-                        </Grid.ColumnDefinitions>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                        </Grid.RowDefinitions>
-                        <StackPanel Orientation="Horizontal" Grid.ColumnSpan="2">
-                            <TextBlock FontSize="13" VerticalAlignment="Center" FontWeight="Bold" Margin="8,0,0,0"><Run Text="Extinsic event: "/></TextBlock>
-                            <TextBlock FontSize="13" VerticalAlignment="Center">
-                            <Run>Channel = </Run>
-                            <Run Name="extChannel" />
-                            <Run>; </Run>
-                            <Run Name="ExtDescription">rising edge lagging</Run>
-                            <Run>with threshold %: </Run>
-                            </TextBlock>
-                            <TextBox Name="ExtThreshold" MinWidth="24" FontSize="13" VerticalAlignment="Center" HorizontalContentAlignment="Center" Height="Auto" Margin="4,0,0,0" TextChanged="ExtThreshold_TextChanged">
-                                <TextBox.ToolTip>Set threshold level for extrinsic event signal detection</TextBox.ToolTip>
-                                50
-                            </TextBox>
-                        </StackPanel>
-                        <StackPanel Orientation="Horizontal" Grid.Row="1" Grid.ColumnSpan="2">
-                            <TextBlock FontSize="13" VerticalAlignment="Center" Margin="16,0,0,0">Maximum offset:</TextBlock>
-                            <TextBox Name="ExtSearch" MinWidth="24" FontSize="13" VerticalAlignment="Center" HorizontalContentAlignment="Center" Height="Auto" Margin="4,0,0,0" TextChanged="ExtSearch_TextChanged">
-                                <TextBox.ToolTip>Set maximum search distance from Status marker to extrinsic Event</TextBox.ToolTip>
-                                500
-                            </TextBox>
-                            <TextBlock FontSize="13" VerticalAlignment="Center" Margin="2,0,0,0">milliseconds</TextBlock>
-                        </StackPanel>
-                    </Grid>
-                    <StackPanel Grid.Row="5" Name="SMType" Orientation="Horizontal" Grid.ColumnSpan="3" Visibility="Collapsed">
-                        <TextBlock FontSize="13" FontWeight="Bold" VerticalAlignment="Center" Margin="8,0,0,0"><Run Text="Status Marker location (BDF epochs only): "/></TextBlock>
-                        <RadioButton Name="SMTypeWhole" IsChecked="True" Margin="4,0" Checked="SMType_Checked">Whole episode</RadioButton>
-                        <RadioButton Name="SMTypeEvent" IsChecked="False" Margin="4,0" Checked="SMType_Checked">At underlying Event</RadioButton>
-                    </StackPanel>
-                </Grid>
-            </GroupBox>
-            <GroupBox Grid.Row="4" Header="Group variables" BorderBrush="Black" Margin="6,0,6,0" FontSize="14">
-                <Grid VerticalAlignment="Center" Height="Auto">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="*"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
-                    <ListView Grid.Row="0" VerticalAlignment="Stretch" Margin="8,4,8,4" Name="listView2" Height="220"
-                      SelectionMode="Multiple" FontSize="14" VerticalContentAlignment="Top" SelectionChanged="listView2_SelectionChanged">
-                        <ListView.View>
-                            <GridView>
-                                <GridViewColumn Width="150" Header="Group Variable" DisplayMemberBinding="{Binding Path=Name}"/>
-                                <GridViewColumn Width="Auto" Header="Description" DisplayMemberBinding="{Binding Path=Description}"/>
-                            </GridView>
-                        </ListView.View>
-                        <ListView.ToolTip>Select Group Variable(s) to include in output file records; select one only if for BDF conversion</ListView.ToolTip>
-                    </ListView>
-                    <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,-16,0,0">
-                        <Label Margin="0,0,-6,-4">Total selected =</Label>
-                        <Label Margin="0,0,0,-4" Content="{Binding Path=SelectedItems.Count, ElementName=listView2}"/>
-                    </StackPanel>
-                    <Button Grid.Row="1" Height="24" HorizontalAlignment="Left" Margin="160,0,0,0" Name="All" VerticalAlignment="Center" Width="90" FontSize="14" Click="All_Click" IsEnabled="False">Select All</Button>
-                    <Button Grid.Row="1" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,160,0" Name="None" Height="24" Width="90" FontSize="14" Click="None_Click" IsEnabled="False">Select None</Button>
-                </Grid>
-            </GroupBox>
-            <GroupBox Grid.Row="5" Header="Channels" BorderBrush="Black" Margin="6,0,6,0" FontSize="14">
+    Background="LightBlue" WindowStartupLocation="CenterScreen" Height="920"
+    ContentRendered="Window_ContentRendered" Closed="Window_Closed" FontSize="14" FontFamily="Calibri" ResizeMode="NoResize" SizeToContent="Width">
+    <StackPanel Orientation="Vertical">
+    <Menu>
+        <MenuItem Header="File" >
+            <MenuItem Name="miOpenPFile" Header="Open parameter file..." Command="local:Window2.OpenPCommand"/>
+            <MenuItem Name="miSavePFile" Header="Save parameter file..." Command="local:Window2.SavePCommand"/>
+            <Separator/>
+            <MenuItem Name="miProcess" Header="Process" Command="local:Window2.ProcessCommand" />
+            <MenuItem Name="miExit" Header="Exit" Command="local:Window2.ExitCommand" />
+        </MenuItem>
+        <MenuItem Header="Edit" >
+            <MenuItem Header="Undo" Command="ApplicationCommands.Undo"/>
+            <MenuItem Header="Redo" Command="ApplicationCommands.Redo"/>
+            <Separator/>
+            <MenuItem Header="Cut" Command="ApplicationCommands.Cut"/>
+            <MenuItem Header="Copy" Command="ApplicationCommands.Copy"/>
+            <MenuItem Header="Paste" Command="ApplicationCommands.Paste"/>
+        </MenuItem>
+    </Menu>
+        <ScrollViewer Height="800" VerticalAlignment="Top" >
+            <StackPanel Orientation="Vertical">
+                <TextBox FontSize="15" Margin="6,6,6,1" FontWeight="Bold" x:Name="TitleLine" IsReadOnly="True" TextAlignment="Center"/>
                 <StackPanel Orientation="Horizontal">
-                    <TextBox Name="SelChan" Width="480" TextChanged="SelChan_TextChanged">
-                        <TextBox.ToolTip>List channels to be included in output file</TextBox.ToolTip>
-                        0-15
-                    </TextBox>
-                    <TextBox Name="SelChanName" Width="145" Margin="10,0,0,0" IsEnabled="True" IsReadOnly="True">16 channels</TextBox>
+                    <TextBlock FontSize="16" FontWeight="Bold" VerticalAlignment="Top" Margin="8,-1,0,0"><Run Text="Conversion to:"/></TextBlock>
+                    <RadioButton x:Name="ConvertToFM" IsChecked="True" Margin="8,0,0,0" FontSize="16" FontWeight="Bold" Checked="FILMAN_Checked" Content="FILMAN"/>
+                    <RadioButton x:Name="ConvertToBDF" IsChecked="False" Margin="8,0,0,0" FontSize="16" FontWeight="Bold" Checked="BDF_Checked" Content="BDF"/>
                 </StackPanel>
-            </GroupBox>
-            <GroupBox Grid.Row="6" Header="Samples" BorderBrush="Black" Margin="6,0,6,0" FontSize="14">
-                <StackPanel Orientation="Vertical">
-                    <Grid Name="Lengths" IsEnabled="True">
+                <GroupBox Header="Event selection" BorderBrush="Black" Margin="6,0,6,0" FontSize="14">
+                    <Grid>
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition />
+                            <ColumnDefinition Width="20*" />
+                            <ColumnDefinition Width="274*" />
+                            <ColumnDefinition Width="340*" />
                         </Grid.ColumnDefinitions>
                         <Grid.RowDefinitions>
+                            <RowDefinition Height="130"/>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="28"/>
+                            <RowDefinition Height="16"/>
                             <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <ListView VerticalAlignment="Stretch" Margin="8,4" x:Name="listView1" SelectionMode="Single" SelectedIndex="0"
+    					SelectionChanged="listView1_SelectionChanged" HorizontalAlignment="Stretch" Grid.ColumnSpan="3">
+                            <ListView.View>
+                                <GridView>
+                                    <GridViewColumn Width="150" Header="Event" DisplayMemberBinding="{Binding Name}"/>
+                                    <GridViewColumn Width="26" Header="I/E" DisplayMemberBinding="{Binding IE}"/>
+                                    <GridViewColumn Width="Auto" Header="Description" DisplayMemberBinding="{Binding Description}"/>
+                                </GridView>
+                            </ListView.View>
+                            <ListView.ToolTip>Select the Event to perform file conversion around</ListView.ToolTip>
+                        </ListView>
+                        <StackPanel Grid.Row="1" x:Name="ExcludeDef" Grid.ColumnSpan="3" Orientation="Horizontal">
+                            <TextBlock Margin="8,0,0,0" FontSize="13" FontWeight="Bold" VerticalAlignment="Center"><Run Text="Exclude trials overlapping "/></TextBlock>
+                            <ComboBox x:Name="ExcludeFrom" SelectedIndex="0" SelectionChanged="ExcludeFrom_SelectionChanged">
+                                <ComboBoxItem Content="None"/>
+                            </ComboBox>
+                            <TextBlock FontSize="13" FontWeight="Bold" VerticalAlignment="Center"><Run Text=" to "/></TextBlock>
+                            <ComboBox x:Name="ExcludeTo" SelectedIndex="0" IsEnabled="False">
+                                <ComboBoxItem Content="Same Event"/>
+                            </ComboBox>
+                        </StackPanel>
+                        <StackPanel Grid.Row="2" x:Name="SegType" Orientation="Horizontal" Grid.ColumnSpan="3">
+                            <TextBlock FontSize="13" FontWeight="Bold" VerticalAlignment="Center" Margin="8,0,0,0"><Run Text="Permit overlapping data segments: "/></TextBlock>
+                            <RadioButton x:Name="SegTypeOverlap" IsChecked="True" Margin="4,0" Content="Yes"/>
+                            <RadioButton x:Name="SegTypeNoOverlap" IsChecked="False" Margin="4,0" Content="No"/>
+                        </StackPanel>
+                        <Grid Grid.Row="3" x:Name="ExtRow" VerticalAlignment="Center" Height="Auto" Grid.ColumnSpan="3" Grid.RowSpan="2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="19*" />
+                                <ColumnDefinition Width="615*" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <StackPanel Orientation="Horizontal" Grid.ColumnSpan="2">
+                                <TextBlock FontSize="13" VerticalAlignment="Center" FontWeight="Bold" Margin="8,0,0,0"><Run Text="Extinsic event: "/></TextBlock>
+                                <TextBlock FontSize="13" VerticalAlignment="Center"><Run Text="Channel ="/><Run Text=" "/><Run x:Name="extChannel" /><Run Text=" "/><Run Text=";"/><Run Text=" "/><Run x:Name="ExtDescription" Text="rising edge lagging"/><Run Text=" "/><Run Text="with threshold %:"/></TextBlock>
+                                <TextBox x:Name="ExtThreshold" MinWidth="24" FontSize="13" VerticalAlignment="Center" HorizontalContentAlignment="Center" Height="Auto" Margin="4,0,0,0" TextChanged="ExtThreshold_TextChanged" Text="50">
+                                    <TextBox.ToolTip>Set threshold level for extrinsic event signal detection</TextBox.ToolTip>
+                                </TextBox>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Grid.Row="1" Grid.ColumnSpan="2">
+                                <TextBlock FontSize="13" VerticalAlignment="Center" Margin="16,0,0,0"><Run Text="Maximum offset:"/></TextBlock>
+                                <TextBox x:Name="ExtSearch" MinWidth="24" FontSize="13" VerticalAlignment="Center" HorizontalContentAlignment="Center" Height="Auto" Margin="4,0,0,0" TextChanged="ExtSearch_TextChanged" Text="500">
+                                    <TextBox.ToolTip>Set maximum search distance from Status marker to extrinsic Event</TextBox.ToolTip>
+                                </TextBox>
+                                <TextBlock FontSize="13" VerticalAlignment="Center" Margin="2,0,0,0"><Run Text="milliseconds"/></TextBlock>
+                            </StackPanel>
+                        </Grid>
+                        <StackPanel Grid.Row="5" x:Name="SMType" Orientation="Horizontal" Grid.ColumnSpan="3" Visibility="Collapsed">
+                            <TextBlock FontSize="13" FontWeight="Bold" VerticalAlignment="Center" Margin="8,0,0,0"><Run Text="Status Marker location (BDF epochs only): "/></TextBlock>
+                            <RadioButton x:Name="SMTypeWhole" IsChecked="True" Margin="4,0" Checked="SMType_Checked" Content="Whole episode"/>
+                            <RadioButton x:Name="SMTypeEvent" IsChecked="False" Margin="4,0" Checked="SMType_Checked" Content="At underlying Event"/>
+                        </StackPanel>
+                    </Grid>
+                </GroupBox>
+                <GroupBox Header="Group variables" BorderBrush="Black" Margin="6,0,6,0" FontSize="14">
+                    <Grid VerticalAlignment="Center" Height="Auto">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*"/>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
-                        <Label Grid.Row="0" Grid.Column="0" HorizontalAlignment="Left" Margin="8,0,0,0">Decimation factor</Label>
-                        <TextBox Grid.Row="0" Grid.Column="2" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="4,0,4,0" Name="SR" Width="120" HorizontalContentAlignment="Right" IsReadOnly="True" IsTabStop="False" IsUndoEnabled="False" />
-                        <TextBox Grid.Row="0" Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="4,0,4,0" Name="Decimation" Width="120" HorizontalContentAlignment="Right" TextChanged="Decimation_TextChanged" Text="1">
-                            <TextBox.ToolTip>Enter decimation factor (integer)</TextBox.ToolTip>
-                        </TextBox>
-                        <Label Grid.Row="0" Grid.Column="3" HorizontalAlignment="Left" Margin="0">samples/sec</Label>
-
-                        <Label Grid.Row="1" Grid.Column="0" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="8,0,0,0" Name="label1" Width="Auto" FontSize="14" Height="27" VerticalContentAlignment="Top">Starting offset(sec)</Label>
-                        <TextBox Grid.Row="1" Grid.Column="2" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="4,0,4,0" Name="RecOffsetPts" Width="120" Height="24" IsReadOnly="True" HorizontalContentAlignment="Right" IsTabStop="False" IsUndoEnabled="False"></TextBox>
-                        <TextBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="4,0,4,0" Name="RecOffset" Height="24" Width="120" TextAlignment="Right" TextChanged="RecOffset_TextChanged" Text="0">
-                            <TextBox.ToolTip>Enter number of seconds offset from Event to begin ouput records</TextBox.ToolTip>
-                        </TextBox>
-                        <Label Grid.Row="1" Grid.Column="3" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="0" Name="label3" Width="Auto" FontSize="14">points</Label>
-                        <Label Name="label2" Grid.Row="2" Grid.Column="0" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="8,0,0,0" Width="Auto" Height="27" FontSize="14" VerticalContentAlignment="Top">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Name="TrialLabel" Visibility="Collapsed">Trial</TextBlock>
-                                <TextBlock Name="RecordLabel">Record</TextBlock>
-                                <TextBlock><Run Text=" length(sec)"/></TextBlock>
-                            </StackPanel>
-                        </Label>
-                        <TextBox Grid.Row="2" Grid.Column="2" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="4,0,4,0" Name="RecLengthPts" Width="120"  Height="24" HorizontalContentAlignment="Right" IsReadOnly="True" IsTabStop="False" IsUndoEnabled="False"></TextBox>
-                        <TextBox Grid.Row="2" Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="4,0,4,0" Name="RecLength" Width="120" Height="24" TextAlignment="Right" HorizontalContentAlignment="Right" TextChanged="RecLength_TextChanged" Text="4">
-                            <TextBox.ToolTip>Enter length of records in seconds</TextBox.ToolTip>
-                        </TextBox>
-                        <Label Name="label4" Grid.Row="2" Grid.Column="3" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="0" Width="Auto" FontSize="14">points</Label>
-                        <CheckBox Grid.Row="3" Grid.Column="0" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="12,0,0,0" Name="Radin" Width="Auto" Height="17" FontSize="14" Padding="2,0,4,0" Checked="Radin_Checked" Unchecked="Radin_Checked" VerticalContentAlignment="Top" IsEnabled="{Binding ElementName=ConvertToFM, Path=IsChecked}">Radin reference: from</CheckBox>
-                        <TextBox Grid.Row="3" Grid.Column="2" IsEnabled="{Binding ElementName=Radin, Path=IsChecked}" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="4,0,4,0" Name="RadinLowPts" Width="120"  Height="24" HorizontalContentAlignment="Right" IsReadOnly="True" IsTabStop="False" IsUndoEnabled="False" VerticalContentAlignment="Center"></TextBox>
-                        <TextBox Grid.Row="3" Grid.Column="1" IsEnabled="{Binding ElementName=Radin, Path=IsChecked}" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="4,0,4,0" Name="RadinLow" Width="120" Height="24" TextAlignment="Right" HorizontalContentAlignment="Right" TextChanged="RadLow_TextChanged" Text="0">
-                            <TextBox.ToolTip>Enter beginning of Radin reference region</TextBox.ToolTip>
-                        </TextBox>
-                        <Label Grid.Row="3" Grid.Column="3" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="0" Name="label6" Width="Auto" FontSize="14">points</Label>
-                        <Label Grid.Row="4" Grid.Column="0" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0" Name="label7" Width="Auto" Height="27" VerticalContentAlignment="Top">to</Label>
-                        <TextBox Grid.Row="4" Grid.Column="2" IsEnabled="{Binding ElementName=Radin, Path=IsChecked}" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="4,0,4,0" Name="RadinHighPts" Width="120"  Height="24" HorizontalContentAlignment="Right" IsReadOnly="True" IsTabStop="False" IsUndoEnabled="False"></TextBox>
-                        <TextBox Grid.Row="4" Grid.Column="1" IsEnabled="{Binding ElementName=Radin, Path=IsChecked}" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="4,0,4,0" Name="RadinHigh" Width="120" Height="24" TextAlignment="Right" HorizontalContentAlignment="Right" TextChanged="RadHigh_TextChanged" Text="4">
-                            <TextBox.ToolTip>Enter end of Radin reference region</TextBox.ToolTip>
-                        </TextBox>
-                        <Label Name="label8" Grid.Row="4" Grid.Column="3" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="0" Width="Auto" >points</Label>
+                        <ListView Grid.Row="0" VerticalAlignment="Stretch" Margin="8,4,8,4" x:Name="listView2" Height="220"
+    					SelectionMode="Multiple" FontSize="14" VerticalContentAlignment="Top" SelectionChanged="listView2_SelectionChanged">
+                            <ListView.View>
+                                <GridView>
+                                    <GridViewColumn Width="150" Header="Group Variable" DisplayMemberBinding="{Binding Name}"/>
+                                    <GridViewColumn Width="Auto" Header="Description" DisplayMemberBinding="{Binding Description}"/>
+                                </GridView>
+                            </ListView.View>
+                            <ListView.ToolTip>Select Group Variable(s) to include in output file records; select one only if for BDF conversion</ListView.ToolTip>
+                        </ListView>
+                        <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,-16,0,0">
+                            <Label Margin="0,0,-6,-4" Content="Total selected ="/>
+                            <Label Margin="0,0,0,-4" Content="{Binding SelectedItems.Count, ElementName=listView2}"/>
+                        </StackPanel>
+                        <Button Grid.Row="1" Height="24" HorizontalAlignment="Left" Margin="160,0,0,0" x:Name="All" VerticalAlignment="Center" Width="90" FontSize="14" Click="All_Click" IsEnabled="False" Content="Select All"/>
+                        <Button Grid.Row="1" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,160,0" x:Name="None" Height="24" Width="90" FontSize="14" Click="None_Click" IsEnabled="False" Content="Select None"/>
                     </Grid>
-                    <!--<Grid Name="Offsets">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="211*"/>
-                        <ColumnDefinition Width="244"/>
-                        <ColumnDefinition Width="179" />
-                    </Grid.ColumnDefinitions>
-                    <CheckBox Grid.Column="0" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="12,2,0,2" Height="17"  Name="removeOffsets" VerticalContentAlignment="Top" Visibility="Visible" IsChecked="True">
-                        <CheckBox.Content>Remove channel offsets</CheckBox.Content>
-                        <CheckBox.ToolTip>Check to remove average value from each channel</CheckBox.ToolTip>
-                    </CheckBox>
-                    <CheckBox Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="0,2,0,0" Height="17"  Name="removeTrends" IsEnabled="True" VerticalContentAlignment="Top" Visibility="Visible" Checked="removeTrends_Checked" Unchecked="removeTrends_Checked">
-                        <CheckBox.Content>Remove channel trends</CheckBox.Content>
-                        <CheckBox.ToolTip>Check to remove linear trend from each channel</CheckBox.ToolTip>
-                    </CheckBox>
-                </Grid>-->
-                    <Grid Name="Offsets">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="0.45*"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <RadioButton Grid.Column="0" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="12,2,0,2" Height="17"  Name="noneOffsets" VerticalContentAlignment="Top" IsChecked="True">
-                            <RadioButton.Content>None</RadioButton.Content>
-                            <RadioButton.ToolTip>No offset correction</RadioButton.ToolTip>
-                        </RadioButton>
-                        <RadioButton Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="2,2,0,2" Height="17"  Name="removeOffsets" VerticalContentAlignment="Top">
-                            <RadioButton.Content>Remove channel offsets</RadioButton.Content>
-                            <RadioButton.ToolTip>Check to remove average value from each channel</RadioButton.ToolTip>
-                        </RadioButton>
-                        <RadioButton Grid.Column="2" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="2,2,0,2" Height="17"  Name="removeTrends" IsEnabled="True" VerticalContentAlignment="Top">
-                            <RadioButton.Content>Remove channel trends</RadioButton.Content>
-                            <RadioButton.ToolTip>Check to remove linear trend from each channel</RadioButton.ToolTip>
-                        </RadioButton>
-                    </Grid>
+                </GroupBox>
+                <GroupBox Header="Channels" BorderBrush="Black" Margin="6,0,6,0" FontSize="14">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBox x:Name="SelChan" Width="480" TextChanged="SelChan_TextChanged" Text="0-15">
+                            <TextBox.ToolTip>List channels to be included in output file</TextBox.ToolTip>
+                        </TextBox>
+                        <TextBox x:Name="SelChanName" Width="145" Margin="10,0,0,0" IsEnabled="True" IsReadOnly="True" Text="16 channels"/>
+                    </StackPanel>
+                </GroupBox>
+                <GroupBox Header="Samples" BorderBrush="Black" Margin="6,0,6,0" FontSize="14">
+                    <StackPanel Orientation="Vertical">
+                        <Grid x:Name="Lengths" IsEnabled="True">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Label Grid.Row="0" Grid.Column="0" HorizontalAlignment="Left" Margin="8,0,0,0" Content="Decimation factor"/>
+                            <TextBox Grid.Row="0" Grid.Column="2" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="4,0,4,0" x:Name="SR" Width="120" HorizontalContentAlignment="Right" IsReadOnly="True" IsTabStop="False" IsUndoEnabled="False" />
+                            <TextBox Grid.Row="0" Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="4,0,4,0" x:Name="Decimation" Width="120" HorizontalContentAlignment="Right" TextChanged="Decimation_TextChanged" Text="1">
+                                <TextBox.ToolTip>Enter decimation factor (integer)</TextBox.ToolTip>
+                            </TextBox>
+                            <Label Grid.Row="0" Grid.Column="3" HorizontalAlignment="Left" Margin="0" Content="samples/sec"/>
 
-                </StackPanel>
-            </GroupBox>
-            <GroupBox Grid.Row="7" Header="Reference" BorderBrush="Black" Margin="6,0,6,0" FontSize="14">
+                            <Label Grid.Row="1" Grid.Column="0" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="8,0,0,0" x:Name="label1" Width="Auto" FontSize="14" Height="27" VerticalContentAlignment="Top" Content="Starting offset(sec)"/>
+                            <TextBox Grid.Row="1" Grid.Column="2" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="4,0,4,0" x:Name="RecOffsetPts" Width="120" Height="24" IsReadOnly="True" HorizontalContentAlignment="Right" IsTabStop="False" IsUndoEnabled="False"/>
+                            <TextBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="4,0,4,0" x:Name="RecOffset" Height="24" Width="120" TextAlignment="Right" TextChanged="RecOffset_TextChanged" Text="0">
+                                <TextBox.ToolTip>Enter number of seconds offset from Event to begin ouput records</TextBox.ToolTip>
+                            </TextBox>
+                            <Label Grid.Row="1" Grid.Column="3" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="0" x:Name="label3" Width="Auto" FontSize="14" Content="points"/>
+                            <Label x:Name="label2" Grid.Row="2" Grid.Column="0" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="8,0,0,0" Width="Auto" Height="27" FontSize="14" VerticalContentAlignment="Top">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock x:Name="TrialLabel" Visibility="Collapsed"><Run Text="Trial"/></TextBlock>
+                                    <TextBlock x:Name="RecordLabel"><Run Text="Record"/></TextBlock>
+                                    <TextBlock><Run Text=" length(sec)"/></TextBlock>
+                                </StackPanel>
+                            </Label>
+                            <TextBox Grid.Row="2" Grid.Column="2" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="4,0,4,0" x:Name="RecLengthPts" Width="120"  Height="24" HorizontalContentAlignment="Right" IsReadOnly="True" IsTabStop="False" IsUndoEnabled="False"/>
+                            <TextBox Grid.Row="2" Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="4,0,4,0" x:Name="RecLength" Width="120" Height="24" TextAlignment="Right" HorizontalContentAlignment="Right" TextChanged="RecLength_TextChanged" Text="4">
+                                <TextBox.ToolTip>Enter length of records in seconds</TextBox.ToolTip>
+                            </TextBox>
+                            <Label x:Name="label4" Grid.Row="2" Grid.Column="3" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="0" Width="Auto" FontSize="14" Content="points"/>
+                            <CheckBox Grid.Row="3" Grid.Column="0" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="12,0,0,0" x:Name="Radin" Width="Auto" Height="17" FontSize="14" Padding="2,0,4,0" Checked="Radin_Checked" Unchecked="Radin_Checked" VerticalContentAlignment="Top" IsEnabled="{Binding IsChecked, ElementName=ConvertToFM}" Content="Radin reference: from"/>
+                            <TextBox Grid.Row="3" Grid.Column="2" IsEnabled="{Binding IsChecked, ElementName=Radin}" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="4,0,4,0" x:Name="RadinLowPts" Width="120"  Height="24" HorizontalContentAlignment="Right" IsReadOnly="True" IsTabStop="False" IsUndoEnabled="False" VerticalContentAlignment="Center"/>
+                            <TextBox Grid.Row="3" Grid.Column="1" IsEnabled="{Binding IsChecked, ElementName=Radin}" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="4,0,4,0" x:Name="RadinLow" Width="120" Height="24" TextAlignment="Right" HorizontalContentAlignment="Right" TextChanged="RadLow_TextChanged" Text="0">
+                                <TextBox.ToolTip>Enter beginning of Radin reference region</TextBox.ToolTip>
+                            </TextBox>
+                            <Label Grid.Row="3" Grid.Column="3" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="0" x:Name="label6" Width="Auto" FontSize="14" Content="points"/>
+                            <Label Grid.Row="4" Grid.Column="0" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0" x:Name="label7" Width="Auto" Height="27" VerticalContentAlignment="Top" Content="to"/>
+                            <TextBox Grid.Row="4" Grid.Column="2" IsEnabled="{Binding IsChecked, ElementName=Radin}" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="4,0,4,0" x:Name="RadinHighPts" Width="120"  Height="24" HorizontalContentAlignment="Right" IsReadOnly="True" IsTabStop="False" IsUndoEnabled="False"/>
+                            <TextBox Grid.Row="4" Grid.Column="1" IsEnabled="{Binding IsChecked, ElementName=Radin}" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="4,0,4,0" x:Name="RadinHigh" Width="120" Height="24" TextAlignment="Right" HorizontalContentAlignment="Right" TextChanged="RadHigh_TextChanged" Text="4">
+                                <TextBox.ToolTip>Enter end of Radin reference region</TextBox.ToolTip>
+                            </TextBox>
+                            <Label x:Name="label8" Grid.Row="4" Grid.Column="3" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="0" Width="Auto" Content="points" />
+                        </Grid>
+                        <Grid x:Name="Offsets">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="0.45*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <RadioButton Grid.Column="0" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="12,2,0,2" Height="17"  x:Name="noneOffsets" VerticalContentAlignment="Top" IsChecked="True">
+                                <RadioButton.ToolTip>No offset correction</RadioButton.ToolTip> None
+                            </RadioButton>
+                            <RadioButton Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="2,2,0,2" Height="17"  x:Name="removeOffsets" VerticalContentAlignment="Top">
+                                <RadioButton.ToolTip>Check to remove average value from each channel</RadioButton.ToolTip> Remove channel offsets
+                            </RadioButton>
+                            <RadioButton Grid.Column="2" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="2,2,0,2" Height="17"  x:Name="removeTrends" IsEnabled="True" VerticalContentAlignment="Top">
+                                <RadioButton.ToolTip>Check to remove linear trend from each channel</RadioButton.ToolTip> Remove channel trends
+                            </RadioButton>
+                        </Grid>
+
+                    </StackPanel>
+                </GroupBox>
+                <GroupBox Header="Reference" BorderBrush="Black" Margin="6,0,6,0" FontSize="14">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="26" />
+                            <RowDefinition Height="26" />
+                            <RowDefinition Height="26" />
+                        </Grid.RowDefinitions>
+                        <StackPanel Grid.Row="0" Orientation="Horizontal">
+                            <RadioButton Grid.Column="0" GroupName="Ref" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="8,0,16,0" x:Name="radioButton2" Width="Auto" Content="Selected channel(s)-&gt;" Checked="radioButton_Changed" Click="refChans_Click">
+                                <RadioButton.ToolTip>Enter list of channels to be used as reference for all channels</RadioButton.ToolTip>
+                            </RadioButton>
+                            <TextBox Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center" x:Name="RefChan" Width="310" VerticalContentAlignment="Center" 
+    						Height="24" TextChanged="RefChan_TextChanged" IsEnabled="{Binding IsChecked, ElementName=radioButton2}">
+                                <TextBox.ToolTip>Enter comma- and hyphen-separated list of reference channels to use (e.g. "0-9,20-24")</TextBox.ToolTip>
+                            </TextBox>
+                            <TextBox Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="5,0,0,0" x:Name="RefChanName" Width="140" IsReadOnly="True"
+    						Height="24" IsEnabled="{Binding IsChecked, ElementName=radioButton2}"/>
+                        </StackPanel>
+                        <StackPanel Grid.Row="1" Orientation="Horizontal">
+                            <RadioButton GroupName="Ref" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="8,0,6,0" x:Name="radioButton4" Checked="radioButton_Changed" Content="Reference expression-&gt;"/>
+                            <TextBox x:Name="RefChanExpression" Width="310" HorizontalAlignment="Right" VerticalAlignment="Center" Height="24"
+    						TextChanged="RefChanExpression_TextChanged" IsEnabled="{Binding IsChecked, ElementName=radioButton4}">
+                                <TextBox.ToolTip>Enter reference expression; e.g. (1,4)~{5-6} means channels 1 and 4 referenced to average of channels 5 and 6.</TextBox.ToolTip>
+                            </TextBox>
+                            <TextBox x:Name="RefChanExpDesc" Width="140" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="5,0,0,0"
+    						IsEnabled="{Binding IsChecked, ElementName=radioButton4}"/>
+                        </StackPanel>
+                        <RadioButton Grid.Row="2" GroupName="Ref" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="8,0,0,0" x:Name="radioButton3" Width="Auto" Checked="radioButton_Changed" IsChecked="True" Content="No correction (CMS/DRL)"/>
+                    </Grid>
+                </GroupBox>
                 <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="26" />
-                        <RowDefinition Height="26" />
-                        <RowDefinition Height="26" />
-                    </Grid.RowDefinitions>
-                    <StackPanel Grid.Row="0" Orientation="Horizontal">
-                        <RadioButton Grid.Column="0" GroupName="Ref" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="8,0,16,0" Name="radioButton2" Width="Auto" Content="Selected channel(s)->" Checked="radioButton_Changed" Click="refChans_Click">
-                            <RadioButton.ToolTip>Enter list of channels to be used as reference for all channels</RadioButton.ToolTip>
-                        </RadioButton>
-                        <TextBox Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center" Name="RefChan" Width="310" VerticalContentAlignment="Center" 
-                             Height="24" TextChanged="RefChan_TextChanged" IsEnabled="{Binding ElementName=radioButton2, Path=IsChecked}">
-                            <TextBox.ToolTip>Enter comma- and hyphen-separated list of reference channels to use (e.g. "0-9,20-24")</TextBox.ToolTip>
-                        </TextBox>
-                        <TextBox Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="5,0,0,0" Name="RefChanName" Width="140" IsReadOnly="True"
-                             Height="24" IsEnabled="{Binding ElementName=radioButton2, Path=IsChecked}"/>
-                    </StackPanel>
-                    <StackPanel Grid.Row="1" Orientation="Horizontal">
-                        <RadioButton GroupName="Ref" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="8,0,6,0" Name="radioButton4" Checked="radioButton_Changed">Reference expression-></RadioButton>
-                        <TextBox Name="RefChanExpression" Width="310" HorizontalAlignment="Right" VerticalAlignment="Center" Height="24"
-                             TextChanged="RefChanExpression_TextChanged" IsEnabled="{Binding ElementName=radioButton4, Path=IsChecked}">
-                            <TextBox.ToolTip>Enter reference expression; e.g. (1,4)~{5-6} means channels 1 and 4 referenced to average of channels 5 and 6.</TextBox.ToolTip>
-                        </TextBox>
-                        <TextBox Name="RefChanExpDesc" Width="140" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="5,0,0,0"
-                             IsEnabled="{Binding ElementName=radioButton4, Path=IsChecked}"/>
-                    </StackPanel>
-                    <RadioButton Grid.Row="2" GroupName="Ref" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="8,0,0,0" Name="radioButton3" Width="Auto" Checked="radioButton_Changed" IsChecked="True">No correction (CMS/DRL)</RadioButton>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition />
+                        <ColumnDefinition Width="365" />
+                        <ColumnDefinition Width="3" />
+                    </Grid.ColumnDefinitions>
+                    <CheckBox Grid.Column="0" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="8,4,0,4" x:Name="ancillarydata" Width="245.788" IsEnabled="True" VerticalContentAlignment="Center" Visibility="Hidden" FontSize="14" Content="Include ancillary data"/>
                 </Grid>
-            </GroupBox>
-            <Grid Grid.Row="8">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition />
-                    <ColumnDefinition Width="365" />
-                    <ColumnDefinition Width="3" />
-                </Grid.ColumnDefinitions>
-                <CheckBox Grid.Column="0" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="8,4,0,4" Name="ancillarydata" Width="245.788" IsEnabled="True" VerticalContentAlignment="Center" Visibility="Hidden" FontSize="14">Include ancillary data</CheckBox>
-                <StackPanel Grid.Column="1" Orientation="Horizontal" Grid.ColumnSpan="2" HorizontalAlignment="Right">
-                    <Button VerticalAlignment="Center" Margin="8,4,8,4" Height="24" Name="Cancel" Width="80" FontSize="14" Click="Cancel_Click">Exit</Button>
-                    <Button VerticalAlignment="Center" Margin="8,4,8,4" Height="24" Name="ConvertFM" Width="120" FontSize="14" Click="ConvertFM_Click">Convert to FM</Button>
-                    <Button VerticalAlignment="Center" Margin="8,4,8,4" Height="24" Name="ConvertBDF" Width="120" FontSize="14" Click="ConvertBDF_Click" Visibility="Collapsed">Convert to BDF</Button>
-                </StackPanel>
-            </Grid>
-            <Grid Grid.Row="9">
-                <TextBlock FontSize="14" Margin="8,0,8,2" Name="StatusLine">Status: preliminary</TextBlock>
-            </Grid>
-        </Grid>
-    </ScrollViewer>
+            </StackPanel>
+        </ScrollViewer>
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Grid.ColumnSpan="2" HorizontalAlignment="Right">
+            <Button VerticalAlignment="Center" Margin="8,4,8,4" Height="24" Name="Cancel" Width="80" FontSize="14" Click="Cancel_Click">Exit</Button>
+            <Button VerticalAlignment="Center" Margin="8,4,8,4" Height="24" Name="ConvertFM" Width="120" FontSize="14" Click="ConvertFM_Click">Convert to FM</Button>
+            <Button VerticalAlignment="Center" Margin="8,4,8,4" Height="24" Name="ConvertBDF" Width="120" FontSize="14" Click="ConvertBDF_Click" Visibility="Collapsed">Convert to BDF</Button>
+        </StackPanel>
+        <TextBlock FontSize="14" FontWeight="Bold" Margin="8,0,8,2" Name="StatusLine">Status: preliminary</TextBlock>
+    </StackPanel>
 </Window>

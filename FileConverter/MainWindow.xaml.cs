@@ -147,6 +147,7 @@ namespace FileConverter
             GVBinding.Mode = BindingMode.OneWay;
             listView2.SetBinding(System.Windows.Controls.ListView.ItemsSourceProperty, GVBinding);
             GVList = EDEList[0].GroupVars;
+            this.Show();
             this.Activate();
         }
 
