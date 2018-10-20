@@ -47,7 +47,10 @@
                     <TextBlock x:Name="EEGChannels" Margin="4"/>
                 <Button Width="120" Height="30" Margin="4,0" Click="SelectChannels_Click">Select channels</Button>
                 </StackPanel>
-                <CheckBox IsChecked="True" HorizontalAlignment="Center" Content="Automatically remove excluded channels from reference calculation" IsEnabled="{Binding IsChecked, ElementName=Reference}"/>
+                <CheckBox IsChecked="True" HorizontalAlignment="Center" IsEnabled="{Binding IsChecked, ElementName=Reference}" Click="RefExclude_Click">
+                    Automatically exclude eliminated EEG channels from reference calculations
+                </CheckBox>
+
             </StackPanel>
         </GroupBox>
         <GroupBox BorderBrush="Black">
@@ -126,7 +129,7 @@
             <TextBlock><Run Text="Sampling frequency ="/></TextBlock>
             <TextBlock Name="OutputSR" Margin="0"/>
         </StackPanel>
-        <GroupBox>
+        <GroupBox Name="LaplacianGB">
             <GroupBox.Header>
                 <CheckBox x:Name="Laplacian" VerticalAlignment="Center" Click="Laplacian_Click" Content="Laplacian"/>
             </GroupBox.Header>

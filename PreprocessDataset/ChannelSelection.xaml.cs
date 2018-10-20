@@ -37,16 +37,16 @@ namespace PreprocessDataset
                 }
             }
         } 
-        int _EEGOutput = -1;
-        public int EEGOutput
+        int _EEGSelected = -1;
+        public int EEGSelected
         {
-            get { return _EEGOutput; }
+            get { return _EEGSelected; }
             set
             {
-                if (value != _EEGOutput)
+                if (value != _EEGSelected)
                 {
-                    _EEGOutput = value;
-                    NotifyPropertyChanged("EEGOutput");
+                    _EEGSelected = value;
+                    NotifyPropertyChanged("EEGSelected");
                 }
             }
         }
@@ -110,7 +110,7 @@ namespace PreprocessDataset
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
             DataContext = this;
             BDFTotal = EEGTotal = NonTotal = 0;
-            BDFOutput = EEGOutput = NonOutput = 0;
+            BDFOutput = EEGSelected = NonOutput = 0;
         }
 
         public int IndexOf(ChannelDescription item)
@@ -150,7 +150,7 @@ namespace PreprocessDataset
             if (item.Selected)
             {
                 BDFOutput++;
-                if (item.EEG) EEGOutput++;
+                if (item.EEG) EEGSelected++;
                 else NonOutput++;
             }
         }
@@ -207,13 +207,13 @@ namespace PreprocessDataset
             //update output channel counts
             cd.Selected = (bool)((CheckBox)sender).IsChecked;
             BDFOutput += cd.Selected ? 1 : -1;
-            if (cd.EEG) EEGOutput += cd.Selected ? 1 : -1;
+            if (cd.EEG) EEGSelected += cd.Selected ? 1 : -1;
             else NonOutput += cd.Selected ? 1 : -1;
         }
 
         private void Close_Click(object sender, RoutedEventArgs e)
         {
-            ((MainWindow)Owner).RemainingEEGChannels.Text = EEGOutput.ToString("0");
+            ((MainWindow)Owner).RemainingEEGChannels.Text = EEGSelected.ToString("0");
             this.Close();
         }
 
@@ -232,7 +232,7 @@ namespace PreprocessDataset
             foreach (ChannelDescription cd in channels)
                 cd.Selected = true;
             BDFOutput = _BDFTotal;
-            EEGOutput = _EEGTotal;
+            EEGSelected = _EEGTotal;
             NonOutput = _NonTotal;
         }
 
@@ -240,14 +240,14 @@ namespace PreprocessDataset
         {
             foreach (ChannelDescription cd in channels)
                 cd.Selected = false;
-            BDFOutput = EEGOutput = NonOutput = 0;
+            BDFOutput = EEGSelected = NonOutput = 0;
         }
 
         private void SelectAllEEG_Click(object sender, RoutedEventArgs e)
         {
             foreach (ChannelDescription cd in channels)
                 cd.Selected = cd.EEG ? true : false;
-            BDFOutput = EEGOutput = _EEGTotal;
+            BDFOutput = EEGSelected = _EEGTotal;
             NonOutput = 0;
         }
     }

@@ -49,16 +49,14 @@ namespace PreprocessDataset
 
         internal int HeadFitOrder;
         internal ElectrodeInputFileStream eis; //locations of all EEG electrodes
+        internal IList<ChannelDescription> channels;
         //All "Active Electrode" channels with entries in ETR
-        internal List<int> InitialBDFChannels;
-        //Channels to be eliminated from EEG signal source list, index into InitialChannels
-        internal List<int> elimChannelList = new List<int>();
-        internal bool includedChannels = false;
-        internal List<int> includedChannelList = new List<int>();
+        internal List<int> EEGChannels;
         //NOTE: the list of BDF channels used to create the data[] array is created
-        // from InitialBDFChannels with or without elim channels depending on whether
+        // from EEGChannels with or without elim channels depending on whether
         // referencing may use the eliminated channels; channels used to calculate
         // SL output never use the eliminated channels
+        internal List<int> SelectedEEGChannels;
         internal int PHorder;
         internal int PHdegree;
         internal double PHlambda;
@@ -76,7 +74,7 @@ namespace PreprocessDataset
         internal int _refType = 1;
         internal List<int> _refChan;
         internal List<List<int>> _refChanExp;
-        internal bool _refIgnoreElim = true;
+        internal bool _refExcludeElim = true;
 
         internal string sequenceName;
 
@@ -110,9 +108,10 @@ namespace PreprocessDataset
             bw.ReportProgress(0, "Starting Preprocessing");
 
             DetermineOutputLocations();
+
             CreateNewRWNLDataset();
 
-            ReadBDFFile();
+            ReadBDFData();
 
             if (!bw.CancellationPending) CreateElectrodeChannelMap();
 
@@ -151,13 +150,13 @@ namespace PreprocessDataset
 
                 int slot; //which row in data[]
                 int chan = 0; //newBDF channel number
-                for (int c = 0; c < bdf.NumberOfChannels - 1; c++)
-                    if ((slot = BDFtoDataChannelMap[c]) != -1)
-                    {
-                        for (int dd = 0, d0 = 0; dd < nd; dd++, d0 += SR.Decimation2)
-                            channelBuffer[dd] = (double)data[slot][d + d0];
-                        newBDF.putChannel(chan++, channelBuffer);
-                    }
+                foreach (Tuple<ElectrodeRecord, int> t in FinalElectrodeChannelMap)
+                {
+                    slot = t.Item2;
+                    for (int dd = 0, d0 = 0; dd < nd; dd++, d0 += SR.Decimation2)
+                        channelBuffer[dd] = (double)data[slot][d + d0];
+                    newBDF.putChannel(chan++, channelBuffer);
+                }
 
                 //include ANA and Status channels; already fully decimated
                 for (int c = 0; c < AdditionalOutputChannels.Count; c++)
@@ -183,9 +182,9 @@ namespace PreprocessDataset
             //now look for channels to include -- ANAs, e.g.
             AdditionalOutputChannels = new List<int>();
             //First include non-EEG channels requested
-            if (includedChannels)
-                foreach (int chan in includedChannelList)
-                    AdditionalOutputChannels.Add(chan);
+            foreach (ChannelDescription chan in channels)
+                if (!chan.EEG && chan.Selected)
+                    AdditionalOutputChannels.Add(chan.Number);
             //then any required ANA references
             foreach (KeyValuePair<string, EventDictionary.EventDictionaryEntry> ed in head.Events)
             {
@@ -255,7 +254,7 @@ namespace PreprocessDataset
             }
 
             string transducerString = "Active Electrode: " + (doLaplacian ? "Laplacian " : "") + "EEG";
-            int eegChannel = InitialBDFChannels[0]; //typical EEG channel? Hope so!
+            int eegChannel = EEGChannels[0]; //typical EEG channel? Hope so!
             string filterString = bdf.prefilter(eegChannel) + sb.ToString();
             string dimensionString = bdf.dimension(eegChannel);
             double pMax = bdf.pMax(eegChannel);
@@ -305,6 +304,11 @@ namespace PreprocessDataset
 
         private void DetermineOutputLocations()
         {
+            //create list of selected EEG channels
+            SelectedEEGChannels = new List<int>(0);
+            foreach (ChannelDescription chan in channels)
+                if (chan.Selected && chan.EEG) SelectedEEGChannels.Add(chan.Number);
+
             if (doLaplacian)
             {
                 headGeometry = new HeadGeometry(eis.etrPositions.Values.ToArray(), HeadFitOrder);
@@ -343,10 +347,8 @@ namespace PreprocessDataset
             else //non-Laplacian processing only: use input channels minus eliminated channels
             {
                 OutputLocations = new List<ElectrodeRecord>();
-                foreach (int chan in InitialBDFChannels)
-                    if (!elimChannelList.Contains(chan))
-                        OutputLocations.Add(eis.etrPositions[bdf.channelLabel(chan)]);
-
+                foreach (int chan in SelectedEEGChannels)
+                    OutputLocations.Add(eis.etrPositions[bdf.channelLabel(chan)]);
             }
         }
 
@@ -363,14 +365,12 @@ namespace PreprocessDataset
 
             //Now make a connection between the electrode location and the BDF signal in data[]
             FinalElectrodeChannelMap = new List<Tuple<ElectrodeRecord, int>>();
-            //Start with all channels with entries in ETR and BDF "Active Electrodes"
-            foreach (int chan in InitialBDFChannels)
-                //Eliminate channels, just to be sure (may not contain if not used in referencing)
-                if (!elimChannelList.Contains(chan))
-                    //Create final list, using data[] slot number, not BDF channel number
-                    //NOTE: BDFtoData map cannot be -1 since all channels mapped are in InitialBDF
-                    FinalElectrodeChannelMap.Add(new Tuple<ElectrodeRecord, int>(
-                        eis.etrPositions[bdf.channelLabel(chan)], BDFtoDataChannelMap[chan]));
+            //Start with all selected EEG channels
+            foreach (int chan in SelectedEEGChannels)
+                //Create final list, using data[] slot number, not BDF channel number
+                //NOTE: BDFtoData map cannot be -1 since all channels mapped are in InitialBDF
+                FinalElectrodeChannelMap.Add(new Tuple<ElectrodeRecord, int>(
+                    eis.etrPositions[bdf.channelLabel(chan)], BDFtoDataChannelMap[chan]));
         }
 
         private void CalculateLaplacian()
@@ -517,28 +517,28 @@ namespace PreprocessDataset
             foreach (DFilter df in filterList)
             {
                 bw.ReportProgress(0, "Filter " + f++.ToString("0"));
-                for (int c = 0; c < dataSize0; c++)
+                foreach (int chan in SelectedEEGChannels) //only filter selected EEG channels
                 {
                     if (bw.CancellationPending) return; //check for cancellation
 
-                    if (!elimChannelList.Contains(DataBDFChannels[c]))
-                        if (reverse)
-                            df.ZeroPhaseFilter(data[c]);
-                        else
-                            df.Filter(data[c]);
+                    int c = BDFtoDataChannelMap[chan];
+                    if (reverse)
+                        df.ZeroPhaseFilter(data[c]);
+                    else
+                        df.Filter(data[c]);
                     bw.ReportProgress(100 * (c + 1) / dataSize0);
                 }
             }
         }
 
-        private void ReadBDFFile()
+        private void ReadBDFData()
         {
-            bw.ReportProgress(0, "Reading BDF file");
-            int bdfRecLenPt = bdf.NumberOfSamples(InitialBDFChannels[0]);
+            bw.ReportProgress(0, "Reading BDF data");
+            int bdfRecLenPt = bdf.NSamp;
             long bdfFileLength = bdfRecLenPt * bdf.NumberOfRecords;
             dataSize1 = (int)((bdfFileLength + SR.Decimation1 - 1) / SR.Decimation1); //decimate by "input" decimation
             dataSizeS = (int)((dataSize1 + SR.Decimation2 - 1) / SR.Decimation2); //Status length
-            dataSize0 = InitialBDFChannels.Count - ((!doReference || _refIgnoreElim) ? elimChannelList.Count : 0);
+            dataSize0 = (!doReference || _refExcludeElim) ? SelectedEEGChannels.Count : EEGChannels.Count;
             try
             {
                 data = new float[dataSize0][];
@@ -549,8 +549,8 @@ namespace PreprocessDataset
             catch (OutOfMemoryException)
             {
                 ErrorWindow ew = new ErrorWindow();
-                ew.Message = "Dataset is too large to handle within RAM. Generally one is limited to " +
-                    "approximately 2:15 of 128 channel data at 512 samples/sec or one has too little RAM available.";
+                ew.Message = "Dataset is too large to handle within RAM. Generally the limit is " +
+                    "approximately 2:15hrs of 128 channel data at 512 samples/sec or there is too little RAM available.";
                 ew.ShowDialog();
                 return;
             }
@@ -560,8 +560,8 @@ namespace PreprocessDataset
             //not eliminated, depending on if they might be used in referencing
             DataBDFChannels = new int[dataSize0];
             int ch = 0;
-            foreach(int chan in InitialBDFChannels)
-                if ((doReference && !_refIgnoreElim) || !elimChannelList.Contains(chan))
+            foreach(int chan in EEGChannels)
+                if ((doReference && !_refExcludeElim) || channels[chan].Selected)
                 {
                     DataBDFChannels[ch++] = chan;
                 }

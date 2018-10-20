@@ -54,7 +54,8 @@
     <Reference Include="CCILibrary">
       <HintPath>..\CCILibrary\bin\Debug\CCILibrary.dll</HintPath>
     </Reference>
-    <Reference Include="CCIUtilities">
+    <Reference Include="CCIUtilities, Version=1.1.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
       <HintPath>..\CCIUtilities\bin\Debug\CCIUtilities.dll</HintPath>
     </Reference>
     <Reference Include="DigitalFilter">

@@ -56,23 +56,26 @@ namespace PreprocessDataset
 
             InitializeComponent();
 
+            if (ppw.EEGChannels.Count == 0) //no EEG channels
+                LaplacianGB.Visibility = Visibility.Collapsed; //no SL
+
             this.Show();
             this.Activate();
 
-            doInitializations();
+            doGUIInitializations();
             ppw.Owner = this;
         }
 
-        private void doInitializations()
+        private void doGUIInitializations()
         {
             this.Title = "PreprocessDataset: " + ppw.directory;
 
-            int c = ppw.InitialBDFChannels.Count;
+            int c = ppw.EEGChannels.Count;
             RemainingEEGChannels.Text = c.ToString("0");
             EEGChannels.Text = c.ToString("0");
             InputDecimation.Text = "1";
             RefChan.Text =
-                Utilities.intListToString(ppw.InitialBDFChannels, true).Replace(", ", ",");
+                Utilities.intListToString(ppw.EEGChannels, true).Replace(", ", ",");
             OutputDecimation.Text = "1";
             FitOrder.Text = "3";
             PolyHarmOrder.Text = "4";
@@ -133,18 +136,17 @@ namespace PreprocessDataset
             meanRadius /= ppw.eis.etrPositions.Count;
 
             //Make list of BDF channels that are "Active Electrode" in BDF and in ETR file
-            ppw.InitialBDFChannels = new List<int>();
-            for (int chan = 0; chan < ppw.bdf.NumberOfChannels; chan++)
-                if (ppw.bdf.transducer(chan) == "Active Electrode" &&
-                    ppw.eis.etrPositions.Keys.Contains(ppw.bdf.channelLabel(chan)))
-                    ppw.InitialBDFChannels.Add(chan);
-
+            // and set up Channel Selection window/list
+            ppw.EEGChannels = new List<int>();
             channels = new ChannelSelection();
             channels.ETRLocations.Text = ppw.eis.etrPositions.Count.ToString("0");
             for (int chan = 0; chan < ppw.bdf.NumberOfChannels - 1; chan++)
             {
-                bool t = (ppw.bdf.transducer(chan) == "Active Electrode") &&
-                    ppw.eis.etrPositions.Keys.Contains(ppw.bdf.channelLabel(chan));
+                bool t = ppw.bdf.transducer(chan) == "Active Electrode" &&
+                      ppw.eis.etrPositions.Keys.Contains(ppw.bdf.channelLabel(chan));
+                if (t)
+                    ppw.EEGChannels.Add(chan);
+
                 ChannelDescription cd = new ChannelDescription(ppw.bdf, chan, t);
                 channels.Add(cd);
             }
@@ -292,7 +294,7 @@ namespace PreprocessDataset
             else if (ppw.sequenceName == "") ok = false; //must not be empty
             else
             {
-                if (ppw.doLaplacian)
+                if (Laplacian.Visibility == Visibility.Visible && ppw.doLaplacian)
                 {
                     if ((bool)Fitted.IsChecked)
                     {
@@ -405,6 +407,8 @@ namespace PreprocessDataset
             }
 
             if ((bool)Spherical.IsChecked) ppw.HeadFitOrder = 0;
+
+            ppw.channels = channels;
 
             BackgroundWorker bw = new BackgroundWorker();
             bw.WorkerReportsProgress = true;
@@ -648,6 +652,14 @@ namespace PreprocessDataset
             if (channels.IsActive) return; //already open
             channels.Owner = this;
             channels.ShowDialog();
+            LaplacianGB.Visibility = channels.EEGSelected == 0 ? Visibility.Collapsed : Visibility.Visible;
+            ErrorCheck();
+        }
+
+        private void RefExclude_Click(object sender, RoutedEventArgs e)
+        {
+            System.Windows.Controls.CheckBox RefExclude = (System.Windows.Controls.CheckBox)sender;
+            ppw._refExcludeElim = (bool)RefExclude.IsChecked;
         }
     }
 }

@@ -34,7 +34,7 @@
                     </Style>
                 </Grid.Resources>
                 <TextBlock Grid.Column="1" Grid.Row="0" FontWeight="Bold">Total</TextBlock>
-                <TextBlock Grid.Column="2" Grid.Row="0" FontWeight="Bold">Output</TextBlock>
+                <TextBlock Grid.Column="2" Grid.Row="0" FontWeight="Bold">Selected</TextBlock>
                 <TextBlock Grid.Column="0" Grid.Row="1" TextAlignment="Left" FontWeight="Bold">ETR locations</TextBlock>
                 <TextBlock Grid.Column="0" Grid.Row="2" TextAlignment="Left" FontWeight="Bold">BDF channels</TextBlock>
                 <TextBlock Grid.Column="0" Grid.Row="3" TextAlignment="Left" FontWeight="Bold">EEG signals</TextBlock>
@@ -44,12 +44,12 @@
                 <TextBlock Grid.Column="1" Grid.Row="3" Text="{Binding Path=EEGTotal, Mode=OneWay}"/>
                 <TextBlock Grid.Column="1" Grid.Row="4" Text="{Binding Path=NonTotal, Mode=OneWay}"/>
                 <TextBlock Grid.Column="2" Grid.Row="2" Text="{Binding Path=BDFOutput, Mode=OneWay}"/>
-                <TextBlock Grid.Column="2" Grid.Row="3" Text="{Binding Path=EEGOutput, Mode=OneWay}"/>
+                <TextBlock Grid.Column="2" Grid.Row="3" Text="{Binding Path=EEGSelected, Mode=OneWay}"/>
                 <TextBlock Grid.Column="2" Grid.Row="4" Text="{Binding Path=NonOutput, Mode=OneWay}"/>
             </Grid>
         </Border>
         <ScrollViewer HorizontalAlignment="Center" Height="500" Margin="8" Width="Auto">
-            <DataGrid Name="DG" Width="368" ItemsSource="{Binding}" AutoGenerateColumns="False" CanUserReorderColumns="False" CanUserResizeColumns="False" CanUserResizeRows="False" CanUserSortColumns="False" SelectionMode="Single" SelectionUnit="Cell">
+            <DataGrid Name="DG" Width="428" ItemsSource="{Binding}" AutoGenerateColumns="False" CanUserReorderColumns="False" CanUserResizeColumns="False" CanUserResizeRows="False" CanUserSortColumns="False" SelectionMode="Single" SelectionUnit="Cell">
                 <DataGrid.Columns>
                     <DataGridCheckBoxColumn Header="Sel" Width="36" Binding="{Binding Path=Selected, Mode=TwoWay}" IsReadOnly="True" CanUserReorder="False" CanUserResize="False" CanUserSort="False">
                         <DataGridCheckBoxColumn.ElementStyle>
@@ -62,8 +62,7 @@
                     </DataGridCheckBoxColumn>
                     <DataGridTextColumn Header="Num" Width="48" Binding="{Binding Path=Number,
                         Converter={StaticResource channelConverter},Mode=OneTime}" IsReadOnly="True" CanUserReorder="False" CanUserResize="False"/>
-                    <DataGridTextColumn Header="Name" Width="80" Binding="{Binding Path=Name,Mode=OneTime}" IsReadOnly="True"/>
-                    <DataGridTextColumn Header="Type" Width="160" Binding="{Binding Path=Type,Mode=OneTime}" IsReadOnly="True"/>
+                    <DataGridTextColumn Header="Name" Width="72" Binding="{Binding Path=Name,Mode=OneTime}" IsReadOnly="True"/>
                     <DataGridTextColumn Header="EEG" Width="36" Binding="{Binding Path=EEG,
                         Converter ={StaticResource eegConverter},Mode=OneTime}" IsReadOnly="True">
                         <DataGridTextColumn.CellStyle>
@@ -75,6 +74,7 @@
                             </Style>
                         </DataGridTextColumn.CellStyle>
                     </DataGridTextColumn>
+                    <DataGridTextColumn Header="Type" Width="228" Binding="{Binding Path=Type,Mode=OneTime}" IsReadOnly="True"/>
                 </DataGrid.Columns>
             </DataGrid>
         </ScrollViewer>

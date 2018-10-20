@@ -10,9 +10,9 @@ using System.Windows;
 [assembly: AssemblyTitle("PreprocessDataset")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("Microsoft")]
+[assembly: AssemblyCompany("RWNL")]
 [assembly: AssemblyProduct("PreprocessDataset")]
-[assembly: AssemblyCopyright("Copyright © Microsoft 2017")]
+[assembly: AssemblyCopyright("Copyright © CCI 2018")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
