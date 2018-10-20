@@ -1,10 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using ElectrodeFileStream;
 using CCIUtilities;
+using ElectrodeFileStream;
 
 namespace Laplacian
 {
@@ -12,11 +10,12 @@ namespace Laplacian
     {
         int _order;
         double[] beta; //regression coefficients;
-            //this is the essence of the head shape from which all geometrical measures are derived
-        
+            // this is the essence of the head shape from which all geometrical measures are derived
+
+        const double Y00 = 0.2820947917738781;
         public double MeanRadius
         {
-            get { return beta[0] * SphericalHarmonic.Y(0, 0, 0D, 0D); }
+            get { if (beta != null) return beta[0] * Y00; return 0D; }
         }
 
         GeneralizedLinearRegression.Function[] spherical; //spherical harmonics: series of functions to fit
@@ -29,6 +28,7 @@ namespace Laplacian
         public HeadGeometry(IEnumerable<ElectrodeRecord> locations, int order)
         {
             _order = order;
+            SphericalHarmonic.CreateSHEngine(order); //Prime SH pump
             int n = locations.Count();
 
             double[][] ThetaPhi = new double[n][]; //independent variable: angular direction of the electrode from origin
@@ -69,68 +69,53 @@ namespace Laplacian
             return s;
         }
 
+        //list of derivatices that we need to calculate on the head surface {theta, phi}
         Tuple<int, int>[] dd = new Tuple<int, int>[] {
             new Tuple<int, int>(2, 0),
             new Tuple<int, int>(1, 0),
             new Tuple<int, int>(1, 1),
             new Tuple<int, int>(0, 1),
             new Tuple<int, int>(0, 2)};
+        /// <summary>
+        /// Generate factors for calculating multiple surface Laplacians for non-spherical head
+        /// </summary>
+        /// <param name="thetaphiCoordinates">Enumerable list of [theta, phi] entries</param>
+        /// <returns>Pairs of Point3D coordinates and surface Laplacian factors</returns>
         public Tuple<Point3D[], double[,]> CalculateSLCoefficients(IEnumerable<double[]> thetaphiCoordinates)
         {
             int n = thetaphiCoordinates.Count();
-            double[,] H = new double[n, 9]; //
-            Point3D[] XYZ = new Point3D[n];
-            int b = (_order + 3) * (_order + 3); //allow 2 extra SHs for second derivatives
-            SinCosCache theta = new SinCosCache(Math.Max(3, _order + 2)); //we assume input locations are in mathematical coordinates
+            double[,] H = new double[n, 9]; //Derivative factors used in calculating surface Laplacian
+            Point3D[] XYZ = new Point3D[n]; //Cartesian coordinates of the points at which the factors are valid
+            SinCosCache theta = new SinCosCache(Math.Max(3, _order + 2)); //we assume input locations are in mathematical spherical coordinates
             SinCosCache phi = new SinCosCache(Math.Max(3, _order + 2));
             int i = 0; //location index
-            foreach(double[] p in thetaphiCoordinates) //calculate shape factors for each location
+            foreach(double[] p in thetaphiCoordinates) //calculate SL shape factors for each location
             {
                 theta.Angle = p[0]; //set cache values
                 phi.Angle = p[1];
 
                 //calculate R and SH derivative factors
                 double R = 0D;
-                double[,] c = new double[b, 5];
-                for (int l = 0, k = 0; l < _order; l++)
-                    for (int m = -l; m <= l; m++, k++)
-                    {
-                        double bk = beta[k];
-                        R += bk * SphericalHarmonic.Y(l, m, theta, phi);
-                        for (int a = 0; a < 5; a++)
-                        {
-                            double[] d = SphericalHarmonic.DY(l, m, theta, phi, dd[a]);
-                            int offset = (d.Length - 1) >> 1;
-                            for (int h = -offset, g = 0; h <= offset; h++, g++)
-                                if (d[g] != 0)
-                                    c[SphericalHarmonic.lm2i(l + offset, m), a] += d[g] * bk;
-                        }
-                    }
-
-                //calculate (x, y, z) coordinates
-                XYZ[i] = new Point3D(
-                    R*theta.Sin()*phi.Cos(),
-                    R*theta.Sin()*phi.Sin(),
-                    R*theta.Cos());
-
-                //calculate derivatives of R
                 double R20 = 0;
                 double R10 = 0;
                 double R11 = 0;
                 double R01 = 0;
                 double R02 = 0;
-                for (int l = 0, k = 0; l < _order + 2; l++)
+                double bk;
+
+                for (int l = 0, k = 0; l <= _order; l++)
                     for (int m = -l; m <= l; m++, k++)
                     {
-                        double sk = SphericalHarmonic.Y(l, m, theta, phi);
-                        R20 += sk * c[k, 0];
-                        R10 += sk * c[k, 1];
-                        R11 += sk * c[k, 2];
-                        R01 += sk * c[k, 3];
-                        R02 += sk * c[k, 4];
+                        if ((bk = beta[k]) == 0D) continue; //skip factors of zero
+                        R += bk * SphericalHarmonic.Y(l, m, theta, phi);
+                        R20 += bk * SphericalHarmonic.DY(l, m, theta, phi, dd[0]);
+                        R10 += bk * SphericalHarmonic.DY(l, m, theta, phi, dd[1]);
+                        R11 += bk * SphericalHarmonic.DY(l, m, theta, phi, dd[2]);
+                        R01 += bk * SphericalHarmonic.DY(l, m, theta, phi, dd[3]);
+                        R02 += bk * SphericalHarmonic.DY(l, m, theta, phi, dd[4]);
                     }
 
-                //calculate surface Laplacian factors
+                //calculate surface Laplacian factors in xyz coordinates
                 double A = Math.Pow(R01, 2) + (Math.Pow(R, 2) + Math.Pow(R10, 2)) * theta.Sin(1, 2);
                 H[i, 0] = //P100
                     -((2 * R01 * R10 * R11 * theta.Sin() + 2 * Math.Pow(R, 3) * theta.Sin(1, 3) -
