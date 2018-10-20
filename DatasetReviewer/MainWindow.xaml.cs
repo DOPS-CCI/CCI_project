@@ -62,6 +62,7 @@ namespace DatasetReviewer
         internal string noteFilePath;
 
         StatusChannel sc;
+        EventDictionaryEntry dummyEDE;
 
         public MainWindow()
         {
@@ -221,7 +222,13 @@ namespace DatasetReviewer
                         if (c < 0) //=> missing Event
                         {
                             GCTime gct = statusIterator.Current;
-                            Event.Event ev = new OutputEvent(null, gct.Time, (int)gct.GC.Decode()); //fake Event for missing Event file entry
+                            if (dummyEDE == null)
+                            {
+                                dummyEDE = new EventDictionaryEntry();
+                                dummyEDE.RelativeTime = true;
+                                ED.Add("No EVT entry", dummyEDE);
+                            }
+                            Event.Event ev = new OutputEvent(dummyEDE, gct.Time, (int)gct.GC.Decode()); //fake Event for missing Event file entry
                             displayEventList.Add(new Tuple<int, Event.Event>(-2, ev)); // Status mark without Event = -2
                             moreGCT = statusIterator.MoveNext();
                             continue;
@@ -243,7 +250,13 @@ namespace DatasetReviewer
                 else // Status mark with no Event
                 {
                     GCTime gct = statusIterator.Current;
-                    Event.Event ev = new OutputEvent(null, gct.Time, (int)gct.GC.Decode()); //fake Event for missing Event file entry
+                    if (dummyEDE == null)
+                    {
+                        dummyEDE = new EventDictionaryEntry();
+                        dummyEDE.RelativeTime = true;
+                        ED.Add("No EVT entry", dummyEDE);
+                    }
+                    Event.Event ev = new OutputEvent(dummyEDE, gct.Time, (int)gct.GC.Decode()); //fake Event for missing Event file entry
                     displayEventList.Add(new Tuple<int, Event.Event>(-2, ev)); //Status mark without Event = -2
                     moreGCT = statusIterator.MoveNext();
                 }
@@ -316,6 +329,7 @@ namespace DatasetReviewer
             bool first = true;
             foreach (EventDictionaryEntry e in head.Events.Values)
             {
+                if (e == dummyEDE) continue; //don't include the dummy entry for bad EVTs
                 MenuItem mi = (MenuItem)EventSelector.FindResource("EventMenuItem");
                 mi.Header = e.Name;
                 if (first)
