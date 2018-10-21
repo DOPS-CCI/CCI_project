@@ -114,6 +114,8 @@ namespace Laplacian
                         R01 += bk * SphericalHarmonic.DY(l, m, theta, phi, dd[3]);
                         R02 += bk * SphericalHarmonic.DY(l, m, theta, phi, dd[4]);
                     }
+                //calculate output location in xyz coordinates
+                XYZ[i] = new Point3D(R * theta.Sin() * phi.Cos(), R * theta.Sin() * phi.Sin(), R * theta.Cos());
 
                 //calculate surface Laplacian factors in xyz coordinates
                 double A = Math.Pow(R01, 2) + (Math.Pow(R, 2) + Math.Pow(R10, 2)) * theta.Sin(1, 2);
