@@ -10,10 +10,12 @@ using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Forms;
 using BDFEDFFileStream;
+using BDFChannelSelection;
 using CCIUtilities;
 using DigitalFilter;
 using ElectrodeFileStream;
 using HeaderFileStream;
+using SphereFitNS;
 
 namespace PreprocessDataset
 {
@@ -23,7 +25,6 @@ namespace PreprocessDataset
     public partial class MainWindow : Window
     {
         string ETRFullPathName;
-        double meanRadius;
         ChannelSelection channels;
 
         PreprocessingWorker ppw = new PreprocessingWorker();
@@ -56,9 +57,6 @@ namespace PreprocessDataset
 
             InitializeComponent();
 
-            if (ppw.EEGChannels.Count == 0) //no EEG channels
-                LaplacianGB.Visibility = Visibility.Collapsed; //no SL
-
             this.Show();
             this.Activate();
 
@@ -70,17 +68,24 @@ namespace PreprocessDataset
         {
             this.Title = "PreprocessDataset: " + ppw.directory;
 
-            int c = ppw.EEGChannels.Count;
-            RemainingEEGChannels.Text = c.ToString("0");
-            EEGChannels.Text = c.ToString("0");
+            if (channels.EEGSelected < 3) //not enough EEG channels
+                LaplacianGB.Visibility = Visibility.Collapsed; //no SL
+
+            RemainingEEGChannels.Text = channels.EEGSelected.ToString("0");
+            EEGChannels.Text = channels.EEGTotal.ToString("0");
+            RemainingChannels.Text = channels.BDFSelected.ToString("0");
+            TotalChannels.Text = channels.BDFTotal.ToString("0");
             InputDecimation.Text = "1";
+            List<int> AEChans = new List<int>();
+            foreach (ChannelDescription cd in channels)
+                if (cd.Type == "Active Electrode") AEChans.Add(cd.Number);
             RefChan.Text =
-                Utilities.intListToString(ppw.EEGChannels, true).Replace(", ", ",");
+                Utilities.intListToString(AEChans, true).Replace(", ", ",");
             OutputDecimation.Text = "1";
             FitOrder.Text = "3";
             PolyHarmOrder.Text = "4";
             PolyHarmDegree.Text = "3";
-            PolyHarmLambda.Text = "10.0";
+            PolyHarmLambda.Text = "1.0";
             NOLambda.Text = "1.0";
             ArrayDist.Text = "3.0";
             SequenceName.Text="SurfLap";
@@ -129,28 +134,22 @@ namespace PreprocessDataset
                 return false;
             }
 
-            //Calculate mean head radius for use in SpherePoints.Count calculation
-            meanRadius = 0;
+            //Calculate head radius for use in SpherePoints.Count calculation
+            double[,] XYZ = new double[ppw.eis.etrPositions.Count(), 3];
+            int i = 0;
             foreach (ElectrodeRecord r in ppw.eis.etrPositions.Values)
-                meanRadius += r.convertRPhiTheta().R;
-            meanRadius /= ppw.eis.etrPositions.Count;
-
-            //Make list of BDF channels that are "Active Electrode" in BDF and in ETR file
-            // and set up Channel Selection window/list
-            ppw.EEGChannels = new List<int>();
-            channels = new ChannelSelection();
-            channels.ETRLocations.Text = ppw.eis.etrPositions.Count.ToString("0");
-            for (int chan = 0; chan < ppw.bdf.NumberOfChannels - 1; chan++)
             {
-                bool t = ppw.bdf.transducer(chan) == "Active Electrode" &&
-                      ppw.eis.etrPositions.Keys.Contains(ppw.bdf.channelLabel(chan));
-                if (t)
-                    ppw.EEGChannels.Add(chan);
-
-                ChannelDescription cd = new ChannelDescription(ppw.bdf, chan, t);
-                channels.Add(cd);
+                Point3D xyz = r.convertXYZ();
+                XYZ[i, 0] = xyz.X;
+                XYZ[i, 1] = xyz.Y;
+                XYZ[i++, 2] = xyz.Z;
             }
-            channels.DG.ItemsSource = channels;
+            SphereFit sf = new SphereFit(XYZ);
+            ppw.meanRadius = sf.R;
+
+            //Process BDF channels using ETR ETR file and set up initial selection dialog
+            chDialog = new BDFChannelSelectionDialog(ppw.bdf, ppw.eis);
+            channels = chDialog.SelectedChannels;
             return true;
         }
 
@@ -365,7 +364,7 @@ namespace PreprocessDataset
             }
             else
             {
-                ArrayN.Text = SpherePoints.Count(ppw.aDist / meanRadius).ToString("0");
+                ArrayN.Text = SpherePoints.Count(ppw.aDist / ppw.meanRadius).ToString("0");
             }
                 ErrorCheck();
         }
@@ -419,6 +418,7 @@ namespace PreprocessDataset
 
             bw.RunWorkerAsync(); //Start background thread
             ppw.ShowDialog(); //Show progress window while we wait
+            checkOutputDatasetName(); //Warn of file overwriting
         }
 
         private void LaplaceETR_TextChanged(object sender, TextChangedEventArgs e)
@@ -496,12 +496,9 @@ namespace PreprocessDataset
             ErrorCheck();
         }
 
-        private void SequenceName_TextChanged(object sender, TextChangedEventArgs e)
+        private void checkOutputDatasetName()
         {
-            if (!IsLoaded) return;
-            ppw.sequenceName = SequenceName.Text;
-
-            string fn = ppw.headerFileName + "." + ppw.sequenceName;
+            string fn = ppw.headerFileName + "." + SequenceName.Text;
             OutputFileName.Text = System.IO.Path.Combine(ppw.directory, fn);
             DirectoryInfo di = new DirectoryInfo(ppw.directory);
             FileInfo[] fi = di.GetFiles(fn + ".bdf");
@@ -517,8 +514,15 @@ namespace PreprocessDataset
                     if (fi.Length > 0) { ok = false; }
                 }
             }
-
             FileWarning.Visibility = ok ? Visibility.Hidden : Visibility.Visible;
+        }
+
+        private void SequenceName_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (!IsLoaded) return;
+            ppw.sequenceName = SequenceName.Text;
+
+            checkOutputDatasetName();
             ErrorCheck();
         }
 
@@ -629,6 +633,7 @@ namespace PreprocessDataset
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
             Properties.Settings.Default.Save();
+            Environment.Exit(0);
         }
 
         private void OutLocRBChecked(object sender, RoutedEventArgs e)
@@ -647,13 +652,26 @@ namespace PreprocessDataset
             ErrorCheck();
         }
 
+        BDFChannelSelectionDialog chDialog;
+
         private void SelectChannels_Click(object sender, RoutedEventArgs e)
         {
-            if (channels.IsActive) return; //already open
-            channels.Owner = this;
-            channels.ShowDialog();
-            LaplacianGB.Visibility = channels.EEGSelected == 0 ? Visibility.Collapsed : Visibility.Visible;
-            ErrorCheck();
+            if (chDialog == null)
+                chDialog = new BDFChannelSelectionDialog(channels, ppw.eis);
+            chDialog.Owner = this;
+            bool? result = chDialog.ShowDialog();
+            if (result != null && (bool)result)
+            {
+                channels = chDialog.SelectedChannels;
+                RemainingEEGChannels.Text = chDialog.SelectedChannels.EEGSelected.ToString("0");
+                EEGChannels.Text = chDialog.SelectedChannels.EEGTotal.ToString("0");
+                RemainingChannels.Text = chDialog.SelectedChannels.BDFSelected.ToString("0");
+                TotalChannels.Text = chDialog.SelectedChannels.BDFTotal.ToString("0");
+                LaplacianGB.Visibility = chDialog.SelectedChannels.EEGSelected < 3 ?
+                    Visibility.Collapsed : Visibility.Visible;
+                ErrorCheck();
+            }
+            chDialog = null;
         }
 
         private void RefExclude_Click(object sender, RoutedEventArgs e)

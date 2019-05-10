@@ -16,6 +16,7 @@ using System.Windows.Shapes;
 using CCILibrary;
 using CCIUtilities;
 using BDFEDFFileStream;
+using BDFChannelSelection;
 using DigitalFilter;
 using ElectrodeFileStream;
 using Laplacian;
@@ -47,6 +48,7 @@ namespace PreprocessDataset
         internal Header.Header head;
         internal BDFEDFFileReader bdf;
 
+        internal double meanRadius;
         internal int HeadFitOrder;
         internal ElectrodeInputFileStream eis; //locations of all EEG electrodes
         internal IList<ChannelDescription> channels;
@@ -106,6 +108,11 @@ namespace PreprocessDataset
             bwArgs = e;
 
             bw.ReportProgress(0, "Starting Preprocessing");
+
+            EEGChannels = new List<int>();
+            foreach (ChannelDescription cd in channels)
+                if (cd.EEG)
+                    EEGChannels.Add(cd.Number);
 
             DetermineOutputLocations();
 
@@ -311,7 +318,10 @@ namespace PreprocessDataset
 
             if (doLaplacian)
             {
-                headGeometry = new HeadGeometry(eis.etrPositions.Values.ToArray(), HeadFitOrder);
+                if (HeadFitOrder == 0) //spherical
+                    headGeometry = new HeadGeometry(meanRadius);
+                else
+                    headGeometry = new HeadGeometry(eis.etrPositions.Values.ToArray(), HeadFitOrder);
                 if (_outType == 1) //Use all input locations
                     OutputLocations = eis.etrPositions.Values.ToList();
                 else if (_outType == 2) //Use sites with "uniform" distribution

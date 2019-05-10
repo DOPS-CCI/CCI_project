@@ -41,11 +41,16 @@
             </StackPanel>
         <GroupBox Header="Select channels for processing">
             <StackPanel Orientation="Vertical">
+                <Button Width="120" Height="30" Margin="4,0" Click="SelectChannels_Click">Select channels</Button>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                     <TextBlock x:Name="RemainingEEGChannels" Margin="4" />
                     <TextBlock><Run Text="EEG channels selected out of"/></TextBlock>
                     <TextBlock x:Name="EEGChannels" Margin="4"/>
-                <Button Width="120" Height="30" Margin="4,0" Click="SelectChannels_Click">Select channels</Button>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                    <TextBlock x:Name="RemainingChannels" Margin="4" />
+                    <TextBlock><Run Text="channels selected out of"/></TextBlock>
+                    <TextBlock x:Name="TotalChannels" Margin="4"/>
                 </StackPanel>
                 <CheckBox IsChecked="True" HorizontalAlignment="Center" IsEnabled="{Binding IsChecked, ElementName=Reference}" Click="RefExclude_Click">
                     Automatically exclude eliminated EEG channels from reference calculations
@@ -154,7 +159,7 @@
                             <TextBox Name="FitOrder" Width="20" TextChanged="FitOrder_TextChanged" IsEnabled="{Binding IsChecked, ElementName=Fitted}"/>
                         </StackPanel>
                         <RadioButton Name="Spherical" GroupName="InputLocations" Content="Spherical" Checked="Spherical_Checked"/>
-                        <RadioButton x:Name="UseMatrices" GroupName="InputLocations" Content="Use previously calculated matrices" IsEnabled="False"/>
+                        <RadioButton x:Name="UseMatrices" GroupName="InputLocations" Content="Use previously calculated matrices" IsEnabled="False" Visibility="Collapsed"/>
                     </StackPanel>
                 </GroupBox>
                 <GroupBox Header="Methodology">
