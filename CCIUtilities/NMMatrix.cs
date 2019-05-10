@@ -135,6 +135,14 @@ namespace CCIUtilities
                     _matrix[i, j] = A[i, j];
         }
 
+        public NMMatrix(double[] diagonal)
+        {
+            _n = _m = diagonal.Length;
+            _matrix = new double[_n, _n];
+            for (int i = 0; i < _n; i++)
+                _matrix[i, i] = diagonal[i];
+        }
+
         public NMMatrix(NMMatrix A) //copy constructor
         {
             _matrix = new double[A.N, A.M];
@@ -442,6 +450,15 @@ namespace CCIUtilities
             return A;
         }
 
+        public bool? IsSymmetric(double tolerance = 0D)
+        {
+            if (N != M) return null;
+            for (int i = 0; i < N - 1; i++)
+                for (int j = i + 1; j < N; j++)
+                    if (Math.Abs(this[i, j] - this[j, i]) > tolerance) return false;
+            return true;
+        }
+
         public string ToString(string format)
         {
             StringBuilder sb = new StringBuilder();
@@ -632,15 +649,19 @@ namespace CCIUtilities
 
         public class Eigenvalues
         {
-            public NVector e;
-            public NMMatrix E;
-            NMMatrix S;
+            public NVector e; //Eigenvalues sorted largest to smallest
+            public NMMatrix E; //Eigenvectors: columns corresponding to eigenvalues
+            NMMatrix S; //Working matrix; starts as copy of A and driven to diagonal matrix; only upper triangle used
+                        // (not including the diagonal) with diagonal values maintainted in e, becoming the eigenvalues
             int N;
             bool[] changed;
-            int[] ind;
+            int[] ind; //maintains index of largest element in row k of S, always > k (upper triangle)
+                        //By using ind, we avoid having to search entire upper triangle on each iteration:
+                        // we only have to compare maximum values from each row
             int state;
-            double c;
-            double s;
+            double c; //cosine of rotation angle
+            double s; //sine of rotation angle
+            double t; //tangent of rotation angle
 
             /// <summary>
             /// Create Eigenvalue object for symmetric matrix using Jacobi algorithm
@@ -649,16 +670,17 @@ namespace CCIUtilities
             /// <remarks>https://en.wikipedia.org/wiki/Jacobi_eigenvalue_algorithm</remarks>
             public Eigenvalues(NMMatrix A)
             {
-                if (A.N != A.M) throw new ArgumentException("In Eigenvalues.cotr: matrix must be symmetrical");
                 N = A.N;
-                S = new NMMatrix(A);
+                if (N != A.M) throw new ArgumentException("In Eigenvalues.cotr: matrix must be square");
+//                if (!(bool)A.IsSymmetric(A.Max() * 1E-8)) throw new ArgumentException("In Eigenvalues.cotr: matrix must be symmetrical");
+                S = new NMMatrix(A); //Copy input so it remains unchanged
                 E = NMMatrix.I(N);
                 e = new NVector(S.N);
                 changed = new bool[N];
                 ind = new int[N];
                 for (int i = 0; i < N; i++)
                 {
-                    e[i] = S[i, i];
+                    e[i] = S[i, i]; //Here we see that e[] maintains the diagonal elements of S
                     changed[i] = true;
                     ind[i] = maxind(i);
                 }
@@ -667,34 +689,47 @@ namespace CCIUtilities
                 {
                     int l;
                     int k = 0;
+                    //Use ind[k] to find largest magnitude off-diagonal element in S
                     for (int i = 1; i < N - 1; i++)
                         if (Math.Abs(S[i, ind[i]]) > Math.Abs(S[k, ind[k]])) k = i;
                     l = ind[k];
-                    double p = S[k, l];
-                    double y = (e[l] - e[k]) / 2;
-                    double d = Math.Abs(y) + Math.Sqrt(p * p + y * y);
-                    double r = Math.Sqrt(p * p + d * d);
-                    c = d / r;
-                    s = p / r;
-                    double t = p * p / d;
-                    if (y < 0) { s = -s; t = -t; }
-                    S[k, l] = 0;
-                    update(k, -t);
-                    update(l, t);
+                    //p is the largest current off-diagonal value in S
+                    //This is the element that will be zeroed out by the rotation transformation
+                    double p = S[k, l]; //NOTE: if p == 0, then we already have a diagonal matrix
+                    if (p == 0D) break;
+                    //From http://mathfaculty.fullerton.edu/mathews/n2003/jacobimethod/JacobiMethodProof.pdf
+                    //Improved numerical accuracy
+                    double theta = (e[l] - e[k]) / (2D * p);
+                    t = (theta >= 0 ? 1D : -1D) / (Math.Abs(theta) + Math.Sqrt(theta * theta + 1D));
+                    c = 1D / Math.Sqrt(t * t + 1D);
+                    s = c * t;
+                    //double y = (e[l] - e[k]) / 2;
+                    //double d = Math.Abs(y) + Math.Sqrt(p * p + y * y);
+                    //double r = Math.Sqrt(p * p + d * d);
+                    //c = d / r;
+                    //s = p / r;
+                    //t = p * p / d;
+                    //if (y < 0) { s = -s; t = -t; }
+                    S[k, l] = 0; //zero out the off diagonal element
+                    update(k, -p * t); //update diagonal elements (in e)
+                    update(l, p * t);
+                    //update other elements in S; note: only upper triangle, and not diagonal
                     for (int i = 0; i < k; i++) rotate(i, k, i, l);
                     for (int i = k + 1; i < l; i++) rotate(k, i, i, l);
                     for (int i = l + 1; i < N; i++) rotate(k, i, l, i);
+                    //maintain eigenvectors by accumulating rotations
                     for (int i = 0; i < N; i++)
                     {
                         double q = c * E[i, k] - s * E[i, l];
                         E[i, l] = s * E[i, k] + c * E[i, l];
                         E[i, k] = q;
                     }
+                    //Update row maximums, in rows that have changed
                     ind[k] = maxind(k);
                     ind[l] = maxind(l);
                 }
 
-                //sort from largest to smallest
+                //sort from largest to smallest magnitude eigenvalue
                 for (int k = 0; k < N - 1; k++)
                 {
                     int m = k;
@@ -702,19 +737,45 @@ namespace CCIUtilities
                         if (Math.Abs(e[l]) > Math.Abs(e[m])) m = l;
                     if (k != m)
                     {
-                        double t = e[m];
+                        double temp = e[m];
                         e[m] = e[k];
-                        e[k] = t;
+                        e[k] = temp;
                         E.ExchangeColumn(m, k);
                     }
                 }
             }
 
-            // index of largest off diagonal element in row k
+            /// <summary>
+            /// Create generalized Eigenvalue object for two symmetric matrices
+            /// </summary>
+            /// <param name="A">Symmetric matrix</param>
+            /// <param name="B">Symmetric, positve definite matrix</param>
+            /// <remarks>http://fourier.eng.hmc.edu/e161/lectures/algebra/node7.html</remarks>
+            public Eigenvalues(NMMatrix A, NMMatrix B)
+            {
+                if (A.N != A.M || B.N != B.M || A.N != B.N)
+                    throw new ArgumentException("In Eigenvalues.cotr: both matrices must be square and same size");
+                //Find eigenvalues of B
+                Eigenvalues eB = new Eigenvalues(B);
+                //Create "whitening" matrix
+                NMMatrix lambdaB12 = NMMatrix.I(B.N);
+                for (int i = 0; i < B.N; i++)
+                    lambdaB12[i, i] = 1D / Math.Sqrt(eB.e[i]);
+                //And "whiten" the eigenvectors of B
+                NMMatrix phiB = eB.E * lambdaB12;
+                //Find eigenvalues of transfromed A
+                Eigenvalues eA = new Eigenvalues(phiB.Transpose() * A * phiB);
+                //This gives the final eigenvalues
+                this.e = eA.e;
+                //Final eigenvectors are product of the two eigenvectors
+                this.E = phiB * eA.E;
+            }
+
+            // index of largest off diagonal element in row k of S
             private int maxind(int k)
             {
                 int m = k + 1;
-                for (int i = k + 2; i < N; i++)
+                for (int i = m + 1; i < N; i++)
                     if (Math.Abs(S[k, i]) > Math.Abs(S[k, m])) m = i;
                 return m;
             }

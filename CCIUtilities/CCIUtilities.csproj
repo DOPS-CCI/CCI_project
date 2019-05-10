@@ -76,6 +76,7 @@
     </Compile>
     <Compile Include="RQuaternion.cs" />
     <Compile Include="SinCosCache.cs" />
+    <Compile Include="SphereFit.cs" />
     <Compile Include="SphericalHarmonic.cs" />
     <Compile Include="Utilities.cs" />
   </ItemGroup>

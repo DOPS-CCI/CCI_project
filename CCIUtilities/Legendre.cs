@@ -110,10 +110,10 @@ namespace CCIUtilities
         }
 
         /// <summary>
-        /// Evaluate polynomial at given argument
+        /// Evaluate Legendre function at given argument
         /// </summary>
-        /// <param name="z"> value at which to evaluate the polynomial</param>
-        /// <returns>Result of polynomial evaluation</returns>
+        /// <param name="z"> value at which to evaluate the function</param>
+        /// <returns>Result of evaluation</returns>
         public double EvaluateAt(double z)
         {
             return (sq ? Math.Sqrt(1D - z * z) : 1) * lp.EvaluateAt(z);

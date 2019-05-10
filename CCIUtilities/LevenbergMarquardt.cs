@@ -10,16 +10,16 @@ namespace CCIUtilities
 
         const double lambda_DN_fac = 2D;
         const double lambda_UP_fac = 3D;
-        Function func;
-        JFunc Jfunc;
-        NVector p;
-        NVector t;
-        NVector y_dat;
-        NVector dp;
-        NVector p_min;
-        NVector p_max;
-        double[] eps;
-        UpdateType updateType;
+        Function func; //Function to fit to data
+        JFunc Jfunc; //Jacobian of the function; if null, then Jacobian is estimated
+        NVector p; //Paramter vector
+        NVector t; //Location of known points in space in which function is defined
+        NVector y_dat; //Corresponding value to those points
+        NVector dp; //Delta paramter vector used to estimate Jacobian
+        NVector p_min; //Parameter absolute minima
+        NVector p_max; //Parameter absolute maxima
+        double[] eps; //Halting criteria
+        UpdateType updateType; //Update apporach: Marquardt, Quadratic, Nielsen
         int MaxIter;
         int n;
         int m;
@@ -98,6 +98,13 @@ namespace CCIUtilities
             this.updateType = updateType;
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="par_initial">Initial parameter estimates</param>
+        /// <param name="t">Location of points to fit</param>
+        /// <param name="y_dat">Data values at these points</param>
+        /// <returns>Parameter estimate vector</returns>
         public NVector Calculate(NVector par_initial, NVector t, NVector y_dat)
         {
             _result = 0;
@@ -140,9 +147,9 @@ namespace CCIUtilities
             /************************** Begin Main loop ***********************/
             // y_hat = vector of y estimates for current value of parameters
             // y_try = vector of y estimates for current trial value of parameters
-            // y_dat = given dependent values (fixed)
+            // y_dat = given dependent values (fixed from input)
             // y_old = vector of y estimates for previous value of parameters (used in Broyden estimate of J)
-            // t = given independent values (fixed)
+            // t = given independent values (fixed input points)
             // p = current accepted estimate of parameters
             // h = last calculated (trial) increment for the parameters
             // p_try = current trial value for the parameters
@@ -267,6 +274,12 @@ namespace CCIUtilities
             return p;
         }
 
+        /// <summary>
+        /// Estimate Jacobian when closed form not available
+        /// </summary>
+        /// <param name="p">Current parameter estimate</param>
+        /// <param name="y">Current ouput estimates based on this parameter setting</param>
+        /// <returns>Estimated value of Jacobian</returns>
         private NMMatrix Jacobian(NVector p, NVector y)
         {
             NVector ps = new NVector(p); //save a copy

@@ -72,6 +72,20 @@ namespace CCIUtilitiesUnitTest
         }
 
         [TestMethod]
+        public void NMMSymmetryTest()
+        {
+            NMMatrix A = new NMMatrix(new double[,] { { 1, 2, 3 }, { 2, 4, 5 }, { 3, 5, 6 } });
+            Assert.AreEqual(A.IsSymmetric(), true);
+            A[1, 2] += 0.0005;
+            Assert.AreEqual(A.IsSymmetric(0.001), true);
+            Assert.AreEqual(A.IsSymmetric(0.0001), false);
+            A[1, 2] = -2;
+            Assert.AreEqual(A.IsSymmetric(), false);
+            A = new NMMatrix(new double[,] { { 1, 2, 3 }, { 2, 4, 5 } });
+            Assert.AreEqual(A.IsSymmetric(), null);
+        }
+
+        [TestMethod]
         public void NMMSubmatrixIndexingTest()
         {
             NMMatrix A = new NMMatrix(new double[,] { { 1, 2, 5 }, { 3, 4, 7 }, { 5, 6, 9 }, { 7, 8, 11 } });
@@ -109,30 +123,114 @@ namespace CCIUtilitiesUnitTest
         public void NMMEigenvaluesTest()
         {
             //example from https://en.wikipedia.org/wiki/Jacobi_eigenvalue_algorithm
-            NMMatrix A = new NMMatrix(
+            NMMatrix A = new NMMatrix(new double[,]
+            { { 1, 0, 0, 0, 0 },
+            { 0, 2, 0, 0, 0 },
+            { 0, 0, 3, 0, 0 },
+            { 0, 0, 0, 4, 0 },
+            { 0, 0, 0, 0, 5 } });
+            NMMatrix.Eigenvalues Eigen = new NMMatrix.Eigenvalues(A);
+            Assert.AreEqual(5D, Eigen.e[0], 1E-12);
+            Assert.AreEqual(4D, Eigen.e[1], 1E-12);
+            Assert.AreEqual(3D, Eigen.e[2], 1E-12);
+            Assert.AreEqual(2D, Eigen.e[3], 1E-12);
+            Assert.AreEqual(1D, Eigen.e[4], 1E-12);
+
+            A = new NMMatrix(
                 new double[,]
                 {{4,-30,60,-35},
                 {-30,300,-675,420},
                 {60,-675,1620,-1050},
                 {-35,420,-1050,700}});
-            NMMatrix.Eigenvalues Eigen = new NMMatrix.Eigenvalues(A);
+            Eigen = new NMMatrix.Eigenvalues(A);
             Console.WriteLine(Eigen.e);
             Console.WriteLine(Eigen.E);
             double d = 0;
             for (int i = 0; i < A.N; i++) d += Eigen.e[i];
             Assert.AreEqual(A.Trace(), d, 1E-12, "Traces not equal");
             Console.WriteLine("Trace difference = {0}", Math.Abs(d - A.Trace()));
+            NVector v;
             NVector v1;
             NVector v2;
             for (int i = 0; i < A.N; i++)
             {
-                v1 = A * Eigen.E.ExtractColumn(i);
-                v2 = Eigen.e[i] * Eigen.E.ExtractColumn(i);
+                v = Eigen.E.ExtractColumn(i);
+                Assert.AreEqual(1D, v.Dot(v), 1E-12, "Non-normalized eigenvector " + i.ToString("0"));
+                v1 = A * v;
+                v2 = Eigen.e[i] * v;
                 for (int j = 0; j < A.N; j++)
-                    Assert.AreEqual(v1[j], v2[j], 1E-12, "Failed eigenvalue definition");
+                {
+                    Assert.AreEqual(v1[j], v2[j], 1E-12, "Failed definition; eigenvalue/vector " + i.ToString("0"));
+                    if (j > i)
+                    {
+                        double s = v.Dot(Eigen.E.ExtractColumn(j));
+                        Assert.AreEqual(0D, s, 1E-12, "Eigenvector pair (" + i.ToString("0") + "," + j.ToString("0") + ") not orthogonal");
+                    }
+                }
             }
+
+            A = new NMMatrix(
+                new double[,]
+                {{4,-30,60,0},
+                {-30,300,-675,0},
+                {60,-675,1620,0},
+                {0,0,0,1}});
+            Eigen = new NMMatrix.Eigenvalues(A);
+            Console.WriteLine(Eigen.e);
+            Console.WriteLine(Eigen.E);
+            d = 0;
+            for (int i = 0; i < A.N; i++) d += Eigen.e[i];
+            Assert.AreEqual(A.Trace(), d, 1E-12, "Traces not equal");
+            Console.WriteLine("Trace difference = {0}", Math.Abs(d - A.Trace()));
+            for (int i = 0; i < A.N; i++)
+            {
+                v = Eigen.E.ExtractColumn(i);
+                Assert.AreEqual(1D, v.Dot(v), 1E-12, "Non-normalized eigenvector " + i.ToString("0"));
+                v1 = A * v;
+                v2 = Eigen.e[i] * v;
+                for (int j = 0; j < A.N; j++)
+                {
+                    Assert.AreEqual(v1[j], v2[j], 1E-12, "Failed definition; eigenvalue/vector " + i.ToString("0"));
+                    if (j > i)
+                    {
+                        double s = v.Dot(Eigen.E.ExtractColumn(j));
+                        Assert.AreEqual(0D, s, 1E-12, "Eigenvector pair (" + i.ToString("0") + "," + j.ToString("0") + ") not orthogonal");
+                    }
+                }
+            }
+
+            A = new NMMatrix(
+                new double[,]
+                {{4,0,-30,60},
+                {0,1,0,0},
+                {-30,0,300,-675},
+                {60,0,-675,1620}});
+            Eigen = new NMMatrix.Eigenvalues(A);
+            Console.WriteLine(Eigen.e);
+            Console.WriteLine(Eigen.E);
+            d = 0;
+            for (int i = 0; i < A.N; i++) d += Eigen.e[i];
+            Assert.AreEqual(A.Trace(), d, 1E-12, "Traces not equal");
+            Console.WriteLine("Trace difference = {0}", Math.Abs(d - A.Trace()));
+            for (int i = 0; i < A.N; i++)
+            {
+                v = Eigen.E.ExtractColumn(i);
+                Assert.AreEqual(1D, v.Dot(v), 1E-12, "Non-normalized eigenvector " + i.ToString("0"));
+                v1 = A * v;
+                v2 = Eigen.e[i] * v;
+                for (int j = 0; j < A.N; j++)
+                {
+                    Assert.AreEqual(v1[j], v2[j], 1E-12, "Failed definition; eigenvalue/vector " + i.ToString("0"));
+                    if (j > i)
+                    {
+                        double s = v.Dot(Eigen.E.ExtractColumn(j));
+                        Assert.AreEqual(0D, s, 1E-12, "Eigenvector pair (" + i.ToString("0") + "," + j.ToString("0") + ") not orthogonal");
+                    }
+                }
+            }
+ 
             Random r = new Random();
-            int size = 200;
+            int size = 300;
             A = new NMMatrix(size, size);
             for (int i = 0; i < size; i++)
                 for (int j = i; j < size; j++)
@@ -145,10 +243,55 @@ namespace CCIUtilitiesUnitTest
             Console.WriteLine("Trace difference = {0}", Math.Abs(d - A.Trace()));
             for (int i = 0; i < A.N; i++)
             {
-                v1 = A * Eigen.E.ExtractColumn(i);
-                v2 = Eigen.e[i] * Eigen.E.ExtractColumn(i);
+                v = Eigen.E.ExtractColumn(i);
+                Assert.AreEqual(1D, v.Dot(v), 1E-12, "Non-normalized eigenvector " + i.ToString("0"));
+                v1 = A * v;
+                v2 = Eigen.e[i] * v;
                 for (int j = 0; j < A.N; j++)
-                    Assert.AreEqual(v1[j], v2[j], 1E-7, "Failed eigenvalue definition");
+                {
+                    Assert.AreEqual(v1[j], v2[j], 1E-8, "Failed definition; eigenvalue/vector " + i.ToString("0"));
+                    if (j > i)
+                    {
+                        double s = v.Dot(Eigen.E.ExtractColumn(j));
+                        Assert.AreEqual(0D, s, 1E-12, "Eigenvector pair (" + i.ToString("0") + "," + j.ToString("0") + ") not orthogonal");
+                    }
+                }
+            }
+        }
+
+        [TestMethod]
+        public void NMMGeneralizedEigenvaluesTest()
+        {
+            NMMatrix A = new NMMatrix(new double[,] { { 5, -3, 2.5 }, { -3, -6, -8 }, { 2.5, -8, -1.5 } });
+            NMMatrix B = new NMMatrix(new double[,] { { 2, -1, 0 }, { -1, 2, -1 }, { 0, -1, 2 } });
+            NMMatrix.Eigenvalues eig = new NMMatrix.Eigenvalues(A, B);
+            Console.WriteLine(eig.e);
+            Console.WriteLine(eig.E);
+
+            for (int i = 0; i < A.N; i++)
+            {
+                double lambda = eig.e[i];
+                NVector P = eig.E.ExtractColumn(i);
+//                Assert.AreEqual(1D,P.Dot(P),1E-12,"Non-normalized eigenvector (" + i.ToString("0") + ")");
+                NVector M = A * P - lambda * B * P;
+                for (int j = 0; j < A.N; j++)
+                    Assert.AreEqual(0D, M[j], 1E-12, "Eigensystem " + i.ToString("0") + " fails definition");
+            }
+
+            A = new NMMatrix(new double[,] { { 5, -3, 2.5, 2, -7 }, { -3, -6, -8, 4, 4 }, { 2.5, -8, 1.5, -1, 0 }, { 2, 4, -1, 3.5, -3 }, { -7, 4, 0, -3, 2 } });
+            B = new NMMatrix(new double[,] { { 0, 0, 0, 0, -2 }, { 0, 1, 0, 0, 0 }, { 0, 0, 1, 0, 0 }, { 0, 0, 0, 1, 0 }, { -2, 0, 0, 0, 0 } });
+            eig = new NMMatrix.Eigenvalues(A, B);
+            Console.WriteLine(eig.e);
+            Console.WriteLine(eig.E);
+
+            for (int i = 0; i < A.N; i++)
+            {
+                double lambda = eig.e[i];
+                NVector P = eig.E.ExtractColumn(i);
+//                Assert.AreEqual(1D,P.Dot(P),1E-12,"Non-normalized eigenvector (" + i.ToString("0") + ")");
+                NVector M = A * P - lambda * B * P;
+                for (int j = 0; j < A.N; j++)
+                    Assert.AreEqual(0D, M[j], 1E-12, "Eigensystem " + i.ToString("0") + " fails definition");
             }
         }
 
