@@ -1,0 +1,113 @@
+﻿<Window x:Class="BDFChannelSelection.BDFChannelSelectionDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:core="clr-namespace:System;assembly=mscorlib"
+    xmlns:local="clr-namespace:BDFChannelSelection"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+    mc:Ignorable="d" 
+    Title="Channel Selection"
+    FontSize="16"
+    ResizeMode="NoResize"
+    SizeToContent="WidthAndHeight" Closing="Window_Closing">
+    <Window.Resources>
+        <local:ChannelNumberConverter x:Key="channelConverter"/>
+        <local:EEGConverter x:Key="eegConverter"/>
+    </Window.Resources>
+    <StackPanel Orientation="Vertical">
+        <TextBlock FontSize="20" FontWeight="Bold" HorizontalAlignment="Center">Channel Summary</TextBlock>
+        <Border BorderBrush="Black" BorderThickness="2" Margin="4" Width="334" CornerRadius="4">
+            <Grid HorizontalAlignment="Center" Margin="4" DataContext="{Binding}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="154"/>
+                    <ColumnDefinition Width="80"/>
+                    <ColumnDefinition Width="80"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <Grid.Resources>
+                    <Style TargetType="TextBlock">
+                        <Setter Property="TextAlignment" Value="Center"/>
+                    </Style>
+                </Grid.Resources>
+                <TextBlock Grid.Column="1" Grid.Row="0" FontWeight="Bold">Total</TextBlock>
+                <TextBlock Grid.Column="2" Grid.Row="0" FontWeight="Bold">Selected</TextBlock>
+                <TextBlock Grid.Column="0" Grid.Row="1" TextAlignment="Left" FontWeight="Bold">ETR locations</TextBlock>
+                <TextBlock Grid.Column="0" Grid.Row="2" TextAlignment="Left" FontWeight="Bold">BDF channels</TextBlock>
+                <TextBlock Grid.Column="0" Grid.Row="3" TextAlignment="Left" FontWeight="Bold">Located EEG signals</TextBlock>
+                <TextBlock Grid.Column="0" Grid.Row="4" TextAlignment="Left" FontWeight="Bold">Non-located signals</TextBlock>
+                <TextBlock Grid.Column="1" Grid.Row="1" Name="ETRLocations"/>
+                <TextBlock Grid.Column="1" Grid.Row="2" Text="{Binding Path=BDFTotal, Mode=OneWay}"/>
+                <TextBlock Grid.Column="1" Grid.Row="3" Text="{Binding Path=EEGTotal, Mode=OneWay}"/>
+                <TextBlock Grid.Column="1" Grid.Row="4" Text="{Binding Path=NonTotal, Mode=OneWay}"/>
+                <TextBlock Grid.Column="2" Grid.Row="2" Text="{Binding Path=BDFSelected, Mode=OneWay}"/>
+                <TextBlock Grid.Column="2" Grid.Row="3" Text="{Binding Path=EEGSelected, Mode=OneWay}"/>
+                <TextBlock Grid.Column="2" Grid.Row="4" Text="{Binding Path=NonSelected, Mode=OneWay}"/>
+            </Grid>
+        </Border>
+        <ScrollViewer HorizontalAlignment="Center" Height="500" Margin="8" Width="Auto">
+            <DataGrid Name="DG" ItemsSource="{Binding}" AutoGenerateColumns="False"
+                    CanUserReorderColumns="False" CanUserResizeColumns="True" CanUserResizeRows="False"
+                    SelectionMode="Single" SelectionUnit="Cell" CellEditEnding="DG_CellEditEnding">
+                <DataGrid.Columns>
+                    <DataGridCheckBoxColumn Header="Sel" Width="36" Binding="{Binding Path=Selected, Mode=TwoWay}" IsReadOnly="True" CanUserReorder="False" CanUserResize="False" CanUserSort="False">
+                        <DataGridCheckBoxColumn.ElementStyle>
+                            <Style TargetType="CheckBox">
+                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                <Setter Property="HorizontalAlignment" Value="Center"/>
+                                <EventSetter Event="Click" Handler="CheckBox_Click"/>
+                            </Style>
+                        </DataGridCheckBoxColumn.ElementStyle>
+                    </DataGridCheckBoxColumn>
+                    <DataGridTextColumn Header="Num" Width="48" Binding="{Binding Path=Number,
+                    Converter={StaticResource channelConverter},Mode=OneTime}" IsReadOnly="True" CanUserReorder="False" CanUserResize="False"/>
+                    <DataGridTextColumn Header="Name" Width="72" Binding="{Binding Path=Name,Mode=TwoWay}"
+                                    IsReadOnly="False"/>
+                    <DataGridTextColumn x:Name="EEGColumn"  Header="EEG" Width="36" Binding="{Binding Path=EEG,
+                    Converter ={StaticResource eegConverter},Mode=OneWay}" IsReadOnly="True">
+                        <DataGridTextColumn.CellStyle>
+                            <Style TargetType="DataGridCell">
+                                <Setter Property="HorizontalAlignment" Value="Center"/>
+                                <Setter Property="FontWeight" Value="Bold"/>
+                                <Setter Property="TextBlock.TextAlignment" Value="Center"/>
+                                <Setter Property="Width" Value="36"/>
+                            </Style>
+                        </DataGridTextColumn.CellStyle>
+                    </DataGridTextColumn>
+                    <DataGridTextColumn Header="Type" Width="228" Binding="{Binding Path=Type,Mode=OneTime}" IsReadOnly="True"/>
+                </DataGrid.Columns>
+            </DataGrid>
+        </ScrollViewer>
+        <StackPanel Orientation="Vertical">
+            <StackPanel.Resources>
+                <Style TargetType="Button">
+                    <Setter Property="Width" Value="150"/>
+                    <Setter Property="FontWeight" Value="Bold"/>
+                    <Setter Property="Margin" Value="5"/>
+                    <Setter Property="Height" Value="30"/>
+                </Style>
+            </StackPanel.Resources>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                <Button Click="SelectAll_Click">Select all</Button>
+                <Button Click="SelectNone_Click">Select none</Button>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                <Button Click="SelectAllActiveElectrodes_Click">Select all AE</Button>
+                <Button Click="SelectAllNonActiveElectrodes_Click">Select all Non-AE</Button>
+            </StackPanel>
+            <Button Name="SelectAllEEG" Click="SelectAllEEG_Click">Select all EEG</Button>
+            <Canvas Margin="10,8">
+                <Line Stroke="{DynamicResource {x:Static SystemColors.WindowFrameBrushKey}}" X2="{Binding Parent.ActualWidth, Mode=Default, RelativeSource={RelativeSource Self}}"/>
+            </Canvas>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,10,10">
+                <Button Click="Close_Click" IsCancel="True" Width="120">Cancel</Button>
+                <Button Click="Close_Click" IsDefault="True" Width="120">Save and close</Button>
+            </StackPanel>
+        </StackPanel>
+    </StackPanel>
+</Window>

@@ -40,10 +40,14 @@
     <AssemblyOriginatorKeyFile>SigningKey.snk</AssemblyOriginatorKeyFile>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="PresentationBuildTasks" />
     <Reference Include="PresentationCore" />
+    <Reference Include="PresentationFramework" />
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Numerics" />
+    <Reference Include="System.Windows.Presentation" />
+    <Reference Include="System.Xaml" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
@@ -57,6 +61,9 @@
     <Compile Include="BDFEDFHeaderEditor.cs" />
     <Compile Include="BDFFileStream.cs" />
     <Compile Include="BDFPoint.cs" />
+    <Compile Include="ChannelSelectionDialog.xaml.cs">
+      <DependentUpon>ChannelSelectionDialog.xaml</DependentUpon>
+    </Compile>
     <Compile Include="CircularBuffer.cs" />
     <Compile Include="CSVStream.cs" />
     <Compile Include="ElectrodeFileStream.cs" />
@@ -98,6 +105,12 @@
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
     </None>
     <None Include="SigningKey.snk" />
+  </ItemGroup>
+  <ItemGroup>
+    <Page Include="ChannelSelectionDialog.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

@@ -258,7 +258,7 @@ namespace ElectrodeFileStream
 
         public override string ToString()
         {
-            return "RPhiTheta: " + R.ToString("0.0000") + (Phi * ToDeg).ToString("0.0") + ", " + (Theta * ToDeg).ToString("0.0");
+            return "RPhiTheta: " + R.ToString("0.0000") + ", "  + (Phi * ToDeg).ToString("0.0") + ", " + (Theta * ToDeg).ToString("0.0");
         }
 
         public override string ToString(string format)

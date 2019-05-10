@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Electrodes Type="PhiTheta">
+<Electrode Name="Fp1"><Phi>92</Phi><Theta>18</Theta></Electrode>
+<Electrode Name="AF3"><Phi>74</Phi><Theta>25</Theta></Electrode>
+<Electrode Name="F7"><Phi>92</Phi><Theta>54</Theta></Electrode>
+<Electrode Name="F3"><Phi>60</Phi><Theta>39</Theta></Electrode>
+<Electrode Name="FC1"><Phi>32</Phi><Theta>45</Theta></Electrode>
+<Electrode Name="FC5"><Phi>72</Phi><Theta>69</Theta></Electrode>
+<Electrode Name="T7"><Phi>92</Phi><Theta>90</Theta></Electrode>
+<Electrode Name="C3"><Phi>46</Phi><Theta>90</Theta></Electrode>
+<Electrode Name="CP1"><Phi>32</Phi><Theta>135</Theta></Electrode>
+<Electrode Name="CP5"><Phi>72</Phi><Theta>111</Theta></Electrode>
+<Electrode Name="P7"><Phi>92</Phi><Theta>126</Theta></Electrode>
+<Electrode Name="P3"><Phi>60</Phi><Theta>141</Theta></Electrode>
+<Electrode Name="Pz"><Phi>46</Phi><Theta>-180</Theta></Electrode>
+<Electrode Name="PO3"><Phi>74</Phi><Theta>155</Theta></Electrode>
+<Electrode Name="O1"><Phi>92</Phi><Theta>162</Theta></Electrode>
+<Electrode Name="Oz"><Phi>92</Phi><Theta>-180</Theta></Electrode>
+<Electrode Name="O2"><Phi>92</Phi><Theta>-162</Theta></Electrode>
+<Electrode Name="PO4"><Phi>74</Phi><Theta>-155</Theta></Electrode>
+<Electrode Name="P4"><Phi>60</Phi><Theta>-141</Theta></Electrode>
+<Electrode Name="P8"><Phi>92</Phi><Theta>-126</Theta></Electrode>
+<Electrode Name="CP6"><Phi>72</Phi><Theta>-111</Theta></Electrode>
+<Electrode Name="CP2"><Phi>32</Phi><Theta>-135</Theta></Electrode>
+<Electrode Name="C4"><Phi>46</Phi><Theta>-90</Theta></Electrode>
+<Electrode Name="T8"><Phi>92</Phi><Theta>-90</Theta></Electrode>
+<Electrode Name="FC6"><Phi>72</Phi><Theta>-69</Theta></Electrode>
+<Electrode Name="FC2"><Phi>32</Phi><Theta>-45</Theta></Electrode>
+<Electrode Name="F4"><Phi>60</Phi><Theta>-39</Theta></Electrode>
+<Electrode Name="F8"><Phi>92</Phi><Theta>-54</Theta></Electrode>
+<Electrode Name="AF4"><Phi>74</Phi><Theta>-25</Theta></Electrode>
+<Electrode Name="Fp2"><Phi>92</Phi><Theta>-18</Theta></Electrode>
+<Electrode Name="Fz"><Phi>46</Phi><Theta>0</Theta></Electrode>
+<Electrode Name="Cz"><Phi>0</Phi><Theta>90</Theta></Electrode>
+</Electrodes>

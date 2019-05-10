@@ -39,8 +39,11 @@
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\CCIUtilities\bin\Debug\CCIUtilities.dll</HintPath>
     </Reference>
+    <Reference Include="PresentationCore" />
+    <Reference Include="PresentationFramework" />
     <Reference Include="System" />
     <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xaml" />
     <Reference Include="WindowsBase" />
   </ItemGroup>
   <Choose>
@@ -66,6 +69,7 @@
     <Compile Include="ConversionTest.cs" />
     <Compile Include="ElectrodeFileStreamTest.cs" />
     <Compile Include="MATFileTest.cs" />
+    <Compile Include="BDFChannelSelectionDialogUnitTest.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\CCILibrary\CCILibrary.csproj">
