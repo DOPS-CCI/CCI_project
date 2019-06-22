@@ -387,9 +387,9 @@ namespace CreateBDFFile
             {
                 int v = gv.nextValue();
                 nextGVValues[i++] = v;
-                if (gv.dType == GV.DependencyType.Coeff) s.parameters[0] *= gv.poly.evaluate((double)v);
-                else if (gv.dType == GV.DependencyType.Damp) s.parameters[1] *= gv.poly.evaluate((double)v);
-                else if (gv.dType == GV.DependencyType.Freq) s.parameters[2] *= gv.poly.evaluate((double)v);
+                if (gv.dType == GV.DependencyType.Coeff) s.parameters[0] *= gv.poly.EvaluateAt((double)v);
+                else if (gv.dType == GV.DependencyType.Damp) s.parameters[1] *= gv.poly.EvaluateAt((double)v);
+                else if (gv.dType == GV.DependencyType.Freq) s.parameters[2] *= gv.poly.EvaluateAt((double)v);
             }
             if (oType == OccType.Periodic)
                 nextTime += oP1;
