@@ -110,11 +110,11 @@ namespace ConvertEEG2FM
             MLType MLChans = (MLType)eeg.Select(prefix + "EEG.chanlocs");
             for (int i = 0; i < nChans; i++)
             {
-                string N = ((MLString)eeg.Select(MLChans, "[%].labels", i)).GetString();
+                string N = ((MLString)MLVariables.Select(MLChans, "[%].labels", i)).GetString();
                 if ((bool)IncludePosition.IsChecked)
                 {
-                    int phi = (int)Math.Round(90D - (double)eeg.Select(MLChans, "[%].sph_phi", i));
-                    int theta = (int)Math.Round((double)eeg.Select(MLChans, "[%].sph_theta", i));
+                    int phi = (int)Math.Round(90D - (double)MLVariables.Select(MLChans, "[%].sph_phi", i));
+                    int theta = (int)Math.Round((double)MLVariables.Select(MLChans, "[%].sph_theta", i));
                     string P = String.Format("{0:0},{1:0}", phi, theta);
                     channels[i] = N.PadRight(24 - P.Length) + P;
                 }
@@ -136,10 +136,10 @@ namespace ConvertEEG2FM
             object[,] GVValue = new object[nRecs, nGVs];
             for (int i = 0; i < nRecs; i++)
             {
-                int epochN = (int)(double)eeg.Select(ev, "[%].epoch", i);
+                int epochN = (int)(double)MLVariables.Select(ev, "[%].epoch", i);
                 if (epochN == i + 1) //make sure epochs match
                     for (int j = 0; j < nGVs; j++)
-                        GVValue[i, j] = eeg.Select(ev, "[%]." + GVName[j], i);
+                        GVValue[i, j] = MLVariables.Select(ev, "[%]." + GVName[j], i);
             }
 
             //Create FILMAN file
