@@ -42,6 +42,7 @@ namespace ElectrodeDisplay
                 electrodeLocations.Add(e.Key, new Tuple<ElectrodeRecord, Ellipse, TextBlock>(e.Value, circle, tb));
             }
             InitializeComponent();
+            this.Title = dlg.FileName;
         }
 
         const double radius = 30;
