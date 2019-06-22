@@ -302,7 +302,7 @@ namespace HeaderFileStream
                     xw.WriteStartElement("GroupVar");
                     xw.WriteElementString("Name", gve.Name);
                     xw.WriteElementString("Description", gve.Description);
-                    if(gve.GVValueDictionary != null) // will be null if integer values just stand for themselves
+                    if(gve.HasValueDictionary) // will be null if integer values just stand for themselves
                         foreach (KeyValuePair<string, int> i in gve.GVValueDictionary)
                         {
                             xw.WriteStartElement("GV");

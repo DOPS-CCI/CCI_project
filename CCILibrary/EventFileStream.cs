@@ -67,7 +67,7 @@ namespace EventFile
                         ev.m_time = Convert.ToDouble(t);
                     else //deprecated, no decimal point
                     {
-                        int l = t.Length - 7; //count in 100nsec intervals assumed
+                        int l = Math.Max(t.Length - 7, 1); //count in 100nsec intervals assumed
                         ev.m_time = Convert.ToDouble(t.Substring(0, l) + "." + t.Substring(l));
                     }
                     if (xr.Name == "EventTime") // optional; present with absolute timing, optional with relative
@@ -79,7 +79,10 @@ namespace EventFile
                     if (t.Contains(".")) //new style
                         ev.m_time = System.Convert.ToDouble(t);
                     else //old, old style -- very deprecated!
-                        ev.m_time = System.Convert.ToDouble(t.Substring(0, 11) + "." + t.Substring(11));
+                    {
+                        int l = Math.Min(t.Length, 11);
+                        ev.m_time = System.Convert.ToDouble(t.Substring(0, l) + "." + t.Substring(l));
+                    }
                 }
                 bool isEmpty = xr.IsEmptyElement; // Use this to handle <GroupVars /> construct
                 xr.ReadStartElement("GroupVars", nameSpace);

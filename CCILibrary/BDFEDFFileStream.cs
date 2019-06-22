@@ -516,8 +516,9 @@ namespace BDFEDFFileStream
         /// <returns>Array containing entire Status channel data</returns>
         public uint[] readAllStatus()
         {
-            if (!reader.BaseStream.CanSeek) throw new IOException("File stream not able to perform Seek.");
-            if (!(header.isBDFFile && hasStatus)) throw new Exception("Not a BDF file with Status channel");
+            if (!reader.BaseStream.CanSeek) throw new IOException("In BDFEDFFileReader.readAllStatus: File stream not able to perform Seek.");
+            if (!(header.isBDFFile && hasStatus)) throw new Exception("In BDFEDFFileReader.readAllStatus: Not a BDF file with Status channel");
+            if (NumberOfRecords <= 0) throw new BDFEDFException("In BDFEDFFileReader.readAllStatus: No data records in BDF/EDF file");
 
             int statusChannel = NumberOfChannels - 1;
             long pos = reader.BaseStream.Position; //remember current file position
@@ -527,7 +528,7 @@ namespace BDFEDFFileStream
             int bufferSize = NumberOfSamples(statusChannel) * 3; //size of intermediate buffer for single channel
 
             byte[] buffer = new byte[bufferSize]; //allocate intermediate buffer
-            uint[] status = new uint[NumberOfRecords * NumberOfSamples(statusChannel)]; //allocate final data array
+            uint[] status = new uint[Math.Max(0, NumberOfRecords) * NumberOfSamples(statusChannel)]; //allocate final data array
 
             long currentRecordPosition = (long)header.headerSize; //calculate initial file pointer position
             for (int i = 0; i < statusChannel; i++)
@@ -946,6 +947,55 @@ namespace BDFEDFFileStream
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// Finds the extrinsic Event associated with a given Status change
+        /// </summary>
+        /// <param name="EDE">dictionary entry for the Event to be located</param>
+        /// <param name="sp">starting location for the search, usually the Status change for this Event</param>
+        /// <param name="limit">limit of the search in samples</param>
+        /// <param name="threshhold">fraction of signal rise or fall to use as threshhold</param>
+        /// <returns></returns>
+        public bool findExtrinsicEvent(
+            EventDictionaryEntry EDE, ref BDFLoc sp, int limit, double threshold = 0.5D)
+        {
+            if (EDE.IsIntrinsic) return true;
+
+            double TH = (EDE.channelMax - EDE.channelMin) * threshold;
+            if (EDE.rise) TH = EDE.channelMin + TH;
+            else TH = EDE.channelMax - TH;
+
+            if (EDE.channel == -1) EDE.channel = ChannelNumberFromLabel(EDE.channelName);
+
+            int rec = sp.Rec;
+            int l = 0;
+
+            //Phase I: assure that we start out on correct side of threhold; phase = true
+            //Phase II: find threshold crossing; phase = false
+            bool phase = false;
+            double samp;
+            do //two phases
+            {
+                phase = !phase;
+                do
+                {
+                    if (double.IsNaN(samp = getSample(EDE.channel, sp))) return false;
+                    if (((EDE.rise == EDE.location) == phase) ? samp < TH : samp > TH) break; //yes, this is correct!
+                    if (l++ > limit) return false;
+                    sp = sp + (EDE.location ? 1 : -1);
+                    //if (read(sp.Rec) == null) return false; //scanned to end or beginning of file
+                    //while (sp.Rec == rec) //while we're on the same record
+                    //{
+                    //    if (l++ > limit) return false;
+                    //    double samp = getSample(EDE.channel, sp.Pt);
+                    //    if (((EDE.rise == EDE.location) == phase) ? samp < TH : samp > TH) { found = true; break; } //yes, this is correct!
+                    //    sp = sp + (EDE.location ? 1 : -1);
+                    //}
+                    //rec = sp.Rec;
+                } while (true); //until we find thershold
+            } while (phase); //until two phasses done
+            return true;
         }
 
         public new void Dispose()

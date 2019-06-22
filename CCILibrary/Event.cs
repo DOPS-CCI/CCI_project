@@ -458,6 +458,12 @@ namespace Event
             if (ede.GroupVars != null && ede.GroupVars.Count > 0) GVValue = new string[ede.GroupVars.Count];
         }
 
+        public string GetStringValueForGVName(string name)
+        {
+            int i = GetGVIndex(name);
+            return i < 0 ? "" : GVValue[i];
+        }
+
         public int GetIntValueForGVName(string name)
         {
             int i = GetGVIndex(name);

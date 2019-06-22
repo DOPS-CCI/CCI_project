@@ -32,6 +32,14 @@ namespace GroupVarDictionary
         public string Description { get { return m_description; } set { m_description = value; } }
         public Dictionary<string, int> GVValueDictionary;
 
+        public bool HasValueDictionary
+        {
+            get
+            {
+                return GVValueDictionary != null && GVValueDictionary.Count > 0;
+            }
+        }
+
         public int ConvertGVValueStringToInteger(string val)
         {
             int ret;
@@ -50,7 +58,7 @@ namespace GroupVarDictionary
 
         public string ConvertGVValueIntegerToString(int val)
         {
-            if (GVValueDictionary != null)
+            if (HasValueDictionary)
                 return GVValueDictionary.First(v => v.Value == val).Key;
             return val.ToString("0");
         }

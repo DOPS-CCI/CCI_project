@@ -329,7 +329,7 @@ namespace MLTypes
         public bool IndicesOK(int[] indices)
         {
             bool OK = indices.Length == _nDim;
-            for (int i = 0; i < _nDim; i++)
+            for (int i = 0; i < _nDim && OK; i++)
                 OK &= indices[i] < _dimensions[i] && indices[i] >= 0;
             return OK;
         }

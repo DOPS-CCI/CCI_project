@@ -21,7 +21,7 @@ namespace CCILibraryTest
             foreach (string fileName in testFiles)
             {
                 if (Path.GetFileName(fileName).StartsWith(".")) continue; //skip hidden files
-                if (Path.GetExtension(fileName) != ".set") continue;
+                if (Path.GetExtension(fileName) != ".set" && Path.GetExtension(fileName) != ".mat") continue;
                 Stream f = new FileStream(fileName, FileMode.Open, FileAccess.Read);
                 Console.WriteLine();
                 Console.WriteLine("******** " + ((FileStream)f).Name + " ********");
