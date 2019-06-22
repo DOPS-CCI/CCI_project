@@ -29,7 +29,7 @@ namespace CCIUtilities
         /// <summary>
         /// Construct a Polynomial object from a string representation
         /// </summary>
-        /// <param name="s">String form of apolynomical with real coefficients with n integer powers of x indicated by x^n</param>
+        /// <param name="s">String form of a polynomial with real coefficients with n integer power of x indicated by x^n</param>
         /// <param name="x">Variable of the polynomial</param>
         public Polynomial(string str, char x)
         {
@@ -147,13 +147,32 @@ namespace CCIUtilities
         }
 
         /// <summary>
+        /// Degree of Polynomial; simplifies the plynomial and the returns maxPower
+        /// </summary>
+        public int Degree
+        {
+            get
+            {
+                return maxPower;
+            }
+        }
+
+        /// <summary>
         /// Simplify a Polynomial, combining terms of each power
         /// </summary>
-        /// <returns>New, simplified polynomial; terms sorted minimum to maximum powers</returns>
+        /// <returns>New, simplified polynomial; terms sorted minimum to maximum powers; zero higher powers eliminated</returns>
         public Polynomial simplify()
         {
-            Polynomial poly = new Polynomial(this.convertToCoefficients(), variable[0]);
-            return poly;
+            double[] t = this.convertToCoefficients();
+            int mp = maxPower;
+            for (; mp > 0; mp--)
+            {
+                if (t[mp] != 0D) break;
+            }//mp always > 0
+            if (mp == maxPower) return new Polynomial(t, variable[0]);
+            double[] s = new double[mp + 1];
+            for (int i = 0; i <= mp; i++) s[i] = t[i];
+            return new Polynomial(s, variable[0]);
         }
 
         /// <summary>
@@ -444,11 +463,48 @@ namespace CCIUtilities
         /// <returns>Array of Complex roots</returns>
         public static Complex[] rootsOfPolynomial(double a, double b = 0D, double c = 0D, double d = 0D, double e = 0D)
         {
-            if (e != 0D)
+            if (e != 0D) //Quartic equation
             {
-                throw new NotImplementedException("rootsOfPolynomial: fourth degree not yet implemented");
+                //coefficients for depressed quartic equation
+                Complex x1;
+                Complex x2;
+                Complex x3;
+                Complex x4;
+                double t = -d / (4 * e);
+                double q = (d * (d * d - 4 * c * e) + 8 * b * e * e) / (8 * Math.Pow(e, 3));
+                double p = (8 * c * e - 3 * d * d) / (8 * e * e);
+                double r = ((16 * c * e - 3 * d * d) * d - 64 * b * e * e) * d / (256 * Math.Pow(e, 4)) + a / e;
+                if (q == 0D) //depressed equation is biquadratic
+                {
+                    Complex[] Z = rootsOfPolynomial(r, p, 1D);
+                    Complex p1 = Complex.Sqrt(Z[0]);
+                    Complex p2 = Complex.Sqrt(Z[1]);
+                    x1 = p1;
+                    x2 = -p1;
+                    x3 = p2;
+                    x4 = -p2;
+                }
+                else
+                //Ferrari's method
+                {
+                    Complex[] M = rootsOfPolynomial(-q * q, 2 * p * p - 8 * r, 8 * p, 8); //resolvent equation
+                    //Find root with smallest imaginary part and set to zero (one root has to be real!)
+                    double im = Math.Abs(M[0].Imaginary);
+                    int i = 0;
+                    for (int j = 1; j < 3; j++)
+                        if (im > Math.Abs(M[j].Imaginary)) { im = Math.Abs(M[j].Imaginary); i = j; }
+                    double m2 = 2D * M[i].Real; //!= 0, since equation is not biquadratic
+                    double sq2m = Math.Sqrt(m2);
+                    Complex S1 = Complex.Sqrt(-m2 - 2 * (p - q / sq2m));
+                    Complex S2 = Complex.Sqrt(-m2 - 2 * (p + q / sq2m));
+                    x1 = (-sq2m + S1) / 2;
+                    x2 = (-sq2m - S1) / 2;
+                    x3 = (sq2m + S2) / 2;
+                    x4 = (sq2m - S2) / 2;
+                }
+                return new Complex[] { t + x1, t + x2, t + x3, t + x4 };
             }
-            if (d != 0)
+            if (d != 0) //Cubic equation
             {
                 double d0 = c * c - 3D * b * d;
                 double d1 = 2D * c * c * c - 9D * b * c * d + 27D * a * d * d;
@@ -471,12 +527,12 @@ namespace CCIUtilities
                 Complex x3 = -(c + u * C + d0 / (u * C)) / (3D * d);
                 return new Complex[] { x1, x2, x3 };
             }
-            if (c != 0)
+            if (c != 0) //Quadratic equation
             {
                 Complex u = Complex.Sqrt(b * b - 4D * a * c);
                 return new Complex[] { -(b + u) / (2D * c), (u - b) / (2D * c) };
             }
-            if (b != 0)
+            if (b != 0) //Linear
                 return new Complex[] { new Complex(-a / b, 0) };
             else
                 return new Complex[] { };

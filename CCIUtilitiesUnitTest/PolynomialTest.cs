@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections;
+using System.Numerics;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using CCIUtilities;
 
@@ -95,6 +96,39 @@ namespace CCIUtilitiesUnitTest
             Assert.AreEqual(-705306240D, p.EvaluateDnAt(3, -3D));
             Assert.AreEqual(7687680D, p.EvaluateDnAt(5, 1D));
             Assert.AreEqual(8055.4, p.EvaluateDnAt(5, 0.01D), 1E-4);
+        }
+
+        [TestMethod]
+        public void PolyRootsTest()
+        {
+            Complex[] C = Polynomial.rootsOfPolynomial(360, -42, -41, 2, 1); //Roots={3,-4,5,-6}; traverses biquadratic path!
+            for (int i = 0; i < C.Length; i++)
+                Console.WriteLine("Root {0:0} = {1}", i + 1, C[i].ToString("0.000000"));
+            Console.WriteLine();
+            C = Polynomial.rootsOfPolynomial(-12, 3, -6, 7);//t == 1.41273 || t == -0.277792 + 1.06597 I || t == -0.277792 - 1.06597 I
+            for (int i = 0; i < C.Length; i++)
+                Console.WriteLine("Root {0:0} = {1}", i + 1, C[i].ToString("0.000000"));
+            Console.WriteLine();
+            C = Polynomial.rootsOfPolynomial(-12, 0, -6, 7);//t == -0.35184 + 0.987183 I || t == -0.35184 - 0.987183 I || t == 1.56082
+            for (int i = 0; i < C.Length; i++)
+                Console.WriteLine("Root {0:0} = {1}", i + 1, C[i].ToString("0.000000"));
+            Console.WriteLine();
+            C = Polynomial.rootsOfPolynomial(360, +42, -41, 2, 1);//t == 3.97074 - 1.8533 I || t == 3.97074 + 1.8533 I || t == -7.41199 || t == -2.52949
+            for (int i = 0; i < C.Length; i++)
+                Console.WriteLine("Root {0:0} = {1}", i + 1, C[i].ToString("0.000000"));
+            Console.WriteLine();
+            C = Polynomial.rootsOfPolynomial(5, -8, 0.6, 0.9, 0.084);
+            for (int i = 0; i < C.Length; i++)
+                Console.WriteLine("Root {0:0} = {1}", i + 1, C[i].ToString("0.000000"));
+            Console.WriteLine();
+            C = (new Polynomial("64-112x+60x^2-13x^3+x^4")).roots();//Roots={4,4,4,1}
+            for (int i = 0; i < C.Length; i++)
+                Console.WriteLine("Root {0:0} = {1}", i + 1, C[i].ToString("0.000000"));
+            Console.WriteLine();
+            C = Polynomial.rootsOfPolynomial(-3.22861, 2, 1, -0.8, 0.1);//x == -1.59289 || x == 1.85518 || x == 1.85827 || x == 5.87944
+            for (int i = 0; i < C.Length; i++)
+                Console.WriteLine("Root {0:0} = {1}", i + 1, C[i].ToString("0.000000"));
+            Console.WriteLine();
         }
     }
 }

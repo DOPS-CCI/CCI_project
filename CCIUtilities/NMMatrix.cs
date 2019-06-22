@@ -33,6 +33,7 @@ namespace CCIUtilities
                     return _m;
             }
         }
+
         #region indexers
         public double this[int i, int j]
         {
@@ -52,6 +53,13 @@ namespace CCIUtilities
             }
         }
 
+        /// <summary>
+        /// Create new NMMatrix based on submatrix
+        /// </summary>
+        /// <param name="rows">Row selector array; pairs of numbers selecting each disjoint region of the matrix; each pair is first and last row selected in each region</param>
+        /// <param name="cols">Column selector array; see rows parameter</param>
+        /// <returns>Submatrix</returns>
+        /// <example>To select rows 0 to 2 and 4 to 6 use indexing array of {0, 2, 4, 6}</example>
         public NMMatrix this[int[] rows, int[] cols]
         {
             get
