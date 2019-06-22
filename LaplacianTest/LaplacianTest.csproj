@@ -60,6 +60,7 @@
     <Compile Include="PQMatricesUnitTest.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="HeadGeometryUnitTest.cs" />
+    <Compile Include="EFKHeadSLTest.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Laplacian\Laplacian.csproj">

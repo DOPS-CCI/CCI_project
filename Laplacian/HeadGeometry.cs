@@ -9,6 +9,7 @@ namespace Laplacian
     public class HeadGeometry
     {
         int _order;
+        bool sphere = false;
         double[] beta; //regression coefficients;
             // this is the essence of the head shape from which all geometrical measures are derived
 
@@ -54,6 +55,18 @@ namespace Laplacian
         }
 
         /// <summary>
+        /// Constructor for simple spherical head
+        /// </summary>
+        /// <param name="radius">radius of head</param>
+        public HeadGeometry(double radius)
+        {
+            _order = 0;
+            sphere = true;
+            beta = new double[] { radius / Y00 };
+            spherical = new GeneralizedLinearRegression.Function[] { (double[] p) => { return Y00; } };
+        }
+
+        /// <summary>
         /// Calculate fit surface at given point, given math coordinates
         /// </summary>
         /// <param name="theta">Angle from z-axis down; this is Phi in head cordinates</param>
@@ -79,90 +92,112 @@ namespace Laplacian
         /// <summary>
         /// Generate factors for calculating multiple surface Laplacians for non-spherical head
         /// </summary>
-        /// <param name="thetaphiCoordinates">Enumerable list of [theta, phi] entries</param>
+        /// <param name="thetaphiCoordinates">Enumerable list of [theta, phi] entries of output locations</param>
         /// <returns>Pairs of Point3D coordinates and surface Laplacian factors</returns>
         public Tuple<Point3D[], double[,]> CalculateSLCoefficients(IEnumerable<double[]> thetaphiCoordinates)
         {
             int n = thetaphiCoordinates.Count();
             double[,] H = new double[n, 9]; //Derivative factors used in calculating surface Laplacian
             Point3D[] XYZ = new Point3D[n]; //Cartesian coordinates of the points at which the factors are valid
-            SinCosCache theta = new SinCosCache(Math.Max(3, _order + 2)); //we assume input locations are in mathematical spherical coordinates
-            SinCosCache phi = new SinCosCache(Math.Max(3, _order + 2));
+            SinCosCache theta = new SinCosCache(Math.Max(4, _order + 2)); //we assume input locations are in mathematical spherical coordinates
+            SinCosCache phi = new SinCosCache(Math.Max(4, _order + 2));
             int i = 0; //location index
+            double R = Y00 * beta[0]; //default radius, set in case sphere
             foreach(double[] p in thetaphiCoordinates) //calculate SL shape factors for each location
             {
                 theta.Angle = p[0]; //set cache values
                 phi.Angle = p[1];
 
-                //calculate R and SH derivative factors
-                double R = 0D;
-                double R20 = 0;
-                double R10 = 0;
-                double R11 = 0;
-                double R01 = 0;
-                double R02 = 0;
-                double bk;
+                //Handle spherical head as special case
+                if (sphere)
+                {
+                    //calculate output location in xyz coordinates; used to get location to calculate gradient
+                    XYZ[i] = new Point3D(R * theta.Sin() * phi.Cos(), R * theta.Sin() * phi.Sin(), R * theta.Cos());
 
-                for (int l = 0, k = 0; l <= _order; l++)
-                    for (int m = -l; m <= l; m++, k++)
-                    {
-                        if ((bk = beta[k]) == 0D) continue; //skip factors of zero
-                        R += bk * SphericalHarmonic.Y(l, m, theta, phi);
-                        R20 += bk * SphericalHarmonic.DY(l, m, theta, phi, dd[0]);
-                        R10 += bk * SphericalHarmonic.DY(l, m, theta, phi, dd[1]);
-                        R11 += bk * SphericalHarmonic.DY(l, m, theta, phi, dd[2]);
-                        R01 += bk * SphericalHarmonic.DY(l, m, theta, phi, dd[3]);
-                        R02 += bk * SphericalHarmonic.DY(l, m, theta, phi, dd[4]);
-                    }
-                //calculate output location in xyz coordinates
-                XYZ[i] = new Point3D(R * theta.Sin() * phi.Cos(), R * theta.Sin() * phi.Sin(), R * theta.Cos());
+                    H[i, 0] = -2D * theta.Sin() * phi.Cos() / R;
+                    H[i, 1] = -2D * theta.Sin() * phi.Sin() / R;
+                    H[i, 2] = -2D * theta.Cos() / R;
+                    H[i, 3] = theta.Cos(1, 2) * phi.Cos(1, 2) + phi.Sin(1, 2);
+                    H[i, 4] = -theta.Sin(1, 2) * phi.Sin(2);
+                    H[i, 5] = -theta.Sin(2) * phi.Cos();
+                    H[i, 6] = theta.Cos(1, 2) * phi.Sin(1, 2) + phi.Cos(1, 2);
+                    H[i, 7] = -theta.Sin(2) * phi.Sin();
+                    H[i, 8] = theta.Sin(1, 2);
+                }
+                else //non-spherical head
+                {
+                    //calculate R and SH derivative factors
+                    R = 0D;
+                    double R20 = 0;
+                    double R10 = 0;
+                    double R11 = 0;
+                    double R01 = 0;
+                    double R02 = 0;
+                    double bk;
 
-                //calculate surface Laplacian factors in xyz coordinates
-                double A = Math.Pow(R01, 2) + (Math.Pow(R, 2) + Math.Pow(R10, 2)) * theta.Sin(1, 2);
-                H[i, 0] = //P100
-                    -((2 * R01 * R10 * R11 * theta.Sin() + 2 * Math.Pow(R, 3) * theta.Sin(1, 3) -
-                    Math.Pow(R01, 2) * (2 * R10 * theta.Cos() + R20 * theta.Sin()) -
-                    Math.Pow(R10, 2) * theta.Sin() * (R02 + R10 * theta.Cos() * theta.Sin()) +
-                    3 * R * theta.Sin() * (Math.Pow(R01, 2) + Math.Pow(R10, 2) * theta.Sin(1, 2)) -
-                    Math.Pow(R, 2) * theta.Sin() * (R02 + theta.Sin() * (R10 * theta.Cos() + R20 * theta.Sin()))) *
-                    (phi.Cos() * theta.Sin() * (-(R10 * theta.Cos()) + R * theta.Sin()) + R01 * phi.Sin())) / (A * A * R);
-                H[i, 1] = //P010
-                    -((2 * R01 * R10 * R11 * theta.Sin() + 2 * Math.Pow(R, 3) * theta.Sin(1, 3) -
-                    Math.Pow(R01, 2) * (2 * R10 * theta.Cos() + R20 * theta.Sin()) -
-                    Math.Pow(R10, 2) * theta.Sin() * (R02 + R10 * theta.Cos() * theta.Sin()) +
-                    3 * R * theta.Sin() * (Math.Pow(R01, 2) + Math.Pow(R10, 2) * theta.Sin(1, 2)) -
-                    Math.Pow(R, 2) * theta.Sin() * (R02 + theta.Sin() * (R10 * theta.Cos() + R20 * theta.Sin()))) * (-(R01 * phi.Cos()) +
-                    theta.Sin() * (-(R10 * theta.Cos()) + R * theta.Sin()) * phi.Sin())) / (A * A * R);
-                H[i, 2] = //P001
-                    (theta.Sin() * (R * theta.Cos() + R10 * theta.Sin()) * (-2 * R01 * R10 * R11 * theta.Sin() -
-                    2 * Math.Pow(R, 3) * theta.Sin(1, 3) + Math.Pow(R01, 2) * (2 * R10 * theta.Cos() +
-                    R20 * theta.Sin()) + Math.Pow(R10, 2) * theta.Sin() * (R02 + R10 * theta.Cos() * theta.Sin()) -
-                    3 * R * theta.Sin() * (Math.Pow(R01, 2) + Math.Pow(R10, 2) * theta.Sin(1, 2)) +
-                    Math.Pow(R, 2) * theta.Sin() * (R02 + theta.Sin() * (R10 * theta.Cos() + R20 * theta.Sin())))) / (A * A * R);
-                H[i, 3] = //P200
-                    (Math.Pow(R01, 2) * phi.Cos(1, 2) + Math.Pow(R, 2) * (1 + theta.Cos(1, 2) * phi.Cos(1, 2) * theta.Sin(1, 2)) +
-                    R * R10 * phi.Cos(1, 2) * theta.Sin(1, 2) * theta.Sin(2) + Math.Pow(R10, 2) * (phi.Cos(1, 2) * theta.Sin(1, 4) +
-                    theta.Sin(1, 2) * phi.Sin(1, 2)) - R * R01 * theta.Sin(1, 2) * phi.Sin(2) +
-                    (R01 * R10 * theta.Sin(2) * phi.Sin(2)) / 2.0) / A;
-                H[i, 4] = //P110
-                    (2 * R * R01 * phi.Cos(2) * theta.Sin(1, 2) - R01 * R10 * phi.Cos(2) * theta.Sin(2) +
-                    R * R10 * theta.Cos(2) * theta.Sin(1, 2) * phi.Sin(2) - Math.Pow(R, 2) * theta.Sin(1, 4) * phi.Sin(2) -
-                    (Math.Pow(R10, 2) * (-4 + theta.Sin(2, 2)) * phi.Sin(2)) / 4.0) / A;
-                H[i, 5] = //P101
-                    -((Math.Pow(R, 2) * phi.Cos() * theta.Sin(1, 2) * theta.Sin(2)) +
-                    Math.Pow(R10, 2) * phi.Cos() * theta.Sin(1, 2) * theta.Sin(2) +
-                    R * R10 * phi.Cos() * (-2 * theta.Sin(1, 4) + theta.Sin(2, 2) / 2.0) -
-                    R * R01 * theta.Sin() * phi.Sin() - 2 * R01 * R10 * theta.Sin(1, 2) * phi.Sin()) / A;
-                H[i, 6] = //P020
-                    (Math.Pow(R01, 2) * phi.Sin(1, 2) + R * R10 * theta.Sin(1, 2) * theta.Sin(2) * phi.Sin(1, 2) +
-                    Math.Pow(R10, 2) * (phi.Cos(1, 2) * theta.Sin(1, 2) + theta.Sin(1, 4) * phi.Sin(1, 2)) +
-                    Math.Pow(R, 2) * (phi.Cos(1, 2) * theta.Sin(1, 2) + (theta.Sin(2, 2) * phi.Sin(1, 2)) / 4.0) +
-                    R * R01 * theta.Sin(1, 2) * phi.Sin(2) - (R01 * R10 * theta.Sin(2) * phi.Sin(2)) / 2.0) / A;
-                H[i, 7] = //P011
-                    (2 * theta.Sin() * (R * theta.Cos() + R10 * theta.Sin()) * (R01 * phi.Cos() +
-                    theta.Sin() * (R10 * theta.Cos() - R * theta.Sin()) * phi.Sin())) / A;
-                H[i, 8] = //P002
-                    (Math.Pow(R01, 2) + theta.Sin(1, 2) * Math.Pow(-(R10 * theta.Cos()) + R * theta.Sin(), 2)) / A;
+                    for (int l = 0, k = 0; l <= _order; l++)
+                        for (int m = -l; m <= l; m++, k++)
+                        {
+                            if ((bk = beta[k]) == 0D) continue; //skip factors of zero
+                            R += bk * SphericalHarmonic.Y(l, m, theta, phi);
+                            R20 += bk * SphericalHarmonic.DY(l, m, theta, phi, dd[0]);
+                            R10 += bk * SphericalHarmonic.DY(l, m, theta, phi, dd[1]);
+                            R11 += bk * SphericalHarmonic.DY(l, m, theta, phi, dd[2]);
+                            R01 += bk * SphericalHarmonic.DY(l, m, theta, phi, dd[3]);
+                            R02 += bk * SphericalHarmonic.DY(l, m, theta, phi, dd[4]);
+                        }
+
+                    //calculate output location in xyz coordinates; used to get location to calculate gradient
+                    XYZ[i] = new Point3D(R * theta.Sin() * phi.Cos(), R * theta.Sin() * phi.Sin(), R * theta.Cos());
+
+                    //calculate surface Laplacian factors in xyz coordinates
+                    double A = Math.Pow(R01, 2) + (Math.Pow(R, 2) + Math.Pow(R10, 2)) * theta.Sin(1, 2);
+                    H[i, 0] = //P100
+                        -((2 * R01 * R10 * R11 * theta.Sin() + 2 * Math.Pow(R, 3) * theta.Sin(1, 3) -
+                        Math.Pow(R01, 2) * (2 * R10 * theta.Cos() + R20 * theta.Sin()) -
+                        Math.Pow(R10, 2) * theta.Sin() * (R02 + R10 * theta.Cos() * theta.Sin()) +
+                        3 * R * theta.Sin() * (Math.Pow(R01, 2) + Math.Pow(R10, 2) * theta.Sin(1, 2)) -
+                        Math.Pow(R, 2) * theta.Sin() * (R02 + theta.Sin() * (R10 * theta.Cos() + R20 * theta.Sin()))) *
+                        (phi.Cos() * theta.Sin() * (-(R10 * theta.Cos()) + R * theta.Sin()) + R01 * phi.Sin())) / (A * A * R);
+                    H[i, 1] = //P010
+                        -((2 * R01 * R10 * R11 * theta.Sin() + 2 * Math.Pow(R, 3) * theta.Sin(1, 3) -
+                        Math.Pow(R01, 2) * (2 * R10 * theta.Cos() + R20 * theta.Sin()) -
+                        Math.Pow(R10, 2) * theta.Sin() * (R02 + R10 * theta.Cos() * theta.Sin()) +
+                        3 * R * theta.Sin() * (Math.Pow(R01, 2) + Math.Pow(R10, 2) * theta.Sin(1, 2)) -
+                        Math.Pow(R, 2) * theta.Sin() * (R02 + theta.Sin() * (R10 * theta.Cos() + R20 * theta.Sin()))) * (-(R01 * phi.Cos()) +
+                        theta.Sin() * (-(R10 * theta.Cos()) + R * theta.Sin()) * phi.Sin())) / (A * A * R);
+                    H[i, 2] = //P001
+                        (theta.Sin() * (R * theta.Cos() + R10 * theta.Sin()) * (-2 * R01 * R10 * R11 * theta.Sin() -
+                        2 * Math.Pow(R, 3) * theta.Sin(1, 3) + Math.Pow(R01, 2) * (2 * R10 * theta.Cos() +
+                        R20 * theta.Sin()) + Math.Pow(R10, 2) * theta.Sin() * (R02 + R10 * theta.Cos() * theta.Sin()) -
+                        3 * R * theta.Sin() * (Math.Pow(R01, 2) + Math.Pow(R10, 2) * theta.Sin(1, 2)) +
+                        Math.Pow(R, 2) * theta.Sin() * (R02 + theta.Sin() * (R10 * theta.Cos() + R20 * theta.Sin())))) / (A * A * R);
+                    H[i, 3] = //P200
+                        (Math.Pow(R01, 2) * phi.Cos(1, 2) + Math.Pow(R, 2) * (1 + theta.Cos(1, 2) * phi.Cos(1, 2) * theta.Sin(1, 2)) +
+                        R * R10 * phi.Cos(1, 2) * theta.Sin(1, 2) * theta.Sin(2) + Math.Pow(R10, 2) * (phi.Cos(1, 2) * theta.Sin(1, 4) +
+                        theta.Sin(1, 2) * phi.Sin(1, 2)) - R * R01 * theta.Sin(1, 2) * phi.Sin(2) +
+                        (R01 * R10 * theta.Sin(2) * phi.Sin(2)) / 2.0) / A;
+                    H[i, 4] = //P110
+                        (2 * R * R01 * phi.Cos(2) * theta.Sin(1, 2) - R01 * R10 * phi.Cos(2) * theta.Sin(2) +
+                        R * R10 * theta.Cos(2) * theta.Sin(1, 2) * phi.Sin(2) - Math.Pow(R, 2) * theta.Sin(1, 4) * phi.Sin(2) -
+                        (Math.Pow(R10, 2) * (-4 + theta.Sin(2, 2)) * phi.Sin(2)) / 4.0) / A;
+                    H[i, 5] = //P101
+                        -((Math.Pow(R, 2) * phi.Cos() * theta.Sin(1, 2) * theta.Sin(2)) +
+                        Math.Pow(R10, 2) * phi.Cos() * theta.Sin(1, 2) * theta.Sin(2) +
+                        R * R10 * phi.Cos() * (-2 * theta.Sin(1, 4) + theta.Sin(2, 2) / 2.0) -
+                        R * R01 * theta.Sin() * phi.Sin() - 2 * R01 * R10 * theta.Sin(1, 2) * phi.Sin()) / A;
+                    H[i, 6] = //P020
+                        (Math.Pow(R01, 2) * phi.Sin(1, 2) + R * R10 * theta.Sin(1, 2) * theta.Sin(2) * phi.Sin(1, 2) +
+                        Math.Pow(R10, 2) * (phi.Cos(1, 2) * theta.Sin(1, 2) + theta.Sin(1, 4) * phi.Sin(1, 2)) +
+                        Math.Pow(R, 2) * (phi.Cos(1, 2) * theta.Sin(1, 2) + (theta.Sin(2, 2) * phi.Sin(1, 2)) / 4.0) +
+                        R * R01 * theta.Sin(1, 2) * phi.Sin(2) - (R01 * R10 * theta.Sin(2) * phi.Sin(2)) / 2.0) / A;
+                    H[i, 7] = //P011
+                        (2 * theta.Sin() * (R * theta.Cos() + R10 * theta.Sin()) * (R01 * phi.Cos() +
+                        theta.Sin() * (R10 * theta.Cos() - R * theta.Sin()) * phi.Sin())) / A;
+                    H[i, 8] = //P002
+                        (Math.Pow(R01, 2) + theta.Sin(1, 2) * Math.Pow(-(R10 * theta.Cos()) + R * theta.Sin(), 2)) / A;
+                } //end, non-spherical head
+
                 i++;
             }
             return new Tuple<Point3D[], double[,]>(XYZ, H);
