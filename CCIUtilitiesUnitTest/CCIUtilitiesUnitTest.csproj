@@ -65,6 +65,7 @@
     <Compile Include="SphericalHarmonicTest.cs" />
     <Compile Include="LevenbergMarquardtTest.cs" />
     <Compile Include="SphereFitUnitTest.cs" />
+    <Compile Include="ParseNameUnitTest.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\CCIUtilities\CCIUtilities.csproj">

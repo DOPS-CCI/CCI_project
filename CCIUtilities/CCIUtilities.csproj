@@ -79,6 +79,7 @@
     <Compile Include="SphereFit.cs" />
     <Compile Include="SphericalHarmonic.cs" />
     <Compile Include="Utilities.cs" />
+    <Compile Include="VariableNaming.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />
