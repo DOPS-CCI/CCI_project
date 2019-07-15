@@ -26,8 +26,9 @@
     <MapFileExtensions>true</MapFileExtensions>
     <InstallUrl>http://zoomlenz.net/CCI/publish/ElectrodeDisplay/</InstallUrl>
     <CreateWebPageOnPublish>true</CreateWebPageOnPublish>
-    <WebPage>publish.htm</WebPage>
-    <ApplicationRevision>3</ApplicationRevision>
+    <WebPage>publish.html</WebPage>
+    <OpenBrowserOnPublish>false</OpenBrowserOnPublish>
+    <ApplicationRevision>4</ApplicationRevision>
     <ApplicationVersion>1.0.0.%2a</ApplicationVersion>
     <UseApplicationTrust>false</UseApplicationTrust>
     <PublishWizardCompleted>true</PublishWizardCompleted>
@@ -62,7 +63,7 @@
     <SignManifests>true</SignManifests>
   </PropertyGroup>
   <PropertyGroup>
-    <ManifestCertificateThumbprint>304C3B4141FA052E63AFD54F1FE8F650A2A374C4</ManifestCertificateThumbprint>
+    <ManifestCertificateThumbprint>48FA6AB7332B1E6C8C0A8256728A8AD22AAD78EB</ManifestCertificateThumbprint>
   </PropertyGroup>
   <PropertyGroup>
     <ManifestKeyFile>ElectrodeDisplay_TemporaryKey.pfx</ManifestKeyFile>
