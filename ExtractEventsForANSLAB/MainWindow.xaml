@@ -1,7 +1,7 @@
 ﻿<Window x:Class="ExtractEventsForANSLAB.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        ResizeMode="NoResize" FontSize="14" SizeToContent="WidthAndHeight" WindowStartupLocation="CenterScreen">
+        ResizeMode="NoResize" FontSize="14" SizeToContent="WidthAndHeight" WindowStartupLocation="CenterScreen" Closing="Window_Closing">
     <Window.Resources>
         <Style TargetType="ListView">
             <Setter Property="FontSize" Value="14"/>
@@ -58,7 +58,7 @@
                         <Label Name="nGVs">0</Label>
                     </StackPanel>
                     <StackPanel Orientation="Horizontal">
-                        <Label Content="Number of output GV values (including Event encoding)="/>
+                        <Label Content="Number of output GV values (including Event encoding) ="/>
                         <Label Name="nGVValues">0</Label>
                     </StackPanel>
                 </StackPanel>

@@ -32,6 +32,7 @@ namespace ExtractEventsForANSLAB
         public MainWindow()
         {
             InitializeComponent();
+            Log.writeToLog("Starting ExtractEventsForANSLAB " + Utilities.getVersionNumber());
         }
 
         int nSelEv = 0;
@@ -107,7 +108,7 @@ namespace ExtractEventsForANSLAB
             bool result = dlg.ShowDialog() == System.Windows.Forms.DialogResult.OK;
             if (!result) return;
 
-            //            Log.writeToLog("Starting FileConverter " + Utilities.getVersionNumber());
+            Log.writeToLog("ExtractEventsForANSLAB opening dataset HDR " + dlg.FileName);
 
             directory = System.IO.Path.GetDirectoryName(dlg.FileName);
             Properties.Settings.Default.LastDataset = directory;
@@ -144,8 +145,15 @@ namespace ExtractEventsForANSLAB
         {
             Create.IsEnabled = false;
 
-            if (nSelEv > 1 || nSelGV > 1 || (nSelGV == 1 && ((GVEntry)SelectGVs.SelectedItem).HasValueDictionary))
-            {
+            if (nSelEv == 1 && nSelGV == 1 && !((GVEntry)SelectGVs.SelectedItem).HasValueDictionary)
+            {//(single) GV without value dictionary
+                C = new int[] { 0 };
+            }
+            else
+            {//then we don't have a (single) GV without value dictionary
+
+                Log.writeToLog("ExtractEventsForANSLAB creating GV value map for " + directory);
+
                 logSW = new StreamWriter(new FileStream(System.IO.Path.Combine(directory, head.EventFile + ".m.log"), FileMode.Create, FileAccess.Write));
                 StringBuilder sb = new StringBuilder("Key => Event");
                 foreach (GVEntry gve in SelectGVs.SelectedItems) sb.Append(" | " + gve.Name);
@@ -155,16 +163,18 @@ namespace ExtractEventsForANSLAB
                     createGVMap(new StringBuilder(ede.Name), 0);
                 logSW.Flush();
                 logSW.Close();
+
+                C = new int[nSelGV + 1]; //constants for calculating indices from GV values
+                for (int i = 0; i <= nSelGV; i++) C[i] = 1; //initialize to one
+                for (int i = 0; i < nSelGV; i++)
+                {
+                    int k = ((GVEntry)SelectGVs.SelectedItems[i]).GVValueDictionary.Count;
+                    for (int j = 0; j <= i; j++)
+                        C[j] *= k;
+                }
             }
 
-            C = new int[nSelGV + 1]; //constants for calculating indices from GV values
-            for (int i = 0; i <= nSelGV; i++) C[i] = 1; //initialize to one
-            for (int i = 0; i < nSelGV; i++)
-            {
-                int k = ((GVEntry)SelectGVs.SelectedItems[i]).GVValueDictionary.Count;
-                for (int j = 0; j <= i; j++)
-                    C[j] *= k;
-            }
+            Log.writeToLog("ExtractEventsForANSLAB creating M-file for " + directory);
 
             StreamWriter Mout = new StreamWriter(System.IO.Path.Combine(directory, head.EventFile + ".m"));
             Mout.WriteLine("T=[...");
@@ -214,6 +224,7 @@ namespace ExtractEventsForANSLAB
             int i = 0;
             foreach (GVEntry gve in SelectGVs.SelectedItems)
             {
+                if (!gve.HasValueDictionary) return ev.GetIntValueForGVName(gve.Name);
                 //first get GV value for this Event, based on of GV
                 string s = ev.GetStringValueForGVName(gve.Name);
                 //then find its index in the GVValue dictionary
@@ -229,6 +240,7 @@ namespace ExtractEventsForANSLAB
 
         private void Quit_Click(object sender, RoutedEventArgs e)
         {
+            this.Close();
             Environment.Exit(0);
         }
 
@@ -272,6 +284,11 @@ namespace ExtractEventsForANSLAB
                 }
             }
             return;
+        }
+
+        private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            Log.writeToLog("ExtractEventsForANSLAB ending");
         }
     }
 }
