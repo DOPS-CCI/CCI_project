@@ -6,7 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
-using SYSTAT = SYSTATFileStream;
+using CCILibrary;
 
 namespace CSVStream
 {
@@ -32,20 +32,19 @@ namespace CSVStream
             {
                 reader = new StreamReader(path, Encoding.ASCII);
                 string line = reader.ReadLine(); //get first line which contains variable names
-                MatchCollection names = valueParse.Matches(line);
+                string[] names = Regex.Split(line, @"\s*,\s*");
                 CSVVariables = new Variables();
-                foreach (Match name in names)
+                foreach (string name in names)
                 {
-                    string s = name.Groups["d"].Value;
-                    Match m = nameParse.Match(s);
+                    Match m = nameParse.Match(name);
                     if (m.Success)
                     {
                         Variable v = new Variable(m.Groups["name"].Value,
-                            m.Groups["string"].Length > 0 ? SYSTAT.SYSTATFileStream.SVarType.String : SYSTAT.SYSTATFileStream.SVarType.Number);
+                            m.Groups["string"].Length > 0 ? SVarType.String : SVarType.Number);
                         CSVVariables.Add(v);
-                        continue;
                     }
-                    throw new Exception("CSVInputStream: invalid variable name: " + s);
+                    else
+                        throw new Exception("CSVInputStream: invalid variable name: " + name);
                 }
                 _numberOfRecords = 0;
                 while (reader.ReadLine() != null) _numberOfRecords++;
@@ -68,7 +67,7 @@ namespace CSVStream
             {
                 string s = value.Groups["d"].Value.Replace("\"\"", "\"").Trim(); //replace doubled quotes with single quotes
                 Variable v = CSVVariables[i++];
-                if (v.Type == SYSTAT.SYSTATFileStream.SVarType.String)
+                if (v.Type == SVarType.String)
                 {
                     if (s == "")
                         v.Value = Variable.MissingString;
@@ -143,8 +142,8 @@ namespace CSVStream
             get { return _Name; }
         }
         
-        SYSTAT.SYSTATFileStream.SVarType _Type;
-        public SYSTAT.SYSTATFileStream.SVarType Type
+        SVarType _Type;
+        public SVarType Type
         {
             get { return _Type; }
             set
@@ -163,7 +162,7 @@ namespace CSVStream
         {
             get
             {
-                return _Type == SYSTAT.SYSTATFileStream.SVarType.Number;
+                return _Type == SVarType.Number;
             }
         }
 
@@ -171,26 +170,26 @@ namespace CSVStream
         {
             get
             {
-                return _Type == SYSTAT.SYSTATFileStream.SVarType.String;
+                return _Type == SVarType.String;
             }
         }
 
-        internal Variable(string name, SYSTAT.SYSTATFileStream.SVarType type)
+        internal Variable(string name, SVarType type)
         {
             _Name = name;
             _Type = type;
             _OriginalName = Name;
-            _MaxLength = type == SYSTAT.SYSTATFileStream.SVarType.Number ? 8 : 16;
+            _MaxLength = type == SVarType.Number ? 8 : 16;
         }
 
         //Items used to display combobox selections
-        public static SYSTAT.SYSTATFileStream.SVarType[] _comboStringOnly = { SYSTAT.SYSTATFileStream.SVarType.String };
-        public SYSTAT.SYSTATFileStream.SVarType[] comboStringOnly
+        public static SVarType[] _comboStringOnly = { SVarType.String };
+        public SVarType[] comboStringOnly
         {
             get { return _comboStringOnly; }
         }
-        public static SYSTAT.SYSTATFileStream.SVarType[] _combo = { SYSTAT.SYSTATFileStream.SVarType.Number, SYSTAT.SYSTATFileStream.SVarType.String};
-        public SYSTAT.SYSTATFileStream.SVarType[] combo
+        public static SVarType[] _combo = { SVarType.Number, SVarType.String};
+        public SVarType[] combo
         {
             get { return _combo; }
         }

@@ -1,11 +1,8 @@
-﻿using MLTypes;
+﻿using MLLibrary;
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
-using System.Numerics;
 using System.Text;
-using System.Text.RegularExpressions;
 
 namespace MATFile
 {
@@ -83,9 +80,9 @@ namespace MATFile
             string name;
             while (_reader.PeekChar() != -1) //not EOF
             {
-                MLType t = parseCompoundDataType(out name); //should be array type or compressed
+                IMLType t = parseCompoundDataType(out name); //should be array type or compressed
                 if (!(t is MLUnknown)) //ignore unknown types
-                    mlv.Add(name, t);
+                    mlv.Assign(name, t);
             }
             return mlv;
         }
@@ -174,7 +171,7 @@ namespace MATFile
 
         }
 
-        MLType parseCompoundDataType(out string name)
+        IMLType parseCompoundDataType(out string name)
         {
             int type;
             int length;
@@ -201,7 +198,7 @@ namespace MATFile
                     _reader =
                         new BinaryReader(defStr);
 
-                    MLType t = parseCompoundDataType(out name);
+                    IMLType t = parseCompoundDataType(out name);
                     _reader = new BinaryReader(originalReader, Encoding.UTF8);
                     return t;
 
@@ -211,13 +208,13 @@ namespace MATFile
             }
         }
 
-        MLType parseCompoundDataType() //for anonymous types
+        IMLType parseCompoundDataType() //for anonymous types
         {
             string dummyName;
             return parseCompoundDataType(out dummyName);
         }
 
-        MLType parseArrayDataElement(int length, out string name)
+        IMLType parseArrayDataElement(int length, out string name)
         {
             name = "";
             int remainingLength = length;
@@ -257,9 +254,9 @@ namespace MATFile
                 if (!complex) return re;
                 dynamic im =
                     readNumericArray(_class, expectedSize, dimensionsArray);
-                MLArray<Complex> c = new MLArray<Complex>(dimensionsArray);
+                MLArray<MLComplex> c = new MLArray<MLComplex>(dimensionsArray);
                 for (int i = 0; i < c.Length; i++)
-                    c[i] = new Complex(re[i], im[i]);
+                    c[i] = new MLComplex(re[i], im[i]);
                 return c;
             }
             else //non-numeric "array"
@@ -268,7 +265,7 @@ namespace MATFile
                     case mxCHAR_CLASS:
                         char[] charBuffer = readText(expectedSize);
                         if (charBuffer == null) return new MLString("");
-                        return new MLString(dimensionsArray, charBuffer);
+                        return new MLString(charBuffer, dimensionsArray);
 
                     case mxCELL_CLASS:
                         MLCellArray cellArray = new MLCellArray(dimensionsArray);
@@ -315,7 +312,7 @@ namespace MATFile
                         {
                             for (int j = 0; j < totalFields; j++)
                             {
-                                MLArray<MLType> mla = newStruct.GetMLArrayForFieldName(fieldNames[j]);
+                                MLCellArray mla = newStruct.GetMLCellArrayForFieldName(fieldNames[j]);
                                 mla[indices] = parseCompoundDataType();
                             }
                             d = newStruct.IncrementIndex(indices, false);
@@ -358,7 +355,7 @@ namespace MATFile
                         {
                             for (int j = 0; j < totalFields; j++)
                             {
-                                MLArray<MLType> mla = obj.GetMLArrayForPropertyName(fieldNames[j]);
+                                MLCellArray mla = obj.GetMLCellArrayForPropertyName(fieldNames[j]);
                                 mla[indices] = parseCompoundDataType();
                             }
                             d = obj.IncrementIndex(indices, false); //in column major order
@@ -449,7 +446,7 @@ namespace MATFile
         /// <param name="expectedSize">expected number of elements in array</param>
         /// <param name="dimensionsArray">dimesion descritpiton of array to be created</param>
         /// <returns>MLArray of native type representing _class</returns>
-        MLType readNumericArray(byte _class, int expectedSize, int[] dimensionsArray)
+        IMLType readNumericArray(byte _class, int expectedSize, int[] dimensionsArray)
         {
             int intype;
             int length;
@@ -457,7 +454,7 @@ namespace MATFile
             if (miSizes[intype] == 0 || length / miSizes[intype] != expectedSize)
                 throw new Exception("In readNumerciArray: invalid data type or mismatched data and array sizes");
             length += tagLength;
-            MLType output = null;
+            IMLType output = null;
             switch (_class)
             {
                 case mxDOUBLE_CLASS:
@@ -466,10 +463,10 @@ namespace MATFile
                         double[] doubleArray = new double[expectedSize];
                         for (int i = 0; i < expectedSize; i++)
                             doubleArray[i] = (double)readBinaryType(intype);
-                        output = new MLArray<double>(doubleArray, dimensionsArray);
+                        output = MLDouble.CreateMLArray(doubleArray, dimensionsArray);
                     }
                     else
-                        output = new MLArray<double>(0);
+                        output = new MLArray<MLDouble>(0);
                     break;
 
                 case mxSINGLE_CLASS:
@@ -478,10 +475,10 @@ namespace MATFile
                         float[] singleArray = new float[expectedSize];
                         for (int i = 0; i < expectedSize; i++)
                             singleArray[i] = (float)readBinaryType(intype);
-                        output = new MLArray<float>(singleArray, dimensionsArray);
+                        output = MLSingle.CreateMLArray(singleArray, dimensionsArray);
                     }
                     else
-                        output = new MLArray<float>(0);
+                        output = new MLArray<MLSingle>(0);
                     break;
 
                 case mxINT32_CLASS:
@@ -490,10 +487,10 @@ namespace MATFile
                         int[] int32Array = new int[expectedSize];
                         for (int i = 0; i < expectedSize; i++)
                             int32Array[i] = (int)readBinaryType(intype);
-                        output = new MLArray<int>(int32Array, dimensionsArray);
+                        output = MLInt32.CreateMLArray(int32Array, dimensionsArray);
                     }
                     else
-                        output = new MLArray<int>(0);
+                        output = new MLArray<MLInt32>(0);
                     break;
 
                 case mxUINT32_CLASS:
@@ -502,10 +499,10 @@ namespace MATFile
                         uint[] uint32Array = new uint[expectedSize];
                         for (int i = 0; i < expectedSize; i++)
                             uint32Array[i] = (uint)readBinaryType(intype);
-                        output = new MLArray<uint>(uint32Array, dimensionsArray);
+                        output = MLUInt32.CreateMLArray(uint32Array, dimensionsArray);
                     }
                     else
-                        output = new MLArray<uint>(0);
+                        output = new MLArray<MLUInt32>(0);
                     break;
 
                 case mxINT16_CLASS:
@@ -514,10 +511,10 @@ namespace MATFile
                         short[] int16Array = new short[expectedSize];
                         for (int i = 0; i < expectedSize; i++)
                             int16Array[i] = (short)readBinaryType(intype);
-                        output = new MLArray<short>(int16Array, dimensionsArray);
+                        output = MLInt16.CreateMLArray(int16Array, dimensionsArray);
                     }
                     else
-                        output = new MLArray<short>(0);
+                        output = new MLArray<MLInt16>(0);
                     break;
 
                 case mxUINT16_CLASS:
@@ -526,10 +523,10 @@ namespace MATFile
                         ushort[] uint16Array = new ushort[expectedSize];
                         for (int i = 0; i < expectedSize; i++)
                             uint16Array[i] = (ushort)readBinaryType(intype);
-                        output = new MLArray<ushort>(uint16Array, dimensionsArray);
+                        output =MLUInt16.CreateMLArray(uint16Array, dimensionsArray);
                     }
                     else
-                        output = new MLArray<ushort>(0);
+                        output = new MLArray<MLUInt16>(0);
                     break;
 
                 case mxINT8_CLASS:
@@ -538,10 +535,10 @@ namespace MATFile
                         sbyte[] int8Array = new sbyte[expectedSize];
                         for (int i = 0; i < expectedSize; i++)
                             int8Array[i] = (sbyte)readBinaryType(intype);
-                        output = new MLArray<sbyte>(int8Array, dimensionsArray);
+                        output =MLInt8.CreateMLArray(int8Array, dimensionsArray);
                     }
                     else
-                        output = new MLArray<sbyte>(0);
+                        output = new MLArray<MLInt8>(0);
                     break;
 
                 case mxUINT8_CLASS:
@@ -550,10 +547,10 @@ namespace MATFile
                         byte[] uint8Array = new byte[expectedSize];
                         for (int i = 0; i < expectedSize; i++)
                             uint8Array[i] = (byte)readBinaryType(intype);
-                        output = new MLArray<byte>(uint8Array, dimensionsArray);
+                        output = MLUInt8.CreateMLArray(uint8Array, dimensionsArray);
                     }
                     else
-                        output = new MLArray<byte>(0);
+                        output = new MLArray<MLUInt8>(0);
                     break;
             }
             alignStream(ref length);
@@ -590,159 +587,6 @@ namespace MATFile
 
             }
             return null;
-        }
-    }
-
-    /// <summary>
-    /// Dictionary of the MATLAB variables; key is variable name and value is the MLType
-    /// Created by reading a MAT file
-    /// </summary>
-    public class MLVariables: Dictionary<string, MLType>
-    {
-        static Regex test1 = //For use locating a variable and describing a subfield
-            new Regex(@"^(?'First'[a-zA-Z]\w*)(?'Subfield'(\[%(,%)*\])?\.[a-zA-Z]\w*|\{%(,%)*\}|\[%(,%)*\]$)*$");
-        static Regex test2 = //For use when givien a variable and describing a subfield
-            new Regex(@"^(?'Subfield'(\[%(,%)*\])?\.[a-zA-Z]\w*|\{%(,%)*\}|\[%(,%)*\]$)*$");
-        static Regex sel = //For parsing a subfield componenet
-            new Regex(@"^((?'field'[a-zA-Z]\w*)|(?'Struct'(\[(?'index'%(,%)*)\])?\.(?'field'[a-zA-Z]\w*))|(?'Cell'\{(?'index'%(,%)*)\})|(?'Array'\[(?'index'%(,%)*)\]))$");
-        //parsing results: describe each subfield componenet
-        static string[] fields;
-        static int[] index;
-        static bool[] isCell;
-        static bool[] isStruct;
-
-        /// <summary>
-        /// Obtain reference to any subfield within a MATLAB type
-        /// Selector string:
-        /// 1. Structure reference with optional array indices
-        /// 2. Array indices are enclosed within [] with dimensions separated by commas; uses zero-based indexing
-        /// 3. Subfields in a structure are separated by periods, following optional aray indexing
-        /// 4. Cell indices are enclosed in {}, separated by commas
-        /// </summary>
-        /// <param name="baseVar">Reference to base type within which to obtain element</param>
-        /// <param name="selector">Selector string</param>
-        /// <param name="indices">Numeric indices to be applied to Selector string; these are marked by % in the string and referenced in order</param>
-        /// <returns>MATLAB variable for the described subfield, either MLType or primitive value (double, Complex, string, etc.)</returns>
-        public static object Select(MLType baseVar, string selector, params int[] indices)
-        {
-            //make sure it's a valid selector string
-            Match match = test2.Match(selector);
-            if (!match.Success)
-                throw new ArgumentException("In MLVariables.Select: invalid selector string: " + selector);
-            MLVariables.parseSelector(match);
-            return parseSegments(baseVar, indices);
-        }
-
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="selector"></param>
-        /// <param name="indices"></param>
-        /// <returns></returns>
-        public object Select(string selector, params int[] indices)
-        {
-            //make sure it's a valid selector string
-            Match match = test1.Match(selector);
-            if (!match.Success)
-                throw new ArgumentException("In MLVariables.Select: invalid selector string: " + selector);
-            MLType mlt;
-            string firstName = match.Groups["First"].Captures[0].Value;
-            if (!TryGetValue(firstName, out mlt))
-                throw new Exception("In MLVariables.Select: variable name not in dictionary: " + firstName);
-            parseSelector(match);
-//            currentSegment = 1;
-            return parseSegments(mlt, indices);
-        }
-
-        private static void parseSelector(Match match)
-        {
-            CaptureCollection spl = match.Groups["Subfield"].Captures;
-            int n = spl.Count;
-            fields = new string[n];
-            index = new int[n];
-            isCell = new bool[n];
-            isStruct = new bool[n];
-            //parse segments
-            for (int i = 0; i < n; i++)
-            {
-                Match m = sel.Match(spl[i].Value);
-                fields[i] = m.Groups["field"].Value;
-                index[i] = (m.Groups["index"].Value.Length + 1) >> 1; // = number of indices
-                isCell[i] = m.Groups["Cell"].Value != "";
-                isStruct[i] = m.Groups["Struct"].Value != "";
-            }
-        }
-
-        private static object parseSegments(MLType baseVar, int[] indices)
-        {
-            int n = fields.Length;
-            dynamic t0 = baseVar;
-            int indPlace = 0; //keep track of where we are in index list
-            //apply segments
-            for (int currentSegment = 0; currentSegment < n; currentSegment++)
-            {
-                object t = null;
-                //handle diension calculation first
-                long I = 0; //index into array/cell to calculate
-                if (t0 is MLDimensionedType && index[currentSegment] != 0)
-                {
-                    try
-                    {
-                        if (index[currentSegment] == 1) I = (long)indices[indPlace++];
-                        else
-                        {
-                            int[] dims = new int[index[currentSegment]];
-                            for (int i = 0; i < index[currentSegment]; i++) dims[i] = indices[indPlace++];
-                            I = ((MLDimensionedType)t0).CalculateIndex(dims);
-                        }
-                    }
-                    catch (IndexOutOfRangeException)
-                    {
-                        throw new Exception("In Select.parseSegments: too few index parameters");
-                    }
-                }
-
-                if (t0 is MLStruct)
-                {
-                    if (isStruct[currentSegment])
-                        t = ((MLStruct)t0)[I, fields[currentSegment]];
-                    else throw new Exception();
-                }
-                else if (t0 is MLObject)
-                {
-                    if (isStruct[currentSegment])
-                        t = ((MLObject)t0)[I, fields[currentSegment]];
-                    else throw new Exception();
-                }
-                else if (t0 is MLCellArray)
-                {
-                    if (isCell[currentSegment])
-                        t = ((MLCellArray)t0)[I];
-                    else throw new Exception();
-                }
-                else if (t0 is MLString)
-                {
-                    if (!isCell[currentSegment] && !isStruct[currentSegment])
-                        return ((MLString)t0)[I]; //return selected character
-                    throw new Exception();
-                }
-                else //should be MLArray<T>
-                {
-                    Type type = t0.GetType();
-                    if (type.IsGenericType && type.Name.Contains("MLArray"))
-                    {
-                        if (!isCell[currentSegment] && !isStruct[currentSegment]) // => selector is array type
-                            return t0[I]; //since t0 is dynamic, this works OK!
-                        throw new Exception();
-                    }
-                    else
-                        throw new Exception("In MLType.Select: Unexpected MLType type: " + type.Name);
-                }
-                t0 = t;
-            }
-            if (t0 is MLDimensionedType && ((MLDimensionedType)t0).Length == 1) //unwrap singleton
-                return t0[0]; //note: this will return a char not string if MLString.Length == 1
-            return t0; //otherwise leave as array
         }
     }
 }

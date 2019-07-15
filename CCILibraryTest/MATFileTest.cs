@@ -4,7 +4,7 @@ using System.Text;
 using System.Collections.Generic;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using MATFile;
-using MLTypes;
+using MLLibrary;
 
 namespace CCILibraryTest
 {
@@ -28,7 +28,7 @@ namespace CCILibraryTest
                 MATFileReader mfr = new MATFileReader(f);
                 mlv = mfr.ReadAllVariables();
                 mfr.Close();
-                foreach (KeyValuePair<string, MLType> kvp in mlv)
+                foreach (KeyValuePair<string, IMLType> kvp in mlv)
                 {
                     Console.WriteLine(kvp.Key + " =");
                     if (kvp.Value != null)
@@ -36,35 +36,35 @@ namespace CCILibraryTest
                 }
                 if (fileName == "stresstest1")
                 {
-                    double v = (double)mlv.Select("AA{%,%}[%,%]", 0, 0, 1, 0);
+                    double v = (double)(MLDouble)mlv.SelectV("AA{%,%}[%,%]", 0, 0, 1, 0);
                     Console.WriteLine("AA{0,0}[1,0] = " + v);
-                    v = (double)mlv.Select("A.e[%].c[%,%]", 1, 2, 0);
+                    v = (double)(MLDouble)mlv.SelectV("A.e[%].c[%,%]", 1, 2, 0);
                     Console.WriteLine("A.e[1].c[2,0] = " + v);
-                    string s = ((MLString)mlv.Select("A.b")).GetString(0);
+                    string s = ((MLString)mlv.SelectV("A.b")).GetString(0);
                     Console.WriteLine("A.b[0] = " + s);
-                    MLString mls = (MLString)mlv.Select("AA{%,%}", 1, 0);
+                    MLString mls = (MLString)mlv.SelectV("AA{%,%}", 1, 0);
                     for (int i = 0; i < 8; i++)
                     {
                         Console.WriteLine(String.Format("AA{{1,0}}[{0:0}] = {1}", i, mls.GetString(i)));
                     }
-                    v = (double)mlv.Select("A.f{%,%}", 1, 2);
-                    mls = (MLString)mlv.Select("A.e[%,%].d", 0, 1);
+                    v = (double)(MLDouble)mlv.SelectV("A.f{%,%}", 1, 2);
+                    mls = (MLString)mlv.SelectV("A.e[%,%].d", 0, 1);
                     Console.WriteLine(mls.ToString());
-                    MLType aa = mlv["AA"];
-                    v = (double)MLVariables.Select(aa, "{%,%}[%,%]", 0, 0, 1, 0);
+                    IMLType aa = mlv["AA"];
+                    v = (double)(MLDouble)mlv.SelectV("AA{%,%}[%,%]", 0, 0, 1, 0);
                     Console.WriteLine("AA{0,0}[1,0] = " + v);
-                    mls = (MLString)MLVariables.Select(aa, "{%,%}", 1, 0);
+                    mls = (MLString)mlv.SelectV("AA{%,%}", 1, 0);
                     for (int i = 0; i < 8; i++)
                     {
                         Console.WriteLine(String.Format("AA{{1,0}}[{0:0}] = {1}", i, mls.GetString(i)));
                     }
-                    MLType a = mlv["A"];
-                    v = (double)MLVariables.Select(a, ".e[%].c[%,%]", 1, 2, 0);
+                    IMLType a = mlv["A"];
+                    v = ((MLDouble)mlv.SelectV("A.e[%].c[%,%]", 1, 2, 0)).ToDouble();
                     Console.WriteLine("A.e[1].c[2,0] = " + v);
-                    s = ((MLString)MLVariables.Select(a, ".b")).GetString(0);
+                    s = ((MLString)mlv.SelectV("A.b")).GetString(0);
                     Console.WriteLine("A.b[0] = " + s);
-                    MLType ae = (MLType)mlv.Select("A.e");
-                    mls = (MLString)MLVariables.Select(ae, "[%,%].d", 0, 1);
+                    IMLType ae = (IMLType)mlv.SelectV("A.e");
+                    mls = (MLString)mlv.SelectV("A.e[%,%].d", 0, 1);
                     Console.WriteLine(mls.ToString());
                 }
 

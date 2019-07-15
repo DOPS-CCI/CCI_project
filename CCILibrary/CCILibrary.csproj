@@ -75,6 +75,7 @@
     <Compile Include="GroupVarDictionary.cs" />
     <Compile Include="Header.cs" />
     <Compile Include="HeaderFileStream.cs" />
+    <Compile Include="IMLType.cs" />
     <Compile Include="MATFile.cs" />
     <Compile Include="MLTypes.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -91,6 +92,7 @@
     <Compile Include="Settings.cs" />
     <Compile Include="SPSSFile.cs" />
     <Compile Include="StatusChannel.cs" />
+    <Compile Include="SVariableType.cs" />
     <Compile Include="SYSTATFileStream.cs" />
   </ItemGroup>
   <ItemGroup>

@@ -70,6 +70,7 @@
     <Compile Include="ElectrodeFileStreamTest.cs" />
     <Compile Include="MATFileTest.cs" />
     <Compile Include="BDFChannelSelectionDialogUnitTest.cs" />
+    <Compile Include="IMLTypeTest.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\CCILibrary\CCILibrary.csproj">

@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using CCILibrary;
 
 namespace SYSTATFileStream
 {
@@ -26,7 +27,6 @@ namespace SYSTATFileStream
         BinaryWriter writer; //main writer to stream
 
         public enum SFileType { SYS, SYD }
-        public enum SVarType { Number, String }
 
         public SYSTATFileStream(string filePath, SFileType t) //constructor
         {

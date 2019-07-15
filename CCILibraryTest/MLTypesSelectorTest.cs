@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using MATFile;
-using MLTypes;
+using MLLibrary;
 
 namespace CCIUtilitiesUnitTest
 {
@@ -25,15 +25,13 @@ namespace CCIUtilitiesUnitTest
                     Console.WriteLine("******** " + f.Name + " ********");
                     MATFileReader mfr = new MATFileReader(f);
                     mlv = mfr.ReadAllVariables();
-                    foreach (KeyValuePair<string, MLType> kvp in mlv)
+                    foreach (KeyValuePair<string, IMLType> kvp in mlv)
                     {
                         Console.WriteLine(kvp.Key + " =");
                         if (kvp.Value != null)
                             Console.WriteLine(kvp.Value.ToString());
                     }
                 }
-            //double init_time = (double)mlv.Select("EEG.event[%].init_time", 5);
-            //object s = mlv.Select("EEG.times[%]", 55);
         }
     }
 }
