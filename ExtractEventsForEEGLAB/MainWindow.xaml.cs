@@ -31,6 +31,7 @@ namespace ExtractEvents
         public MainWindow()
         {
             InitializeComponent();
+            Log.writeToLog("Starting ExtractEventsForEEGLAB " + Utilities.getVersionNumber());
         }
 
         private void SelectEvents_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -63,12 +64,16 @@ namespace ExtractEvents
 
         private void Quit_Click(object sender, RoutedEventArgs e)
         {
+            this.Close();
             Environment.Exit(0);
         }
 
         private void Create_Click(object sender, RoutedEventArgs e)
         {
             Create.IsEnabled = false;
+
+            Log.writeToLog("ExtractEventsForEEGLAB creating CSV file for " + directory);
+
             StreamWriter CSVout = new StreamWriter(System.IO.Path.Combine(directory, head.EventFile + ".csv"));
             StringBuilder sb = new StringBuilder("index,latency,type");
             foreach (GVEntry gv in SelectGVs.SelectedItems)
@@ -135,7 +140,7 @@ namespace ExtractEvents
             bool result = dlg.ShowDialog() == System.Windows.Forms.DialogResult.OK;
             if (!result) return;
 
-//            Log.writeToLog("Starting FileConverter " + Utilities.getVersionNumber());
+            Log.writeToLog("ExtractEventsForEEGLAB opening dataset HDR " + dlg.FileName);
 
             directory = System.IO.Path.GetDirectoryName(dlg.FileName);
             ExtractEvents.Properties.Settings.Default.LastDataset = directory;
@@ -163,6 +168,11 @@ namespace ExtractEvents
                 SelectEvents.Items.Add(ev);
 
             Create.IsEnabled = true;
+        }
+
+        private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            Log.writeToLog("ExtractEventsForEEGLAB ending");
         }
     }
 }
