@@ -26,8 +26,9 @@
     <MapFileExtensions>true</MapFileExtensions>
     <InstallUrl>http://zoomlenz.net/CCI/publish/ConvertEEG2FM/</InstallUrl>
     <CreateWebPageOnPublish>true</CreateWebPageOnPublish>
-    <WebPage>publish.htm</WebPage>
-    <ApplicationRevision>3</ApplicationRevision>
+    <WebPage>publish.html</WebPage>
+    <OpenBrowserOnPublish>false</OpenBrowserOnPublish>
+    <ApplicationRevision>4</ApplicationRevision>
     <ApplicationVersion>1.0.0.%2a</ApplicationVersion>
     <UseApplicationTrust>false</UseApplicationTrust>
     <PublishWizardCompleted>true</PublishWizardCompleted>
@@ -66,7 +67,7 @@
     <SignManifests>true</SignManifests>
   </PropertyGroup>
   <PropertyGroup>
-    <ManifestCertificateThumbprint>225AC212027A83B1B7518BE45CDDB6FEBE2EBCBB</ManifestCertificateThumbprint>
+    <ManifestCertificateThumbprint>1A3676704ABD604C05540B0DC9FD329212936771</ManifestCertificateThumbprint>
   </PropertyGroup>
   <PropertyGroup>
     <ManifestKeyFile>ConvertEEG2FM_TemporaryKey.pfx</ManifestKeyFile>
