@@ -1,10 +1,9 @@
 % iirfilt() -  (high|low|band)-pass filter data using an elliptic IIR filter 
-%              Multiple data channels and epochs are supported. Forward and
-%              reverse filtering are used to avoid phase distortions.
+%              Multiple data channels and epochs are supported.
 % Usage:
 %  >> [smoothdata] = iirfilt(data,srate,locutoff,hicutoff);
 %  >> [smoothdata,filtwts] = iirfilt(data,srate,locutoff,hicutoff, ...
-%                                    epochframes, trans_bw, revfilt,rp,rs)
+%                              epochframes, trans_bw, revfilt,rp,rs,causal)
 % Inputs:
 %   data        = (channels,frames*epochs) data to filter
 %   srate       = data sampling rate (Hz)
@@ -17,17 +16,17 @@
 %                 Enter 0 to use default.
 %   revfilt     = [0|1] reverse filter (i.e. bandpass filter to notch 
 %                 or band-reject filter). {0}
-%   rp          = ripple amplitude in dB in the pass band {default: 0.0025 dB, 
-%                 or if pass band f < 5 Hz, 0.01 dB}
-%   rs          = ripple amplitude in dB in the stop band {default: 40 dB,
-%                 or if pass band f < 5 Hz, 30 dB}
-%   causal      = ['on'|'off'] use causal filter. Default 'off'.
+%   rp          = ripple amplitude in dB in the pass band {default: 0.086 dB
+%                 corresponding to 1% ripple)
+%   rs          = ripple amplitude in dB in the stop band {default: 40 dB
+%   causal      = [0|1] use causal filter. Default 0.
 %
 % Note: Requires the MATLAB Signal Processing Toolbox.
 %
 % Authors: Maksym Pozdin (mpozdin.ece04@gtalumni.org, IOL/ONRC,2004), 
 %          with Arnaud Delorme and Scott Makeig (SCCN/INC/UCSD, La Jolla CA)
 %
+% Revision: J. Lenz, CCI 2019
 % See also: eegfilt(), eegfiltfft()
 
 % This program is free software; you can redistribute it and/or modify
@@ -48,7 +47,8 @@
 % Currently, with cutoff less then 5 Hz, both HPF and LPF use more 'relaxed' 
 % filter parameters to achieve best results. 
 
-function [smoothdata,b,a] = iirfilt(data,srate,locutoff,hicutoff,epochframes, trans_bw, revfilt, rp, rs, causal)
+function [smoothdata, b, a] = iirfilt(data, srate, locutoff, hicutoff, ...
+    epochframes, trans_bw, revfilt, rp, rs, causal)
 
 if nargin<4
     fprintf('');
@@ -97,8 +97,6 @@ if trans_bw==0
         trans_bw=locutoff/3;
     elseif hicutoff < MINFREQ & hicutoff > 0
         trans_bw=hicutoff/3;
-        %rp=0.01;
-        %rs=30;
     else
         % Default transition bandwidth is 1 Hz
         trans_bw=1;
@@ -110,14 +108,14 @@ if nargin<7
 end
 if nargin<8 || isempty(rp)
    % Ripple in the passband
-   rp=0.0025;
+   rp = 20 * log10(1.01);
 end
 if nargin<9 || isempty(rs)
    % Ripple in the stopband
    rs=40;
 end
 if nargin<10
-   causal = 'off';
+   causal = 0;
 end
 
 if nargin<5
@@ -202,7 +200,7 @@ for e = 1:epochs                % filter each epoch, channel
     for c=1:chans
         if isstruct(a) & isstruct(b) & revfilt==0            %BPF - filter with LPF and HPF in series
             
-            if strcmpi(causal, 'on')
+            if causal == 1
                 smoothdata1(c,(e-1)*epochframes+1:e*epochframes) = filter(b.bl,a.al,data(c,(e-1)*epochframes+1:e*epochframes));
                 smoothdata( c,(e-1)*epochframes+1:e*epochframes) = filter(b.bh,a.ah,smoothdata1(c,(e-1)*epochframes+1:e*epochframes));
             else
@@ -211,7 +209,7 @@ for e = 1:epochs                % filter each epoch, channel
             end;
             
         elseif isstruct(a) & isstruct(b) & revfilt==1         %BRF - filter with LPF and HPF in parallel
-            if strcmpi(causal, 'on')
+            if causal == 1
                 smoothdata1(c,(e-1)*epochframes+1:e*epochframes) = filter(b.bl,a.al,data(c,(e-1)*epochframes+1:e*epochframes));
                 smoothdata2(c,(e-1)*epochframes+1:e*epochframes) = filter(b.bh,a.ah,data(c,(e-1)*epochframes+1:e*epochframes));
             else
@@ -220,7 +218,7 @@ for e = 1:epochs                % filter each epoch, channel
             end;
             smoothdata=smoothdata1+smoothdata2;               %combine final results
         else
-            if strcmpi(causal, 'on')
+            if causal == 1
                 smoothdata(c,(e-1)*epochframes+1:e*epochframes) = filter(b,a,data(c,(e-1)*epochframes+1:e*epochframes));
             else
                 smoothdata(c,(e-1)*epochframes+1:e*epochframes) = filtfilt(b,a,data(c,(e-1)*epochframes+1:e*epochframes));
@@ -240,7 +238,7 @@ fprintf('\n');
 if ~isempty(LASTMSG)
     disp('Warning: the warning message (for example "matrix close to singular")');
     disp('         indicates that some of your data segment are too small to be');
-    disp('         filtered or that you low edge frequency is too low.');
+    disp('         filtered or that your low edge frequency is too low.');
     disp('         Check the data by looking at it (raw data and data spectrum).');
     disp('         If necessary, reload data and modify the filter');
 end;
