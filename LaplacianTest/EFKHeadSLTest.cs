@@ -54,7 +54,7 @@ namespace LaplacianTest
             PrivateObject HGpo = new PrivateObject(hg);
             double[] beta = (double[])HGpo.GetField("beta");
 
-            Tuple<Point3D, double> SLCoefs = hg.CalculateSLCoefficients();
+//            Tuple<Point3D, double> SLCoefs = hg.CalculateSLCoefficients(
         }
     }
 }
