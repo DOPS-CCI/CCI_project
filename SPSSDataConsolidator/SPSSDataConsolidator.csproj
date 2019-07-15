@@ -28,8 +28,9 @@
     <MapFileExtensions>true</MapFileExtensions>
     <InstallUrl>http://zoomlenz.net/CCI/publish/SPSSDataConsolidator/</InstallUrl>
     <CreateWebPageOnPublish>true</CreateWebPageOnPublish>
-    <WebPage>newpub.html</WebPage>
-    <ApplicationRevision>19</ApplicationRevision>
+    <WebPage>publish.html</WebPage>
+    <OpenBrowserOnPublish>false</OpenBrowserOnPublish>
+    <ApplicationRevision>20</ApplicationRevision>
     <ApplicationVersion>1.0.0.%2a</ApplicationVersion>
     <UseApplicationTrust>false</UseApplicationTrust>
     <CreateDesktopShortcut>true</CreateDesktopShortcut>
@@ -76,7 +77,7 @@
     <ApplicationManifest>Properties\app.manifest</ApplicationManifest>
   </PropertyGroup>
   <PropertyGroup>
-    <ManifestCertificateThumbprint>9B7F82C786B94EE5E5CD36AB59AC1FF7F3933D8E</ManifestCertificateThumbprint>
+    <ManifestCertificateThumbprint>31760C46A9C5AB9407288D12B2884805FC130CAC</ManifestCertificateThumbprint>
   </PropertyGroup>
   <PropertyGroup>
     <ManifestKeyFile>SPSSDataConsolidator_TemporaryKey.pfx</ManifestKeyFile>
@@ -85,7 +86,7 @@
     <SignAssembly>true</SignAssembly>
   </PropertyGroup>
   <PropertyGroup>
-    <AssemblyOriginatorKeyFile>SigningKey.pfx</AssemblyOriginatorKeyFile>
+    <AssemblyOriginatorKeyFile>SPSSDataConsolidator_TemporaryKey.pfx</AssemblyOriginatorKeyFile>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="CCILibrary">
@@ -116,6 +117,12 @@
     <Compile Include="App.xaml.cs">
       <DependentUpon>App.xaml</DependentUpon>
       <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="MATFileListItem.xaml.cs">
+      <DependentUpon>MATFileListItem.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="MLVariableSelection.xaml.cs">
+      <DependentUpon>MLVariableSelection.xaml</DependentUpon>
     </Compile>
     <Compile Include="UtilityClasses.cs" />
   </ItemGroup>
@@ -152,7 +159,7 @@
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
     </None>
     <AppDesigner Include="Properties\" />
-    <None Include="SigningKey.pfx" />
+    <None Include="SPSSDataConsolidator_TemporaryKey.pfx" />
   </ItemGroup>
   <ItemGroup>
     <Page Include="CSVFileListItem.xaml">
@@ -166,6 +173,14 @@
     <Page Include="MainWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
+    </Page>
+    <Page Include="MATFileListItem.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="MLVariableSelection.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
     </Page>
   </ItemGroup>
   <ItemGroup>

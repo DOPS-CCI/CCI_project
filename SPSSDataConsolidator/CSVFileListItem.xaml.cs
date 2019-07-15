@@ -1,16 +1,13 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Windows.Media;
-using System.IO;
-using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using Microsoft.Win32;
 using CSVStream;
 using CCIUtilities;
-using SYSTAT = SYSTATFileStream;
+using CCILibrary;
 
 namespace SPSSDataConsolidator
 {
@@ -201,7 +198,7 @@ namespace SPSSDataConsolidator
             ComboBox cb = (ComboBox)sender;
             TextBox tb = (TextBox)((StackPanel)cb.Parent).Children[4];
             tb.IsEnabled =
-                (((SYSTAT.SYSTATFileStream.SVarType)cb.SelectedValue).ToString() == "String");
+                (((SVarType)cb.SelectedValue).ToString() == "String");
             tb.Text = "8";
             synchVariableSelection();
         }

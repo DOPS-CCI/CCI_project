@@ -16,6 +16,8 @@ using Header;
 using GroupVarDictionary;
 using CCIUtilities;
 using SPSSFile;
+using VariableNaming;
+using MATFile;
 
 namespace SPSSDataConsolidator
 {
@@ -64,6 +66,19 @@ namespace SPSSDataConsolidator
             Files.Items.Add(cfi);
             if (FilePointSelectors.Count > 0) RemoveFile.IsEnabled = true;
             checkForError(cfi, null);
+        }
+
+        private void AddMATFile_Click(object sender, RoutedEventArgs e)
+        {
+            MATFileRecord mfr;
+            if ((mfr = MATFileListItem.OpenMATFile()) == null) return;
+
+            //CSVFileListItem cfi = new CSVFileListItem(cfr);
+            //cfi.ErrorCheckReq += new EventHandler(checkForError);
+            //FilePointSelectors.Add(cfi);
+            //Files.Items.Add(cfi);
+            //if (FilePointSelectors.Count > 0) RemoveFile.IsEnabled = true;
+            //checkForError(cfi, null);
         }
 
         private void RemoveFile_Click(object sender, RoutedEventArgs e)
@@ -251,7 +266,7 @@ namespace SPSSDataConsolidator
                                 GVcodes[3] = (int)GVcodes[3] + 1;
                                 GVcodes[4] = gv.FM_GVName.Replace(' ', '_');
                                 GVcodes[5] = gv.GVE != null ? gv.GVE.Name.Replace(' ', '_') : GVcodes[4];
-                                s = FMFileListItem.GVNameParser.Encode(GVcodes, gv.namingConvention); //generate name for this GV
+                                s = gv.namingConvention.Encode(GVcodes); //generate name for this GV
                                 VarType t = gv.Format == NSEnum.Number ? VarType.Number :
                                     (gv.Format == NSEnum.MappedString ? VarType.Alpha : VarType.NumString);
                                 GroupVariable v = new GroupVariable(s, gv.GVE, t);
@@ -278,7 +293,7 @@ namespace SPSSDataConsolidator
                                 {
                                     Pcodes[4] = point + 1;
                                     Pcodes[5] = (int)Pcodes[5] + 1;
-                                    s = FMFileListItem.PointNameParser.Encode(Pcodes, pg.namingConvention);
+                                    s = pg.namingConvention.Encode(Pcodes);
                                     SPSSFile.NumericVariable v = new NumericVariable(s);
                                     spss.AddVariable(v);
                                 }

@@ -14,6 +14,7 @@ using FILMANFileStream;
 using HeaderFileStream;
 using CCIUtilities;
 using GroupVarDictionary;
+using VariableNaming;
 
 namespace SPSSDataConsolidator
 {
@@ -471,7 +472,7 @@ namespace SPSSDataConsolidator
         {
             get
             {
-                return _namingConvention == null || _namingConvention.MinimumLength > 12;
+                return _namingConvention == null || _namingConvention.EstimatedLength > 12;
             }
         }
 
@@ -552,7 +553,7 @@ namespace SPSSDataConsolidator
         {
             get
             {
-                return _namingConvention == null || _namingConvention.MinimumLength > (_Format == NSEnum.Number ? 12 : 11);
+                return _namingConvention == null || _namingConvention.EstimatedLength > (_Format == NSEnum.Number ? 12 : 11);
             }
         }
 
