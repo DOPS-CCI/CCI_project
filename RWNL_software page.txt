@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="ANSI">
+<style>
+
+#main-title h1 {
+	text-align:center;
+	font-size:3.2vw;
+	font-weight:bold;
+	text-shadow:3px 3px 4px #404040;
+}
+
+#application-block {
+	background-color:DarkSeaGreen;
+	color:black;
+	padding:20px;
+	margin:20px;
+}
+
+#application-block h2 {
+	color:Gold;
+	font-size:2vw;
+	text-shadow:2px 2px 5px Gray;
+}
+
+#application-block p {
+	font-family:sans-serif;
+	font-size:large;
+}
+
+#application-block a {
+	text-decoration:none;
+	color:black;
+}
+
+#UG-link a {
+	text-decoration:underline;
+	color:blue;
+}
+
+</style>
+<title>RWNL software server</title>
+<link rel="icon" href="/favicon.ico" type="image/x-icon"> 
+<link rel="shortcut icon" href="/favicon.ico" type="image/x-icon"> 
+</head>
+
+<body style="background-color:DarkOliveGreen;color:#FFFFFFCC">
+
+<div id="main-title"><h1>RWNL Applications</h1></div>
+
+<div id="application-block">
+<a href="publish/FileConverter/publish.html" target="_blank">
+  <h2>Convert RWNL dataset to FILMAN or BDF files (FileConverter)</h2>
+  <p>For converting trial-by-trial RWNL datasets to FILMAN or BDF records; for each trial, one record is created based on given offsets from a chosen Event; trials which overlap data segments between chosen Events may be excluded (see artifact editor description); for FILMAN conversions a selected set of GVs may be attached to the records; for BDF conversions, a single GV is selected to create a new Status channel encoding the GV value; channel selection, decimation and referencing; program permits saving currently selected parameters to automate repeated use of program.</p>
+</a>
+    <div id="UG-link">
+      	<a href="publish/FileConverter/User_guide.pdf" target="_blank">
+		<p style="text-align:right">User guide</p>
+	</a>
+    </div>
+</div>
+
+<div id="application-block">
+<a href="publish/ASCtoFMConverter/publish.html" target="_blank">
+  <h2>ASC to FILMAN converter (ASCtoFMConverter)</h2>
+  <p>Converts non-trial-by-trial, continuous record, experiments in RWNL format to &ldquo;buckets of records&rdquo; in FILMAN format; each bucket contains data segments from one experimental state, labeled by chosen group variables; choose decimation factor, record length, referencing and detrending/offset; program permits saving currently selected parameters to automate repeated use of program.</p>
+</a>
+    <div id="UG-link">
+      	<a href="publish/ASCtoFMConverter/User_guide.pdf" target="_blank">
+		<p style="text-align:right">User guide</p>
+	</a>
+    </div>
+</div>
+
+<div id="application-block">
+<a href="publish/DatasetReviewer/publish.html" target="_blank">
+  <h2>Display RWNL datasets (DatasetReviewer)</h2>
+  <p>Opens RWNL dataset and displays BDF file and Event file data in scrollable format; detects certain errors in RWNL format; one can select channels to display including Status channel, manipulate display decimation, and investigate clock offsets.</p>
+</a>
+    <div id="UG-link">
+      	<a href="publish/DatasetReviewer/User_guide.pdf" target="_blank">
+		<p style="text-align:right">User guide</p>
+	</a>
+    </div>
+</div>
+
+<div id="application-block">
+	<a href="publish/ExtractEventsForEEGLAB/publish.html" target="_blank">
+  <h2>Extract Event data from RWNL dataset for import into EEGLAB (ExtractEventsForEEGLAB)</h2>
+  <p>Opens RWNL datasets and extracts selected information (Event type, Event timing, and GV values) for importation into EEGLAB using a CSV format; one can select the Events and GVs to be included in the output.</p>
+	</a>
+    <div id="UG-link">
+      	<a href="publish/ExtractEventsForEEGLAB/User_guide.pdf" target="_blank">
+		<p style="text-align:right">User guide</p>
+	</a>
+    </div>
+</div>
+
+<div id="application-block">
+<a href="publish/ExtractEventsForANSLAB/publish.html" target="_blank">
+  <h2>Extract Event data from RWNL dataset for import into ANSLAB (ExtractEventsForANSLAB)</h2>
+  <p>Opens RWNL datasets and extracts selected information (Event type, Event timing, and GV values) for importation into ANSLAB using a M-file format; on can select Events and GVs to be included, which get encoded into a single integer; a &ldquo;log&rdquo; file is created which maps this integer into the various GV values.</p>
+</a>
+    <div id="UG-link">
+      	<a href="publish/ExtractEventsForANSLAB/User_guide.pdf" target="_blank">
+		<p style="text-align:right">User guide</p>
+	</a>
+    </div>
+</div>
+
+<div id="application-block">
+<a href="publish/PreprocessDataset/publish.html" target="_blank">
+  <h2>Preprocess RWNL dataset (PreprocessDataset)</h2>
+  <p>General preprocessing of RWNL dataset; provides two levels of decimation, before and after IIR filtering; channel selection and channel name and type editing; referencing including general linear referencing; surface Laplacian can be calculated on a surface interpolated by spherical harmonics or on a fitted sphere based on the measured electrode locations; select either general polyharmonic spline or Nunez technique; creates new RWNL dataset.</p>
+</a>
+</div>
+
+<div id="application-block">
+<a href="publish/ConvertEEG2FM/publish.html" target="_blank">
+  <h2>EEGLAB to FILMAN converter (ConvertEEG2FM)</h2>
+  <p>Converts EEGLAB .SET file (Export output) to FILMAN format on a trial-by-trial basis, one FILMAN record for each experimental trial; data in each record is as processed by EEGLAB (filtered, referenced, etc.); select group variables to be included; create FILMAN file description; optionally include electrode positioning information encoded in the FILMAN channel label.</p>
+</a>
+    <div id="UG-link">
+      	<a href="publish/ConvertEEG2FM/User_guide.pdf" target="_blank">
+		<p style="text-align:right">User guide</p>
+	</a>
+    </div>
+</div>
+
+<div id="application-block">
+<a href="publish/SPSSDataConsolidator/publish.html" target="_blank">
+  <h2>Data consolidation (SPSSDataConsolidator)</h2>
+  <p>Consolidates multiple FILMAN and CSV (comma separated variable) files into single SPSS input file for statistical analysis; various semiautomated naming schemes are used to individually name multiple statistical variables; allows creating variables from multiple sources as well as combining sources for each variable.</p>
+</a>
+    <div id="UG-link">
+      	<a href="publish/SPSSDataConsolidator/User_guide.pdf" target="_blank">
+		<p style="text-align:right">User guide</p>
+	</a>
+    </div>
+</div>
+
+<div id="application-block">
+<a href="publish/PKDetectorAnalyzer/publish.html" target="_blank">
+  <h2>PK event detector (PKDetectorAnalyzer)</h2>
+  <p>Using a non-linear curve-fitting technique (Levenberg-Marquardt), program searches for PK events in &ldquo;analog&rdquo; channels of a RWNL dataset and marks them with &ldquo;naked&rdquo; Events, creating a new RWNL dataset; multiple Event types may be created, each of which is based on a given ANA channel, full-dataset polynomial detrending, and a given set of PK signal characteristics; creates new GVs to characterize the signal found for each Event; program permits saving the current set of parameters to automate repeated use of program.</p>
+</a>
+</div>
+
+<div id="application-block">
+<a href="publish/ElectrodeDisplay/publish.html" target="_blank">
+  <h2>Electrode location display (ElectrodeDisplay)</h2>
+  <p>Projective 3-D display of electrode locations and names for an Electrode file; controls available for rotation and magnification.</p>
+</a>
+</div>
+
+<div id="application-block">
+<a href="publish/FMGraph2/publish.html" target="_blank">
+  <h2>FILMAN graphing (FMGraph2):</h2>
+  <p>Displays FILMAN data on a record-by-record basis, showing a montage of small graphs in electrode location (if available); each small graph may be expanded to a single graph; channel names are shown as well as group variable values for the record.</p>
+</a>
+</div>
+
+</body>
+
+</html>
