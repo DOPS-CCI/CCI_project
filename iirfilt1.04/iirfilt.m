@@ -26,7 +26,9 @@
 % Authors: Maksym Pozdin (mpozdin.ece04@gtalumni.org, IOL/ONRC,2004), 
 %          with Arnaud Delorme and Scott Makeig (SCCN/INC/UCSD, La Jolla CA)
 %
-% Revision: J. Lenz, CCI 2019
+% Revision: J. Lenz, CCI 2019 Fixed causal filter parameter; adjusted
+% default rp value to 1% ripple
+%
 % See also: eegfilt(), eegfiltfft()
 
 % This program is free software; you can redistribute it and/or modify
@@ -56,8 +58,9 @@ if nargin<4
     return
 end
 
-a = 0;
-b = 0;
+a.al = []; a.ah = []; % Initialization has to be as struct since reasignment of scalar to a struct is not allowed since version R2016
+b.al = []; b.bh = [];
+
 data = double(data);
 
 if exist('ellipord') ~= 2 | exist('ellip') ~= 2
