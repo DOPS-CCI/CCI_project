@@ -37,16 +37,19 @@ namespace PreprocessDataset
                 System.Windows.Forms.OpenFileDialog dlg = new System.Windows.Forms.OpenFileDialog();
                 //dlg.Title = "Open RWNL .HDR file or MATLAB .SET file to be processed...";
                 //dlg.Filter = "RWNL HDR Files (.hdr)|*.hdr|EEGLAB Export files|*.set"; // Filter files by extension
-                dlg.Title = "Open RWNL .HDR file to be processed...";
-                dlg.Filter = "RWNL HDR Files (.hdr)|*.hdr"; // Filter files by extension
+                dlg.Title = "Open RWNL .HDR file or .BDF file to be processed...";
+                dlg.Filter = "RWNL HDR Files (.hdr)|*.hdr|BDF file (.bdf)|*.bdf"; // Filter files by extension
                 dlg.InitialDirectory = Properties.Settings.Default.LastFolder;
                 r = dlg.ShowDialog() == System.Windows.Forms.DialogResult.OK;
                 if (!r) Environment.Exit(0); //if no file selected, quit
 
                 ppw.directory = System.IO.Path.GetDirectoryName(dlg.FileName); //use to find other files in dataset
                 Properties.Settings.Default.LastFolder = ppw.directory; //remember directory for next time
-                if (System.IO.Path.GetExtension(dlg.FileName).ToUpper() == ".HDR")
+                string ext = System.IO.Path.GetExtension(dlg.FileName).ToUpper();
+                if (ext == ".HDR")
                     r = ProcessHDRFile(dlg.FileName);
+                else if (ext == ".BDF")
+                    r = ProcessBDFFile(dlg.FileName);
                 else r = false;
                 //else //we're processing an EEGLAB .set file
                 //{
@@ -68,7 +71,7 @@ namespace PreprocessDataset
         {
             this.Title = "PreprocessDataset: " + ppw.directory;
 
-            if (channels.EEGSelected < 3) //not enough EEG channels
+            if (ppw.eis == null || channels.EEGSelected < 3) //not enough EEG channels
                 LaplacianGB.Visibility = Visibility.Collapsed; //no SL
 
             RemainingEEGChannels.Text = channels.EEGSelected.ToString("0");
@@ -79,6 +82,7 @@ namespace PreprocessDataset
             List<int> AEChans = new List<int>();
             foreach (ChannelDescription cd in channels)
                 if (cd.Type == "Active Electrode") AEChans.Add(cd.Number);
+            DetrendOrder.Text = "0";
             RefChan.Text =
                 Utilities.intListToString(AEChans, true).Replace(", ", ",");
             OutputDecimation.Text = "1";
@@ -147,8 +151,33 @@ namespace PreprocessDataset
             SphereFit sf = new SphereFit(XYZ);
             ppw.meanRadius = sf.R;
 
-            //Process BDF channels using ETR ETR file and set up initial selection dialog
+            //Process BDF channels using ETR file and set up initial selection dialog
             chDialog = new BDFChannelSelectionDialog(ppw.bdf, ppw.eis);
+            channels = chDialog.SelectedChannels;
+            return true;
+        }
+
+        private bool ProcessBDFFile(string fileName)
+        {
+            ppw.eis = null; //indicate no ETR file
+
+            try
+            {
+                ppw.bdf = new BDFEDFFileReader(
+                    new FileStream(System.IO.Path.Combine(ppw.directory, fileName),
+                        FileMode.Open, FileAccess.Read));
+            }
+            catch (Exception e)
+            {
+                ErrorWindow ew = new ErrorWindow();
+                ew.Message = "Error reading BDF file header: " + e.Message;
+                ew.ShowDialog();
+                return false;
+            }
+            ppw.SR = new SamplingRate(ppw.bdf.NSamp / ppw.bdf.RecordDurationDouble, 2);
+
+            //Process BDF channels to set up initial selection dialog
+            chDialog = new BDFChannelSelectionDialog(ppw.bdf);
             channels = chDialog.SelectedChannels;
             return true;
         }
@@ -321,6 +350,8 @@ namespace PreprocessDataset
                     else if ((bool)RefExpression.IsChecked && ppw._refChanExp == null) ok = false;
                     else if ((bool)RefMatrix.IsChecked && RefMatrixFile.Text == "") ok = false;
                 }
+                if(ppw.doDetrend)
+                    if (ppw.detrendOrder < 0) ok = false; //error in detrend order
             }
             Process.IsEnabled = ok;
         }
@@ -678,6 +709,22 @@ namespace PreprocessDataset
         {
             System.Windows.Controls.CheckBox RefExclude = (System.Windows.Controls.CheckBox)sender;
             ppw._refExcludeElim = (bool)RefExclude.IsChecked;
+        }
+
+        private void DetrendOrder_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (!IsLoaded) return;
+            int d;
+            if (!Int32.TryParse(DetrendOrder.Text, out d)) d = -1;
+            else if (d > 8) d = -1;
+            ppw.detrendOrder = d;
+            ErrorCheck();
+        }
+
+        private void Detrend_Click(object sender, RoutedEventArgs e)
+        {
+            ppw.doDetrend = (bool)Detrend.IsChecked;
+            ErrorCheck();
         }
     }
 }

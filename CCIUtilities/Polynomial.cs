@@ -538,7 +538,7 @@ namespace CCIUtilities
                 return new Complex[] { };
         }
 
-        public static double[] fitPolynomial(double[] data, int degree)
+        public static double[] fitPolynomial<T>(T[] data, int degree) where T: IConvertible
         {
             int N = data.Length;
             double[,] x = getXMatrix(degree, N);
@@ -549,7 +549,7 @@ namespace CCIUtilities
             for (int i = 1; i <= N; i++)
             {
                 double v = (double)i - offset;
-                double d = data[i - 1]; //y
+                double d = data[i - 1].ToDouble(null); //y
                 double p = 1D; //x^j
                 y[0] += d;
                 for (int j = 1; j <= degree; j++)

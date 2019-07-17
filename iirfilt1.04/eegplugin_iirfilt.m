@@ -33,7 +33,7 @@
 
 function vers = eegplugin_iirfilt(fig, trystrs, catchstrs)
     
-    vers = 'iirfilt1.01';
+    vers = 'iirfilt1.04';
   if nargin < 3
       error('eegplugin_iirfilt requires 3 arguments');
   end;
