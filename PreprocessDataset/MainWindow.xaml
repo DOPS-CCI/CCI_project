@@ -58,19 +58,9 @@
 
             </StackPanel>
         </GroupBox>
-        <GroupBox>
-            <GroupBox.Header>
-                <CheckBox Name="Detrend" VerticalAlignment="Center" Click="Detrend_Click" Content="Global detrending"/>
-            </GroupBox.Header>
-            <StackPanel Orientation="Horizontal">
-                <TextBlock Margin="4">Detrending order</TextBlock>
-                <TextBox Name="DetrendOrder" Width="40" IsEnabled="{Binding IsChecked, ElementName=Detrend}" TextChanged="DetrendOrder_TextChanged"/>
-                <TextBlock Margin="4">&lt;= 8</TextBlock>
-            </StackPanel>
-        </GroupBox>
         <GroupBox BorderBrush="Black">
             <GroupBox.Header>
-                <CheckBox Name="Reference" VerticalAlignment="Center" Click="Reference_Click" Content="Reference"/>
+                <CheckBox x:Name="Reference" VerticalAlignment="Center" Click="Reference_Click" Content="Reference"/>
             </GroupBox.Header>
             <StackPanel Orientation="Vertical" IsEnabled="{Binding IsChecked, ElementName=Reference}">
                 <StackPanel.Resources>

@@ -36,7 +36,6 @@ namespace PreprocessDataset
         internal bool doLaplacian = false;
         internal bool doFiltering = false;
         internal bool doReference = false;
-        internal bool doDetrend = false;
         float[][] data; //full data file: datel x channel
         int[,] NPdata; //Additional, non-processed  channels (Status, ANA) from file
 
@@ -73,8 +72,6 @@ namespace PreprocessDataset
         internal double aDist;
         //Filename of ETR file to be used as output sites: _outType == 3
         internal string ETROutputFullPathName = "";
-
-        internal int detrendOrder = 0;
 
         internal int _refType = 1;
         internal List<int> _refChan;
