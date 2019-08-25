@@ -16,6 +16,8 @@ using DigitalFilter;
 using ElectrodeFileStream;
 using HeaderFileStream;
 using SphereFitNS;
+using MLLibrary;
+using MATFile;
 
 namespace PreprocessDataset
 {
@@ -35,26 +37,26 @@ namespace PreprocessDataset
             do //open HDR file and associated BDF and ETR files
             {
                 System.Windows.Forms.OpenFileDialog dlg = new System.Windows.Forms.OpenFileDialog();
-                //dlg.Title = "Open RWNL .HDR file or MATLAB .SET file to be processed...";
-                //dlg.Filter = "RWNL HDR Files (.hdr)|*.hdr|EEGLAB Export files|*.set"; // Filter files by extension
                 dlg.Title = "Open RWNL .HDR file or .BDF file to be processed...";
-                dlg.Filter = "RWNL HDR Files (.hdr)|*.hdr|BDF file (.bdf)|*.bdf"; // Filter files by extension
+                dlg.Filter = "RWNL HDR Files (.hdr)|*.hdr|BDF files|*.bdf"; // Filter files by extension
+                //dlg.Title = "Open RWNL .HDR file, .BDF file or .SET to be processed...";
+                //dlg.Filter = "RWNL HDR Files (.hdr)|*.hdr|BDF file (.bdf)|*.bdf|SET file (.set)|*.set"; // Filter files by extension
                 dlg.InitialDirectory = Properties.Settings.Default.LastFolder;
                 r = dlg.ShowDialog() == System.Windows.Forms.DialogResult.OK;
                 if (!r) Environment.Exit(0); //if no file selected, quit
 
                 ppw.directory = System.IO.Path.GetDirectoryName(dlg.FileName); //use to find other files in dataset
+                ppw.baseFileName = System.IO.Path.GetFileNameWithoutExtension(dlg.FileName);
                 Properties.Settings.Default.LastFolder = ppw.directory; //remember directory for next time
+                Properties.Settings.Default.Save();
                 string ext = System.IO.Path.GetExtension(dlg.FileName).ToUpper();
                 if (ext == ".HDR")
                     r = ProcessHDRFile(dlg.FileName);
                 else if (ext == ".BDF")
                     r = ProcessBDFFile(dlg.FileName);
-                else r = false;
-                //else //we're processing an EEGLAB .set file
-                //{
+                //else if (ext == ".SET")
                 //    r = ProcessSETFile(dlg.FileName);
-                //}
+                else r = false;
 
             } while (r == false);
 
@@ -71,22 +73,36 @@ namespace PreprocessDataset
         {
             this.Title = "PreprocessDataset: " + ppw.directory;
 
-            if (ppw.eis == null || channels.EEGSelected < 3) //not enough EEG channels
+            if (ppw.inputType == InputType.BDF || channels.EEGSelected < 4) //not enough EEG channels
                 LaplacianGB.Visibility = Visibility.Collapsed; //no SL
 
-            RemainingEEGChannels.Text = channels.EEGSelected.ToString("0");
-            EEGChannels.Text = channels.EEGTotal.ToString("0");
-            RemainingChannels.Text = channels.BDFSelected.ToString("0");
-            TotalChannels.Text = channels.BDFTotal.ToString("0");
+            if (ppw.inputType == InputType.SET)
+            {
+                SelectionGB.Visibility = Visibility.Collapsed;
+                SETEEG.Text = channels.EEGSelected.ToString("0");
+                SETTotal.Text = channels.BDFTotal.ToString("0");
+                SETGB.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                SETGB.Visibility = Visibility.Collapsed;
+                RemainingEEGChannels.Text = channels.EEGSelected.ToString("0");
+                EEGChannels.Text = channels.EEGTotal.ToString("0");
+                RemainingChannels.Text = channels.BDFSelected.ToString("0");
+                TotalChannels.Text = channels.BDFTotal.ToString("0");
+                SelectionGB.Visibility = Visibility.Visible;
+            }
+
             InputDecimation.Text = "1";
             List<int> AEChans = new List<int>();
             foreach (ChannelDescription cd in channels)
-                if (cd.Type == "Active Electrode") AEChans.Add(cd.Number);
+                if (cd.IsAE) AEChans.Add(cd.Number);
             DetrendOrder.Text = "0";
             RefChan.Text =
                 Utilities.intListToString(AEChans, true).Replace(", ", ",");
             OutputDecimation.Text = "1";
             FitOrder.Text = "3";
+            SphereRadius.Text = ppw.meanRadius.ToString("0.000");
             PolyHarmOrder.Text = "4";
             PolyHarmDegree.Text = "3";
             PolyHarmLambda.Text = "1.0";
@@ -97,7 +113,6 @@ namespace PreprocessDataset
 
         private bool ProcessHDRFile(string fileName)
         {
-            ppw.headerFileName = System.IO.Path.GetFileNameWithoutExtension(fileName);
             try
             {
                 ppw.head = (new HeaderFileReader(new FileStream(fileName, FileMode.Open, FileAccess.Read))).read();
@@ -139,9 +154,20 @@ namespace PreprocessDataset
             }
 
             //Calculate head radius for use in SpherePoints.Count calculation
-            double[,] XYZ = new double[ppw.eis.etrPositions.Count(), 3];
+            ppw.meanRadius = CalculateHeadRadius(ppw.eis.etrPositions.Values);
+
+            //Process BDF channels using ETR file and set up initial selection dialog
+            chDialog = new BDFChannelSelectionDialog(ppw.bdf, ppw.eis);
+            channels = chDialog.SelectedChannels;
+            ppw.inputType = InputType.RWNL;
+            return true;
+        }
+
+        private double CalculateHeadRadius(IEnumerable<ElectrodeRecord> etr)
+        {
+            double[,] XYZ = new double[etr.Count(), 3];
             int i = 0;
-            foreach (ElectrodeRecord r in ppw.eis.etrPositions.Values)
+            foreach (ElectrodeRecord r in etr)
             {
                 Point3D xyz = r.convertXYZ();
                 XYZ[i, 0] = xyz.X;
@@ -149,23 +175,18 @@ namespace PreprocessDataset
                 XYZ[i++, 2] = xyz.Z;
             }
             SphereFit sf = new SphereFit(XYZ);
-            ppw.meanRadius = sf.R;
-
-            //Process BDF channels using ETR file and set up initial selection dialog
-            chDialog = new BDFChannelSelectionDialog(ppw.bdf, ppw.eis);
-            channels = chDialog.SelectedChannels;
-            return true;
+            return sf.R;
         }
 
         private bool ProcessBDFFile(string fileName)
         {
+            ppw.head = null; //indicate no HDR file
             ppw.eis = null; //indicate no ETR file
 
             try
             {
                 ppw.bdf = new BDFEDFFileReader(
-                    new FileStream(System.IO.Path.Combine(ppw.directory, fileName),
-                        FileMode.Open, FileAccess.Read));
+                    new FileStream(fileName, FileMode.Open, FileAccess.Read));
             }
             catch (Exception e)
             {
@@ -177,72 +198,69 @@ namespace PreprocessDataset
             ppw.SR = new SamplingRate(ppw.bdf.NSamp / ppw.bdf.RecordDurationDouble, 2);
 
             //Process BDF channels to set up initial selection dialog
-            chDialog = new BDFChannelSelectionDialog(ppw.bdf);
+            chDialog = new BDFChannelSelectionDialog(ppw.bdf, null, false);
             channels = chDialog.SelectedChannels;
+            ppw.inputType = InputType.BDF;
             return true;
         }
 
-        //private bool ProcessSETFile(string fileName)
-        //{
-        //    MLVariables var = null;
-        //    int nChans;
-        //    MLType baseVar = null;
-        //    try
-        //    {
-        //        MATFileReader mfr = new MATFileReader(new FileStream(fileName, FileMode.Open, FileAccess.Read));
-        //        var = mfr.ReadAllVariables();
-        //        mfr.Close();
-        //        baseVar = var["EEG"];
-        //        if (baseVar.GetVariableType() == "OBJECT") baseVar = (MLType)baseVar.Select(".EEG");
+        private bool ProcessSETFile(string fileName)
+        {
+            ppw.head = null; //indicate no HDR file
+            ppw.eis = null; //indicate no ETR file
 
-        //        nChans = (int)(double)baseVar.Select(".nbchan"); //total number of channels in the FDT file (some may not be EEG)
-        //        totalDataPoints = (long)(double)baseVar.Select(".pnts"); //number of datels in the FDT file
-        //        originalSamplingRate = (double)baseVar.Select(".srate");
+            ppw.SETVars = null;
+            try
+            {
+                MATFileReader mfr = new MATFileReader(new FileStream(fileName, FileMode.Open, FileAccess.Read));
+                ppw.SETVars = mfr.ReadAllVariables();
+                mfr.Close();
+                if (ppw.SETVars["EEG"].VariableType == "OBJECT") ppw.SETVars.Assign("DATA", "EEG.EEG");
+                else ppw.SETVars.Assign("DATA", "EEG");
 
-        //        MLStruct trodes = (MLStruct)baseVar.Select(".chanlocs");
-        //        InitialChannelList = new List<Tuple<int, ElectrodeRecord>>(nChans);
-        //        for (int i = 0; i < nChans; i++)
-        //            if ((MLString)trodes.Select("[%].type", i) == "EEG")
-        //            {
-        //                ElectrodeRecord er = new XYZRecord((MLString)trodes.Select("[%].labels", i),
-        //                    (double)trodes.Select("[%].X", i), (double)trodes.Select("[%].Y", i), (double)trodes.Select("[%].Z", i));
-        //                InitialChannelList.Add(Tuple.Create<int, ElectrodeRecord>(i, er));
-        //            }
-        //    }
-        //    catch (Exception e)
-        //    {
-        //        ErrorWindow ew = new ErrorWindow();
-        //        ew.Message = "Error reading EEGLAB SET file: " + e.Message;
-        //        ew.ShowDialog();
-        //        return false;
-        //    }
+                ppw.nChans = ((IMLNumeric)ppw.SETVars.SelectV("DATA.nbchan")).ToInteger(); //total number of channels in the FDT file (some may not be EEG)
+                ppw.fileLength = ((IMLNumeric)ppw.SETVars.SelectV("DATA.pnts")).ToLong(); //number of datels in the FDT file
+                ppw.SR = new SamplingRate(((IMLNumeric)ppw.SETVars.SelectV("DATA.srate")).ToDouble(), 2);
 
-        //    string FDTfile = System.IO.Path.Combine(directory, (MLString)baseVar.Select(".data"));
-        //    data = new float[totalDataPoints, InitialChannelList.Count];
-        //    try
-        //    {
-        //        BinaryReader br = new BinaryReader(new FileStream(FDTfile, FileMode.Open, FileAccess.Read));
-        //        for (int pt = 0; pt < totalDataPoints; pt++)
-        //        {
-        //            int c = 0;
-        //            for (int chan = 0; chan < nChans; chan++)
-        //            {
-        //                float f = br.ReadSingle();
-        //                if (InitialChannelList[c].Item1 == chan)
-        //                    data[pt, c++] = f;
-        //            }
-        //        }
+                ppw.SETVars.Assign("channels", "DATA.chanlocs");
+                channels = new ChannelSelection();
+                for (int c = 0; c < ppw.nChans; c++)
+                {
+                    ChannelDescription cd;
+                    string type = (MLString)ppw.SETVars.SelectV("channels(%).type", c);
+                    string name = (MLString)ppw.SETVars.SelectV("channels(%).labels", c);
+                    if (type == "EEG")
+                    {
+                        ElectrodeRecord er = new XYZRecord(name,
+                            ((IMLNumeric)ppw.SETVars.SelectV("channels(%).X", c)).ToDouble(),
+                            ((IMLNumeric)ppw.SETVars.SelectV("channels(%).Y", c)).ToDouble(),
+                            ((IMLNumeric)ppw.SETVars.SelectV("channels(%).Z", c)).ToDouble());
+                        cd = new ChannelDescription(c, name, "Active Electrode", er);
+                    }
+                    else
+                        cd = new ChannelDescription(c, name, type);
+                    channels.Add(cd);
+                }
+                ppw.FDTfile = (MLString)ppw.SETVars.SelectV("DATA.data");
+            }
+            catch (Exception e)
+            {
+                ErrorWindow ew = new ErrorWindow();
+                ew.Message = "Error reading EEGLAB SET file: " + e.Message;
+                ew.ShowDialog();
+                return false;
+            }
+            ppw.inputType = InputType.SET;
 
-        //    }
-        //    catch (Exception e)
-        //    {
-        //        ErrorWindow ew = new ErrorWindow();
-        //        ew.Message = "Error reading EEGLAB FDT file: " + e.Message;
-        //        ew.ShowDialog();
-        //        return false;
-        //    }
-        //    return true;
-        //}
+            //Calculate head radius for use in SpherePoints.Count calculation
+            ElectrodeRecord[] etr = new ElectrodeRecord[channels.EEGTotal];
+            int i = 0;
+            foreach (ChannelDescription cd in channels)
+                if(cd.EEG) etr[i++] = cd.eRecord;
+            ppw.meanRadius = CalculateHeadRadius(etr);
+
+            return true;
+        }
 
         private void AddButterworth_Click(object sender, RoutedEventArgs e)
         {
@@ -330,7 +348,7 @@ namespace PreprocessDataset
                     }
                     if (!(bool)NO.IsChecked)  //Polyharmonic spline
                     {
-                        if (ppw.PHorder <= 0) ok = false;
+                        if (ppw.PHorder <= 1) ok = false;
                         else if (ppw.PHdegree < 0 || ppw.PHdegree >= ppw.PHorder) ok = false;
                         else if (double.IsNaN(ppw.PHlambda) || ppw.PHlambda < 0D) ok = false;
                     }
@@ -429,7 +447,7 @@ namespace PreprocessDataset
         {
             if (ppw.doFiltering) //complete filter designs
             {
-                DFilter[] filterList = new DFilter[FilterList.Items.Count];
+                IIRFilter[] filterList = new IIRFilter[FilterList.Items.Count];
                 int i = 0;
                 foreach (IFilterDesignControl fdc in FilterList.Items)
                     filterList[i++] = fdc.FinishDesign();
@@ -437,6 +455,34 @@ namespace PreprocessDataset
             }
 
             if ((bool)Spherical.IsChecked) ppw.HeadFitOrder = 0;
+
+            if (ppw.inputType == InputType.RWNL) //add back other needed RWNL channels: ANA and Status
+            { //NB: has to be done on this thread: can't make changes to channels in worker thread
+                //look for any required ANA references
+                ChannelDescription cd;
+                foreach (KeyValuePair<string, EventDictionary.EventDictionaryEntry> ed in ppw.head.Events)
+                {
+                    if (ed.Value.IsExtrinsic) //then, has associated ANA channel
+                    {
+                        cd = channels.Find(c => c.Name == ed.Value.channelName);
+                        if (cd != null) cd.Selected = true; //error if not found, but ignore
+                        else //need to include the ANA
+                        {
+                            string name = ed.Value.channelName;
+                            int chan = ppw.bdf.GetChannelNumber(name);
+                            cd = new ChannelDescription(chan, name, ppw.bdf.transducer(chan));
+                            channels.Add(cd);
+                        }
+                    }
+                }
+                //add Status channel last
+                if (ppw.bdf.hasStatus) //it should, because this is an RWNL dataset
+                {
+                    cd = new ChannelDescription(ppw.bdf, ppw.bdf.NumberOfChannels - 1, null);
+                    cd.Selected = true;
+                    channels.Add(cd);
+                }
+            }
 
             ppw.channels = channels;
 
@@ -508,7 +554,7 @@ namespace PreprocessDataset
                 if (ppw._refChan.Count > 1)
                     RefChanName.Text = ppw._refChan.Count.ToString("0") + " channels";
                 else
-                    RefChanName.Text = ppw.bdf.channelLabel(ppw._refChan[0]);
+                    RefChanName.Text = channels.Find(c => c.Number == ppw._refChan[0]).Name;
             }
             ErrorCheck();
         }
@@ -529,7 +575,7 @@ namespace PreprocessDataset
 
         private void checkOutputDatasetName()
         {
-            string fn = ppw.headerFileName + "." + SequenceName.Text;
+            string fn = ppw.baseFileName + "." + SequenceName.Text;
             OutputFileName.Text = System.IO.Path.Combine(ppw.directory, fn);
             DirectoryInfo di = new DirectoryInfo(ppw.directory);
             FileInfo[] fi = di.GetFiles(fn + ".bdf");
@@ -619,7 +665,7 @@ namespace PreprocessDataset
             try
             {
                 //find channels for reference using channel numbers from BDF file
-                return CCIUtilities.Utilities.parseChannelList(str, 1, ppw.bdf.NumberOfChannels - 1, true);
+                return CCIUtilities.Utilities.parseChannelList(str, 1, channels.AETotal, true);
             }
             catch
             {
@@ -727,4 +773,6 @@ namespace PreprocessDataset
             ErrorCheck();
         }
     }
+
+    internal enum InputType { RWNL, BDF, SET }
 }

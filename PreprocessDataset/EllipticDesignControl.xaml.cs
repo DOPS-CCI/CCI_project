@@ -20,7 +20,7 @@ namespace PreprocessDataset
         const double passBandRipple = 0.01D;
         const int poles = 2;
 
-        public DFilter FilterDesign
+        public IIRFilter FilterDesign
         {
             get
             {
@@ -101,7 +101,7 @@ namespace PreprocessDataset
             return filter.IsValid;
         }
 
-        public DFilter FinishDesign()
+        public IIRFilter FinishDesign()
         {
             filter.CompleteDesign();
             return filter;

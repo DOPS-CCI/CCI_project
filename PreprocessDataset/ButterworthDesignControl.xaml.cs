@@ -18,7 +18,7 @@ namespace PreprocessDataset
         const double cutoff = 1D;
         const int poles = 2;
 
-        public DFilter FilterDesign
+        public IIRFilter FilterDesign
         {
             get
             {
@@ -51,7 +51,7 @@ namespace PreprocessDataset
             this.ErrorCheckReq(this, null);
         }
 
-        public DFilter FinishDesign()
+        public IIRFilter FinishDesign()
         {
             filter.CompleteDesign();
             return filter;

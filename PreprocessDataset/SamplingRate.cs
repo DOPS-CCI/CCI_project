@@ -24,6 +24,8 @@ namespace PreprocessDataset
             }
         }
 
+        public double SR1 { get { return _original / _dec[0]; } }
+
         public int Decimation2
         {
             get { return _dec[1]; }
@@ -32,6 +34,16 @@ namespace PreprocessDataset
                 if (value == _dec[1]) return;
                 _dec[1] = value;
                 NotifyPropertyChanged();
+            }
+        }
+
+        public double SR2
+        {
+            get
+            {
+                if (_dec.Length > 0)
+                    return _original / (_dec[0] * _dec[1]);
+                return 0;
             }
         }
 

@@ -41,7 +41,7 @@
             <GroupBox.Header>
                 <StackPanel Orientation="Horizontal">
                     <Button Name="Remove" Height="14" Width="14" FontSize="10" Padding="2,-4" VerticalContentAlignment="Center" HorizontalContentAlignment="Left" Click="RemoveFilter_Click">X</Button>
-                    <TextBlock Name="TitleBlock">Elliptical filter</TextBlock>
+                    <TextBlock Name="TitleBlock">Elliptic filter</TextBlock>
                 </StackPanel>
             </GroupBox.Header>
             <Grid>

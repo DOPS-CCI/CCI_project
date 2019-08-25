@@ -65,7 +65,7 @@
                 <Border Grid.Column="2" Grid.RowSpan="2"/>
                 <CheckBox Name="StopCB" Grid.Row="0" Grid.Column="2" Grid.RowSpan="2" Click="StopCB_Click"/>
                 <StackPanel Orientation="Horizontal" Grid.Row="1" Grid.Column="2" HorizontalAlignment="Left" Margin="16,0,0,0">
-                    <TextBlock>Stopband attenuation</TextBlock>
+                    <TextBlock>Stop band attenuation</TextBlock>
                     <TextBox Name="StopA" Width="40" TextChanged="StopA_TextChanged" IsEnabled="{Binding IsChecked, ElementName=StopCB}">40.0</TextBox>
                     <TextBlock>dB</TextBlock>
                 </StackPanel>

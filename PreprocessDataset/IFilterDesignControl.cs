@@ -12,8 +12,8 @@ namespace PreprocessDataset
 {
     public interface IFilterDesignControl : IValidate
     {
-        DFilter FinishDesign();
+        IIRFilter FinishDesign();
 
-        DFilter FilterDesign { get; }
+        IIRFilter FilterDesign { get; }
     }
 }

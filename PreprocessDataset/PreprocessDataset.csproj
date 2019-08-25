@@ -17,7 +17,7 @@
     <PublishUrl>ftp://zoomlenz.net/public_html/CCI/publish/PreprocessDataset/</PublishUrl>
     <Install>true</Install>
     <InstallFrom>Web</InstallFrom>
-    <UpdateEnabled>false</UpdateEnabled>
+    <UpdateEnabled>true</UpdateEnabled>
     <UpdateMode>Foreground</UpdateMode>
     <UpdateInterval>7</UpdateInterval>
     <UpdateIntervalUnits>Days</UpdateIntervalUnits>
@@ -28,7 +28,7 @@
     <CreateWebPageOnPublish>true</CreateWebPageOnPublish>
     <WebPage>publish.html</WebPage>
     <OpenBrowserOnPublish>false</OpenBrowserOnPublish>
-    <ApplicationRevision>3</ApplicationRevision>
+    <ApplicationRevision>8</ApplicationRevision>
     <ApplicationVersion>1.0.0.%2a</ApplicationVersion>
     <UseApplicationTrust>false</UseApplicationTrust>
     <PublishWizardCompleted>true</PublishWizardCompleted>
@@ -81,6 +81,9 @@
   </PropertyGroup>
   <PropertyGroup>
     <ApplicationIcon>CCI.ico</ApplicationIcon>
+  </PropertyGroup>
+  <PropertyGroup>
+    <StartupObject>PreprocessDataset.App</StartupObject>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="CCILibrary">

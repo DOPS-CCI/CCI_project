@@ -18,7 +18,7 @@ namespace PreprocessDataset
         const double stopA = 40;
         const int poles = 2;
 
-        public DFilter FilterDesign
+        public IIRFilter FilterDesign
         {
             get
             {
@@ -47,7 +47,7 @@ namespace PreprocessDataset
             StopF.Text = filter.StopF.ToString("0.00");
         }
 
-        public DFilter FinishDesign()
+        public IIRFilter FinishDesign()
         {
             filter.CompleteDesign();
             return filter;
