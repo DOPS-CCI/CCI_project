@@ -543,7 +543,7 @@ namespace CCIUtilities
             int N = data.Length;
             double[,] x = getXMatrix(degree, N);
             //Use "centered" array for polynomial fit
-            double offset = ((double)N + 1D) / 2D;
+            double offset = ((double)N + 1D) / 2D; //NB: needs to be +1 because of way indexing done below
             double[] y = new double[degree + 1];
             //estimate the moments of the data from the center of the dataset; this simplifies the matrix
             for (int i = 1; i <= N; i++)

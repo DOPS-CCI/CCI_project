@@ -62,6 +62,7 @@
     <Compile Include="Legendre.cs" />
     <Compile Include="LevenbergMarquardt.cs" />
     <Compile Include="Log.cs" />
+    <Compile Include="LogFileHelper.cs" />
     <Compile Include="NMMatrix.cs" />
     <Compile Include="NVector.cs" />
     <Compile Include="Polynomial.cs" />
