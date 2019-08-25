@@ -246,7 +246,7 @@ namespace CCILibraryTest
             MLVariables mlv = new MLVariables();
             MLArray<MLDouble> mla = new MLArray<MLDouble>
                 (new MLDouble[] { 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22 }, new int[] { 2, 3, 2 });
-            mlv.Assign("A", mla);
+            mlv["A"] = mla;
             IMLType t = mlv["A"];
             Assert.AreEqual("ARRAY<DOUBLE>", t.VariableType);
             Assert.AreEqual((MLDouble)21D, ((MLDimensioned)t)[1, 2, 0]);
@@ -280,7 +280,7 @@ namespace CCILibraryTest
             Assert.AreEqual("DOUBLE", t.VariableType);
 
             MLStruct mls2 = new MLStruct(2);
-            mlv.Assign("D", mls2);
+            mlv["D"] = mls2;
             mls2["A", 0] = new MLString("String 1");
             mls2["A", 1] = new MLString("String 2");
             mls2["B", 1] = mls;

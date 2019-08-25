@@ -1,11 +1,78 @@
 ﻿using MLLibrary;
 using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Text;
 
 namespace MATFile
 {
+    public static class MATConstants
+    {
+        //CONSTANTS
+        internal const int miINT8 = 1;
+        internal const int miUINT8 = 2;
+        internal const int miINT16 = 3;
+        internal const int miUINT16 = 4;
+        internal const int miINT32 = 5;
+        internal const int miUINT32 = 6;
+        internal const int miSINGLE = 7;
+        internal const int miDOUBLE = 9;
+        internal const int miINT64 = 12;
+        internal const int miUINT64 = 13;
+        internal const int miMATRIX = 14;
+        internal const int miCOMPRESSED = 15;
+        internal const int miUTF8 = 16;
+        internal const int miUTF16 = 17;
+        internal const int miUTF32 = 18;
+        internal static int[] miSizes = { 0, 1, 1, 2, 2, 4, 4, 4, 0, 8, 0, 0, 8, 8, 0, 0, 1, 2, 4 };
+        internal static Dictionary<Type, int> miMap = new Dictionary<Type, int>{
+        {typeof(MLDouble), miDOUBLE},
+        {typeof(MLSingle), miSINGLE},
+        {typeof(MLInt8), miINT8},
+        {typeof(MLUInt8), miUINT8},
+        {typeof(MLInt16), miINT16},
+        {typeof(MLUInt16), miUINT16},
+        {typeof(MLInt32), miINT32},
+        {typeof(MLUInt32), miUINT32},
+        {typeof(MLComplex), miDOUBLE},
+        {typeof(MLChar), miUTF8},
+        {typeof(MLUnknown), 0}};
+
+        internal const byte mxCELL_CLASS = 1;
+        internal const byte mxSTRUCT_CLASS = 2;
+        internal const byte mxOBJECT_CLASS = 3;
+        internal const byte mxCHAR_CLASS = 4;
+        internal const byte mxSPARSE_CLASS = 5;
+        internal const byte mxDOUBLE_CLASS = 6;
+        internal const byte mxSINGLE_CLASS = 7;
+        internal const byte mxINT8_CLASS = 8;
+        internal const byte mxUINT8_CLASS = 9;
+        internal const byte mxINT16_CLASS = 10;
+        internal const byte mxUINT16_CLASS = 11;
+        internal const byte mxINT32_CLASS = 12;
+        internal const byte mxUINT32_CLASS = 13;
+        internal const byte mxINT64_CLASS = 14;
+        internal const byte mxUINT64_CLASS = 15;
+        internal static int[] mxSizes = { 0, 0, 0, 0, 0, 0, 8, 4, 1, 1, 2, 2, 4, 4, 8, 8 };
+        internal static Dictionary<Type, byte> mxMap = new Dictionary<Type, byte>{
+        {typeof(MLCellArray), mxCELL_CLASS},
+        {typeof(MLStruct), mxSTRUCT_CLASS},
+        {typeof(MLObject), mxOBJECT_CLASS},
+        {typeof(MLChar), mxCHAR_CLASS},
+        {typeof(MLDouble), mxDOUBLE_CLASS},
+        {typeof(MLSingle), mxSINGLE_CLASS},
+        {typeof(MLInt8), mxINT8_CLASS},
+        {typeof(MLUInt8), mxUINT8_CLASS},
+        {typeof(MLInt16), mxINT16_CLASS},
+        {typeof(MLUInt16), mxUINT16_CLASS},
+        {typeof(MLInt32), mxINT32_CLASS},
+        {typeof(MLUInt32), mxUINT32_CLASS},
+        {typeof(MLComplex), mxDOUBLE_CLASS},
+        {typeof(MLUnknown), 0}};
+    }
+
     public class MATFileReader
     {
         BinaryReader _reader;
@@ -13,43 +80,9 @@ namespace MATFile
         public string HeaderString { get { return _headerString; } }
         MLVariables mlv = new MLVariables();
 
-        //CONSTANTS
-        const int miINT8 = 1;
-        const int miUINT8 = 2;
-        const int miINT16 = 3;
-        const int miUINT16 = 4;
-        const int miINT32 = 5;
-        const int miUINT32 = 6;
-        const int miSINGLE = 7;
-        const int miDOUBLE = 9;
-        const int miINT64 = 12;
-        const int miUINT64 = 13;
-        const int miMATRIX = 14;
-        const int miCOMPRESSED = 15;
-        const int miUTF8 = 16;
-        const int miUTF16 = 17;
-        const int miUTF32 = 18;
-        static int[] miSizes = { 0, 1, 1, 2, 2, 4, 4, 4, 0, 8, 0, 0, 8, 8, 0, 0, 1, 2, 4 };
-
-        const int mxCELL_CLASS = 1;
-        const int mxSTRUCT_CLASS = 2;
-        const int mxOBJECT_CLASS = 3;
-        const int mxCHAR_CLASS = 4;
-        const int mxSPARSE_CLASS = 5;
-        const int mxDOUBLE_CLASS = 6;
-        const int mxSINGLE_CLASS = 7;
-        const int mxINT8_CLASS = 8;
-        const int mxUINT8_CLASS = 9;
-        const int mxINT16_CLASS = 10;
-        const int mxUINT16_CLASS = 11;
-        const int mxINT32_CLASS = 12;
-        const int mxUINT32_CLASS = 13;
-        const int mxINT64_CLASS = 14;
-        const int mxUINT64_CLASS = 15;
-        static int[] mxSizes = { 0, 0, 0, 0, 0, 0, 8, 4, 1, 1, 2, 2, 4, 4, 8, 8 };
 
         /// <summary>
-        /// Describe a MAT MATLAB file for reading
+        /// Describe a MAT MATLAB file for reading; check header
         /// See https://www.mathworks.com/help/pdf_doc/matlab/matfile_format.pdf
         /// </summary>
         /// <param name="reader">Stream containing the MAT file</param>
@@ -82,7 +115,7 @@ namespace MATFile
             {
                 IMLType t = parseCompoundDataType(out name); //should be array type or compressed
                 if (!(t is MLUnknown)) //ignore unknown types
-                    mlv.Assign(name, t);
+                    mlv[name] = t;
             }
             return mlv;
         }
@@ -97,58 +130,58 @@ namespace MATFile
             int type;
             int tagLength = readTag(out type, out length);
             if (length == 0) return null;
-            int count = length / miSizes[type];
+            int count = length / MATConstants.miSizes[type];
             length += tagLength;
             switch (type)
             {
-                case miINT8: //INT8
+                case MATConstants.miINT8: //INT8
                     sbyte[] V1 = new sbyte[count];
                     for (int i = 0; i < count; i++) V1[i] = _reader.ReadSByte();
                     alignStream(ref length);
                     return V1;
 
-                case miUINT8: //UINT8
+                case MATConstants.miUINT8: //UINT8
                     byte[] V2 = _reader.ReadBytes(count);
                     alignStream(ref length);
                     return V2;
 
-                case miINT16: //INT16
+                case MATConstants.miINT16: //INT16
                     short[] V3 = new short[count];
                     for (int i = 0; i < count; i++) V3[i] = _reader.ReadInt16();
                     alignStream(ref length);
                     return V3;
 
-                case miUINT16: //UINT16
+                case MATConstants.miUINT16: //UINT16
                     ushort[] V4 = new ushort[count];
                     for (int i = 0; i < count; i++) V4[i] = _reader.ReadUInt16();
                     alignStream(ref length);
                     return V4;
 
-                case miINT32: //INT32
+                case MATConstants.miINT32: //INT32
                     int[] V5 = new int[count];
                     for (int i = 0; i < count; i++) V5[i] = _reader.ReadInt32();
                     alignStream(ref length);
                     return V5;
 
-                case miUINT32: //UINT32
+                case MATConstants.miUINT32: //UINT32
                     uint[] V6 = new uint[count];
                     for (int i = 0; i < count; i++) V6[i] = _reader.ReadUInt32();
                     alignStream(ref length);
                     return V6;
 
-                case miSINGLE: //SINGLE
+                case MATConstants.miSINGLE: //SINGLE
                     float[] V7 = new float[count];
                     for (int i = 0; i < count; i++) V7[i] = _reader.ReadSingle();
                     alignStream(ref length);
                     return V7;
 
-                case miDOUBLE: //DOUBLE
+                case MATConstants.miDOUBLE: //DOUBLE
                     double[] V8 = new double[count];
                     for (int i = 0; i < count; i++) V8[i] = _reader.ReadDouble();
                     alignStream(ref length);
                     return V8;
-                    
-                case miUTF8:
+
+                case MATConstants.miUTF8:
                     byte[] bytes = _reader.ReadBytes(count);
                     Decoder e = Encoding.UTF8.GetDecoder();
                     char[] c = new char[count];
@@ -157,13 +190,13 @@ namespace MATFile
                     for (int i = 0; i < p; i++) chars[i] = c[i];
                     alignStream(ref length);
                     return chars;
-                    
-                case miUTF16:
+
+                case MATConstants.miUTF16:
                     chars = _reader.ReadChars(count);
                     alignStream(ref length);
                     return chars;
 
-                case miUTF32:
+                case MATConstants.miUTF32:
                 default:
                     throw new NotImplementedException("In MATFileReader: Unimplemented simple data type (" +
                         type.ToString("0") + ")");
@@ -184,10 +217,10 @@ namespace MATFile
             }
             switch (type)
             {
-                case miMATRIX: //MATRIX
+                case MATConstants.miMATRIX: //MATRIX
                     return parseArrayDataElement(length, out name);
 
-                case miCOMPRESSED: //COMPRESSED
+                case MATConstants.miCOMPRESSED: //COMPRESSED
                     MemoryStream ms = new MemoryStream(_reader.ReadBytes(length));
                     ushort hdr = (ushort)((ms.ReadByte() << 8) + ms.ReadByte()); //have to skip the first two bytes!
                     if ((hdr & 0xFF20) != 0x7800 || hdr % 31 != 0) //check valid header bytes
@@ -223,7 +256,7 @@ namespace MATFile
             byte _class = (byte)(arrayFlags[0] & 0x000000FF); //Array Class
             byte _flag = (byte)((arrayFlags[0] & 0x0000FF00) >> 8); //Flags
             remainingLength -= lt;
-            if (_class < mxCELL_CLASS || _class > mxUINT64_CLASS)
+            if (_class < MATConstants.mxCELL_CLASS || _class > MATConstants.mxUINT64_CLASS)
             {
                 MLUnknown unk = new MLUnknown();
                 unk.ClassID = _class;
@@ -246,7 +279,7 @@ namespace MATFile
                 name = new string(t);
             }
 
-            if (_class >= mxDOUBLE_CLASS && _class <= mxUINT32_CLASS) //numeric array
+            if (_class >= MATConstants.mxDOUBLE_CLASS && _class <= MATConstants.mxUINT32_CLASS) //numeric array
             {
                 bool complex = (_flag & 0x08) != 0;
                 dynamic re =
@@ -262,12 +295,12 @@ namespace MATFile
             else //non-numeric "array"
                 switch (_class)
                 {
-                    case mxCHAR_CLASS:
+                    case MATConstants.mxCHAR_CLASS:
                         char[] charBuffer = readText(expectedSize);
                         if (charBuffer == null) return new MLString("");
                         return new MLString(charBuffer, dimensionsArray);
 
-                    case mxCELL_CLASS:
+                    case MATConstants.mxCELL_CLASS:
                         MLCellArray cellArray = new MLCellArray(dimensionsArray);
                         if (expectedSize == 0) return cellArray;
                         int[] indices = new int[cellArray.NDimensions];
@@ -279,7 +312,7 @@ namespace MATFile
                         }
                         return cellArray;
 
-                    case mxSTRUCT_CLASS:
+                    case MATConstants.mxSTRUCT_CLASS:
                         //establish dimensionality of the structure
                         MLStruct newStruct = new MLStruct(dimensionsArray);
 
@@ -319,7 +352,7 @@ namespace MATFile
                         }
                         return newStruct;
 
-                    case mxOBJECT_CLASS:
+                    case MATConstants.mxOBJECT_CLASS:
                         string className;
                         nameBuffer = (sbyte[])parseSimpleDataType(out lt);
                         charBuffer = new char[nameBuffer.Length];
@@ -362,7 +395,7 @@ namespace MATFile
                         }
                         return obj;
 
-                    case mxSPARSE_CLASS:
+                    case MATConstants.mxSPARSE_CLASS:
                     default:
                         MLUnknown unk = new MLUnknown();
                         unk.ClassID = _class;
@@ -451,103 +484,103 @@ namespace MATFile
             int intype;
             int length;
             int tagLength = readTag(out intype, out length);
-            if (miSizes[intype] == 0 || length / miSizes[intype] != expectedSize)
+            if (MATConstants.miSizes[intype] == 0 || length / MATConstants.miSizes[intype] != expectedSize)
                 throw new Exception("In readNumerciArray: invalid data type or mismatched data and array sizes");
             length += tagLength;
             IMLType output = null;
             switch (_class)
             {
-                case mxDOUBLE_CLASS:
+                case MATConstants.mxDOUBLE_CLASS:
                     if (expectedSize != 0)
                     {
                         double[] doubleArray = new double[expectedSize];
                         for (int i = 0; i < expectedSize; i++)
                             doubleArray[i] = (double)readBinaryType(intype);
-                        output = MLDouble.CreateMLArray(doubleArray, dimensionsArray);
+                        output = MLDouble.CreateMLArray(doubleArray, dimensionsArray, false);
                     }
                     else
                         output = new MLArray<MLDouble>(0);
                     break;
 
-                case mxSINGLE_CLASS:
+                case MATConstants.mxSINGLE_CLASS:
                     if (expectedSize != 0)
                     {
                         float[] singleArray = new float[expectedSize];
                         for (int i = 0; i < expectedSize; i++)
                             singleArray[i] = (float)readBinaryType(intype);
-                        output = MLSingle.CreateMLArray(singleArray, dimensionsArray);
+                        output = MLSingle.CreateMLArray(singleArray, dimensionsArray, false);
                     }
                     else
                         output = new MLArray<MLSingle>(0);
                     break;
 
-                case mxINT32_CLASS:
+                case MATConstants.mxINT32_CLASS:
                     if (expectedSize != 0)
                     {
                         int[] int32Array = new int[expectedSize];
                         for (int i = 0; i < expectedSize; i++)
                             int32Array[i] = (int)readBinaryType(intype);
-                        output = MLInt32.CreateMLArray(int32Array, dimensionsArray);
+                        output = MLInt32.CreateMLArray(int32Array, dimensionsArray, false);
                     }
                     else
                         output = new MLArray<MLInt32>(0);
                     break;
 
-                case mxUINT32_CLASS:
+                case MATConstants.mxUINT32_CLASS:
                     if (expectedSize != 0)
                     {
                         uint[] uint32Array = new uint[expectedSize];
                         for (int i = 0; i < expectedSize; i++)
                             uint32Array[i] = (uint)readBinaryType(intype);
-                        output = MLUInt32.CreateMLArray(uint32Array, dimensionsArray);
+                        output = MLUInt32.CreateMLArray(uint32Array, dimensionsArray, false);
                     }
                     else
                         output = new MLArray<MLUInt32>(0);
                     break;
 
-                case mxINT16_CLASS:
+                case MATConstants.mxINT16_CLASS:
                     if (expectedSize != 0)
                     {
                         short[] int16Array = new short[expectedSize];
                         for (int i = 0; i < expectedSize; i++)
                             int16Array[i] = (short)readBinaryType(intype);
-                        output = MLInt16.CreateMLArray(int16Array, dimensionsArray);
+                        output = MLInt16.CreateMLArray(int16Array, dimensionsArray, false);
                     }
                     else
                         output = new MLArray<MLInt16>(0);
                     break;
 
-                case mxUINT16_CLASS:
+                case MATConstants.mxUINT16_CLASS:
                     if (expectedSize != 0)
                     {
                         ushort[] uint16Array = new ushort[expectedSize];
                         for (int i = 0; i < expectedSize; i++)
                             uint16Array[i] = (ushort)readBinaryType(intype);
-                        output =MLUInt16.CreateMLArray(uint16Array, dimensionsArray);
+                        output = MLUInt16.CreateMLArray(uint16Array, dimensionsArray, false);
                     }
                     else
                         output = new MLArray<MLUInt16>(0);
                     break;
 
-                case mxINT8_CLASS:
+                case MATConstants.mxINT8_CLASS:
                     if (expectedSize != 0)
                     {
                         sbyte[] int8Array = new sbyte[expectedSize];
                         for (int i = 0; i < expectedSize; i++)
                             int8Array[i] = (sbyte)readBinaryType(intype);
-                        output =MLInt8.CreateMLArray(int8Array, dimensionsArray);
+                        output = MLInt8.CreateMLArray(int8Array, dimensionsArray, false);
                     }
                     else
                         output = new MLArray<MLInt8>(0);
                     break;
 
-                case mxUINT8_CLASS:
+                case MATConstants.mxUINT8_CLASS:
                     if (expectedSize != 0)
                     {
                         byte[] uint8Array = new byte[expectedSize];
                         for (int i = 0; i < expectedSize; i++)
                             uint8Array[i] = (byte)readBinaryType(intype);
-                        output = MLUInt8.CreateMLArray(uint8Array, dimensionsArray);
+                        output = MLUInt8.CreateMLArray(uint8Array, dimensionsArray, false);
                     }
                     else
                         output = new MLArray<MLUInt8>(0);
@@ -561,32 +594,288 @@ namespace MATFile
         {
             switch (inClass)
             {
-                case miDOUBLE:
+                case MATConstants.miDOUBLE:
                     return _reader.ReadDouble();
 
-                case miSINGLE:
+                case MATConstants.miSINGLE:
                     return _reader.ReadSingle();
 
-                case miINT32:
+                case MATConstants.miINT32:
                     return _reader.ReadInt32();
 
-                case miUINT32:
+                case MATConstants.miUINT32:
                     return _reader.ReadUInt32();
 
-                case miINT16:
+                case MATConstants.miINT16:
                     return _reader.ReadInt16();
 
-                case miUINT16:
+                case MATConstants.miUINT16:
                     return _reader.ReadUInt16();
 
-                case miINT8:
+                case MATConstants.miINT8:
                     return _reader.ReadSByte();
 
-                case miUINT8:
+                case MATConstants.miUINT8:
                     return _reader.ReadByte();
 
             }
             return null;
+        }
+    }
+
+    public class MATFileWriter
+    {
+        BinaryWriter _writer;
+
+        MLVariables _mlv;
+
+        public MATFileWriter(Stream writer, MLVariables mlv)
+        {
+            if (!writer.CanWrite)
+                throw new IOException("In MATFileWriter: MAT file stream not writeable");
+            _writer = new BinaryWriter(writer, Encoding.UTF8);
+            string d = "MATLAB 5.0, Platform: " + 
+                Environment.GetEnvironmentVariable("OS", EnvironmentVariableTarget.Machine) +
+                ", Created on: " + DateTime.Now.ToString("R");
+            char[] ch = d.ToCharArray(); //must do it this way to avoid having first byte be string length
+            _writer.Write(ch);
+            _writer.BaseStream.Position = 124;
+            _writer.Write((short)0x0100);
+            _writer.Write((short)0x4D49);
+            _mlv = mlv;
+        }
+
+        public void WriteAllVariables()
+        {
+
+        }
+
+        public void Write(string variableName)
+        {
+            IMLType var = _mlv[variableName];
+            writeVariable(var, 128L);
+        }
+
+        private int writeVariable(IMLType var, long start)
+        {
+            if (var == null)
+            {
+                return NullArray(start);
+            }
+
+            if (!var.IsMLArray) //if not Array, wrap in one
+            {
+                MLDimensioned V = ((IMLArrayable)var).ArrayWrap();
+                V[0] = var;
+                string name = _mlv.LookupVariableName(var);
+                _mlv[name] = V; //temporarily change variable name
+                int l = writeVariable(V, start);
+                _mlv[name] = var; //restore name
+                return l;
+            }
+
+            MLDimensioned v = (MLDimensioned)var;
+
+            if (v.Length == 0)
+                return NullArray(start);
+
+            start = AdjustBoundary(start); //make sure on 8-byte boundary
+            _writer.BaseStream.Seek(start, SeekOrigin.Begin);
+
+            //Tag
+            _writer.Write(MATConstants.miMATRIX);
+            long lengthPosition = _writer.BaseStream.Position;
+            _writer.Write(0);
+            int length = 8;
+
+            //Array flags
+            _writer.Write(MATConstants.miUINT32);
+            _writer.Write(8U);
+            Type t = ((dynamic)var).elementType;
+            int mxClass = MATConstants.mxMap[t];
+            int flags = 0x00;
+            if (t == typeof(MLComplex)) flags = 0x08;
+            _writer.Write(flags << 8 | mxClass);
+            _writer.Write(0U);
+            length += 16;
+
+            //Dimensions array
+            _writer.Write(MATConstants.miUINT32);
+            int n = v.NDimensions;
+            int k = n % 2;
+            _writer.Write(4 * n);
+            for (int i = 0; i < n; i++)
+                _writer.Write(v.Dimension(i));
+            if (k == 1) _writer.Write(0); //alignment
+            length += 8 + 4 * (n + k);
+
+            //Array name
+            string vName = _mlv.LookupVariableName(var);
+            length += writeName(vName);
+
+            //Class name
+            if (mxClass == MATConstants.mxOBJECT_CLASS)
+            {
+                length += writeName(((MLObject)v[0]).ClassName);
+            }
+
+            //Field names
+            if (mxClass == MATConstants.mxSTRUCT_CLASS ||
+                mxClass == MATConstants.mxOBJECT_CLASS)
+            {
+                //Field name length
+                string[] fieldNames = ((MLFieldDictionary)var).FieldNames;
+                _writer.Write(0x00040000 | MATConstants.miINT32);
+                int fieldNameLength = 32; //Apparently this is fixed value by MATLAB
+                _writer.Write(fieldNameLength);
+                //Total length of field name dictionary
+                _writer.Write(MATConstants.miINT32);
+                _writer.Write(fieldNameLength * fieldNames.Length);
+                foreach (string name in fieldNames)
+                {
+                    int l = name.Length;
+                    _writer.Write(name.ToCharArray());
+                    _writer.BaseStream.Seek(fieldNameLength - l, SeekOrigin.Current);
+                }
+                length += 16 + fieldNameLength * fieldNames.Length;
+            }
+
+
+            //IScalar
+            if (mxClass >= MATConstants.mxDOUBLE_CLASS || mxClass == MATConstants.mxCHAR_CLASS)
+            {
+                if ((flags & 0x08) == 0) //not MLComplex
+                {
+                    int[] I = new int[v.NDimensions];
+
+                    int l = (int)v.Length;
+                    int m = MATConstants.miMap[t];
+                    _writer.Write(m);
+                    m = l * MATConstants.miSizes[m];
+                    _writer.Write(m);
+
+                    dynamic x;
+                    for (int i = 0; i < l; i++)
+                    {
+                        x = v[I];
+                        _writer.Write(x);
+                        v.IncrementIndex(I, false);
+                    }
+                    k = m == 0 ? 0 : 7 - (m - 1) % 8;
+                    for (int i = 0; i < k; i++)
+                        _writer.Write((byte)0);
+                    length += 8 + m + k;
+                }
+                else //MLComplex
+                {
+                    int l = (int)v.Length;
+                    int m = l * MATConstants.miSizes[MATConstants.miDOUBLE];
+
+                    //Real parts
+                    _writer.Write(MATConstants.miDOUBLE);
+                    _writer.Write(m);
+                    int[] I = new int[v.NDimensions];
+                    for (int i = 0; i < l; i++)
+                    {
+                        double x = ((MLComplex)v[I]).Value.Real;
+                        _writer.Write(x);
+                        v.IncrementIndex(I, false);
+                    }
+
+                    //Imaginary parts
+                    _writer.Write(MATConstants.miDOUBLE);
+                    _writer.Write(m);
+                    I = new int[v.NDimensions];
+                    for (int i = 0; i < l; i++)
+                    {
+                        double x = ((MLComplex)v[I]).Value.Imaginary;
+                        _writer.Write(x);
+                        v.IncrementIndex(I, false);
+                    }
+                    length += 16 + m + m;
+                }
+            }
+            //MLCellArray
+            else if (mxClass == MATConstants.mxCELL_CLASS)
+            {
+                int[] I = new int[v.NDimensions];
+                for (int i = 0; i < v.Length; i++)
+                {
+                    length += writeVariable(v[I], start + length);
+                    v.IncrementIndex(I, false);
+                }
+            }
+            //MLFieldDictionary
+            else if (mxClass == MATConstants.mxSTRUCT_CLASS ||
+                mxClass == MATConstants.mxOBJECT_CLASS)
+            {
+                MLFieldDictionary fd = (MLFieldDictionary)var;
+                string[] fieldNames = fd.FieldNames;
+                foreach (string name in fieldNames)
+                {
+                    int[] I = new int[fd.NDimensions];
+                    for (int i = 0; i < fd.Length; i++)
+                    {
+                        length += writeVariable(fd[name, I], start + length);
+                        fd.IncrementIndex(I, false);
+                    }
+                }
+            }
+
+            k = length % 8;
+            _writer.BaseStream.Seek(lengthPosition, SeekOrigin.Begin);
+            _writer.Write(length + k - 8);
+            return length + k;
+        }
+
+        private long AdjustBoundary(long v)
+        {
+            return ((v + 7) >> 3) << 3;
+        }
+
+        private int NullArray(long start)
+        {
+            _writer.BaseStream.Seek(AdjustBoundary(start), SeekOrigin.Begin);
+            _writer.Write(MATConstants.miMATRIX);
+            _writer.Write(48);
+            _writer.Write(MATConstants.miUINT32);
+            _writer.Write(8);
+            _writer.Write((uint)MATConstants.mxDOUBLE_CLASS);
+            _writer.Write(0);
+            _writer.Write(MATConstants.miINT32);
+            _writer.Write(8);
+            _writer.Write(0);
+            _writer.Write(0);
+            _writer.Write(MATConstants.miINT8);
+            _writer.Write(0);
+            _writer.Write(MATConstants.miDOUBLE);
+            _writer.Write(0);
+            return 56;
+        }
+
+        private int writeName(string vName)
+        {
+            int l = vName.Length;
+            if (l <= 4)
+            {
+                _writer.Write(l << 16 | MATConstants.miINT8);
+                for (int i = 0; i < l; i++)
+                    _writer.Write(vName[i]);
+                for (int i = l; i < 4; i++)
+                    _writer.Write((byte)0);
+                return 8;
+            }
+            else
+            {
+                int k = 7 - (l - 1) % 8; //assure alignment
+                _writer.Write(MATConstants.miINT8);
+                _writer.Write(l);
+                for (int i = 0; i < l; i++)
+                    _writer.Write(vName[i]);
+                for (int i = 0; i < k; i++)
+                    _writer.Write((byte)0);
+                return 8 + l + k;
+            }
         }
     }
 }

@@ -12,7 +12,7 @@ namespace CCILibraryTest
     public class ChannelSelectionDialogTest
     {
         [TestMethod]
-        public void TestMethod1()
+        public void ChannelSelectionDialogTest1()
         {
             BDFEDFFileReader bdf = new BDFEDFFileReader(new FileStream("../../Test files/HeaderOnly.bdf", FileMode.Open, FileAccess.Read));
             ElectrodeInputFileStream etr = new ElectrodeInputFileStream(new FileStream("../../Test files/HeaderOnly.etr", FileMode.Open, FileAccess.Read));
@@ -36,16 +36,19 @@ namespace CCILibraryTest
                 dialog = new BDFChannelSelectionDialog(dialog.SelectedChannels, etr);
                 ret = (bool)dialog.ShowDialog();
                 Console.WriteLine(ret ? "Updated" : "Unchanged");
-                foreach (ChannelDescription cd in dialog.SelectedChannels)
+                ChannelSelection sc = dialog.SelectedChannels;
+                foreach (ChannelDescription cd in sc)
                 {
                     if (cd.Selected)
                         Console.WriteLine("Name = {0}; Type = {1}; EEG = {2}", cd.Name, cd.Type, cd.EEG);
                 }
+                Console.Write("Total: B={0}, AE={1}, EEG={2}, NonAE={3}", sc.BDFTotal, sc.AETotal, sc.EEGTotal, sc.NonAETotal);
+                Console.Write("Selected: B={0}, AE={1}, EEG={2}, NonAE={3}", sc.BDFSelected, sc.AESelected, sc.EEGSelected, sc.NonAESelected);
             }
         }
 
         [TestMethod]
-        public void TestMethod2()
+        public void ChannelSelectionDialogTest2()
         {
             BDFEDFFileReader bdf = new BDFEDFFileReader(new FileStream("../../Test files/HeaderOnly.bdf", FileMode.Open, FileAccess.Read));
             BDFChannelSelectionDialog dialog = new BDFChannelSelectionDialog(bdf);

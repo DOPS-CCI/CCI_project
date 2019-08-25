@@ -71,4 +71,53 @@ namespace CCILibraryTest
             }
         }
     }
+
+    [TestClass]
+    public class MATFileWriterTest
+    {
+        const string directory = @"../../Test files";
+
+        [TestMethod]
+        public void MATFileWriterUnitTest()
+        {
+            MATFileReader mfr = new MATFileReader(
+                new FileStream(System.IO.Path.Combine(directory, "testMultiVar.mat"), FileMode.Open, FileAccess.Read));
+            MLVariables mlv = mfr.ReadAllVariables();
+            MATFileWriter mfw = new MATFileWriter(
+                new FileStream(System.IO.Path.Combine(directory, "TestOutputFile1.mat"), FileMode.Create, FileAccess.Write),
+                mlv);
+            mfw.Write("longname");
+
+            mfw = new MATFileWriter(
+                new FileStream(System.IO.Path.Combine(directory, "TestOutputFile2.mat"), FileMode.Create, FileAccess.Write),
+                mlv);
+            mfw.Write("B");
+
+            mfw = new MATFileWriter(
+                new FileStream(System.IO.Path.Combine(directory, "TestOutputFile3.mat"), FileMode.Create, FileAccess.Write),
+                mlv);
+            mfw.Write("str");
+
+            mfw = new MATFileWriter(
+                new FileStream(System.IO.Path.Combine(directory, "TestOutputFile4.mat"), FileMode.Create, FileAccess.Write),
+                mlv);
+            mfw.Write("A");
+
+            mfr = new MATFileReader(
+                new FileStream(System.IO.Path.Combine(directory, "testCell.mat"), FileMode.Open, FileAccess.Read));
+            mlv = mfr.ReadAllVariables();
+            mfw = new MATFileWriter(
+                            new FileStream(System.IO.Path.Combine(directory, "TestOutputFile5.mat"), FileMode.Create, FileAccess.Write),
+                            mlv);
+            mfw.Write("Dcell");
+
+            mfr = new MATFileReader(
+                new FileStream(System.IO.Path.Combine(directory, "testComplex.mat"), FileMode.Open, FileAccess.Read));
+            mlv = mfr.ReadAllVariables();
+            mfw = new MATFileWriter(
+                            new FileStream(System.IO.Path.Combine(directory, "TestOutputFile6.mat"), FileMode.Create, FileAccess.Write),
+                            mlv);
+            mfw.Write("a");
+        }
+    }
 }

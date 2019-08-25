@@ -16,7 +16,10 @@ namespace MLLibrary
         bool IsMLArray { get; }
     }
 
-    public interface IMLArrayable : IMLType { } //Marker for items that can be array form: all but array itself
+    public interface IMLArrayable : IMLType //Marker for items that can be array form: all but array itself
+    {
+        MLDimensioned ArrayWrap();
+    }
 
     #region MLDimensioned
     public abstract class MLDimensioned : IMLType
@@ -61,7 +64,7 @@ namespace MLLibrary
             if (indices == null) return 0;
             if (indices.Length == 1) return (long)indices[0]; //just return index if singleton
             if (indices.Length != _nDim)
-                throw new IndexOutOfRangeException("In MLDimensioned: incorrect number of indices");
+                throw new IndexOutOfRangeException("In MLDimensioned.CalculateIndex: incorrect number of indices");
             long j = 0;
             for (int i = 0; i < _nDim; i++)
             {
@@ -69,7 +72,7 @@ namespace MLLibrary
                 if (k >= 0 && k < _dimensions[i]) j += k * (rowMajor ? _RMfactors[i] : _CMfactors[i]);
                 else
                     throw new IndexOutOfRangeException(
-                        String.Format("In MLDimensioned: index number {0:0} out of range: {1:0}",
+                        String.Format("In MLDimensioned.CalculateIndex: index number {0:0} out of range: {1:0}",
                         i + 1, k));
             }
             return j;
@@ -147,6 +150,7 @@ namespace MLLibrary
                 (arrayType == null ? ")" : (bool)arrayType ? "]" : "}");
         }
 
+        public abstract Type elementType { get; }
         public abstract string VariableType { get; }
     }
     #endregion
@@ -174,6 +178,13 @@ namespace MLLibrary
         {
             get { return array[i]; }
             set { array[i] = (T)value; }
+        }
+
+        public override Type elementType { get { return typeof(T); } }
+
+        public static MLArray<T> WrapSingleton(T singleton)
+        {
+            return new MLArray<T>(new T[] { singleton }, new int[] { 1, 1 });
         }
 
         /// <summary>
@@ -247,7 +258,6 @@ namespace MLLibrary
         public override string ToString()
         {
             if (_length == 0) return "[ ]"; //empty array
-            if (_length == 1) return array[0].ToString(); //ignore scalar wrapper
             int[] index = new int[_nDim];
             int[] d = this.Dimensions;
             StringBuilder sb = new StringBuilder("("); //Lead with the size of the array
@@ -297,6 +307,13 @@ namespace MLLibrary
             _cells = new IMLType[_length];
         }
 
+        public MLDimensioned ArrayWrap()
+        {
+            MLArray<MLCellArray> v = new MLArray<MLCellArray>(1, 1);
+            v[0] = this;
+            return v;
+        }
+
         public override string ToString()
         {
             if (_cells == null || _length == 0) return "{ }";
@@ -321,8 +338,14 @@ namespace MLLibrary
 
         public override bool IsMLArray
         {
-            get { return false; }
+            get { return true; }
         }
+
+        public override Type elementType
+        {
+            get { return typeof(MLCellArray); }
+        }
+
         public override string VariableType
         {
             get { return "CELL"; }
@@ -330,28 +353,28 @@ namespace MLLibrary
     }
     #endregion
 
-    #region IMLFieldlDictionary
-    public interface IMLFieldDictionary: IMLArrayable
+    #region MLFieldlDictionary
+    public abstract class MLFieldDictionary: MLDimensioned
     {
-        string[] FieldNames { get; }
+        public abstract string[] FieldNames { get; }
 
-        IMLType this[string fieldName, params int[] index] {get; set;}
+        public abstract IMLType this[string fieldName, params int[] index] {get; set;}
 
-        IMLType this[string fieldName, long index] { get; set; }
+        public abstract IMLType this[string fieldName, long index] { get; set; }
 
-        void AddField(string fieldName, IMLType v);
+        public abstract void AddField(string fieldName, IMLType v);
     }
     #endregion
 
     #region MLStruct
-    public class MLStruct : MLDimensioned, IMLFieldDictionary
+    public class MLStruct : MLFieldDictionary
     {
         Dictionary<string, MLCellArray> fields = new Dictionary<string, MLCellArray>();
 
         /// <summary>
         /// Returns array of all field names in this MLStruct
         /// </summary>
-        public string[] FieldNames
+        public override string[] FieldNames
         {
             get
             {
@@ -361,7 +384,7 @@ namespace MLLibrary
             }
         }
 
-        public IMLType this[string fieldName, params int[] index]
+        public override IMLType this[string fieldName, params int[] index]
         {
             get
             {
@@ -381,7 +404,7 @@ namespace MLLibrary
             }
         }
 
-        public IMLType this[string fieldName, long index]
+        public override IMLType this[string fieldName, long index]
         {
             get
             {
@@ -458,7 +481,7 @@ namespace MLLibrary
             }
         }
 
-        public void AddField(string fieldName, IMLType v)
+        public override void AddField(string fieldName, IMLType v)
         {
             if(fields.ContainsKey(fieldName))
                 throw new ArgumentException("In MLStruct.AddField(string,IMLType): fieldName aready present");
@@ -488,9 +511,13 @@ namespace MLLibrary
 
         public override bool IsMLArray
         {
-            get { return false; }
+            get { return true; }
         }
 
+        public override Type elementType
+        {
+            get { return typeof(MLStruct); }
+        }
         public override string VariableType
         {
             get { return "STRUCT"; }
@@ -521,7 +548,7 @@ namespace MLLibrary
     #endregion
 
     #region MLObject
-    public class MLObject : MLDimensioned, IMLFieldDictionary
+    public class MLObject : MLFieldDictionary
     {
         public readonly string ClassName;
 
@@ -530,7 +557,7 @@ namespace MLLibrary
         /// <summary>
         /// Returns array of all field names for this MLStruct
         /// </summary>
-        public string[] FieldNames
+        public override string[] FieldNames
         {
             get
             {
@@ -550,7 +577,7 @@ namespace MLLibrary
             }
         }
 
-        public IMLType this[string propertyName, params int[] index]
+        public override IMLType this[string propertyName, params int[] index]
         {
             get
             {
@@ -570,7 +597,7 @@ namespace MLLibrary
             }
         }
 
-        public IMLType this[string propertyName, long index]
+        public override IMLType this[string propertyName, long index]
         {
             get
             {
@@ -621,7 +648,7 @@ namespace MLLibrary
             return newCells;
         }
 
-        public void AddField(string propertyName, IMLType v)
+        public override void AddField(string propertyName, IMLType v)
         {
             if (properties.ContainsKey(propertyName))
                 throw new ArgumentException("In MLStruct.AddField(string,IMLType): fieldName aready present");
@@ -681,7 +708,12 @@ namespace MLLibrary
 
         public override bool IsMLArray
         {
-            get { return false; }
+            get { return true; }
+        }
+
+        public override Type elementType
+        {
+            get { return typeof(MLObject); }
         }
 
         public override string VariableType
@@ -954,6 +986,8 @@ namespace MLLibrary
     public interface IMLNumeric : IMLScalar
     {
         double ToDouble();
+        int ToInteger();
+        long ToLong();
     }
 
     public struct MLChar : IMLScalar
@@ -977,6 +1011,11 @@ namespace MLLibrary
             for (int i = 0; i < s.Length; i++)
                 c[i] = new MLChar(s[i]);
             return c;
+        }
+
+        public MLDimensioned ArrayWrap()
+        {
+            return MLArray<MLChar>.WrapSingleton(this);
         }
 
         public bool IsMLArray { get { return false; } }
@@ -1005,17 +1044,24 @@ namespace MLLibrary
         public static explicit operator double(MLInt8 v) { return (double)v.Value; }
         public static explicit operator float(MLInt8 v) { return (float)v.Value; }
         public double ToDouble() { return Value; }
+        public int ToInteger() { return Value; }
+        public long ToLong() { return Value; }
 
-        public static MLArray<MLInt8> CreateMLArray(sbyte[] array, params int[] dims)
+        public static MLArray<MLInt8> CreateMLArray(sbyte[] array, int[] dims, bool rowMajor = true)
         {
             MLArray<MLInt8> t = new MLArray<MLInt8>(dims);
             int[] index = new int[t._nDim];
             for (int i = 0; i < t.Length; i++)
             {
                 t[index] = (MLInt8)array[i];
-                t.IncrementIndex(index);
+                t.IncrementIndex(index, rowMajor);
             }
             return t;
+        }
+
+        public MLDimensioned ArrayWrap()
+        {
+            return MLArray<MLInt8>.WrapSingleton(this);
         }
 
         public override string ToString()
@@ -1044,17 +1090,24 @@ namespace MLLibrary
         public static explicit operator double(MLUInt8 v) { return (double)v.Value; }
         public static explicit operator float(MLUInt8 v) { return (float)v.Value; }
         public double ToDouble() { return Value; }
+        public int ToInteger() { return Value; }
+        public long ToLong() { return Value; }
 
-        public static MLArray<MLUInt8> CreateMLArray(byte[] array, params int[] dims)
+        public static MLArray<MLUInt8> CreateMLArray(byte[] array, int[] dims, bool rowMajor = true)
         {
             MLArray<MLUInt8> t = new MLArray<MLUInt8>(dims);
             int[] index = new int[t._nDim];
             for (int i = 0; i < t.Length; i++)
             {
                 t[index] = (MLUInt8)array[i];
-                t.IncrementIndex(index);
+                t.IncrementIndex(index, rowMajor);
             }
             return t;
+        }
+
+        public MLDimensioned ArrayWrap()
+        {
+            return MLArray<MLUInt8>.WrapSingleton(this);
         }
 
         public override string ToString()
@@ -1082,17 +1135,24 @@ namespace MLLibrary
         public static explicit operator double(MLInt16 v) { return (double)v.Value; }
         public static explicit operator float(MLInt16 v) { return (float)v.Value; }
         public double ToDouble() { return Value; }
+        public int ToInteger() { return Value; }
+        public long ToLong() { return Value; }
 
-        public static MLArray<MLInt16> CreateMLArray(short[] array, params int[] dims)
+        public static MLArray<MLInt16> CreateMLArray(short[] array, int[] dims, bool rowMajor = true)
         {
             MLArray<MLInt16> t = new MLArray<MLInt16>(dims);
             int[] index = new int[t._nDim];
             for (int i = 0; i < t.Length; i++)
             {
                 t[index] = (MLInt16)array[i];
-                t.IncrementIndex(index);
+                t.IncrementIndex(index, rowMajor);
             }
             return t;
+        }
+
+        public MLDimensioned ArrayWrap()
+        {
+            return MLArray<MLInt16>.WrapSingleton(this);
         }
 
         public override string ToString()
@@ -1120,17 +1180,24 @@ namespace MLLibrary
         public static explicit operator double(MLUInt16 v) { return (double)v.Value; }
         public static explicit operator float(MLUInt16 v) { return (float)v.Value; }
         public double ToDouble() { return Value; }
+        public int ToInteger() { return Value; }
+        public long ToLong() { return Value; }
 
-        public static MLArray<MLUInt16> CreateMLArray(ushort[] array, params int[] dims)
+        public static MLArray<MLUInt16> CreateMLArray(ushort[] array, int[] dims, bool rowMajor = true)
         {
             MLArray<MLUInt16> t = new MLArray<MLUInt16>(dims);
             int[] index = new int[t._nDim];
             for (int i = 0; i < t.Length; i++)
             {
                 t[index] = (MLUInt16)array[i];
-                t.IncrementIndex(index);
+                t.IncrementIndex(index, rowMajor);
             }
             return t;
+        }
+
+        public MLDimensioned ArrayWrap()
+        {
+            return MLArray<MLUInt16>.WrapSingleton(this);
         }
 
         public override string ToString()
@@ -1157,17 +1224,24 @@ namespace MLLibrary
         public static explicit operator double(MLInt32 v) { return (double)v.Value; }
         public static explicit operator float(MLInt32 v) { return (float)v.Value; }
         public double ToDouble() { return Value; }
+        public int ToInteger() { return Value; }
+        public long ToLong() { return Value; }
 
-        public static MLArray<MLInt32> CreateMLArray(int[] array, params int[] dims)
+        public static MLArray<MLInt32> CreateMLArray(int[] array, int[] dims, bool rowMajor = true)
         {
             MLArray<MLInt32> t = new MLArray<MLInt32>(dims);
             int[] index = new int[t._nDim];
             for (int i = 0; i < t.Length; i++)
             {
                 t[index] = (MLInt32)array[i];
-                t.IncrementIndex(index);
+                t.IncrementIndex(index, rowMajor);
             }
             return t;
+        }
+
+        public MLDimensioned ArrayWrap()
+        {
+            return MLArray<MLInt32>.WrapSingleton(this);
         }
 
         public override string ToString()
@@ -1194,17 +1268,24 @@ namespace MLLibrary
         public static explicit operator double(MLUInt32 v) { return (double)v.Value; }
         public static explicit operator float(MLUInt32 v) { return (float)v.Value; }
         public double ToDouble() { return Value; }
+        public int ToInteger() { return (int)Value; }
+        public long ToLong() { return (long)Value; }
 
-        public static MLArray<MLUInt32> CreateMLArray(uint[] array, params int[] dims)
+        public static MLArray<MLUInt32> CreateMLArray(uint[] array, int[] dims, bool rowMajor = true)
         {
             MLArray<MLUInt32> t = new MLArray<MLUInt32>(dims);
             int[] index = new int[t._nDim];
             for (int i = 0; i < t.Length; i++)
             {
                 t[index] = (MLUInt32)array[i];
-                t.IncrementIndex(index);
+                t.IncrementIndex(index, rowMajor);
             }
             return t;
+        }
+
+        public MLDimensioned ArrayWrap()
+        {
+            return MLArray<MLUInt32>.WrapSingleton(this);
         }
 
         public override string ToString()
@@ -1230,17 +1311,24 @@ namespace MLLibrary
         public static implicit operator MLSingle(float v) { return new MLSingle(v); }
         public static explicit operator double(MLSingle v) { return (double)v.Value; }
         public double ToDouble() { return Value; }
+        public int ToInteger() { return (int)Value; }
+        public long ToLong() { return (long)Value; }
 
-        public static MLArray<MLSingle> CreateMLArray(float[] array, params int[] dims)
+        public static MLArray<MLSingle> CreateMLArray(float[] array, int[] dims, bool rowMajor = true)
         {
             MLArray<MLSingle> t = new MLArray<MLSingle>(dims);
             int[] index = new int[t._nDim];
             for (int i = 0; i < t.Length; i++)
             {
                 t[index] = (MLSingle)array[i];
-                t.IncrementIndex(index);
+                t.IncrementIndex(index, rowMajor);
             }
             return t;
+        }
+
+        public MLDimensioned ArrayWrap()
+        {
+            return MLArray<MLSingle>.WrapSingleton(this);
         }
 
         public override string ToString()
@@ -1265,17 +1353,24 @@ namespace MLLibrary
         public static implicit operator double(MLDouble v) { return v.Value; }
         public static implicit operator MLDouble(double v) { return new MLDouble(v); }
         public double ToDouble() { return Value; }
+        public int ToInteger() { return (int)Value; }
+        public long ToLong() { return (long)Value; }
 
-        public static MLArray<MLDouble> CreateMLArray(double[] array, params int[] dims)
+        public static MLArray<MLDouble> CreateMLArray(double[] array, int[] dims, bool rowMajor = true)
         {
             MLArray<MLDouble> t = new MLArray<MLDouble>(dims);
             int[] index = new int[t._nDim];
             for (int i = 0; i < t.Length; i++)
             {
                 t[index] = (MLDouble)array[i];
-                t.IncrementIndex(index);
+                t.IncrementIndex(index, rowMajor);
             }
             return t;
+        }
+
+        public MLDimensioned ArrayWrap()
+        {
+            return MLArray<MLDouble>.WrapSingleton(this);
         }
 
         public override string ToString()
@@ -1307,17 +1402,24 @@ namespace MLLibrary
         /// </summary>
         /// <returns>Magnitude of Value</returns>
         public double ToDouble() { return Value.Magnitude; }
+        public int ToInteger() { return (int)Value.Magnitude; }
+        public long ToLong() { return (long)Value.Magnitude; }
 
-        public static MLArray<MLComplex> CreateMLArray(Complex[] array, params int[] dims)
+        public static MLArray<MLComplex> CreateMLArray(Complex[] array, int[] dims, bool rowMajor = true)
         {
             MLArray<MLComplex> t = new MLArray<MLComplex>(dims);
             int[] index = new int[t._nDim];
             for (int i = 0; i < t.Length; i++)
             {
                 t[index] = (MLComplex)array[i];
-                t.IncrementIndex(index);
+                t.IncrementIndex(index, rowMajor);
             }
             return t;
+        }
+
+        public MLDimensioned ArrayWrap()
+        {
+            return MLArray<MLComplex>.WrapSingleton(this);
         }
 
         public override string ToString()
@@ -1345,6 +1447,11 @@ namespace MLLibrary
         {
             return "Unknown MLType: ClassID = " + ClassID.ToString("0") +
                 ", Length = " + Length.ToString("0") + "; " + exception.Message;
+        }
+
+        public MLDimensioned ArrayWrap()
+        {
+            return MLArray<MLUnknown>.WrapSingleton(this);
         }
 
         public bool IsMLArray { get { return false; } }
@@ -1385,10 +1492,10 @@ namespace MLLibrary
         {
             m = ok.Match(selector);
             if (!m.Success)
-                throw new ArgumentException("In MLSelector.Select: invalid selector string: " + selector);
+                throw new ArgumentException("In MLSelector.SelectV: invalid selector string: " + selector);
             if (!mlv.TryGetValue(m.Groups["varName"].Value, out t0))
                 throw new ArgumentException(
-                    "In MLSelector.Select: unassigned selector variable name: " + m.Groups["varName"].Value);
+                    "In MLSelector.SelectV: unassigned selector variable name: " + m.Groups["varName"].Value);
 
             MatchCollection matches = sel.Matches(selector);
 
@@ -1428,18 +1535,19 @@ namespace MLLibrary
                     }
                     else if (m.Groups["Struct"].Value != "")
                     {
+                        MLCellArray t = null;
                         if (t0.VariableType == "STRUCT")
-                        {
-                            MLCellArray t = ((MLStruct)t0).GetMLCellArrayForFieldName(m.Groups["fieldName"].Value);
-                            if (I == null)
-                                if (t.Length == 1) //unwrap singleton
-                                    t0 = t[0];
-                                else
-                                    t0 = t; //otherwise use full CellArray
-                            else
-                                t0 = t[I];
-                        }
+                            t = ((MLStruct)t0).GetMLCellArrayForFieldName(m.Groups["fieldName"].Value);
+                        else if (t0.VariableType == "OBJECT")
+                            t = ((MLObject)t0).GetMLCellArrayForPropertyName(m.Groups["fieldName"].Value);
                         else signalError();
+                        if (I == null)
+                            if (t.Length == 1) //unwrap singleton
+                                t0 = t[0];
+                            else
+                                t0 = t; //otherwise use full CellArray
+                        else
+                            t0 = t[I];
                     }
                     else signalError();
                 }
@@ -1479,6 +1587,124 @@ namespace MLLibrary
     /// </summary>
     public class MLVariables : Dictionary<string, IMLType>
     {
+        static Regex ok = new Regex(@"^(?'varName'[a-zA-Z]\w*)((\((%|\d+)(,(%|\d+))*\))?\.[a-zA-Z]\w*|\{(%|\d+)(,(%|\d+))*\})*(\((%|\d+)(,(%|\d+))*\))?$");
+        static Regex sel = new Regex(
+            @"(^[a-zA-Z]\w*)|(?'Struct'(\((?'index'(%|\d+)(,(%|\d+))*)\))?\.(?'fieldName'[a-zA-Z]\w*))|(?'Cell'{(?'index'(%|\d+)(,(%|\d+))*)})|((?'Array'\((?'index'(%|\d+)(,(%|\d+))*)\))$)");
+
+        static int[] I; //current index array
+        static IMLType t0; //reference to current IMLType in selection descent
+        static Match m; //current match subsegment
+
+        /// <summary>
+        /// Obtain reference to any item within a MATLAB type
+        /// Selector string:
+        /// 1. Begins name of a variable in the MLVariables dictionary
+        /// 2. Array indices are enclosed within () with dimensions separated by commas
+        /// 3. Subfields in a structure are separated by periods, following any indexing
+        /// 4. Cell indices are enclosed in {}, separated by commas
+        /// </summary>
+        /// <param name="selector">Selector string</param>
+        /// <param name="indices">
+        /// Numeric indices to be applied to Selector string; these are marked
+        /// by % in the string and referenced in order
+        /// </param>
+        /// <returns>Referenced relative IMLType</returns>
+        public IMLType SelectV(string selector, params int[] indices)
+        {
+            m = ok.Match(selector);
+            if (!m.Success)
+                throw new ArgumentException("In MLSelector.SelectV: invalid selector string: " + selector);
+            if (!TryGetValue(m.Groups["varName"].Value, out t0))
+                throw new ArgumentException(
+                    "In MLSelector.SelectV: unassigned selector variable name: " + m.Groups["varName"].Value);
+
+            MatchCollection matches = sel.Matches(selector);
+
+            int indexPlace = 0; //keep track of where we are in the index value list
+
+            //apply segments
+            try
+            {
+                for (int i = 1; i < matches.Count; i++)
+                {
+                    m = matches[i];
+
+                    //set up index for this level
+                    string indexStr = m.Groups["index"].Value;
+                    if (indexStr != "")
+                    {
+                        string[] si = indexStr.Split(',');
+                        //handle dimension calculation first
+                        int nIndices = si.Length; // = number of indices
+                        I = new int[nIndices]; //index into array/cell to calculate
+                        for (int j = 0; j < nIndices; j++)
+                            if (si[j] == "%")
+                                I[j] = indices[indexPlace++];
+                            else
+                                I[j] = Convert.ToInt32(si[j]);
+                    }
+                    else I = null;
+
+                    if (m.Groups["Array"].Value != "") //MLArray
+                    {
+                        if (t0.VariableType == "STRING") t0 = ((MLString)t0)[I];
+                        else if (t0.IsMLArray) t0 = ((MLDimensioned)t0)[I];
+                        else signalError();
+                    }
+
+                    else if (m.Groups["Cell"].Value != "")
+                    {
+                        if (t0.VariableType == "CELL") t0 = ((MLCellArray)t0)[I];
+                        else signalError();
+                    }
+
+                    else if (m.Groups["Struct"].Value != "")
+                    {
+                        MLCellArray t = null;
+                        if (t0.VariableType == "STRUCT")
+                            t = ((MLStruct)t0).GetMLCellArrayForFieldName(m.Groups["fieldName"].Value);
+                        else if (t0.VariableType == "OBJECT")
+                            t = ((MLObject)t0).GetMLCellArrayForPropertyName(m.Groups["fieldName"].Value);
+                        else signalError();
+                        if (I == null)
+                            if (t.Length == 1) //unwrap singleton
+                                t0 = t[0];
+                            else
+                                t0 = t; //otherwise use full CellArray
+                        else
+                            t0 = t[I];
+                    }
+
+                    else signalError();
+                }
+            }
+            catch(Exception e)
+            {
+                signalError(e.Message);
+            }
+            if (t0 is MLDimensioned && ((MLDimensioned)t0).Length == 1) //unwrap singleton
+                return ((MLDimensioned)t0)[0];
+            return t0; //otherwise leave as array
+        }
+
+        private static void signalError(string mess = "")
+        {
+            string match = m.Value;
+            int p = 0;
+            int p1;
+            int n = 0;
+            StringBuilder sb = new StringBuilder();
+            while (p < match.Length && (p1 = match.IndexOf('%', p)) != -1)
+            {
+                sb.Append(match.Substring(p, p1 - p) + I[n++].ToString("0"));
+                p = p1 + 1;
+            }
+            if (p < match.Length) sb.Append(match.Substring(p));
+            throw new Exception(
+                String.Format("In MLSelector.Select: error matching selector {0} against variable type {1}; {2}",
+                sb.ToString(), t0.VariableType, mess));
+        }
+
         public IMLType Assign(string VarName, string selector, params int[] indices)
         {
             IMLType t = this.SelectV(selector, indices);
@@ -1486,11 +1712,90 @@ namespace MLLibrary
             return t;
         }
 
-        public IMLType Assign(string VarName, IMLType v)
+        public IMLType Insert(IMLType v, string selector, params int[] indices)
         {
-            if (!ContainsKey(VarName)) Add(VarName, v);
-            else this[VarName] = v;
-            return v;
+            m = ok.Match(selector);
+            if (!m.Success)
+                throw new ArgumentException("In MLSelector.Assign: invalid selector string: " + selector);
+            if (!TryGetValue(m.Groups["varName"].Value, out t0))
+                throw new ArgumentException(
+                    "In MLSelector.Assign: unassigned selector variable name: " + m.Groups["varName"].Value);
+
+            MatchCollection matches = sel.Matches(selector);
+
+            int indexPlace = 0; //keep track of where we are in the index value list
+
+            //apply segments
+            try
+            {
+                for (int i = 1; i < matches.Count; i++)
+                {
+                    m = matches[i];
+                    string indexStr = m.Groups["index"].Value;
+                    if (indexStr != "")
+                    {
+                        string[] si = indexStr.Split(',');
+                        //handle dimension calculation first
+                        int nIndices = si.Length; // = number of indices
+                        I = new int[nIndices]; //index into array/cell to calculate
+                        for (int j = 0; j < nIndices; j++)
+                            if (si[j] == "%")
+                                I[j] = indices[indexPlace++];
+                            else
+                                I[j] = Convert.ToInt32(si[j]);
+                    }
+                    else I = null;
+
+                    if (m.Groups["Array"].Value != "") //MLArray
+                    {
+                        if (t0.VariableType == "STRING")
+                        {
+                            if (v.VariableType == "STRING") ;
+                        }
+                        else if (t0.IsMLArray)
+                        {
+                            t0 = ((MLDimensioned)t0)[I];
+                        }
+                        else signalError();
+                    }
+                    else if (m.Groups["Cell"].Value != "")
+                    {
+                        if (t0.VariableType == "CELL") t0 = ((MLCellArray)t0)[I];
+                        else signalError();
+                    }
+                    else if (m.Groups["Struct"].Value != "")
+                    {
+                        MLCellArray t = null;
+                        if (t0.VariableType == "STRUCT")
+                            t = ((MLStruct)t0).GetMLCellArrayForFieldName(m.Groups["fieldName"].Value);
+                        else if (t0.VariableType == "OBJECT")
+                            t = ((MLObject)t0).GetMLCellArrayForPropertyName(m.Groups["fieldName"].Value);
+                        else signalError();
+                        if (I == null)
+                            if (t.Length == 1) //unwrap singleton
+                                t0 = t[0];
+                            else
+                                t0 = t; //otherwise use full CellArray
+                        else
+                            t0 = t[I];
+                    }
+                    else signalError();
+                }
+            }
+            catch(Exception e)
+            {
+                signalError(e.Message);
+            }
+            if (t0 is MLDimensioned && ((MLDimensioned)t0).Length == 1) //unwrap singleton
+                return ((MLDimensioned)t0)[0];
+            return t0; //otherwise leave as array
+        }
+
+        public string LookupVariableName(IMLType var)
+        {
+            foreach (KeyValuePair<string, IMLType> kvp in this)
+                if (kvp.Value == var) return kvp.Key;
+            return "";
         }
     }
 }
