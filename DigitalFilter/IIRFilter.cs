@@ -14,7 +14,7 @@ namespace DigitalFilter
     /// The IIR digital filter is now ready for use by calling a Filter method.
     /// Step 2 may be skipped, but if an invalid filter design is attemped an exception is thrown
     /// </summary>
-    public abstract class IIRFilter: DFilter
+    public abstract class IIRFilter: DFilter, IFilterDesign
     {
         protected Cascade c;
 
@@ -23,6 +23,7 @@ namespace DigitalFilter
 
         public abstract bool ValidateDesign();
         public abstract void CompleteDesign();
+        public abstract Tuple<string, int, double[]> Description { get; }
 
         protected bool? _hp = null;
         public bool? HP
@@ -134,7 +135,7 @@ namespace DigitalFilter
         }
     }
 
-    public class Butterworth : IIRFilter, IFilterDesign
+    public class Butterworth : IIRFilter
     {
         double omegaP;
         double omegaS;
@@ -244,9 +245,20 @@ namespace DigitalFilter
             this.c = new Cascade(f);
             designCompleted = true;
         }
+
+        public override Tuple<string, int, double[]> Description
+        {
+            get
+            {
+                if (!designCompleted) throw new Exception("In Butterworth.Description.get: design not completed");
+                Tuple<string, int, double[]> t = new Tuple<string, int, double[]>(
+                    "Butterworth " + (((bool)_hp) ? "HP" : "LP"), _np, new double[] { _passF });
+                return t;
+            }
+        }
     }
 
-    public class Chebyshev : IIRFilter, IFilterDesign
+    public class Chebyshev : IIRFilter
     {
         protected double omegaC;
         protected double omegaS;
@@ -445,6 +457,17 @@ namespace DigitalFilter
             designCompleted = true;
         }
 
+        public override Tuple<string, int, double[]> Description
+        {
+            get
+            {
+                if (!designCompleted) throw new Exception("In Chebyshev.Description.get: design not completed");
+                Tuple<string, int, double[]> t = new Tuple<string, int, double[]>(
+                    "Chebyshev2 " + (((bool)_hp) ? "HP" : "LP"), _np, new double[] { _passF, _stopF, _stopA });
+                return t;
+            }
+        }
+
         protected int getDesignCode()
         {
             int v = -1;
@@ -456,7 +479,7 @@ namespace DigitalFilter
         }
     }
 
-    public class ChebyshevHP : Chebyshev, IFilterDesign
+    public class ChebyshevHP : Chebyshev
     {
         public ChebyshevHP()
         {
@@ -496,7 +519,7 @@ namespace DigitalFilter
         }
     }
 
-    public class ChebyshevLP : Chebyshev, IFilterDesign
+    public class ChebyshevLP : Chebyshev
     {
         public ChebyshevLP()
         {
@@ -536,7 +559,7 @@ namespace DigitalFilter
         }
     }
 
-    public class Elliptical : IIRFilter, IFilterDesign
+    public class Elliptical : IIRFilter
     {
         protected double omegaC;
         protected double omegaS;
@@ -876,6 +899,17 @@ namespace DigitalFilter
             return Math.Sqrt(16D * h * (1D + 4D * h * h) / Math.Pow(1D + 2D * h, 4));
         }
 
+        public override Tuple<string, int, double[]> Description
+        {
+            get
+            {
+                if (!designCompleted) throw new Exception("In Elliptic.Description.get: design not completed");
+                Tuple<string, int, double[]> t = new Tuple<string, int, double[]>(
+                    "Elliptic " + (((bool)_hp) ? "HP" : "LP"), _np, new double[] { _passF, _stopF, ActualStopA, Ripple });
+                return t;
+            }
+        }
+
         protected int getDesignCode()
         {
                 int v = -1;
@@ -928,7 +962,7 @@ namespace DigitalFilter
         }
     }
 
-    public class EllipticalLP : Elliptical, IFilterDesign
+    public class EllipticalLP : Elliptical
     {
         public EllipticalLP(double passF, double samplingRate)
         {
@@ -966,7 +1000,7 @@ namespace DigitalFilter
         }
     }
 
-    public class EllipticalHP : Elliptical, IFilterDesign
+    public class EllipticalHP : Elliptical
     {
         public EllipticalHP(double passF, double samplingRate)
         {
