@@ -16,14 +16,16 @@
     </Window.Resources>
     <StackPanel Orientation="Vertical">
         <TextBlock FontSize="20" FontWeight="Bold" HorizontalAlignment="Center">Channel Summary</TextBlock>
-        <Border BorderBrush="Black" BorderThickness="2" Margin="4" Width="334" CornerRadius="4">
+        <Border BorderBrush="Black" BorderThickness="2" Margin="4" Width="344" CornerRadius="4">
             <Grid HorizontalAlignment="Center" Margin="4" DataContext="{Binding}">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="154"/>
-                    <ColumnDefinition Width="80"/>
-                    <ColumnDefinition Width="80"/>
+                    <ColumnDefinition Width="184"/>
+                    <ColumnDefinition Width="72"/>
+                    <ColumnDefinition Width="72"/>
                 </Grid.ColumnDefinitions>
                 <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="*"/>
                     <RowDefinition Height="*"/>
                     <RowDefinition Height="*"/>
                     <RowDefinition Height="*"/>
@@ -39,15 +41,21 @@
                 <TextBlock Grid.Column="2" Grid.Row="0" FontWeight="Bold">Selected</TextBlock>
                 <TextBlock Grid.Column="0" Grid.Row="1" TextAlignment="Left" FontWeight="Bold">ETR locations</TextBlock>
                 <TextBlock Grid.Column="0" Grid.Row="2" TextAlignment="Left" FontWeight="Bold">BDF channels</TextBlock>
-                <TextBlock Grid.Column="0" Grid.Row="3" TextAlignment="Left" FontWeight="Bold">Located EEG signals</TextBlock>
-                <TextBlock Grid.Column="0" Grid.Row="4" TextAlignment="Left" FontWeight="Bold">Non-located signals</TextBlock>
+                <TextBlock Grid.Column="0" Grid.Row="3" TextAlignment="Left" FontWeight="Bold">Active Electrodes (AE)</TextBlock>
+                <TextBlock Grid.Column="0" Grid.Row="4" TextAlignment="Left" FontWeight="Bold">Located AE signals (EEG)</TextBlock>
+                <TextBlock Grid.Column="0" Grid.Row="5" TextAlignment="Left" FontWeight="Bold">Non-located AE</TextBlock>
+                <TextBlock Grid.Column="0" Grid.Row="6" TextAlignment="Left" FontWeight="Bold">Non-AE</TextBlock>
                 <TextBlock Grid.Column="1" Grid.Row="1" Name="ETRLocations"/>
                 <TextBlock Grid.Column="1" Grid.Row="2" Text="{Binding Path=BDFTotal, Mode=OneWay}"/>
-                <TextBlock Grid.Column="1" Grid.Row="3" Text="{Binding Path=EEGTotal, Mode=OneWay}"/>
-                <TextBlock Grid.Column="1" Grid.Row="4" Text="{Binding Path=NonTotal, Mode=OneWay}"/>
+                <TextBlock Grid.Column="1" Grid.Row="3" Text="{Binding Path=AETotal, Mode=OneWay}"/>
+                <TextBlock Grid.Column="1" Grid.Row="4" Text="{Binding Path=EEGTotal, Mode=OneWay}"/>
+                <TextBlock Grid.Column="1" Grid.Row="5" Text="{Binding Path=NonEEGTotal, Mode=OneWay}"/>
+                <TextBlock Grid.Column="1" Grid.Row="6" Text="{Binding Path=NonAETotal, Mode=OneWay}"/>
                 <TextBlock Grid.Column="2" Grid.Row="2" Text="{Binding Path=BDFSelected, Mode=OneWay}"/>
-                <TextBlock Grid.Column="2" Grid.Row="3" Text="{Binding Path=EEGSelected, Mode=OneWay}"/>
-                <TextBlock Grid.Column="2" Grid.Row="4" Text="{Binding Path=NonSelected, Mode=OneWay}"/>
+                <TextBlock Grid.Column="2" Grid.Row="3" Text="{Binding Path=AESelected, Mode=OneWay}"/>
+                <TextBlock Grid.Column="2" Grid.Row="4" Text="{Binding Path=EEGSelected, Mode=OneWay}"/>
+                <TextBlock Grid.Column="2" Grid.Row="5" Text="{Binding Path=NonEEGSelected, Mode=OneWay}"/>
+                <TextBlock Grid.Column="2" Grid.Row="6" Text="{Binding Path=NonAESelected, Mode=OneWay}"/>
             </Grid>
         </Border>
         <ScrollViewer HorizontalAlignment="Center" Height="500" Margin="8" Width="Auto">

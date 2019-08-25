@@ -1,6 +1,8 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
@@ -19,20 +21,18 @@ namespace BDFChannelSelection
         public ChannelSelection SelectedChannels;
         Dictionary<string, ElectrodeRecord> electrodeLocations = null;
 
-        public BDFChannelSelectionDialog(BDFEDFFileReader bdf, ElectrodeInputFileStream etr = null)
+        public BDFChannelSelectionDialog(BDFEDFFileReader bdf, ElectrodeInputFileStream etr = null, bool ignoreStatus = true)
         {
             if (etr != null)
                 electrodeLocations = etr.etrPositions;
-            int nChan = bdf.NumberOfChannels - (bdf.hasStatus ? 1 : 0);
+            int nChan = bdf.NumberOfChannels - (ignoreStatus && bdf.hasStatus ? 1 : 0); //ignore Status channel
             SelectedChannels = new ChannelSelection();
             for (int chan = 0; chan < nChan; chan++)
             {
-                ChannelDescription ch;
-                if (etr != null)
-                    ch = new ChannelDescription(bdf, chan, electrodeLocations.ContainsKey(bdf.channelLabel(chan)));
-                else
-                    ch = new ChannelDescription(bdf, chan, false);
-                SelectedChannels.Add(ch);
+                ElectrodeRecord record = null;
+                if (electrodeLocations != null)
+                    electrodeLocations.TryGetValue(bdf.channelLabel(chan), out record);
+                SelectedChannels.Add(new ChannelDescription(bdf, chan, record));
             }
             initializeDialog();
         }
@@ -43,7 +43,7 @@ namespace BDFChannelSelection
                 electrodeLocations = etr.etrPositions;
             oldChannels = chans;
             //make a copy, so we can undo any edits
-            SelectedChannels = new ChannelSelection();
+            SelectedChannels = new ChannelSelection(); SelectedChannels.Clear();
             foreach (ChannelDescription cd in chans)
             {
                 SelectedChannels.Add(new ChannelDescription(cd));
@@ -54,9 +54,6 @@ namespace BDFChannelSelection
 
         private void initializeDialog()
         {
-            SelectedChannels.BDFTotal = SelectedChannels.Count;
-            updateCounts();
-
             InitializeComponent();
 
             if (electrodeLocations != null)
@@ -72,34 +69,11 @@ namespace BDFChannelSelection
             DG.ItemsSource = SelectedChannels;
         }
 
-        private void updateCounts()
-        {
-            int __BDFSelected = 0;
-            int __EEGTotal = 0;
-            int __EEGSelected = 0;
-            foreach (ChannelDescription cd in SelectedChannels)
-            {
-                if (cd.EEG)
-                {
-                    __EEGTotal++;
-                    if (cd.Selected) __EEGSelected++;
-                }
-
-                if (cd.Selected) __BDFSelected++;
-            }
-            SelectedChannels.BDFSelected = __BDFSelected;
-            SelectedChannels.EEGTotal = __EEGTotal;
-            SelectedChannels.EEGSelected = __EEGSelected;
-            SelectedChannels.NonTotal = SelectedChannels.BDFTotal - __EEGTotal;
-            SelectedChannels.NonSelected = __BDFSelected - __EEGSelected;
-        }
-
         private void CheckBox_Click(object sender, RoutedEventArgs e)
         {
             ChannelDescription cd = (ChannelDescription)DG.SelectedCells[0].Item;
             //update output channel counts
             cd.Selected = (bool)((CheckBox)sender).IsChecked;
-            updateCounts();
         }
 
         private void Name_Edit_Begin(object sender, DataGridPreparingCellForEditEventArgs e)
@@ -111,7 +85,6 @@ namespace BDFChannelSelection
         private void DG_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
         {
             if (e.EditAction != DataGridEditAction.Commit) return; //new Commits only
-            if (electrodeLocations == null) return; //and only if there is a location list
 
             ChannelDescription cd = (ChannelDescription)e.Row.DataContext;
             if (cd.Type != "Active Electrode") return; //only need to check potential EEG channels
@@ -120,15 +93,22 @@ namespace BDFChannelSelection
             string newValue = ((TextBox)e.EditingElement).Text; //new Name
             foreach (ChannelDescription ch in SelectedChannels) //check it for duplicate EEG channel names
             {
-                if (ch.Type == "Active Electrode") //only check against active electrodes
+                if (cd != ch && ch.Type == "Active Electrode") //only check against active electrodes
                     if (ch.Name == newValue) //allow only unique AE names
                     {   //reset to old name & leave location status unchanged
                         DG.CancelEdit(DataGridEditingUnit.Cell);
                         return;
                     }
             }
-            cd.EEG = electrodeLocations.ContainsKey(newValue); //set potential new location status
-            updateCounts();
+            if (electrodeLocations == null) return; //only if there is a location list
+
+            cd.Name = newValue; //update electrode name, since it is unique
+            //Update electrode record
+            ElectrodeRecord record = null;
+            if (electrodeLocations.TryGetValue(newValue, out record)) cd.eRecord = record;
+            else cd.eRecord = null;
+
+            SelectedChannels.updateCounts();
         }
 
         private void Close_Click(object sender, RoutedEventArgs e)
@@ -146,56 +126,30 @@ namespace BDFChannelSelection
         {
             foreach (ChannelDescription cd in SelectedChannels)
                 cd.Selected = true;
-            SelectedChannels.BDFSelected = SelectedChannels.BDFTotal;
-            SelectedChannels.EEGSelected = SelectedChannels.EEGTotal;
-            SelectedChannels.NonSelected = SelectedChannels.NonTotal;
         }
 
         private void SelectNone_Click(object sender, RoutedEventArgs e)
         {
             foreach (ChannelDescription cd in SelectedChannels)
                 cd.Selected = false;
-            SelectedChannels.BDFSelected = SelectedChannels.EEGSelected = SelectedChannels.NonSelected = 0;
         }
 
         private void SelectAllEEG_Click(object sender, RoutedEventArgs e)
         {
             foreach (ChannelDescription cd in SelectedChannels)
                 cd.Selected = cd.EEG ? true : false;
-            SelectedChannels.BDFSelected = SelectedChannels.EEGSelected = SelectedChannels.EEGTotal;
-            SelectedChannels.NonSelected = 0;
         }
 
         private void SelectAllActiveElectrodes_Click(object sender, RoutedEventArgs e)
         {
-            int t = 0;
             foreach (ChannelDescription cd in SelectedChannels)
-                if (cd.Type == "Active Electrode")
-                {
-                    cd.Selected = true;
-                    t++;
-                }
-                else
-                    cd.Selected = false;
-            SelectedChannels.EEGSelected = SelectedChannels.EEGTotal;
-            SelectedChannels.BDFSelected = t;
-            SelectedChannels.NonSelected = t - SelectedChannels.EEGTotal;
+                cd.Selected = cd.IsAE;
         }
 
         private void SelectAllNonActiveElectrodes_Click(object sender, RoutedEventArgs e)
         {
-            int t = 0;
             foreach (ChannelDescription cd in SelectedChannels)
-                if (cd.Type != "Active Electrode")
-                {
-                    cd.Selected = true;
-                    t++;
-                }
-                else
-                    cd.Selected = false;
-            SelectedChannels.EEGSelected = 0;
-            SelectedChannels.BDFSelected = t;
-            SelectedChannels.NonSelected = t;
+                cd.Selected = !cd.IsAE;
         }
     }
 
@@ -227,16 +181,16 @@ namespace BDFChannelSelection
                 }
             }
         }
-        int _NonSelected = 0;
-        public int NonSelected
+        int _NonEEGSelected = 0;
+        public int NonEEGSelected
         {
-            get { return _NonSelected; }
+            get { return _NonEEGSelected; }
             set
             {
-                if (value != _NonSelected)
+                if (value != _NonEEGSelected)
                 {
-                    _NonSelected = value;
-                    NotifyPropertyChanged("NonSelected");
+                    _NonEEGSelected = value;
+                    NotifyPropertyChanged("NonEEGSelected");
                 }
             }
         }
@@ -246,11 +200,9 @@ namespace BDFChannelSelection
             get { return _BDFTotal; }
             set
             {
-                if (value != _BDFTotal)
-                {
-                    _BDFTotal = value;
-                    NotifyPropertyChanged("BDFTotal");
-                }
+                if (value == _BDFTotal) return;
+                _BDFTotal = value;
+                NotifyPropertyChanged("BDFTotal");
             }
         }
         int _EEGTotal = 0;
@@ -259,30 +211,202 @@ namespace BDFChannelSelection
             get { return _EEGTotal; }
             set
             {
-                if (value != _EEGTotal)
-                {
-                    _EEGTotal = value;
-                    NotifyPropertyChanged("EEGTotal");
-                }
+                if (value == _EEGTotal) return;
+                _EEGTotal = value;
+                NotifyPropertyChanged("EEGTotal");
             }
         }
-        int _NonTotal = 0;
-        public int NonTotal
+        int _NonEEGTotal = 0;
+        public int NonEEGTotal
         {
-            get { return _NonTotal; }
+            get { return _NonEEGTotal; }
             set
             {
-                if (value != _NonTotal)
-                {
-                    _NonTotal = value;
-                    NotifyPropertyChanged("NonTotal");
-                }
+                if (value == _NonEEGTotal) return;
+                _NonEEGTotal = value;
+                NotifyPropertyChanged("NonEEGTotal");
+            }
+        }
+        int _AETotal = 0;
+        public int AETotal
+        {
+            get { return _AETotal; }
+            set
+            {
+                if (value == _AETotal) return;
+                _AETotal = value;
+                NotifyPropertyChanged("AETotal");
+            }
+        }
+        int _AESelected = 0;
+        public int AESelected
+        {
+            get { return _AESelected; }
+            set
+            {
+                if (value == _AESelected) return;
+                _AESelected = value;
+                NotifyPropertyChanged("AESelected");
+            }
+        }
+        int _NonAETotal = 0;
+        public int NonAETotal
+        {
+            get { return _NonAETotal; }
+            set
+            {
+                if (value == _NonAETotal) return;
+                _NonAETotal = value;
+                NotifyPropertyChanged("NonAETotal");
+            }
+        }
+        int _NonAESelected = 0;
+        public int NonAESelected
+        {
+            get { return _NonAESelected; }
+            set
+            {
+                if (value == _NonAESelected) return;
+                _NonAESelected = value;
+                NotifyPropertyChanged("NonAESelected");
             }
         }
 
-        public ChannelSelection() : base() { }
+        public ChannelSelection() : base()
+        {
+            this.CollectionChanged += ChannelSelection_CollectionChanged;
+        }
 
-        public ChannelSelection(IEnumerable<ChannelDescription> chans) : base(chans) { }
+        public ChannelSelection(IEnumerable<ChannelDescription> chans)
+            : base(chans)
+        {
+            this.CollectionChanged += ChannelSelection_CollectionChanged;
+        }
+
+        protected override void InsertItem(int index, ChannelDescription item)
+        {
+            base.InsertItem(index, item);
+        }
+
+        public ChannelDescription Find(Predicate<ChannelDescription> p)
+        {
+            foreach (ChannelDescription cd in this) if (p(cd)) return cd;
+            return null;
+        }
+
+        internal void updateCounts()
+        {
+            int __BDFSelected = 0;
+            int __EEGTotal = 0;
+            int __EEGSelected = 0;
+            int __AETotal = 0;
+            int __AESelected = 0;
+            int __NonAETotal = 0;
+            int __NonAESelected = 0;
+
+            foreach (ChannelDescription cd in this)
+            {
+                if (cd.EEG)
+                {
+                    __EEGTotal++;
+                    if (cd.Selected) __EEGSelected++;
+                }
+                if (cd.IsAE)
+                {
+                    __AETotal++;
+                    if (cd.Selected) __AESelected++;
+                }
+                else
+                {
+                    __NonAETotal++;
+                    if (cd.Selected) __NonAESelected++;
+                }
+
+                if (cd.Selected) __BDFSelected++;
+            }
+            BDFSelected = __BDFSelected;
+            EEGTotal = __EEGTotal;
+            EEGSelected = __EEGSelected;
+            AETotal = __AETotal;
+            AESelected = __AESelected;
+            NonEEGTotal = __AETotal - __EEGTotal;
+            NonEEGSelected = __AESelected - __EEGSelected;
+            NonAETotal = __NonAETotal;
+            NonAESelected = __NonAESelected;
+        }
+
+        private void ChannelSelection_CollectionChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+        {
+            if (e.Action == NotifyCollectionChangedAction.Add)
+            {
+                IList added = e.NewItems;
+                foreach (ChannelDescription cd in added)
+                {
+                    cd.PropertyChanged+=cd_PropertyChanged;
+                    _BDFTotal++;
+                    if (cd.Selected) _BDFSelected++;
+                    if (cd.IsAE)
+                    {
+                        _AETotal++;
+                        if (cd.Selected) _AESelected++;
+                        if (cd.EEG) //Only AEs can be EEG
+                        {
+                            _EEGTotal++;
+                            if (cd.Selected) _EEGSelected++;
+                        }
+                        else
+                        {
+                            _NonEEGTotal++;
+                            if(cd.Selected) _NonEEGSelected++;
+                        }
+                    }
+                    else
+                    {
+                        _NonAETotal++;
+                        if(cd.Selected) _NonAESelected++;
+                    }
+                }
+            }
+            else if (e.Action == NotifyCollectionChangedAction.Remove)
+            {
+                IList<ChannelDescription> removed = (IList<ChannelDescription>)e.OldItems;
+                foreach (ChannelDescription cd in removed)
+                {
+                    _BDFTotal--;
+                    if (cd.Selected) _BDFSelected--;
+                    if (cd.IsAE)
+                    {
+                        _AETotal--;
+                        if (cd.Selected) _AESelected--;
+                        if (cd.EEG)
+                        {
+                            _EEGTotal--;
+                            if (cd.Selected) _EEGSelected--;
+                        }
+                        else
+                        {
+                            _NonEEGTotal--;
+                            if(cd.Selected) _NonEEGSelected--;
+                        }
+                    }
+                    else
+                    {
+                        _NonAETotal--;
+                        if(cd.Selected) _NonAESelected--;
+                    }
+                }
+            }
+            else if (e.Action == NotifyCollectionChangedAction.Replace) { updateCounts(); }
+            else if (e.Action == NotifyCollectionChangedAction.Reset) { updateCounts(); }
+        }
+
+        private void cd_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == "Selected")
+            {
+                updateCounts();
+            }
+        }
 
         protected override event PropertyChangedEventHandler PropertyChanged;
 
@@ -293,30 +417,27 @@ namespace BDFChannelSelection
                 PropertyChanged(this, new PropertyChangedEventArgs(propertyName));
             }
         }
-
     }
 
     public class ChannelDescription : INotifyPropertyChanged, IEditableObject
     {
-        struct channelData
+        internal struct channelData
         {
-            internal bool selected;
             internal int number;
             internal string name;
             internal string type;
-            internal bool eeg;
+            internal ElectrodeRecord _eRecord;
+            internal bool selected;
         }
-        channelData myCD;
+        internal channelData myCD;
         public bool Selected
         {
             get { return myCD.selected; }
             set
             {
-                if (myCD.selected != value)
-                {
-                    myCD.selected = value;
-                    NotifyPropertyChanged("Selected");
-                }
+                if (myCD.selected == value) return;
+                myCD.selected = value;
+                NotifyPropertyChanged("Selected");
             }
         }
         public int Number { get { return myCD.number; } }
@@ -325,33 +446,48 @@ namespace BDFChannelSelection
             get { return myCD.name; }
             set
             {
-                if (myCD.name != value)
-                {
-                    myCD.name = value;
-                    NotifyPropertyChanged("Name");
-                }
+                if (myCD.name == value) return;
+                myCD.name = value;
+                NotifyPropertyChanged("Name");
             }
         }
         public string Type { get { return myCD.type; } }
-        public bool EEG
-        {
-            get { return myCD.eeg; }
-            set {
-                if (myCD.eeg != value)
-                {
-                    myCD.eeg = value;
-                    NotifyPropertyChanged("EEG");
-                }
+        public ElectrodeRecord eRecord {
+            get { return myCD._eRecord; }
+            set
+            {
+                if (myCD._eRecord == value) return;
+                myCD._eRecord = value;
+                NotifyPropertyChanged("EEG"); //might be different
             }
         }
+        public bool EEG
+        {
+            get
+            {
+                if (myCD._eRecord == null) return false;
+                return myCD.name == myCD._eRecord.Name;
+            }
+        }
+        public bool IsAE { get { return myCD.type == "Active Electrode"; } }
 
-        public ChannelDescription(BDFEDFFileReader bdf, int chan, bool EEG)
+        public ChannelDescription(int chan, string name, string type,
+            ElectrodeRecord record = null, bool selected = true)
+        {
+            myCD.number = chan;
+            myCD.name = name;
+            myCD.type = type;
+            Selected = selected;
+            myCD._eRecord = record;
+        }
+
+        public ChannelDescription(BDFEDFFileReader bdf, int chan, ElectrodeRecord record)
         {
             myCD.number = chan;
             myCD.name = bdf.channelLabel(chan);
             myCD.type = bdf.transducer(chan);
             Selected = true;
-            myCD.eeg = EEG;
+            myCD._eRecord = record;
         }
 
         public ChannelDescription(ChannelDescription cd)
@@ -360,7 +496,7 @@ namespace BDFChannelSelection
             myCD.name = cd.Name;
             myCD.type = cd.Type;
             Selected = cd.Selected;
-            myCD.eeg = cd.EEG;
+            myCD._eRecord = cd.eRecord;
         }
 
         public event PropertyChangedEventHandler PropertyChanged;
