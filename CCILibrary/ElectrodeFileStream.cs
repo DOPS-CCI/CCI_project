@@ -120,9 +120,9 @@ namespace ElectrodeFileStream
 
         protected ElectrodeRecord(string name) { Name = name; } //create a new electrode record with name
 
-        public abstract void read(XmlReader xr, string nameSpace); //read in next electrode record from XML file
+        public abstract void read(XmlReader xr, string nameSpace = ""); //read in next electrode record from XML file
 
-        public abstract void write(ElectrodeOutputFileStream ofs, string nameSpace); //write an electrode record to XML file
+        public abstract void write(ElectrodeOutputFileStream ofs, string nameSpace = ""); //write an electrode record to XML file
 
         public abstract Point projectXY(); //project electrode coordinates to X-Y space (isomorphic to Phi-Theta space)
 
