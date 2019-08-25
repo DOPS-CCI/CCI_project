@@ -19,7 +19,7 @@
 }
 
 #application-block h2 {
-	color:Gold;
+	color:#1414c8;
 	font-size:2vw;
 	text-shadow:2px 2px 5px Gray;
 }
@@ -36,7 +36,7 @@
 
 #UG-link a {
 	text-decoration:underline;
-	color:blue;
+	color:#0000e8;
 }
 
 </style>
@@ -112,8 +112,13 @@
 <div id="application-block">
 <a href="publish/PreprocessDataset/publish.html" target="_blank">
   <h2>Preprocess RWNL dataset (PreprocessDataset)</h2>
-  <p>General preprocessing of RWNL dataset; provides two levels of decimation, before and after IIR filtering; channel selection and channel name and type editing; referencing including general linear referencing; surface Laplacian can be calculated on a surface interpolated by spherical harmonics or on a fitted sphere based on the measured electrode locations; select either general polyharmonic spline or Nunez technique; creates new RWNL dataset.</p>
+  <p>The PreprocessDataset (PD) application is intended to simplify and consolidate the early processing of physiological datasets acquired through the BioSemi system. The processing functions include simple channel selection and renaming, simple data decimation, global detrending of channel data, various referencing options, and IIR filtering of channel data. PD also can compute the surface Laplacian (SL) on interpolated (and smoothed) EEG data when electrode locations are known. PD accepts both RWNL complete datasets and &ldquo;naked&rdquo; BDF data. Application also creates an XML log file documenting processing performed on the dataset.</p>
 </a>
+    <div id="UG-link">
+      	<a href="publish/PreprocessDataset/User_guide.pdf" target="_blank">
+		<p style="text-align:right">User guide</p>
+	</a>
+    </div>
 </div>
 
 <div id="application-block">
@@ -123,6 +128,18 @@
 </a>
     <div id="UG-link">
       	<a href="publish/ConvertEEG2FM/User_guide.pdf" target="_blank">
+		<p style="text-align:right">User guide</p>
+	</a>
+    </div>
+</div>
+
+<div id="application-block">
+<a href="publish/EEGArtifactEditor/publish.html" target="_blank">
+  <h2>RWNL dataset artifact editor (EEGArtifactEditor)</h2>
+  <p>Adds Events to RWNL datasets, marking regions of artifact (or other notable feature) in the dataset via direct review of a display of the dataset (without display of any other Event structure). These generated Events (termed &ldquo;naked&rdquo; because there is no corresponding mark in the Status channel) can be used in various dataset conversion processes, just like any other Events, but are particularly used to exclude regions which contain artifact, using FileConverter or ASCConverter. Also permits the addition of documentary notes tagged to locations in the dataset.</p>
+</a>
+    <div id="UG-link">
+      	<a href="publish/EEGArtifactEditor/User_guide.pdf" target="_blank">
 		<p style="text-align:right">User guide</p>
 	</a>
     </div>
