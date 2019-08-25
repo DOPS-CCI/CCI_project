@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Numerics;
 using System.Text;
 using System.Text.RegularExpressions;
 using Event;
@@ -1089,26 +1090,56 @@ namespace BDFEDFFileStream
             record.write(writer);
         }
 
+        ///// <summary>
+        ///// Puts data into channel; with correction for gain and offset
+        ///// </summary>
+        ///// <param name="channel">Channel number</param>
+        ///// <param name="values">Array of samples for channel</param>
+        ///// <exception cref="BDFEDFException">Invalid channel number</exception>
+        //public void putChannel(int channel, double[] values)
+        //{
+        //    if (channel < 0 || channel >= header.numberChannels) throw new BDFEDFException("Invalid channel number (" + channel + ")");
+        //    double g = header.Gain(channel);
+        //    double o = header.Offset(channel);
+        //    for (int i = 0; i < header.numberSamples[channel]; i++)
+        //    {
+        //        try
+        //        {
+        //            record.channelData[channel][i] = Convert.ToInt32((values[i] - o) / g);
+        //        }
+        //        catch (OverflowException)
+        //        {
+        //            if ((values[i] > o) == (g > 0D))
+        //                record.channelData[channel][i] = dMax(channel);
+        //            else
+        //                record.channelData[channel][i] = dMin(channel);
+        //        }
+        //    }
+        //}
+
         /// <summary>
         /// Puts data into channel; with correction for gain and offset
         /// </summary>
         /// <param name="channel">Channel number</param>
         /// <param name="values">Array of samples for channel</param>
         /// <exception cref="BDFEDFException">Invalid channel number</exception>
-        public void putChannel(int channel, double[] values)
+        public void putChannel<T>(int channel, T[] values) where T : IConvertible
         {
             if (channel < 0 || channel >= header.numberChannels) throw new BDFEDFException("Invalid channel number (" + channel + ")");
             double g = header.Gain(channel);
             double o = header.Offset(channel);
             for (int i = 0; i < header.numberSamples[channel]; i++)
             {
+                double t = values[i].ToDouble(null);
                 try
                 {
-                    record.channelData[channel][i] = Convert.ToInt32((values[i] - o) / g);
+                    int s = Convert.ToInt32((t - o) / g);
+                    if (s > dMax(channel) || s < dMin(channel)) throw new OverflowException();
+                    record.channelData[channel][i] = s;
                 }
                 catch (OverflowException)
                 {
-                    if ((values[i] > o) == (g > 0D))
+                    if ((t > o) == (g > 0D))
                         record.channelData[channel][i] = dMax(channel);
                     else
                         record.channelData[channel][i] = dMin(channel);
