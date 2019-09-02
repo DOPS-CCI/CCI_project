@@ -13,7 +13,7 @@
                 <Setter Property="Padding" Value="0"/>
             </Style>
             <Style TargetType="TextBlock">
-                <Setter Property="Margin" Value="2"/>
+                <Setter Property="Margin" Value="2,0"/>
                 <Setter Property="VerticalAlignment" Value="Center"/>
             </Style>
             <Style TargetType="RadioButton">
@@ -23,7 +23,8 @@
             <Style TargetType="TextBox">
                 <Setter Property="Margin" Value="0"/>
                 <Setter Property="FontWeight" Value="Normal"/>
-                <Setter Property="HorizontalAlignment" Value="Center"/>
+                <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                <Setter Property="VerticalAlignment" Value="Center"/>
                 <Setter Property="VerticalContentAlignment" Value="Center"/>
                 <Setter Property="Height" Value="22"/>
             </Style>
@@ -55,15 +56,10 @@
                     <ColumnDefinition Width="190"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
-                <Grid Grid.Row="0" Grid.Column="0" Grid.RowSpan="3">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="*"/>
-                        <RowDefinition Height="*"/>
-                    </Grid.RowDefinitions>
-                    <Border Grid.RowSpan="2"/>
-                    <RadioButton Name="HighPass" Grid.Row="0" IsChecked="True" VerticalAlignment="Center" Click="Pass_Click">High pass</RadioButton>
-                    <RadioButton Grid.Row="1" VerticalAlignment="Center" Click="Pass_Click">Low pass</RadioButton>
-                </Grid>
+                <Border Grid.RowSpan="3"/>
+                <RadioButton Name="HighPass" Grid.Row="0" IsChecked="True" VerticalAlignment="Center" Margin="6,0,0,0" Click="Pass_Click">High pass</RadioButton>
+                <RadioButton Grid.Row="1" VerticalAlignment="Center" Margin="6,0,0,0" Click="Pass_Click">Low pass</RadioButton>
+                <RadioButton Name="ZFSpecial" Grid.Row="2" VerticalAlignment="Center" Margin="6,0,0,0" Click="Pass_Click">Special LP</RadioButton>
                 <Border Grid.Column="1" Grid.RowSpan="3"/>
                 <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Left">
                     <CheckBox Name="PassFCB" IsChecked="True" Click="PassFCB_Click">Pass band freq</CheckBox>
@@ -72,11 +68,11 @@
                 </StackPanel>
                 <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Left">
                     <CheckBox Name="RippleCB" IsChecked="True" Click="RippleCB_Click">Pass band ripple</CheckBox>
-                    <TextBox Name="Ripple" Width="40" TextChanged="CutoffRipple_TextChanged" IsEnabled="{Binding IsChecked, ElementName=RippleCB}">1</TextBox>
+                    <TextBox Name="Ripple" Width="40" TextChanged="Ripple_TextChanged" IsEnabled="{Binding IsChecked, ElementName=RippleCB}">1</TextBox>
                     <TextBlock>%</TextBlock>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" Grid.Row="2" Grid.Column="1" HorizontalAlignment="Left">
-                    <CheckBox Name="PolesCB" IsChecked="True" Click="PolesCB_Click">Number of poles</CheckBox>
+                    <CheckBox Name="PolesCB" IsChecked="True" Click="PolesCB_Click" Content="Number of poles"/>
                     <TextBox Name="Poles" Width="30" IsEnabled="{Binding IsChecked, ElementName=PolesCB}" TextChanged="Poles_TextChanged">2</TextBox>
                 </StackPanel>
                 <Border Grid.Column="2" Grid.RowSpan="3"/>
@@ -90,16 +86,80 @@
                     <TextBox Name="Attenuation" Width="40" TextChanged="Attenuation_TextChanged" IsEnabled="{Binding IsChecked, ElementName=StopACB}">40</TextBox>
                     <TextBlock>dB</TextBlock>
                 </StackPanel>
-                <StackPanel Orientation="Horizontal" Grid.Row="2" Grid.Column="2" Margin="4">
-                    <StackPanel Name="Actual" Orientation="Horizontal" HorizontalAlignment="Left" Visibility="Hidden" VerticalAlignment="Center">
+                <Grid Grid.Row="2" Grid.Column="2" Margin="4">
+                    <StackPanel Name="Actual" Orientation="Horizontal" Grid.Row="2" Grid.Column="2" Visibility="Hidden" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="2,0">
                         <TextBlock>Actual stop band atten =</TextBlock>
                         <TextBlock Name="AttenuationActual">40.0</TextBlock>
                         <TextBlock>dB</TextBlock>
                     </StackPanel>
-                    <Canvas Width="16" Height="16" HorizontalAlignment="Right" VerticalAlignment="Center">
-                        <Ellipse Name="Indicator" Width="12" Height="12" Fill="Green" Canvas.Top="2" Canvas.Left="6"/>
+                    <Canvas Width="16" Height="16" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="2">
+                        <Ellipse Name="Indicator" Width="12" Height="12" Fill="Green" Canvas.Top="2" Canvas.Left="2"/>
                     </Canvas>
-                </StackPanel>
+                </Grid>
+                    <StackPanel Name="First0SP" Orientation="Horizontal" Visibility="Hidden" VerticalAlignment="Center" HorizontalAlignment="Left">
+                        <TextBlock Text="First zero = " VerticalAlignment="Center"/>
+                        <TextBlock Name="First0"/>
+                        <TextBlock Text="Hz" HorizontalAlignment="Left"/>
+                    </StackPanel>
+                <Grid Name="ZFPanel" Grid.Column="1" Grid.Row="0" Grid.ColumnSpan="2" Grid.RowSpan="3" Background="White" Visibility="Hidden" IsVisibleChanged="ZFPanel_IsVisibleChanged">
+                    <Grid.Resources>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="VerticalAlignment" Value="Center"/>
+                            <Setter Property="Margin" Value="6,0,2,0"/>
+                        </Style>
+                    </Grid.Resources>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="26"/>
+                        <RowDefinition Height="24"/>
+                        <RowDefinition Height="26"/>
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="190"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Border Grid.RowSpan="3"/>
+                    <Border Grid.Column="1" Grid.RowSpan="3"/>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock>Zero gain frequency</TextBlock>
+                        <TextBox Name="ZFF" Width="36" TextChanged="ZFF_TextChanged">60</TextBox>
+                        <TextBlock Margin="2">Hz</TextBlock>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Grid.Row="1">
+                        <TextBlock>Pass band frequency</TextBlock>
+                        <TextBlock Name="ZFPassF" Margin="2">55.00</TextBlock>
+                        <TextBlock Margin="0">Hz</TextBlock>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Grid.Row="2">
+                        <TextBlock>Stop band frequency</TextBlock>
+                        <TextBlock Name="ZFStopF" Margin="2">58.50</TextBlock>
+                        <TextBlock Margin="0">Hz</TextBlock>
+                    </StackPanel>
+                    <Grid Grid.Column="1">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                            <TextBlock>Poles</TextBlock>
+                            <TextBox Name="ZFNP" Width="24" TextChanged="ZFNP_TextChanged">6</TextBox>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                            <TextBlock>Zero number</TextBlock>
+                            <TextBox Name="ZFNNull" Width="24" Margin="0,0,6,0" TextChanged="ZFNNull_TextChanged">1</TextBox>
+                        </StackPanel>
+                    </Grid>
+                    <StackPanel Orientation="Horizontal" Grid.Column="1" Grid.Row="1">
+                        <TextBlock>Pass band ripple</TextBlock>
+                        <TextBox Name="ZFRipple" Width="36" TextChanged="ZFRipple_TextChanged">1</TextBox>
+                        <TextBlock Margin="2">%</TextBlock>
+                    </StackPanel>
+                    <Grid Grid.Column="1" Grid.Row="2">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock>Stop band attenuation</TextBlock>
+                            <TextBox Name="ZFAttenS" Width="36" TextChanged="ZFAttenS_TextChanged">40</TextBox>
+                            <TextBlock Margin="2">dB</TextBlock>
+                        </StackPanel>
+                        <Canvas Width="16" Height="16" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,4,0">
+                            <Ellipse Name="ZFIndicator" Width="12" Height="12" Fill="Green" Canvas.Top="2" Canvas.Left="2"/>
+                        </Canvas>
+                    </Grid>
+                </Grid>
             </Grid>
         </GroupBox>
     </ListBoxItem>

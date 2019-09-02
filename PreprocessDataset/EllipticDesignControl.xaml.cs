@@ -48,56 +48,78 @@ namespace PreprocessDataset
             InitializeComponent();
 
             StopF.Text = filter.StopF.ToString("0.00");
+            ZFPanel.Visibility = Visibility.Hidden;
+            filter.ZeroF = 60;
+            filter.ZFDesign = false;
+            filter.NNull = 1;
         }
 
         public bool Validate(object o)
         {
-            if (!(bool)PolesCB.IsChecked)
+            if (filter.ZFDesign)
             {
-                Poles.Text = "";
-                filter.NP = 0;
+                if (filter.ValidateDesign())
+                {
+                    ZFPassF.Text = filter.PassF.ToString("0.00");
+                    ZFStopF.Text = filter.StopF.ToString("0.00");
+                    ZFIndicator.Fill = Brushes.Green;
+                }
+                else
+                {
+                    ZFPassF.Text = "**";
+                    ZFStopF.Text = "**";
+                    ZFIndicator.Fill = Brushes.Red;
+                }
             }
-            if (!(bool)PassFCB.IsChecked)
-            {
-                Cutoff.Text = "";
-                filter.PassF = double.NaN;
-            }
-            if (!(bool)RippleCB.IsChecked)
-            {
-                Ripple.Text = "";
-                filter.Ripple = double.NaN;
-            }
-            if (!(bool)StopACB.IsChecked)
-            {
-                Attenuation.Text = "";
-                filter.StopA = double.NaN;
-            }
-            if (!(bool)StopFCB.IsChecked)
-            {
-                StopF.Text = "";
-                filter.StopF = double.NaN;
-            }
-
-            Actual.Visibility = Visibility.Hidden;
-            if (filter.ValidateDesign())
+            else //standard HP or LP
             {
                 if (!(bool)PolesCB.IsChecked)
                 {
-                    if (filter.ActualStopA != double.NaN)
-                    {
-                        Poles.Text = filter.NP.ToString("0");
-                        Actual.Visibility = Visibility.Visible;
-                        AttenuationActual.Text = filter.ActualStopA.ToString("0.0");
-                    }
+                    Poles.Text = "";
+                    filter.NP = 0;
                 }
-                else if (!(bool)PassFCB.IsChecked) Cutoff.Text = filter.PassF.ToString("0.00");
-                else if (!(bool)RippleCB.IsChecked) Ripple.Text = (filter.Ripple * 100D).ToString("0.00");
-                else if (!(bool)StopACB.IsChecked) Attenuation.Text = filter.StopA.ToString("0.0");
-                else if (!(bool)StopFCB.IsChecked) StopF.Text = filter.StopF.ToString("0.00");
-                Indicator.Fill = Brushes.Green;
+                if (!(bool)PassFCB.IsChecked)
+                {
+                    Cutoff.Text = "";
+                    filter.PassF = double.NaN;
+                }
+                if (!(bool)RippleCB.IsChecked)
+                {
+                    Ripple.Text = "";
+                    filter.Ripple = double.NaN;
+                }
+                if (!(bool)StopACB.IsChecked)
+                {
+                    Attenuation.Text = "";
+                    filter.StopA = double.NaN;
+                }
+                if (!(bool)StopFCB.IsChecked)
+                {
+                    StopF.Text = "";
+                    filter.StopF = double.NaN;
+                }
+
+                Actual.Visibility = Visibility.Hidden;
+                if (filter.ValidateDesign())
+                {
+                    if (!(bool)PolesCB.IsChecked)
+                    {
+                        if (filter.ActualStopA != double.NaN)
+                        {
+                            Poles.Text = filter.NP.ToString("0");
+                            Actual.Visibility = Visibility.Visible;
+                            AttenuationActual.Text = filter.ActualStopA.ToString("0.0");
+                        }
+                    }
+                    else if (!(bool)PassFCB.IsChecked) Cutoff.Text = filter.PassF.ToString("0.00");
+                    else if (!(bool)RippleCB.IsChecked) Ripple.Text = (filter.Ripple * 100D).ToString("0.00");
+                    else if (!(bool)StopACB.IsChecked) Attenuation.Text = filter.StopA.ToString("0.0");
+                    else if (!(bool)StopFCB.IsChecked) StopF.Text = filter.StopF.ToString("0.00");
+                    Indicator.Fill = Brushes.Green;
+                }
+                else
+                    Indicator.Fill = Brushes.Red;
             }
-            else
-                Indicator.Fill = Brushes.Red;
             return filter.IsValid;
         }
 
@@ -128,7 +150,7 @@ namespace PreprocessDataset
             if (ErrorCheckReq != null) ErrorCheckReq(this, null);
         }
 
-        private void CutoffRipple_TextChanged(object sender, TextChangedEventArgs e)
+        private void Ripple_TextChanged(object sender, TextChangedEventArgs e)
         {
             if (Ripple == null || !Ripple.IsEnabled) return;
             double r;
@@ -169,6 +191,22 @@ namespace PreprocessDataset
 
         private void Pass_Click(object sender, RoutedEventArgs e)
         {
+            bool zf = (bool)ZFSpecial.IsChecked;
+            if (zf && filter.ZFDesign) return; //just clicking set ZF
+            if (zf) //change to ZF
+            {
+                filter.HP = false;
+                filter.ZFDesign = true;
+                ZFPanel.Visibility = Visibility.Visible;
+                return;
+            }
+            if(filter.ZFDesign) //change from ZF
+            {
+                filter.ZFDesign = false;
+                filter.HP = (bool)HighPass.IsChecked;
+                ZFPanel.Visibility = Visibility.Hidden;
+                return;
+            }
             filter.HP = (bool)HighPass.IsChecked;
             ErrorCheckReq(this, null);
         }
@@ -199,13 +237,6 @@ namespace PreprocessDataset
             {
                 Poles.Text = "";
                 filter.NP = 0;
-                //    if (double.IsNaN(filter.StopA))
-                //        Actual.Visibility = Visibility.Hidden;
-                //    else
-                //        Actual.Visibility = Visibility.Visible;
-                //}
-                //else
-                //    Actual.Visibility = Visibility.Hidden;
             }
             ErrorCheckReq(this, null);
         }
@@ -229,5 +260,98 @@ namespace PreprocessDataset
             }
             ErrorCheckReq(this, null);
         }
+
+        private void ZFF_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (ZFF == null) return;
+            double f;
+            if (!double.TryParse(ZFF.Text, out f)) f = double.NaN;
+            filter.ZeroF = f;
+            if (ErrorCheckReq != null) ErrorCheckReq(this, null);
+        }
+
+        private void ZFNP_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (ZFNP == null) return;
+            int p;
+            if (!int.TryParse(ZFNP.Text, out p)) p = 0;
+            filter.NP = p;
+            if (ErrorCheckReq != null) ErrorCheckReq(this, null);
+        }
+
+        private void ZFNNull_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (ZFNNull == null) return;
+            int n;
+            if (!int.TryParse(ZFNNull.Text, out n)) n = 0;
+            filter.NNull = n;
+            if (ErrorCheckReq != null) ErrorCheckReq(this, null);
+        }
+
+        private void ZFAttenS_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (ZFAttenS == null) return;
+            double a;
+            if (!double.TryParse(ZFAttenS.Text, out a)) a = double.NaN;
+            filter.StopA = a;
+            if (ErrorCheckReq != null) ErrorCheckReq(this, null);
+        }
+
+        private void ZFRipple_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (ZFRipple == null) return;
+            double r;
+            if (!double.TryParse(ZFRipple.Text, out r))
+                filter.Ripple = double.NaN;
+            else if (r > 0D && r < 100D)
+                filter.Ripple = r / 100D;
+            else
+                filter.Ripple = double.NaN;
+            if (ErrorCheckReq != null) ErrorCheckReq(this, null);
+        }
+
+        private void ZFPanel_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+        {
+            if (ZFPassF.IsVisible) //NB: Visibility hasn't yet been changed
+            {//To standard design
+                if (double.IsNaN(filter.StopA))
+                    Attenuation.Text = "";
+                else
+                    Attenuation.Text = filter.StopA.ToString("0.0");
+                if (filter.NP <= 0)
+                    Poles.Text = "";
+                else
+                    Poles.Text = filter.NP.ToString("0");
+                if (double.IsNaN(filter.Ripple))
+                    Ripple.Text = "";
+                else
+                    Ripple.Text = (100D * filter.Ripple).ToString("0.00");
+                if (double.IsNaN(filter.PassF))
+                    Cutoff.Text = "";
+                else
+                    Cutoff.Text = filter.PassF.ToString("0.00");
+                if (double.IsNaN(filter.StopF))
+                    StopF.Text = "";
+                else
+                    StopF.Text = filter.StopF.ToString("0.00");
+            }
+            else
+            {//To special design
+                if (double.IsNaN(filter.StopA))
+                    ZFAttenS.Text = "";
+                else
+                    ZFAttenS.Text = filter.StopA.ToString("0.0");
+                if (filter.NP <= 0)
+                    ZFNP.Text = "";
+                else
+                    ZFNP.Text = filter.NP.ToString("0");
+                if (double.IsNaN(filter.Ripple))
+                    ZFRipple.Text = "";
+                else
+                    ZFRipple.Text = (100D * filter.Ripple).ToString("0.00");
+            }
+            if (ErrorCheckReq != null) ErrorCheckReq(this, null);
+        }
+
     }
 }
