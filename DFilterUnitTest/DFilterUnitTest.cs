@@ -222,6 +222,82 @@ namespace UnitTestProject1
             testEllipFilter(elp);
         }
 
+        [TestMethod]
+        public void NullFEllipticalTest()
+        {
+            EllipticalSpecialLP esp = new EllipticalSpecialLP(6, 0.1, 40, 60, 512);
+            esp.ValidateDesign();
+            printEllipticDesign(esp);
+            for (int i = 1; i <= 3; i++)
+                Console.WriteLine("Null frequency {0:0} = {1:0.0000}", i, esp.NullFreq(i));
+            esp.NNull = 2;
+            esp.ValidateDesign();
+            printEllipticDesign(esp);
+            for (int i = 1; i <= 3; i++)
+                Console.WriteLine("Null frequency {0:0} = {1:0.0000}", i, esp.NullFreq(i));
+            esp.NNull = 3;
+            esp.ValidateDesign();
+            printEllipticDesign(esp);
+            for (int i = 1; i <= 3; i++)
+                Console.WriteLine("Null frequency {0:0} = {1:0.0000}", i, esp.NullFreq(i));
+            EllipticalHP ehp = new EllipticalHP(1D, 256D);
+            ehp.Ripple = 0.01;
+            ehp.StopA = 60D;
+            ehp.NP = 9;
+            ehp.ValidateDesign();
+            printEllipticDesign(ehp);
+            for (int i = 1; i <= 4; i++)
+                Console.WriteLine("Null frequency {0:0} = {1:0.0000}", i, ehp.NullFreq(i));
+            EllipticalLP elp = new EllipticalLP(1D, 512D);
+            elp.Ripple = 0.01;
+            elp.StopF = 1.04713;
+            elp.StopA = 40D;
+            elp.ValidateDesign();
+            printEllipticDesign(elp);
+            for (int i = 1; i <= elp.NP / 2; i++)
+                Console.WriteLine("Null frequency {0:0} = {1:0.0000}", i, elp.NullFreq(i));
+            elp.NP = 0;
+            elp.Ripple = 0.04;
+            elp.StopA = 60D;
+            elp.ValidateDesign();
+            printEllipticDesign(elp);
+            for (int i = 1; i <= elp.NP / 2; i++)
+                Console.WriteLine("Null frequency {0:0} = {1:0.0000}", i, elp.NullFreq(i));
+            elp.NP = 0;
+            elp.Ripple = 0.08;
+            elp.StopF = 1.12202;
+            elp.StopA = 80D;
+            elp.ValidateDesign();
+            printEllipticDesign(elp);
+            for (int i = 1; i <= elp.NP / 2; i++)
+                Console.WriteLine("Null frequency {0:0} = {1:0.0000}", i, elp.NullFreq(i));
+            elp.NP = 0;
+            elp.Ripple = 0.3;
+            elp.StopF = 1.99526;
+            elp.ValidateDesign();
+            printEllipticDesign(elp);
+            for (int i = 1; i <= elp.NP / 2; i++)
+                Console.WriteLine("Null frequency {0:0} = {1:0.0000}", i, elp.NullFreq(i));
+        }
+
+        [TestMethod]
+        public void SpecialEllipticalTest()
+        {
+            EllipticalSpecialLP esp = new EllipticalSpecialLP(6, 0.1, 40, 60, 512);
+            testEllipFilter(esp);
+            esp.NNull = 2;
+            testEllipFilter(esp);
+            esp.NNull = 3;
+            testEllipFilter(esp);
+        }
+
+        private void printEllipticDesign(Elliptical filter)
+        {
+            string fType = filter.GetType().Name;
+            Console.WriteLine("\n************* Filter type {0}: {1} poles, {2}Hz cutoff, {3}Hz stop, {4}% ripple, {5:0.00}dB attenuation, {6}Hz SR",
+                fType, filter.NP, filter.PassF, filter.StopF, 100D * filter.Ripple, filter.ActualStopA, filter.SR);
+        }
+
         private void testChebyFilter(Chebyshev filter)
         {
             double[] X;
@@ -263,8 +339,10 @@ namespace UnitTestProject1
             filter.CompleteDesign();
             double SR = filter.SR;
             double cutoff = filter.PassF;
+            string fType = filter.GetType().Name;
             Console.WriteLine("\n************* Filter type {0}: {1}poles, {2}Hz cutoff, {3}Hz stop, {4}% ripple, {5:0.00}dB attenuation, {6}Hz SR",
-                filter.GetType().Name, filter.NP, cutoff, filter.StopF, 100D * filter.Ripple, filter.StopA, SR);
+                fType, filter.NP, cutoff, filter.StopF, 100D * filter.Ripple, filter.StopA, SR);
+            Console.WriteLine("First zero = {0:0.0000}", filter.NullF);
             Console.Write(filter.ToString("0.000000"));
 //            Console.WriteLine("Attenuation = {0}", filter.ActualStopAmpdB);
             Console.WriteLine("\nIMPULSE");

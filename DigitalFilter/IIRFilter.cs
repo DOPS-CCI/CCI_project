@@ -1,4 +1,5 @@
 ﻿using System;
+using CCIUtilities;
 
 namespace DigitalFilter
 {
@@ -61,6 +62,7 @@ namespace DigitalFilter
                 designValidated = false;
                 designCompleted = false; 
                 _sr = value;
+                Nyquist = _sr / 2D;
             }
         }
 
@@ -150,8 +152,7 @@ namespace DigitalFilter
             _hp = HP;
             if (samplingRate < 0D)
                 throw new ArgumentException("In Butterworth.cotr: invalid sampling frequency");
-            _sr = samplingRate;
-            Nyquist = _sr / 2D;
+            SR = samplingRate;
             if (cutoff <= 0D || cutoff >= Nyquist)
                 throw new ArgumentException("In Butterworth.cotr: invalid cutoff frequency");
             _passF = cutoff;
@@ -169,30 +170,38 @@ namespace DigitalFilter
             designCode |= double.IsNaN(_stopF) ? 0 : 0x04;
             designCode |= double.IsNaN(_stopA) ? 0 : 0x08;
 
-            if (designCode != 3 && designCode != 0x0D && designCode != 0x0E) //invalid parameter combination
+            if (designCode != 3 && designCode != 7 && designCode != 0x0B && designCode != 0x0D && designCode != 0x0E) //invalid parameter combination
             {
                 designValidated = false;
                 return false;
             }
 
-            double nyquist = _sr / 2d;
-            if (designCode == 3) //NP & passF
+            if (designCode == 3 || designCode == 7 || designCode == 0x0B) //NP & passF
             {
-                if (_passF >= nyquist) { designValidated = false; return false; }
-                _stopA = 20D; //arbitrary 20dB down at stopF
-                double A = Math.Log10(Math.Pow(10D, Math.Abs(_stopA) / 10D) - 1);
+                if (_passF >= Nyquist) { designValidated = false; return false; }
                 omegaP = Math.Tan(Math.PI * _passF / _sr);
-                omegaS = omegaP * Math.Pow(10D, ((bool)_hp ? -1D : 1D) * A / (2D * _np));
-                _stopF = _sr * Math.Atan(omegaS) / Math.PI;
+
+                if(designCode == 3)
+                    _stopA = 20D; //arbitrary 20dB down at stopF
+                if (designCode == 7) //calculate stopA given stopF
+                {
+                    _stopA = 20D * Math.Log10(1 + Math.Pow((bool)_hp ? _passF / _stopF : _stopF / _passF, _np));
+                }
+                else //calculate stopF given stopA
+                {
+                    double A = Math.Log10(Math.Pow(10D, Math.Abs(_stopA) / 10D) - 1);
+                    omegaS = omegaP * Math.Pow(10D, ((bool)_hp ? -1D : 1D) * A / (2D * _np));
+                    _stopF = _sr * Math.Atan(omegaS) / Math.PI;
+                }
             }
             else
             {
-                if (_stopF >= nyquist) { designValidated = false; return false; }
+                if (_stopF >= Nyquist) { designValidated = false; return false; }
                 omegaS = Math.Tan(Math.PI * _stopF / _sr);
                 double A = Math.Log10(Math.Pow(10D, Math.Abs(_stopA) / 10D) - 1D);
-                if (designCode == 0x0E) //stop band info + passF
+                if (designCode == 0x0E) //designCode == 0x0E: stop band info + passF
                 {
-                    if (_passF >= nyquist || ((_passF < _stopF) == (bool)_hp) || _passF == _stopF)
+                    if (_passF >= Nyquist || ((_passF < _stopF) == (bool)_hp) || _passF == _stopF)
                     {
                         designValidated = false;
                         return false;
@@ -309,11 +318,10 @@ namespace DigitalFilter
 
         protected bool ValidateHPDesign()
         {
-            double nyquist = _sr / 2D;
             if (designCode == 3) //stopF missing
             {
                 double a = Math.Pow(10D, Math.Abs(_stopA) / 20D) - 1D;
-                if (_passF <= 0D || _passF >= nyquist || a <= 1D) { designValidated = false; return false; }
+                if (_passF <= 0D || _passF >= Nyquist || a <= 1D) { designValidated = false; return false; }
                 omegaC = Math.Tan(Math.PI * _passF / _sr);
                 omegaS = omegaC / Math.Cosh(ArcCosh(a) / _np);
                 _stopF = _sr * Math.Atan(omegaS) / Math.PI;
@@ -321,14 +329,14 @@ namespace DigitalFilter
             else if (designCode == 2) //passF missing
             {
                 double a = Math.Pow(10D, Math.Abs(_stopA) / 20D) - 1D;
-                if (_stopF <= 0D || _stopF >= nyquist || a <= 1D) { designValidated = false; return false; }
+                if (_stopF <= 0D || _stopF >= Nyquist || a <= 1D) { designValidated = false; return false; }
                 omegaS = Math.Tan(Math.PI * _stopF / _sr);
                 omegaC = omegaS * Math.Cosh(ArcCosh(a) / _np);
                 _passF = _sr * Math.Atan(omegaC) / Math.PI;
             }
             else //both frequencies present
             {
-                if (_stopF >= _passF || _stopF <= 0 || _passF >= nyquist)
+                if (_stopF >= _passF || _stopF <= 0 || _passF >= Nyquist)
                 {
                     designValidated = false;
                     return false;
@@ -384,11 +392,10 @@ namespace DigitalFilter
 
         protected bool ValidateLPDesign()
         {
-            double nyquist = _sr / 2D;
             if (designCode == 3)
             {
                 double a = Math.Pow(10D, Math.Abs(_stopA) / 20D) - 1D;
-                if (_passF <= 0D || _passF >= nyquist || a <= 1D) { designValidated = false; return false; }
+                if (_passF <= 0D || _passF >= Nyquist || a <= 1D) { designValidated = false; return false; }
                 omegaC = Math.Tan(Math.PI * _passF / _sr);
                 omegaS = omegaC * Math.Cosh(ArcCosh(a) / _np);
                 _stopF = _sr * Math.Atan(omegaS) / Math.PI;
@@ -396,7 +403,7 @@ namespace DigitalFilter
             else if (designCode == 2)
             {
                 double a = Math.Pow(10D, Math.Abs(_stopA) / 20D) - 1D;
-                if (_stopF <= 0D || _stopF >= nyquist || a <= 1D) { designValidated = false; return false; }
+                if (_stopF <= 0D || _stopF >= Nyquist || a <= 1D) { designValidated = false; return false; }
                 omegaS = Math.Tan(Math.PI * _stopF / _sr);
                 omegaC = omegaS / Math.Cosh(ArcCosh(a) / _np);
                 _passF = _sr * Math.Atan(omegaC) / Math.PI;
@@ -404,7 +411,7 @@ namespace DigitalFilter
             }
             else
             {
-                if (_passF >= _stopF || _passF <= 0 || _stopF >= nyquist)
+                if (_passF >= _stopF || _passF <= 0 || _stopF >= Nyquist)
                 {
                     designValidated = false;
                     return false;
@@ -490,8 +497,7 @@ namespace DigitalFilter
         {
             if (samplingRate <= 0D)
                 throw new ArgumentException("In ChebyshevHP.cotr: invalid sampling frequency");
-            _sr = samplingRate;
-            Nyquist = _sr / 2D;
+            SR = samplingRate;
             if (passF <= 0 || passF >= Nyquist)
                 throw new ArgumentException("In ChebyshevHP.Design: invalid cutoff frequncy");
             _passF = passF;
@@ -515,6 +521,9 @@ namespace DigitalFilter
 
         public override void CompleteDesign()
         {
+            if (designCompleted) return;
+            if (!designValidated && !this.ValidateDesign())
+                throw new Exception("In ChebyshevHP.CompleteDesign(): attempt to complete an invalid design.");
             CompleteHPDesign();
         }
     }
@@ -530,8 +539,7 @@ namespace DigitalFilter
         {
             if (samplingRate < 0D)
                 throw new ArgumentException("In ChebyshevLP.cotr: invalid sampling frequency");
-            _sr = samplingRate;
-            Nyquist = _sr / 2D;
+            SR = samplingRate;
             if (passF <= 0 || passF >= Nyquist)
                 throw new ArgumentException("In ChebyshevLP.cotr: invalid cutoff frequncy");
             _passF = passF;
@@ -555,6 +563,9 @@ namespace DigitalFilter
 
         public override void CompleteDesign()
         {
+            if (designCompleted) return;
+            if (!designValidated && !this.ValidateDesign())
+                throw new Exception("In ChebyshevLP.CompleteDesign(): attempt to complete an invalid design.");
             CompleteLPDesign();
         }
     }
@@ -617,11 +628,88 @@ namespace DigitalFilter
             get { return _passA; }
         }
 
+        protected bool _ZFDesign = false;
+        public bool ZFDesign
+        {
+            get { return _ZFDesign; }
+            set
+            {
+                if (_ZFDesign == value) return;
+                designValidated = false;
+                designCompleted = false;
+                _ZFDesign = value;
+            }
+        }
+
+        protected int _nNull = 1;
+        public int NNull
+        {
+            set
+            {
+                if (_nNull == value) return;
+                designValidated = false;
+                designCompleted = false;
+                _nNull = value;
+            }
+            get { return _nNull; }
+        }
+
+        protected double _zeroF;
+        public double ZeroF
+        {
+            set
+            {
+                if (_zeroF == value) return;
+                designValidated = false;
+                designCompleted = false;
+                _zeroF = value;
+            }
+            get { return _zeroF; }
+        }
+
+        public double NullF
+        {
+            get
+            {
+                if (_ZFDesign)
+                    return _zeroF;
+                else
+                {
+                    if (double.IsNaN(_sr) || double.IsNaN(_stopF) || double.IsNaN(_passF) || _np == 0 || _hp == null)
+                        return double.NaN;
+                    return NullFreq(_nNull);
+                }
+            }
+            set
+            {
+                if (_ZFDesign)
+                {
+                    if (_zeroF == value) return;
+                    designValidated = false;
+                    designCompleted = false;
+                    _zeroF = value;
+                }
+            }
+        }
+
         protected int designCode;
 
         public Elliptical()
         {
 
+        }
+
+        public double NullFreq(int n)
+        {
+            if (!IsValid || n > _np / 2) return double.NaN;
+
+            double ws = Math.Tan(Math.PI * _stopF / _sr);
+            double wp = Math.Tan(Math.PI * _passF / _sr);
+            double k = (bool)_hp ? ws / wp : wp / ws;
+            double t = (double)(2 * n - 1) / (double)_np;
+            double wz1 = (bool)_hp ? ws * Elliptic.JacobiCD(t * Elliptic.IntegralK(k), k) :
+                ws / Elliptic.JacobiCD(t * Elliptic.IntegralK(k), k);
+            return _sr * Math.Atan(wz1) / Math.PI;
         }
 
         public override bool ValidateDesign()
@@ -630,25 +718,57 @@ namespace DigitalFilter
                 throw new Exception("In Elliptical.ValidateDesign(): attempt to validate a competed design");
             if (double.IsNaN(_sr) || _hp == null) { designValidated = false; return false; }
 
-            designCode = getDesignCode();
+            if (_ZFDesign)
+                return ValidateZFDesign();
+            else
+            {
+                designCode = getDesignCode();
 
-            if (designCode <= 0)
+                if (designCode <= 0)
+                {
+                    designValidated = false;
+                    return false;
+                }
+
+                if ((bool)_hp) return ValidateHPDesign();
+                return ValidateLPDesign();
+            }
+        }
+
+        protected bool ValidateZFDesign()
+        {
+            if (_np <= 0 ||
+                _zeroF <= 0D || _zeroF >= Nyquist ||
+                _pr <= 0D || _pr >= 1D ||
+                _nNull <= 0 || _nNull > _np / 2 ||
+                Math.Abs(_stopA) <= 20D * Math.Log10(1 / (1 - _pr)))
             {
                 designValidated = false;
                 return false;
             }
-
-            if ((bool)_hp) return ValidateHPDesign();
-            return ValidateLPDesign();
+            double omegaZ = Math.Tan(Math.PI * _zeroF / _sr);
+            _passA = -20D * Math.Log10(1 - _pr);
+            double k1 = Math.Sqrt(_pr * (2D - _pr) / (Math.Pow(10D, Math.Abs(_stopA / 10D)) - 1D)) / (1D - _pr);
+            double K1 = Elliptic.IntegralK(k1);
+            double K1p = Elliptic.IntegralKp(k1);
+            q = Math.Exp(-Math.PI * K1p / (_np * K1)); //this gets saved for later during design phase
+            double k = Elliptic.kQ(q);
+            double K = Elliptic.IntegralKQ(q);
+            double t = (double)(2 * _nNull - 1) / (double)_np;
+            omegaS = omegaZ * Elliptic.JacobiCD(t * K, k);
+            omegaC = k * omegaS;
+            _passF = _sr * Math.Atan(omegaC) / Math.PI;
+            _stopF = _sr * Math.Atan(omegaS) / Math.PI;
+            designValidated = true;
+            return true;
         }
 
         protected bool ValidateHPDesign()
         {
             if (designCode != 2 && (_pr <= 0D || _pr >= 1D)) { designValidated = false; return false; }
-            double nyquist = _sr / 2D;
             if (designCode == 1) //missing PassF
             {
-                if (_stopF <= 0D || _stopF >= nyquist ||
+                if (_stopF <= 0D || _stopF >= Nyquist ||
                     Math.Abs(_stopA) <= 20D * Math.Log10(1 / (1 - _pr)))
                 {
                     designValidated = false;
@@ -660,7 +780,7 @@ namespace DigitalFilter
             }
             else if (designCode == 3) //missing StopF
             {
-                if (_passF <= 0D || _passF >= nyquist ||
+                if (_passF <= 0D || _passF >= Nyquist ||
                     Math.Abs(_stopA) <= 20D * Math.Log10(1 / (1 - _pr)))
                 {
                     designValidated = false;
@@ -672,7 +792,7 @@ namespace DigitalFilter
             }
             else //have both frequencies
             {
-                if (_passF <= _stopF || _stopF <= 0 || _passF >= nyquist)
+                if (_passF <= _stopF || _stopF <= 0 || _passF >= Nyquist)
                 {
                     designValidated = false;
                     return false;
@@ -702,10 +822,9 @@ namespace DigitalFilter
 
         protected bool ValidateLPDesign()
         {
-            double nyquist = _sr/2D;
             if (designCode == 1) //missing PassF
             {
-                if (_stopF <= 0D || _stopF >= nyquist ||
+                if (_stopF <= 0D || _stopF >= Nyquist ||
                     Math.Abs(_stopA) <= 20D * Math.Log10(1 / (1 - _pr)))
                 {
                     designValidated = false;
@@ -717,7 +836,7 @@ namespace DigitalFilter
             }
             else if (designCode == 3) //missing StopF
             {
-                if (_stopF <= 0D || _stopF >= nyquist ||
+                if (_passF <= 0D || _passF >= Nyquist ||
                     Math.Abs(_stopA) <= 20D * Math.Log10(1 / (1 - _pr)))
                 {
                     designValidated = false;
@@ -729,7 +848,7 @@ namespace DigitalFilter
             }
             else //have both frequencies
             {
-                if (_passF >= _stopF || _passF <= 0 || _stopF >= nyquist)
+                if (_passF >= _stopF || _passF <= 0 || _stopF >= Nyquist)
                 {
                     designValidated = false;
                     return false;
@@ -968,15 +1087,17 @@ namespace DigitalFilter
         {
             if (samplingRate <= 0D)
                 throw new Exception("In EllipticalLP.cotr: invalid sampling rate");
-            _sr = samplingRate;
-            Nyquist = _sr / 2D;
+            SR = samplingRate;
             if (passF <= 0 || passF >= Nyquist)
-                throw new ArgumentException("In EllipticalLP.cotr: invalid cutoff frequncy");
+                throw new ArgumentException("In EllipticalLP.cotr: invalid cutoff frequency");
             _passF = passF;
+            _ZFDesign = false;
+            _hp = false;
         }
 
         public EllipticalLP()
         {
+            _ZFDesign = false;
             _hp = false;
         }
 
@@ -1006,15 +1127,17 @@ namespace DigitalFilter
         {
             if (samplingRate <= 0D)
                 throw new Exception("In EllipticalHP.cotr: invalid sampling rate");
-            _sr = samplingRate;
-            Nyquist = _sr / 2D;
+            SR = samplingRate;
             if (passF <= 0 || passF >= Nyquist)
-                throw new ArgumentException("In EllipticalHP.cotr: invalid cutoff frequncy");
+                throw new ArgumentException("In EllipticalHP.cotr: invalid cutoff frequency");
             _passF = passF;
+            _ZFDesign = false;
+            _hp = true;
         }
 
         public EllipticalHP()
         {
+            _ZFDesign = false;
             _hp = true;
         }
 
@@ -1041,6 +1164,47 @@ namespace DigitalFilter
             if (!designValidated && !this.ValidateDesign())
                 throw new Exception("In EllipticalHP.CompleteDesign(): attempt to complete an invalid design.");
             CompleteHPDesign();
+        }
+    }
+
+    public class EllipticalSpecialLP : EllipticalLP
+    {
+        public EllipticalSpecialLP(int NP, double Rp, double As, double fz1, double samplingRate, int nNull = 1)
+        {
+            if (samplingRate <= 0D)
+                throw new Exception("In EllipticalSpecialLP.cotr: invalid sampling rate");
+            SR = samplingRate;
+            if (NP <= 0)
+                throw new Exception("In EllipticalSpecialLP.cotr: invalid number of poles");
+            _np = NP;
+            if (fz1 <= 0 || fz1 >= Nyquist)
+                throw new ArgumentException("In EllipticalSpecialLP.cotr: invalid null point frequency");
+            _zeroF = fz1;
+            if (Rp <= 0 || Rp >= 1D)
+                throw new ArgumentException("In EllipticalSpecialLP.cotr: invalid pass band ripple");
+            _pr = Rp;
+            if (nNull > NP / 2)
+                throw new ArgumentException("In EllipticalSpecialLP.cotr: invalid null count");
+            this._nNull = nNull;
+            _stopA = As;
+            _ZFDesign = true;
+            _hp = false;
+        }
+
+        public override bool ValidateDesign()
+        {
+            if (designValidated)
+                throw new Exception("In EllipticalSpecialLP.ValidateDesign: attempt to redesign filter");
+            if (double.IsNaN(_sr)) { designValidated = false; return false; }
+            return base.ValidateZFDesign();
+        }
+
+        public override void CompleteDesign()
+        {
+            if (designCompleted) return;
+            if (!designValidated && !this.ValidateDesign())
+                throw new Exception("In EllipticalSpecialLP.CompleteDesign(): attempt to complete an invalid design.");
+            base.CompleteLPDesign();
         }
     }
 
