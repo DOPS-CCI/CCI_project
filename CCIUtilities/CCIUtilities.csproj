@@ -57,6 +57,7 @@
   <ItemGroup>
     <Compile Include="CircularBuffer.cs" />
     <Compile Include="CompoundList.cs" />
+    <Compile Include="Elliptic.cs" />
     <Compile Include="GeneralizedLinearRegression.cs" />
     <Compile Include="IValidate.cs" />
     <Compile Include="Legendre.cs" />
