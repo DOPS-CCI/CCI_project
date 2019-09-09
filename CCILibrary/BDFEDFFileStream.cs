@@ -41,9 +41,9 @@ namespace BDFEDFFileStream
         {
             get
             {
-                if (header.recordDurationDouble != null) //then this file has a non-integer record duration
-                    throw new BDFEDFException("Record duration is not a positive definite integer value");
-                return header.recordDuration;
+                if (header.recordDuration != null) //then this file has a non-integer record duration
+                    throw new BDFEDFException("Record duration is not an integer value");
+                return (int)header.recordDuration;
             }
         }
 
@@ -54,9 +54,7 @@ namespace BDFEDFFileStream
         {
             get
             {
-                if (header.recordDurationDouble != null)
-                    return (double)header.recordDurationDouble;
-                return (double)header.recordDuration;
+                return header.recordDurationDouble;
             }
         }
         /// <summary>
@@ -324,10 +322,10 @@ namespace BDFEDFFileStream
             str.Append("Header Size: " + header.headerSize.ToString("0") + nl);
             str.Append("Number of records: " + header.numberOfRecords.ToString("0") + nl);
             str.Append("Number of channels: " + header.numberChannels.ToString("0") + nl);
-            if (header.recordDurationDouble == null)
-                str.Append("Record duration: " + header.recordDuration.ToString("0") + nl);
+            if (header.recordDuration != null)
+                str.Append("Record duration: " + ((int)header.recordDuration).ToString("0") + nl);
             else
-                str.Append("Record duration: " + ((double)header.recordDurationDouble).ToString("0.000") + nl);
+                str.Append("Record duration: " + header.recordDurationDouble.ToString("0.000") + nl);
             return str.ToString();
         }
 
@@ -347,8 +345,8 @@ namespace BDFEDFFileStream
                 str.Append("Prefilter: " + header.channelPrefilters[chan] + nl);
                 str.Append("Transducer: " + header.transducerTypes[chan] + nl);
                 str.Append("Physical dimension: " + header.physicalDimensions[chan] + nl);
-                str.Append("Physical minimum: " + header.physicalMinimums[chan].ToString("0") + nl);
-                str.Append("Physical maximum: " + header.physicalMaximums[chan].ToString("0") + nl);
+                str.Append("Physical minimum: " + header.physicalMinimums[chan].ToString("G") + nl);
+                str.Append("Physical maximum: " + header.physicalMaximums[chan].ToString("G") + nl);
                 str.Append("Digital minimum: " + header.digitalMinimums[chan].ToString("0") + nl);
                 str.Append("Digital maximum: " + header.digitalMaximums[chan].ToString("0") + nl);
                 str.Append("Number of samples: " + header.numberSamples[chan].ToString("0") + nl);
@@ -626,7 +624,7 @@ namespace BDFEDFFileStream
             if (reader != null && record.currentRecordNumber < 0) this.read();
             try
             {
-                return (double)record.channelData[channel][sample] * header.Gain(channel) + header.Offset(channel);
+                return record.getConvertedPoint(channel, sample);
             }
             catch (IndexOutOfRangeException e)
             {
@@ -653,7 +651,7 @@ namespace BDFEDFFileStream
                     record.currentRecordNumber = point.Rec - 1; //one less as read() increments it
                     read();
                 }
-                return (double)record.channelData[channel][point.Pt] * header.Gain(channel) + header.Offset(channel);
+                return record.getConvertedPoint(channel, point.Pt);
             }
             catch (NotSupportedException)
             {
@@ -714,7 +712,7 @@ namespace BDFEDFFileStream
                     record.currentRecordNumber = point.Rec - 1; //one less as read() increments it
                     read();
                 }
-                return (double)record.channelData[channel][point.Pt] * header.Gain(channel) + header.Offset(channel);
+                return record.getConvertedPoint(channel, point.Pt);
             }
             catch (NotSupportedException)
             {
@@ -1090,33 +1088,6 @@ namespace BDFEDFFileStream
             record.write(writer);
         }
 
-        ///// <summary>
-        ///// Puts data into channel; with correction for gain and offset
-        ///// </summary>
-        ///// <param name="channel">Channel number</param>
-        ///// <param name="values">Array of samples for channel</param>
-        ///// <exception cref="BDFEDFException">Invalid channel number</exception>
-        //public void putChannel(int channel, double[] values)
-        //{
-        //    if (channel < 0 || channel >= header.numberChannels) throw new BDFEDFException("Invalid channel number (" + channel + ")");
-        //    double g = header.Gain(channel);
-        //    double o = header.Offset(channel);
-        //    for (int i = 0; i < header.numberSamples[channel]; i++)
-        //    {
-        //        try
-        //        {
-        //            record.channelData[channel][i] = Convert.ToInt32((values[i] - o) / g);
-        //        }
-        //        catch (OverflowException)
-        //        {
-        //            if ((values[i] > o) == (g > 0D))
-        //                record.channelData[channel][i] = dMax(channel);
-        //            else
-        //                record.channelData[channel][i] = dMin(channel);
-        //        }
-        //    }
-        //}
-
         /// <summary>
         /// Puts data into channel; with correction for gain and offset
         /// </summary>
@@ -1125,7 +1096,8 @@ namespace BDFEDFFileStream
         /// <exception cref="BDFEDFException">Invalid channel number</exception>
         public void putChannel<T>(int channel, T[] values) where T : IConvertible
         {
-            if (channel < 0 || channel >= header.numberChannels) throw new BDFEDFException("Invalid channel number (" + channel + ")");
+            if (channel < 0 || channel >= header.numberChannels)
+                throw new BDFEDFException("Invalid channel number (" + channel + ")");
             double g = header.Gain(channel);
             double o = header.Offset(channel);
             for (int i = 0; i < header.numberSamples[channel]; i++)
@@ -1133,7 +1105,7 @@ namespace BDFEDFFileStream
                 double t = values[i].ToDouble(null);
                 try
                 {
-                    int s = Convert.ToInt32((t - o) / g);
+                    int s = Convert.ToInt32(((t - o) / g) + 0.5);
                     if (s > dMax(channel) || s < dMin(channel)) throw new OverflowException();
                     record.channelData[channel][i] = s;
                 }
@@ -1155,7 +1127,8 @@ namespace BDFEDFFileStream
         /// <exception cref="BDFException">Invalid channel number</exception>
         public void putChannel(int channel, int[] values)
         {
-            if (channel < 0 || channel >= header.numberChannels) throw new BDFEDFException("Invalid channel number (" + channel + ")");
+            if (channel < 0 || channel >= header.numberChannels)
+                throw new BDFEDFException("Invalid channel number (" + channel + ")");
             for (int i = 0; i < header.numberSamples[channel]; i++)
                 record.channelData[channel][i] = values[i];
         }
@@ -1183,17 +1156,7 @@ namespace BDFEDFFileStream
         {
             if (channel < 0 || channel >= header.numberChannels) throw new BDFEDFException("Invalid channel number (" + channel + ")");
             if (sample < 0 || sample >= header.numberSamples[channel]) throw new BDFEDFException("Invalid sample number (" + sample + ")");
-            try
-            {
-                record.channelData[channel][sample] = Convert.ToInt32((value - header.Offset(channel)) / header.Gain(channel));
-            }
-            catch (OverflowException)
-            {
-                if ((value > header.Offset(channel)) == (header.Gain(channel) > 0D))
-                    record.channelData[channel][sample] = dMax(channel);
-                else
-                    record.channelData[channel][sample] = dMin(channel);
-            }
+            record.setConvertedPoint(value, channel, sample);
         }
 
         /// <summary>
@@ -1247,9 +1210,14 @@ namespace BDFEDFFileStream
         internal int numberOfRecords;
         internal int numberChannels;
         internal int nActualChannels;
-        internal int recordDuration;
-        internal double? recordDurationDouble = null; //used only if Record Duration isn't an integer;
-                        //only for reading; not recommended by standard, but a practical necessity
+        internal int? recordDuration = null; //only set if the record length is an integer (to nearest millisec)
+        internal double recordDurationDouble;
+            //We only record to the nearest millisecond; thus 1.9996sec => 2sec (integer) length
+            //while 1.9994sec => 1.999sec (double) record length;
+            //non-integer not recommended by standard, but a practical necessity;
+            //internally, read files keep track of non-integer lengths as input, but
+            //non-integer output lengths are only recorded to 3 decimal places (millisecs)
+
         internal double[] physicalMinimums;
         internal double[] physicalMaximums;
         internal int[] digitalMinimums;
@@ -1312,6 +1280,7 @@ namespace BDFEDFFileStream
             this.numberChannels = nChan;
             this.headerSize = (nChan + 1) * 256;
             this.recordDuration = duration;
+            this.recordDurationDouble = (double)duration;
             for (int i = 0; i < nChan; i++) //Not allowing sampling rate variation between channels
                 this.numberSamples[i] = duration * samplingRate;
         }
@@ -1332,7 +1301,7 @@ namespace BDFEDFFileStream
             for (int i = 0; i < nChan; i++) offset[i] = Double.PositiveInfinity;
             this.numberChannels = nChan;
             this.headerSize = (nChan + 1) * 256;
-            this.recordDurationDouble = duration;
+            handleDoubleRecordLength(duration);
             int NS = Convert.ToInt32(duration * samplingRate);
             for (int i = 0; i < nChan; i++) //Not allowing sampling rate variation between channels
                 this.numberSamples[i] = NS;
@@ -1361,9 +1330,21 @@ namespace BDFEDFFileStream
             for (int i = 0; i < nChan; i++) offset[i] = Double.PositiveInfinity;
             this.numberChannels = nChan;
             this.headerSize = (nChan + 1) * 256;
-            this.recordDurationDouble = duration;
+            handleDoubleRecordLength(duration);
             for (int i = 0; i < nChan; i++) //Not allowing sampling rate variation between channels
                 this.numberSamples[i] = samplesPerRecord;
+        }
+
+        private void handleDoubleRecordLength(double recLen)
+        {
+            int ti = (int)(1000D * recLen + 0.5); //rounded milliseconds
+            if (ti % 1000 == 0)
+            {
+                recordDuration = ti / 1000; //rounds to even second
+                recordDurationDouble = (double)recordDuration;
+            }
+            else recordDurationDouble = recLen; //we remember length as read in, but only
+                //write it out to the nearest millisecond
         }
 
         internal void write(StreamWriter str)
@@ -1387,7 +1368,7 @@ namespace BDFEDFFileStream
             else
                 str.Write("{0,-44}", "BIOSEMI");
             str.Write("-1      "); //Number of records
-            if (recordDurationDouble == null)
+            if (recordDuration != null)
                 str.Write("{0,-8}", recordDuration);
             else
                 str.Write("{0,-8}", ((double)recordDurationDouble).ToString("0.000"));
@@ -1398,10 +1379,16 @@ namespace BDFEDFFileStream
                 str.Write("{0,-80}", tT);
             foreach (string pD in physicalDimensions)
                 str.Write("{0,-8}", pD);
-            foreach (int pMin in physicalMinimums)
-                str.Write("{0,-8}", pMin);
-            foreach (int pMax in physicalMaximums)
-                str.Write("{0,-8}", pMax);
+            foreach (double pMin in physicalMinimums)
+            {
+                string f = format(pMin);
+                str.Write("{0,-8:" + f + "}", pMin);
+            }
+            foreach (double pMax in physicalMaximums)
+            {
+                string f = format(pMax);
+                str.Write("{0,-8:" + f + "}", pMax);
+            }
             foreach (int dMin in digitalMinimums)
                 str.Write("{0,-8}", dMin);
             foreach (int dMax in digitalMaximums)
@@ -1481,17 +1468,8 @@ namespace BDFEDFFileStream
                 nChar = reader.Read(cBuf, 0, 8);
                 numberOfRecords = int.Parse(new string(cBuf, 0, 8));
                 nChar = reader.Read(cBuf, 0, 8);
-                try
-                {
-                    recordDuration = int.Parse(new string(cBuf, 0, 8));
-                }
-                catch (Exception e)
-                {
-                    if (e.GetType() == typeof(FormatException))
-                        recordDurationDouble = double.Parse(new string(cBuf, 0, 8));
-                    else
-                        throw e;
-                }
+
+                handleDoubleRecordLength(double.Parse(new string(cBuf, 0, 8)));
 
                 nChar = reader.Read(cBuf, 0, 4);
                 nActualChannels = int.Parse(new string(cBuf, 0, 4));
@@ -1645,6 +1623,17 @@ namespace BDFEDFFileStream
             if (den == 0L) return offset[channel] = 0.0;
             return offset[channel] = num / (double)den;
         }
+
+        private string format(double v, int digits = 6)
+        {
+            v = Math.Abs(v);
+            int p = 0;
+            while (v >= 1D) { v /= 10D; p++; }
+            if (p == 0) p = 1;
+            if (p >= digits)
+                return new string('0', p);
+            return (new string('0', p)) + "." + (new string('0', digits - p));
+        }
     }
 
     /// <summary>
@@ -1677,7 +1666,27 @@ namespace BDFEDFFileStream
 
         public double getConvertedPoint(int channel, int point)
         {
-            return header.Gain(channel) * (double)channelData[channel][point] - header.Offset(channel);
+            return header.Gain(channel) * (double)channelData[channel][point] + header.Offset(channel);
+        }
+
+        public int setConvertedPoint(double value, int channel, int point)
+        {
+            int s = 0;
+            try
+            {
+                s = (int)(((value - header.Offset(channel)) / header.Gain(channel)) + 0.5);
+                if (s > header.digitalMaximums[channel] || s < header.digitalMinimums[channel])
+                    throw new OverflowException();
+                channelData[channel][point] = s;
+            }
+            catch (OverflowException)
+            {
+                if ((value > header.Offset(channel)) == (header.Gain(channel) > 0D))
+                    channelData[channel][point] = header.digitalMaximums[channel];
+                else
+                    channelData[channel][point] = header.digitalMinimums[channel];
+            }
+            return s;
         }
 
         /// <summary>
