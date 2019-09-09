@@ -46,26 +46,14 @@ namespace HeaderFileStream
             try
             {
                 xr.ReadStartElement("ExperimentDescription", nameSpace);
-                xr.ReadStartElement("SoftwareVersion", nameSpace);
-                header.SoftwareVersion = xr.ReadContentAsString();
-                xr.ReadEndElement(/* SoftwareVersion */);
-                xr.ReadStartElement("Title", nameSpace);
-                header.Title = xr.ReadContentAsString();
-                xr.ReadEndElement(/* Title */);
-                xr.ReadStartElement("LongDescription", nameSpace);
-                header.LongDescription = xr.ReadContentAsString();
-                xr.ReadEndElement(/* LongDescription */);
+                header.SoftwareVersion = xr.ReadElementContentAsString("SoftwareVersion", nameSpace);
+                header.Title = xr.ReadElementContentAsString("Title", nameSpace);
+                header.LongDescription = xr.ReadElementContentAsString("LongDescription", nameSpace);
 
                 header.Experimenter = new List<string>();
                 while (xr.Name == "Experimenter")
-                {
-                    xr.ReadStartElement(/* Experimenter */);
-                    header.Experimenter.Add(xr.ReadContentAsString());
-                    xr.ReadEndElement(/* Experimenter */);
-                }
-                xr.ReadStartElement("Status", nameSpace);
-                header.Status = xr.ReadContentAsInt();
-                xr.ReadEndElement(/* Status */);
+                    header.Experimenter.Add(xr.ReadElementContentAsString());
+                header.Status = xr.ReadElementContentAsInt("Status", nameSpace);
 
                 if (xr.Name == "Other")
                 {
@@ -91,9 +79,7 @@ namespace HeaderFileStream
                         if (name.Length > 24)
                             throw new Exception("name too long for GV " + name);
                         xr.ReadEndElement(/* Name */);
-                        xr.ReadStartElement("Description", nameSpace);
-                        gve.Description = xr.ReadContentAsString();
-                        xr.ReadEndElement(/* Description */);
+                        gve.Description = xr.ReadElementContentAsString("Description", nameSpace);
                         if (xr.Name == "GV")
                         {
                             gve.GVValueDictionary = new Dictionary<string, int>();
