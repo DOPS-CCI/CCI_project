@@ -72,9 +72,9 @@
     </Otherwise>
   </Choose>
   <ItemGroup>
-    <Compile Include="UnitTest.cs" />
+    <Compile Include="SpherePointsTest.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="UnitTest1.cs" />
+    <Compile Include="LaplacianTest.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\PreprocessDataset\PreprocessDataset.csproj">

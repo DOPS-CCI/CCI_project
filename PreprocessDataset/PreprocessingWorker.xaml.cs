@@ -127,6 +127,8 @@ namespace PreprocessDataset
                 logStream.WriteElementString("InputType", "EEGLAB SET");
             logStream.WriteElementString("InputSR", SR.OriginalSR.ToString("0.00"));
             logStream.WriteElementString("InputDecimation", SR.Decimation1.ToString("0"));
+            logStream.WriteElementString("OutputDecimation", SR.Decimation2.ToString("0"));
+            logStream.WriteElementString("OutputSR", SR.FinalSR.ToString("0.00"));
             logStream.WriteStartElement("SelectedChannels");
             if (doReference)
                 logStream.WriteAttributeString("ElimNonSelRef", _refExcludeElim ? "true" : "false");
@@ -472,6 +474,13 @@ namespace PreprocessDataset
                     logStream.WriteElementString("StopAtten", t3[2].ToString("0.00dB"));
                 if (t3.Length > 3)
                     logStream.WriteElementString("PassRipple", t3[3].ToString("0.00%"));
+                if (t3.Length > 4)
+                {
+                    logStream.WriteStartElement("NullFrequency");
+                    logStream.WriteAttributeString("NullNumber", ((int)t3[5]).ToString("0"));
+                    logStream.WriteString(t3[4].ToString("0.000Hz"));
+                    logStream.WriteEndElement(/*NullFrequency*/);
+                }
                 logStream.WriteEndElement(/*IIRFilter*/);
 
                 for (int chan = 0; chan < nChans; chan++)
@@ -496,7 +505,7 @@ namespace PreprocessDataset
             newBDF = new BDFEDFFileWriter(
                 new FileStream(System.IO.Path.Combine(directory, baseFileName + "." + sequenceName + ".bdf"), FileMode.Create, FileAccess.Write),
                 channels.BDFSelected,
-                (double)SR.Decimation1 * SR.Decimation2 * bdf.RecordDuration, //record length in seconds
+                (double)SR.Decimation1 * SR.Decimation2 * bdf.RecordDurationDouble, //record length in seconds
                 bdf.NSamp, //number of samples stays the same
                 true);
 
@@ -527,6 +536,7 @@ namespace PreprocessDataset
                         if (t > max) max = t;
                         if (t < min) min = t;
                     }
+                    if (max == min) { max++; min--; }
                     newBDF.pMax(newChan, max);
                     newBDF.pMin(newChan, min);
                 }
@@ -992,6 +1002,18 @@ namespace PreprocessDataset
         double superMax;
         double superMin;
         const int grandMax = 9999999;
+
+        /// <summary>
+        /// In order to scale the SL data, a couple of issues must be addressed: the maximum physical value that a BDF file
+        /// can contain is 1E8 - 1 because the header physical max/min field is only 8 characters long; and the range of 
+        /// values of the SL can be quite large, though most of the values are very low. The highest values occur usually at
+        /// points in the dataset with significant artifact. We use the following procedure to handle this situation: we scan
+        /// the entire dataset to determine the min and max values for each channel. If a channel min and max are <-GM and
+        /// >GM respectively (where GM = 9,999,999), the min and max values are set as the physical min and max for that channel.
+        /// For the remainder of the channels, a histogram of values is formed and a threshold is established between -limit and
+        /// +limit that includes ~99% of the points and -limit/+limit is used for physical min/max for these remaining 
+        /// channels. If limit > GM, then -GM/+GM are used as the min/max.
+        /// </summary>
         private void setPMaxMin()
         {
             int n = SLOutputLocations.Count;
@@ -1032,9 +1054,6 @@ namespace PreprocessDataset
                     }
                 }
             }
-            //DisplayHist dh = new DisplayHist(hist);
-            //dh.ShowDialog();
-            //double limit = dh.returnLimit();
             int N99 = (int)(0.99 * N);
             int s = 0;
             double limit = 0D;

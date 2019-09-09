@@ -15,7 +15,6 @@ using CCIUtilities;
 using DigitalFilter;
 using ElectrodeFileStream;
 using HeaderFileStream;
-using SphereFitNS;
 using MLLibrary;
 using MATFile;
 
@@ -154,7 +153,9 @@ namespace PreprocessDataset
             }
 
             //Calculate head radius for use in SpherePoints.Count calculation
-            ppw.meanRadius = CalculateHeadRadius(ppw.eis.etrPositions.Values);
+            if (ppw.eis.etrPositions.Count < 4) ppw.meanRadius = 10D;
+            else
+                ppw.meanRadius = CalculateHeadRadius(ppw.eis.etrPositions.Values);
 
             //Process BDF channels using ETR file and set up initial selection dialog
             chDialog = new BDFChannelSelectionDialog(ppw.bdf, ppw.eis);
@@ -165,17 +166,9 @@ namespace PreprocessDataset
 
         private double CalculateHeadRadius(IEnumerable<ElectrodeRecord> etr)
         {
-            double[,] XYZ = new double[etr.Count(), 3];
-            int i = 0;
-            foreach (ElectrodeRecord r in etr)
-            {
-                Point3D xyz = r.convertXYZ();
-                XYZ[i, 0] = xyz.X;
-                XYZ[i, 1] = xyz.Y;
-                XYZ[i++, 2] = xyz.Z;
-            }
-            SphereFit sf = new SphereFit(XYZ);
-            return sf.R;
+            SphericalizeHeadCoordinates shc = new SphericalizeHeadCoordinates(etr);
+            etr = shc.Electrodes; //update electrode locations to conform to new coordinate system
+            return shc.R;
         }
 
         private bool ProcessBDFFile(string fileName)
@@ -257,7 +250,10 @@ namespace PreprocessDataset
             int i = 0;
             foreach (ChannelDescription cd in channels)
                 if(cd.EEG) etr[i++] = cd.eRecord;
-            ppw.meanRadius = CalculateHeadRadius(etr);
+            if (i < 4)
+                ppw.meanRadius = 10D;
+            else
+                ppw.meanRadius = CalculateHeadRadius(etr);
 
             return true;
         }
@@ -478,9 +474,13 @@ namespace PreprocessDataset
                 //add Status channel last
                 if (ppw.bdf.hasStatus) //it should, because this is an RWNL dataset
                 {
-                    cd = new ChannelDescription(ppw.bdf, ppw.bdf.NumberOfChannels - 1, null);
+                    cd = channels.Find(c => c.Name == "Status");
+                    if (cd == null)
+                    {
+                        cd = new ChannelDescription(ppw.bdf, ppw.bdf.NumberOfChannels - 1, null);
+                        channels.Add(cd);
+                    }
                     cd.Selected = true;
-                    channels.Add(cd);
                 }
             }
 

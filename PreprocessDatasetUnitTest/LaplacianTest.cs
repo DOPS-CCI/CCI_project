@@ -9,7 +9,7 @@ using ElectrodeFileStream;
 namespace PreprocessDatasetUnitTest
 {
     [TestClass]
-    public class UnitTest1
+    public class LaplacianUnitTest
     {
         [TestMethod]
         public void LaplacianTest()
