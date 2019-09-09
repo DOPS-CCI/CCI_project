@@ -10,7 +10,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("Cedar Creek Institute")]
 [assembly: AssemblyProduct("CCIUtilities.Properties")]
-[assembly: AssemblyCopyright("2012")]
+[assembly: AssemblyCopyright("2019")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 

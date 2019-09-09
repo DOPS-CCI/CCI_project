@@ -1,8 +1,6 @@
 ﻿using System;
-using CCIUtilities;
 
-
-namespace SphereFitNS
+namespace CCIUtilities
 {
     public class SphereFit
     {
@@ -15,13 +13,14 @@ namespace SphereFitNS
         double _z0;
         public double Z0 { get { return _z0; } }
         double _eta;
-        public double Eta { get { return _eta; } }
+        public double Eta { get { return _eta; } } //smallest magnitude eigenvalue; this is the
+        // one used to dalculate the spherical paramters
 
         /// <summary>
         /// Constructs a spherical fit to points expressed in cartesian coordinates using Taubin algebraic fit
         /// After construction, access properties R for radius and X0, Y0, and Z0 for center of sphere
         /// </summary>
-        /// <param name="XYZ">List of points to fit</param>
+        /// <param name="XYZ">[N, 3] array of points to fit</param>
         /// <see cref="https://arxiv.org/pdf/0907.0421.pdf"/>
         public SphereFit(double[,] XYZ)
         {
@@ -83,14 +82,18 @@ namespace SphereFitNS
             NMMatrix AA = PhiB.Transpose() * M * PhiB;
             NMMatrix.Eigenvalues eigen = new NMMatrix.Eigenvalues(AA);
 
+            //find the smallest positive eigenvalue; here we assume that there
+            // is at lesst one positive value
             NVector eta = eigen.e;
             double min = double.MaxValue;
             int index = -1;
             for (int i = 0; i < eta.N; i++)
             {
-                t = Math.Abs(eta[i]);
-                if (t < min) { min = t; index = i; }
+                t = eta[i];
+                if (t >= 0 && t < min) { min = t; index = i; }
             }
+            if (index == -1)
+                throw new Exception("In SphereFit.cotr: no positive eigenvalues found");
             _eta = eta[index];
 
             NVector parms = PhiB * eigen.E.ExtractColumn(index);
