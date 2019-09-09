@@ -161,8 +161,7 @@ namespace DigitalFilter
 
         public override bool ValidateDesign()
         {
-            if (designCompleted)
-                throw new Exception("In Butterworth.ValidateDesign(): attempt to validate a completed design.");
+            if (designValidated) return true;
             if (double.IsNaN(_sr) || _hp == null) { designValidated = false; return false; }
 
             int designCode = _np > 0 ? 1 : 0;
@@ -291,8 +290,7 @@ namespace DigitalFilter
 
         public override bool ValidateDesign()
         {
-            if (designCompleted)
-                throw new Exception("In Chebyshev.ValidateDesign(): attempt to validate a competed design");
+            if (designValidated) return true;
             if (double.IsNaN(_sr) || _hp == null) { designValidated = false; return false; }
 
             designCode = getDesignCode();
@@ -505,8 +503,7 @@ namespace DigitalFilter
 
         public override bool ValidateDesign()
         {
-            if (designCompleted)
-                throw new Exception("In ChebyshevHP.ValidateDesign(): attempt to validate a competed design");
+            if (designValidated) return true;
             if (double.IsNaN(_sr)) { designValidated = false; return false; }
 
             designCode = getDesignCode();
@@ -714,8 +711,7 @@ namespace DigitalFilter
 
         public override bool ValidateDesign()
         {
-            if (designCompleted)
-                throw new Exception("In Elliptical.ValidateDesign(): attempt to validate a competed design");
+            if (designValidated) return true;
             if (double.IsNaN(_sr) || _hp == null) { designValidated = false; return false; }
 
             if (_ZFDesign)
@@ -1023,8 +1019,13 @@ namespace DigitalFilter
             get
             {
                 if (!designCompleted) throw new Exception("In Elliptic.Description.get: design not completed");
-                Tuple<string, int, double[]> t = new Tuple<string, int, double[]>(
-                    "Elliptic " + (((bool)_hp) ? "HP" : "LP"), _np, new double[] { _passF, _stopF, ActualStopA, Ripple });
+                Tuple<string, int, double[]> t;
+                if (_ZFDesign)
+                    t = new Tuple<string, int, double[]>(
+                        "Elliptic LPZF", _np, new double[] { _passF, _stopF, ActualStopA, Ripple, _zeroF, (double)_nNull });
+                else
+                    t = new Tuple<string, int, double[]>(
+                         "Elliptic " + (((bool)_hp) ? "HP" : "LP"), _np, new double[] { _passF, _stopF, ActualStopA, Ripple });
                 return t;
             }
         }
@@ -1193,8 +1194,7 @@ namespace DigitalFilter
 
         public override bool ValidateDesign()
         {
-            if (designValidated)
-                throw new Exception("In EllipticalSpecialLP.ValidateDesign: attempt to redesign filter");
+            if (designValidated) return true;
             if (double.IsNaN(_sr)) { designValidated = false; return false; }
             return base.ValidateZFDesign();
         }
