@@ -717,7 +717,7 @@ namespace DatasetReviewer
                     ctx.PolyLineTo(cg.pointList, true, true);
                     ctx.Close();
                     //draw new baseline location for this graph, if visible
-                    double t = 0.5 - cg.currentOffset * cg.currentScale;
+                    double t = cg.overallMax == cg.overallMin ? -1D : (cg.overallMax - cg.zeroD) / (cg.overallMax - cg.overallMin);
                     if (t < 0D || t > 1D)
                         cg.baseline.Visibility = Visibility.Hidden;
                     else
@@ -1117,6 +1117,7 @@ namespace DatasetReviewer
         }
 
         internal Line baseline = new Line();
+        internal double zeroD;
 
         public ChannelGraph(MainWindow containingWindow, int channelNumber)
             : base()
@@ -1131,6 +1132,7 @@ namespace DatasetReviewer
             path.Data = geometry;
             this.Children.Add(path);
             this.ToolTip = bdf.channelLabel(_channel) + "(" + (_channel + 1).ToString("0") + ")";
+
             baseline.X1 = 0;
             baseline.HorizontalAlignment = HorizontalAlignment.Left;
             baseline.VerticalAlignment = VerticalAlignment.Top;
@@ -1140,6 +1142,9 @@ namespace DatasetReviewer
             Grid.SetColumnSpan(baseline, 2);
             Panel.SetZIndex(baseline, int.MinValue);
             containingWindow.MainFrame.Children.Add(baseline);
+
+            zeroD = (bdf.pMax(_channel) * bdf.dMin(_channel) - bdf.pMin(_channel) * bdf.dMax(_channel)) /
+                (bdf.pMax(_channel) - bdf.pMin(_channel));
         }
         
         //This routine creates a new entry in the list of plotted points (FilePointList) based on data
