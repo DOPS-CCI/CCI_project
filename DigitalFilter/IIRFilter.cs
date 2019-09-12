@@ -638,7 +638,7 @@ namespace DigitalFilter
             }
         }
 
-        protected int _nNull = 1;
+        protected int _nNull = 0;
         public int NNull
         {
             set
@@ -685,12 +685,12 @@ namespace DigitalFilter
             }
             set
             {
+                if (_zeroF == value) return;
+                _zeroF = value;
                 if (_ZFDesign)
                 {
-                    if (_zeroF == value) return;
                     designValidated = false;
                     designCompleted = false;
-                    _zeroF = value;
                 }
             }
         }
