@@ -90,7 +90,7 @@ namespace CCIUtilities
                 sum += t = Math.Pow(Q, n) * Math.Sin((2 * n + 1) * v) / (1D - Math.Pow(Q, 2 * n + 1));
                 n++;
             }
-            while (Math.Abs(t) > 1E-16);
+            while (Math.Abs(t) > 1E-16 && n < 100);
             return 2D * Math.PI * Math.Sqrt(Q) * sum / (k * K);
         }
 
@@ -107,7 +107,7 @@ namespace CCIUtilities
                 sum += t = Math.Pow(Q, n) * Math.Cos((2 * n + 1) * v) / (1D + Math.Pow(Q, 2 * n + 1));
                 n++;
             }
-            while (Math.Abs(t) > 1E-16);
+            while (Math.Abs(t) > 1E-16 && n < 100);
             return 2D * Math.PI * Math.Sqrt(Q) * sum / (k * K);
         }
 
@@ -124,7 +124,7 @@ namespace CCIUtilities
                 sum += t = Math.Pow(Q, n) * Math.Cos(2 * n * v) / (1D + Math.Pow(Q, 2 * n));
                 n++;
             }
-            while (Math.Abs(t) > 1E-16);
+            while (Math.Abs(t) > 1E-16 && n < 100);
             return 2D * Math.PI * sum / K;
         }
 
