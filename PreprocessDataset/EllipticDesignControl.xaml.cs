@@ -144,7 +144,7 @@ namespace PreprocessDataset
 
         private void Cutoff_TextChanged(object sender, TextChangedEventArgs e)
         {
-            if (Cutoff == null || !Cutoff.IsEnabled) return;
+            if (Cutoff == null || !(bool)PassFCB.IsChecked) return;
             double c;
             if (!double.TryParse(Cutoff.Text, out c)) c = double.NaN;
             filter.PassF = c;
@@ -153,7 +153,7 @@ namespace PreprocessDataset
 
         private void Ripple_TextChanged(object sender, TextChangedEventArgs e)
         {
-            if (Ripple == null || !Ripple.IsEnabled) return;
+            if (Ripple == null || !(bool)RippleCB.IsChecked) return;
             double r;
             if (!double.TryParse(Ripple.Text, out r)) filter.Ripple = double.NaN;
             else if (r > 0D && r < 100D)
@@ -165,7 +165,7 @@ namespace PreprocessDataset
 
         private void Poles_TextChanged(object sender, TextChangedEventArgs e)
         {
-            if (Poles == null || !Poles.IsEnabled) return;
+            if (Poles == null || !(bool)PolesCB.IsChecked) return;
             int p;
             if (!int.TryParse(Poles.Text, out p)) p = 0;
             filter.NP = p;
@@ -174,7 +174,7 @@ namespace PreprocessDataset
 
         private void StopF_TextChanged(object sender, TextChangedEventArgs e)
         {
-            if (StopF == null || !StopF.IsEnabled) return;
+            if (StopF == null || !(bool)StopFCB.IsChecked) return;
             double s;
             if (!double.TryParse(StopF.Text, out s)) s = double.NaN;
             filter.StopF = s;
@@ -183,7 +183,7 @@ namespace PreprocessDataset
 
         private void Attenuation_TextChanged(object sender, TextChangedEventArgs e)
         {
-            if (Attenuation == null || !Attenuation.IsEnabled) return;
+            if (Attenuation == null || !(bool)StopACB.IsChecked) return;
             double a;
             if (!double.TryParse(Attenuation.Text, out a)) a = double.NaN;
             filter.StopA = a;
@@ -227,7 +227,7 @@ namespace PreprocessDataset
                 Cutoff.Text = "";
                 filter.PassF = double.NaN;
             }
-            ErrorCheckReq(this, null);
+            if (ErrorCheckReq != null) ErrorCheckReq(this, null);
         }
 
         private void RippleCB_Click(object sender, RoutedEventArgs e)
@@ -237,7 +237,7 @@ namespace PreprocessDataset
                 Ripple.Text = "";
                 filter.Ripple = double.NaN;
             }
-            ErrorCheckReq(this, null);
+            if (ErrorCheckReq != null) ErrorCheckReq(this, null);
         }
 
         private void PolesCB_Click(object sender, RoutedEventArgs e)
@@ -247,7 +247,7 @@ namespace PreprocessDataset
                 Poles.Text = "";
                 filter.NP = 0;
             }
-            ErrorCheckReq(this, null);
+            if (ErrorCheckReq != null) ErrorCheckReq(this, null);
         }
 
         private void StopFCB_Click(object sender, RoutedEventArgs e)
@@ -257,7 +257,7 @@ namespace PreprocessDataset
                 StopF.Text = "";
                 filter.StopF = double.NaN;
             }
-            ErrorCheckReq(this, null);
+            if (ErrorCheckReq != null) ErrorCheckReq(this, null);
         }
 
         private void StopACB_Click(object sender, RoutedEventArgs e)
@@ -267,7 +267,7 @@ namespace PreprocessDataset
                 Attenuation.Text = "";
                 filter.StopA = double.NaN;
             }
-            ErrorCheckReq(this, null);
+            if (ErrorCheckReq != null) ErrorCheckReq(this, null);
         }
 
         private void ZFF_TextChanged(object sender, TextChangedEventArgs e)
@@ -281,10 +281,32 @@ namespace PreprocessDataset
 
         private void ZFNP_TextChanged(object sender, TextChangedEventArgs e)
         {
-            if (ZFNP == null) return;
+            if (ZFNP == null || !ZFPanel.IsVisible) return;
             int p;
             if (!int.TryParse(ZFNP.Text, out p)) p = 0;
             filter.NP = p;
+            if (ErrorCheckReq != null) ErrorCheckReq(this, null);
+        }
+
+        private void ZFRipple_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (ZFRipple == null || !ZFPanel.IsVisible) return;
+            double r;
+            if (!double.TryParse(ZFRipple.Text, out r))
+                filter.Ripple = double.NaN;
+            else if (r > 0D && r < 100D)
+                filter.Ripple = r / 100D;
+            else
+                filter.Ripple = double.NaN;
+            if (ErrorCheckReq != null) ErrorCheckReq(this, null);
+        }
+
+        private void ZFAttenS_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (ZFAttenS == null || !ZFPanel.IsVisible) return;
+            double a;
+            if (!double.TryParse(ZFAttenS.Text, out a)) a = double.NaN;
+            filter.StopA = a;
             if (ErrorCheckReq != null) ErrorCheckReq(this, null);
         }
 
@@ -297,32 +319,10 @@ namespace PreprocessDataset
             if (ErrorCheckReq != null) ErrorCheckReq(this, null);
         }
 
-        private void ZFAttenS_TextChanged(object sender, TextChangedEventArgs e)
-        {
-            if (ZFAttenS == null) return;
-            double a;
-            if (!double.TryParse(ZFAttenS.Text, out a)) a = double.NaN;
-            filter.StopA = a;
-            if (ErrorCheckReq != null) ErrorCheckReq(this, null);
-        }
-
-        private void ZFRipple_TextChanged(object sender, TextChangedEventArgs e)
-        {
-            if (ZFRipple == null) return;
-            double r;
-            if (!double.TryParse(ZFRipple.Text, out r))
-                filter.Ripple = double.NaN;
-            else if (r > 0D && r < 100D)
-                filter.Ripple = r / 100D;
-            else
-                filter.Ripple = double.NaN;
-            if (ErrorCheckReq != null) ErrorCheckReq(this, null);
-        }
-
         private void ZFPanel_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
         {
             if (ZFPassF.IsVisible) //NB: Visibility hasn't yet been changed
-            {//To standard design
+            {//Goinr to standard design
                 if (double.IsNaN(filter.StopA))
                     Attenuation.Text = "";
                 else
@@ -345,7 +345,7 @@ namespace PreprocessDataset
                     StopF.Text = filter.StopF.ToString("0.00");
             }
             else
-            {//To special design
+            {//Going to special design
                 if (double.IsNaN(filter.StopA))
                     ZFAttenS.Text = "";
                 else

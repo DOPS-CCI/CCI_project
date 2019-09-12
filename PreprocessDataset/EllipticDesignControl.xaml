@@ -62,27 +62,27 @@
                 <RadioButton Name="ZFSpecial" Grid.Row="2" VerticalAlignment="Center" Margin="6,0,0,0" Checked="ZFSpecial_Checked">Special LP</RadioButton>
                 <Border Grid.Column="1" Grid.RowSpan="3"/>
                 <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Left">
-                    <CheckBox Name="PassFCB" IsChecked="True" Click="PassFCB_Click">Pass band freq</CheckBox>
+                    <CheckBox Name="PassFCB" IsChecked="True" Checked="PassFCB_Click" Unchecked="PassFCB_Click">Pass band freq</CheckBox>
                     <TextBox Name="Cutoff" Width="40" TextChanged="Cutoff_TextChanged" IsEnabled="{Binding IsChecked, ElementName=PassFCB}">1</TextBox>
                     <TextBlock>Hz</TextBlock>
                 </StackPanel>
                 <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Left">
-                    <CheckBox Name="RippleCB" IsChecked="True" Click="RippleCB_Click">Pass band ripple</CheckBox>
+                    <CheckBox Name="RippleCB" IsChecked="True" Checked="RippleCB_Click" Unchecked="RippleCB_Click">Pass band ripple</CheckBox>
                     <TextBox Name="Ripple" Width="40" TextChanged="Ripple_TextChanged" IsEnabled="{Binding IsChecked, ElementName=RippleCB}">1</TextBox>
                     <TextBlock>%</TextBlock>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" Grid.Row="2" Grid.Column="1" HorizontalAlignment="Left">
-                    <CheckBox Name="PolesCB" IsChecked="True" Click="PolesCB_Click" Content="Number of poles"/>
+                    <CheckBox Name="PolesCB" IsChecked="True" Content="Number of poles" Checked="PolesCB_Click" Unchecked="PolesCB_Click"/>
                     <TextBox Name="Poles" Width="30" IsEnabled="{Binding IsChecked, ElementName=PolesCB}" TextChanged="Poles_TextChanged">2</TextBox>
                 </StackPanel>
                 <Border Grid.Column="2" Grid.RowSpan="3"/>
                 <StackPanel Orientation="Horizontal" Grid.Row="0" Grid.Column="2" HorizontalAlignment="Left">
-                    <CheckBox Name="StopFCB" Click="StopFCB_Click">Stop band frequency</CheckBox>
+                    <CheckBox Name="StopFCB" Checked="StopFCB_Click" Unchecked="StopFCB_Click">Stop band frequency</CheckBox>
                     <TextBox Name="StopF" Width="40" TextChanged="StopF_TextChanged" IsEnabled="{Binding IsChecked, ElementName=StopFCB}">0.5</TextBox>
                     <TextBlock>Hz</TextBlock>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" Grid.Row="1" Grid.Column="2" HorizontalAlignment="Left">
-                    <CheckBox Name="StopACB" IsChecked="True" Click="StopACB_Click">Stop band attenuation</CheckBox>
+                    <CheckBox Name="StopACB" IsChecked="True" Checked="StopACB_Click" Unchecked="StopACB_Click">Stop band attenuation</CheckBox>
                     <TextBox Name="Attenuation" Width="40" TextChanged="Attenuation_TextChanged" IsEnabled="{Binding IsChecked, ElementName=StopACB}">40</TextBox>
                     <TextBlock>dB</TextBlock>
                 </StackPanel>
@@ -137,7 +137,7 @@
                     <Grid Grid.Column="1">
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
                             <TextBlock>Poles</TextBlock>
-                            <TextBox Name="ZFNP" Width="24" TextChanged="ZFNP_TextChanged">6</TextBox>
+                            <TextBox Name="ZFNP" Width="24" TextChanged="ZFNP_TextChanged"></TextBox>
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                             <TextBlock>Zero number</TextBlock>

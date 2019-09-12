@@ -158,7 +158,7 @@ namespace PreprocessDataset
                 else
                 {
                     xml.WriteAttributeString("Type", "Spherical harmonic");
-                    xml.WriteAttributeString("Order", ppw.HeadFitOrder.ToString("0"));
+                    xml.WriteElementString("Order", ppw.HeadFitOrder.ToString("0"));
                 }
                 xml.WriteEndElement(/*HeadGeometry*/);
 
@@ -359,22 +359,30 @@ namespace PreprocessDataset
                 if (xml.Name == "SurfaceLaplacian")
                 {
                     Laplacian.IsChecked = true;
-                    xml.ReadStartElement();
+                    xml.ReadStartElement(/*SurfaceLaplacian*/);
                     type = xml["Type"];
+                    xml.ReadStartElement("HeadGeometry");
                     if (type == "Sphere")
+                    {
                         Spherical.IsChecked = true;
+                    }
                     else
                     {
                         Fitted.IsChecked = true;
-                        FitOrder.Text = xml["Order"];
+                        FitOrder.Text = xml.ReadElementContentAsString("Order", "");
+                        xml.ReadEndElement();
                     }
-                    xml.ReadElementContentAsString("HeadGeometry","");
+
                     type = xml["Type"];
                     xml.ReadStartElement("Methodology");
                     if (type == "New Orleans")
+                    {
+                        NO.IsChecked = true;
                         NOLambda.Text = xml.ReadElementContentAsString("Lambda", "");
+                    }
                     else //Polyharmonic spline
                     {
+                        PolySpline.IsChecked = true;
                         PolyHarmOrder.Text = xml.ReadElementContentAsString("Order", "");
                         PolyHarmDegree.Text = xml.ReadElementContentAsString("PolyDegree", "");
                         PolyHarmLambda.Text = xml.ReadElementContentAsString("Lambda", "");

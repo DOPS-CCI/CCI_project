@@ -72,7 +72,7 @@
                             <TextBlock><Run Text="channels selected out of"/></TextBlock>
                             <TextBlock x:Name="TotalChannels" Margin="4"/>
                         </StackPanel>
-                        <CheckBox x:Name="RefExclude" IsChecked="True" HorizontalAlignment="Center" IsEnabled="{Binding IsChecked, ElementName=Reference}" Click="RefExclude_Click" Content="Exclude eliminated Active Electrode channels from reference calculations"/>
+                        <CheckBox x:Name="RefExclude" IsChecked="True" HorizontalAlignment="Center" IsEnabled="{Binding IsChecked, ElementName=Reference}" Content="Exclude eliminated Active Electrode channels from reference calculations" Checked="RefExclude_Click" Unchecked="RefExclude_Click"/>
 
                     </StackPanel>
                 </GroupBox>
@@ -87,7 +87,7 @@
                 </GroupBox>
                 <GroupBox>
                     <GroupBox.Header>
-                        <CheckBox x:Name="Detrend" VerticalAlignment="Center" Click="Detrend_Click" Content="Global detrending"/>
+                        <CheckBox x:Name="Detrend" VerticalAlignment="Center" Content="Global detrending" Checked="Detrend_Click" Unchecked="Detrend_Click"/>
                     </GroupBox.Header>
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Margin="4"><Run Text="Detrending order"/></TextBlock>
@@ -97,7 +97,7 @@
                 </GroupBox>
                 <GroupBox BorderBrush="Black">
                     <GroupBox.Header>
-                        <CheckBox x:Name="Reference" VerticalAlignment="Center" Click="Reference_Click" Content="Reference"/>
+                        <CheckBox x:Name="Reference" VerticalAlignment="Center" Content="Reference" Checked="Reference_Click" Unchecked="Reference_Click"/>
                     </GroupBox.Header>
                     <StackPanel Orientation="Vertical" IsEnabled="{Binding IsChecked, ElementName=Reference}">
                         <StackPanel.Resources>
@@ -140,11 +140,11 @@
                 </GroupBox>
                 <GroupBox>
                     <GroupBox.Header>
-                        <CheckBox x:Name="Filtering" VerticalAlignment="Center" Click="Filtering_Click" Content="Filtering"/>
+                        <CheckBox x:Name="Filtering" VerticalAlignment="Center" Content="Filtering" Checked="Filtering_Click" Unchecked="Filtering_Click"/>
                     </GroupBox.Header>
                     <StackPanel Orientation="Vertical"  IsEnabled="{Binding IsChecked, ElementName=Filtering}">
                         <ListBox x:Name="FilterList" Width="540" Height="214" ScrollViewer.HorizontalScrollBarVisibility="Disabled"/>
-                        <CheckBox x:Name="ZP" FontSize="12" Margin="8,2" Content="Forward and reversed filtering for zero phase" Click="ZP_Click"/>
+                        <CheckBox x:Name="ZP" FontSize="12" Margin="8,2" Content="Forward and reversed filtering for zero phase" Checked="ZP_Click" Unchecked="ZP_Click"/>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                             <StackPanel.Resources>
                                 <Style TargetType="{x:Type Button}">
@@ -173,7 +173,7 @@
                 </StackPanel>
                 <GroupBox x:Name="LaplacianGB">
                     <GroupBox.Header>
-                        <CheckBox x:Name="Laplacian" VerticalAlignment="Center" Click="Laplacian_Click" Content="Laplacian"/>
+                        <CheckBox x:Name="Laplacian" VerticalAlignment="Center" Content="Laplacian" Checked="Laplacian_Click" Unchecked="Laplacian_Click"/>
                     </GroupBox.Header>
                     <StackPanel x:Name="LaplacePanel" Orientation="Vertical" IsEnabled="{Binding IsChecked, ElementName=Laplacian}">
                         <StackPanel.Resources>
@@ -192,7 +192,7 @@
                                     </Style>
                                 </StackPanel.Resources>
                                 <StackPanel Orientation="Horizontal">
-                                    <RadioButton x:Name="Fitted" IsChecked="True" GroupName="InputLocations" Content="Fitted order="/>
+                                    <RadioButton x:Name="Fitted" IsChecked="True" GroupName="InputLocations" Content="Fitted order=" Checked="Fitted_Checked"/>
                                     <TextBox x:Name="FitOrder" Width="20" TextChanged="FitOrder_TextChanged" IsEnabled="{Binding IsChecked, ElementName=Fitted}"/>
                                 </StackPanel>
                                 <RadioButton x:Name="Spherical" GroupName="InputLocations" Checked="Spherical_Checked">
@@ -206,7 +206,7 @@
                         </GroupBox>
                         <GroupBox Header="Methodology">
                             <StackPanel Orientation="Vertical" Margin="8,0">
-                                <RadioButton x:Name="PolySpline" IsChecked="True" GroupName="Lap" Content="Polyharmonic spline" Click="NO_Click"/>
+                                <RadioButton x:Name="PolySpline" IsChecked="True" GroupName="Lap" Content="Polyharmonic spline" Checked="NO_Checked"/>
                                 <StackPanel Margin="16,0" Orientation="Vertical">
                                     <StackPanel Orientation="Horizontal" IsEnabled="{Binding IsChecked, ElementName=PolySpline}">
                                         <TextBlock><Run Text="Order="/></TextBlock>
@@ -221,7 +221,7 @@
                                         <TextBox x:Name="PolyHarmLambda" Width="60" TextChanged="PolyHarmLambda_TextChanged"/>
                                     </StackPanel>
                                 </StackPanel>
-                                <RadioButton x:Name="NO" GroupName="Lap" Content="New Orleans method (Nunez)" Click="NO_Click"/>
+                                <RadioButton x:Name="NO" GroupName="Lap" Content="New Orleans method (Nunez)" Checked="NO_Checked"/>
                                 <StackPanel Orientation="Horizontal" Margin="16,0" IsEnabled="{Binding IsChecked, ElementName=NO}">
                                     <TextBlock Margin="0,0,2,0"><Run Text="Looseness of fit: lambda="/></TextBlock>
                                     <TextBox x:Name="NOLambda" Width="40" TextChanged="NOLambda_TextChanged"/>
@@ -267,7 +267,7 @@
                             <TextBlock x:Name="FileWarning" Foreground="Red" VerticalAlignment="Center" Text=" WARNING: existing file(s) will be overwritten!" Visibility="Hidden"/>
                         </StackPanel>
                         <TextBlock x:Name="OutputFileName" TextWrapping="Wrap"><Run Text="File name"/></TextBlock>
-                        <CheckBox x:Name="CreateSFP" Margin="4" FontSize="12" Content="Create BESA-xyz .SFP file for EEGLAB electrode position import" Click="CreateSFP_Click"/>
+                        <CheckBox x:Name="CreateSFP" Margin="4" FontSize="12" Content="Create BESA-xyz .SFP file for EEGLAB electrode position import" Checked="CreateSFP_Click" Unchecked="CreateSFP_Click"/>
                     </StackPanel>
                 </GroupBox>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">

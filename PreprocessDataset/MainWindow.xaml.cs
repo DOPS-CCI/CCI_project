@@ -446,7 +446,9 @@ namespace PreprocessDataset
 
         private void Process_Click(object sender, RoutedEventArgs e)
         {
+            ProcessButton.IsEnabled = QuitButton.IsEnabled = false;
             DoPreprocessing();
+            ProcessButton.IsEnabled = QuitButton.IsEnabled = true;
         }
 
         private void DoPreprocessing()
@@ -459,10 +461,6 @@ namespace PreprocessDataset
                     filterList[i++] = fdc.FinishDesign();
                 ppw.filterList = filterList;
             }
-
-            if ((bool)Spherical.IsChecked) ppw.HeadFitOrder = 0;
-//            ppw.outputSFP = CreateSFP.IsVisible && (bool)CreateSFP.IsChecked;
-
 
             if (ppw.inputType == InputType.RWNL) //add back other needed RWNL channels: ANA and Status
             { //NB: has to be done on this thread: can't make changes to channels in worker thread
@@ -617,8 +615,10 @@ namespace PreprocessDataset
             return;
         }
 
-        private void NO_Click(object sender, RoutedEventArgs e)
+        private void NO_Checked(object sender, RoutedEventArgs e)
         {
+            if (!IsLoaded) return;
+
             ppw.NewOrleans = (bool)NO.IsChecked;
             ErrorCheck();
         }
@@ -626,6 +626,11 @@ namespace PreprocessDataset
         private void ZP_Click(object sender, RoutedEventArgs e)
         {
             ppw.reverse = (bool)ZP.IsChecked;
+        }
+
+        private void Fitted_Checked(object sender, RoutedEventArgs e)
+        {
+            FitOrder_TextChanged(sender, null);
         }
 
         private void Spherical_Checked(object sender, RoutedEventArgs e)
