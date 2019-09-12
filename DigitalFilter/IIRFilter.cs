@@ -258,7 +258,7 @@ namespace DigitalFilter
         {
             get
             {
-                if (!designCompleted) throw new Exception("In Butterworth.Description.get: design not completed");
+                if (!designValidated) throw new Exception("In Butterworth.Description.get: design not validated");
                 Tuple<string, int, double[]> t = new Tuple<string, int, double[]>(
                     "Butterworth " + (((bool)_hp) ? "HP" : "LP"), _np, new double[] { _passF });
                 return t;
@@ -466,7 +466,7 @@ namespace DigitalFilter
         {
             get
             {
-                if (!designCompleted) throw new Exception("In Chebyshev.Description.get: design not completed");
+                if (!designValidated) throw new Exception("In Chebyshev.Description.get: design not validated");
                 Tuple<string, int, double[]> t = new Tuple<string, int, double[]>(
                     "Chebyshev2 " + (((bool)_hp) ? "HP" : "LP"), _np, new double[] { _passF, _stopF, _stopA });
                 return t;
@@ -644,8 +644,11 @@ namespace DigitalFilter
             set
             {
                 if (_nNull == value) return;
-                designValidated = false;
-                designCompleted = false;
+                if (_ZFDesign)
+                {
+                    designValidated = false;
+                    designCompleted = false;
+                }
                 _nNull = value;
             }
             get { return _nNull; }
@@ -657,8 +660,11 @@ namespace DigitalFilter
             set
             {
                 if (_zeroF == value) return;
-                designValidated = false;
-                designCompleted = false;
+                if (_ZFDesign)
+                {
+                    designValidated = false;
+                    designCompleted = false;
+                }
                 _zeroF = value;
             }
             get { return _zeroF; }
@@ -1018,7 +1024,7 @@ namespace DigitalFilter
         {
             get
             {
-                if (!designCompleted) throw new Exception("In Elliptic.Description.get: design not completed");
+                if (!designValidated) throw new Exception("In Elliptic.Description.get: design not validate");
                 Tuple<string, int, double[]> t;
                 if (_ZFDesign)
                     t = new Tuple<string, int, double[]>(
