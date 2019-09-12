@@ -15,6 +15,7 @@ namespace PreprocessDataset
         protected ListBox myList;
 
         Elliptical filter = new Elliptical();
+        public IIRFilter Filter { get { return filter; } }
         const double cutoff = 1D;
         const double attenuation = 40D;
         const double passBandRipple = 0.01D;
@@ -40,6 +41,9 @@ namespace PreprocessDataset
             filter.PassF = cutoff;
             filter.Ripple = passBandRipple;
             filter.StopA = attenuation;
+            filter.ZeroF = 60;
+            filter.ZFDesign = false;
+            filter.NNull = 1;
 
             filter.SR = sr[1];
             sr.PropertyChanged += SR_PropertyChanged;
@@ -49,9 +53,6 @@ namespace PreprocessDataset
 
             StopF.Text = filter.StopF.ToString("0.00");
             ZFPanel.Visibility = Visibility.Hidden;
-            filter.ZeroF = 60;
-            filter.ZFDesign = false;
-            filter.NNull = 1;
         }
 
         public bool Validate(object o)
@@ -189,26 +190,34 @@ namespace PreprocessDataset
             if (ErrorCheckReq != null) ErrorCheckReq(this, null);
         }
 
-        private void Pass_Click(object sender, RoutedEventArgs e)
+        private void HighPass_Checked(object sender, RoutedEventArgs e)
         {
-            bool zf = (bool)ZFSpecial.IsChecked;
-            if (zf && filter.ZFDesign) return; //just clicking set ZF
-            if (zf) //change to ZF
-            {
-                filter.HP = false;
-                filter.ZFDesign = true;
-                ZFPanel.Visibility = Visibility.Visible;
-                return;
-            }
-            if(filter.ZFDesign) //change from ZF
+            if (filter.ZFDesign) //change from ZF
             {
                 filter.ZFDesign = false;
-                filter.HP = (bool)HighPass.IsChecked;
                 ZFPanel.Visibility = Visibility.Hidden;
-                return;
             }
-            filter.HP = (bool)HighPass.IsChecked;
-            ErrorCheckReq(this, null);
+            filter.HP = true;
+            if (ErrorCheckReq != null) ErrorCheckReq(this, null);
+        }
+
+        private void LowPass_Checked(object sender, RoutedEventArgs e)
+        {
+            if (filter.ZFDesign) //change from ZF
+            {
+                filter.ZFDesign = false;
+                ZFPanel.Visibility = Visibility.Hidden;
+            }
+            filter.HP = false;
+            if (ErrorCheckReq != null) ErrorCheckReq(this, null);
+        }
+
+        private void ZFSpecial_Checked(object sender, RoutedEventArgs e)
+        {
+            filter.HP = false;
+            filter.ZFDesign = true;
+            ZFPanel.Visibility = Visibility.Visible;
+            if (ErrorCheckReq != null) ErrorCheckReq(this, null);
         }
 
         private void PassFCB_Click(object sender, RoutedEventArgs e)

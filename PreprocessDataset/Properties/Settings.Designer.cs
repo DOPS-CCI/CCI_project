@@ -34,5 +34,17 @@ namespace PreprocessDataset.Properties {
                 this["LastFolder"] = value;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("C:")]
+        public string LastParFile {
+            get {
+                return ((string)(this["LastParFile"]));
+            }
+            set {
+                this["LastParFile"] = value;
+            }
+        }
     }
 }

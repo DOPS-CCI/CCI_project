@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows;
+using System.Windows.Input;
 using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Forms;
@@ -72,8 +73,13 @@ namespace PreprocessDataset
         {
             this.Title = "PreprocessDataset: " + ppw.directory;
 
+            InitializeMenuBindings();
+
             if (ppw.inputType == InputType.BDF || channels.EEGSelected < 4) //not enough EEG channels
+            {
                 LaplacianGB.Visibility = Visibility.Collapsed; //no SL
+                CreateSFP.Visibility = Visibility.Collapsed; //no electrode locations
+            }
 
             if (ppw.inputType == InputType.SET)
             {
@@ -81,6 +87,7 @@ namespace PreprocessDataset
                 SETEEG.Text = channels.EEGSelected.ToString("0");
                 SETTotal.Text = channels.BDFTotal.ToString("0");
                 SETGB.Visibility = Visibility.Visible;
+                CreateSFP.Visibility = Visibility.Collapsed; //no electrode locations
             }
             else
             {
@@ -108,6 +115,7 @@ namespace PreprocessDataset
             NOLambda.Text = "1.0";
             ArrayDist.Text = "3.0";
             SequenceName.Text="SurfLap";
+            CreateSFP.IsChecked = false;
         }
 
         private bool ProcessHDRFile(string fileName)
@@ -320,6 +328,7 @@ namespace PreprocessDataset
         private void FitOrder_TextChanged(object sender, TextChangedEventArgs e)
         {
             if (!IsLoaded) return;
+
             int f;
             if (!Int32.TryParse(FitOrder.Text, out f)) f = -1;
             ppw.HeadFitOrder = f;
@@ -367,7 +376,7 @@ namespace PreprocessDataset
                 if(ppw.doDetrend)
                     if (ppw.detrendOrder < 0) ok = false; //error in detrend order
             }
-            Process.IsEnabled = ok;
+            ProcessButton.IsEnabled = ok;
         }
 
         private void PolyHarmOrder_TextChanged(object sender, TextChangedEventArgs e)
@@ -402,6 +411,7 @@ namespace PreprocessDataset
         private void ArrayDist_TextChanged(object sender, TextChangedEventArgs e)
         {
             if (!IsLoaded) return;
+
             if (!double.TryParse(ArrayDist.Text, out ppw.aDist))
             {
                 ppw.aDist = double.NaN;
@@ -451,6 +461,8 @@ namespace PreprocessDataset
             }
 
             if ((bool)Spherical.IsChecked) ppw.HeadFitOrder = 0;
+//            ppw.outputSFP = CreateSFP.IsVisible && (bool)CreateSFP.IsChecked;
+
 
             if (ppw.inputType == InputType.RWNL) //add back other needed RWNL channels: ANA and Status
             { //NB: has to be done on this thread: can't make changes to channels in worker thread
@@ -498,13 +510,6 @@ namespace PreprocessDataset
             checkOutputDatasetName(); //Warn of file overwriting
         }
 
-        private void LaplaceETR_TextChanged(object sender, TextChangedEventArgs e)
-        {
-            if (!IsLoaded) return;
-            ppw.ETROutputFullPathName = LaplaceETR.Text;
-            ErrorCheck();
-        }
-
         private void ArrayDist_IsEnabledChanged(object sender, DependencyPropertyChangedEventArgs e)
         {
             ErrorCheck();
@@ -541,6 +546,7 @@ namespace PreprocessDataset
         private void RefChan_TextChanged(object sender, TextChangedEventArgs e)
         {
             if (!IsLoaded) return;
+
             string str = ((System.Windows.Controls.TextBox)sender).Text;
             ppw._refChan = parseList(str);
             if (ppw._refChan == null || ppw._refChan.Count == 0)
@@ -753,13 +759,13 @@ namespace PreprocessDataset
 
         private void RefExclude_Click(object sender, RoutedEventArgs e)
         {
-            System.Windows.Controls.CheckBox RefExclude = (System.Windows.Controls.CheckBox)sender;
             ppw._refExcludeElim = (bool)RefExclude.IsChecked;
         }
 
         private void DetrendOrder_TextChanged(object sender, TextChangedEventArgs e)
         {
             if (!IsLoaded) return;
+
             int d;
             if (!Int32.TryParse(DetrendOrder.Text, out d)) d = -1;
             else if (d > 8) d = -1;
@@ -771,6 +777,11 @@ namespace PreprocessDataset
         {
             ppw.doDetrend = (bool)Detrend.IsChecked;
             ErrorCheck();
+        }
+
+        private void CreateSFP_Click(object sender, RoutedEventArgs e)
+        {
+            ppw.outputSFP = (bool)CreateSFP.IsChecked;
         }
     }
 

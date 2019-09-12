@@ -50,8 +50,8 @@
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
                 <Border Grid.Column="0" Grid.RowSpan="2"/>
-                <RadioButton Name="HP" Grid.Row="0" Grid.Column="0" IsChecked="True" Click="HPLP_Click">High pass</RadioButton>
-                <RadioButton Grid.Row="1" Grid.Column="0" Click="HPLP_Click">Low pass</RadioButton>
+                <RadioButton Name="HP" Grid.Row="0" Grid.Column="0" IsChecked="True" Checked="HPLP_Checked">High pass</RadioButton>
+                <RadioButton Name="LP" Grid.Row="1" Grid.Column="0" Checked="HPLP_Checked">Low pass</RadioButton>
                 <Border Grid.Column="1" Grid.RowSpan="2"/>
                 <StackPanel Orientation="Horizontal" Grid.Row="0" Grid.Column="1"  HorizontalAlignment="Left" >
                     <CheckBox Name="CutoffCB" IsChecked="True" Click="CutoffCB_Click">Cutoff frequency</CheckBox>

@@ -15,6 +15,8 @@ namespace PreprocessDataset
         protected ListBox myList;
 
         Butterworth filter = new Butterworth();
+
+        public IIRFilter Filter { get { return filter; } }
         const double cutoff = 1D;
         const int poles = 2;
 
@@ -137,10 +139,10 @@ namespace PreprocessDataset
             return filter.IsValid;
         }
 
-        private void HPLP_Click(object sender, RoutedEventArgs e)
+        private void HPLP_Checked(object sender, RoutedEventArgs e)
         {
             filter.HP = (bool)HP.IsChecked;
-            ErrorCheckReq(this, null);
+            if (ErrorCheckReq != null) ErrorCheckReq(this, null);
         }
 
         private void CutoffCB_Click(object sender, RoutedEventArgs e)

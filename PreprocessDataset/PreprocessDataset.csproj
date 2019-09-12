@@ -119,6 +119,7 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="ParameterCommands.cs" />
     <Compile Include="SphericalizeHeadCoordinates.cs" />
     <Page Include="ButterworthDesignControl.xaml">
       <SubType>Designer</SubType>

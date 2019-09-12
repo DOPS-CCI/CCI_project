@@ -57,9 +57,9 @@
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
                 <Border Grid.RowSpan="3"/>
-                <RadioButton Name="HighPass" Grid.Row="0" IsChecked="True" VerticalAlignment="Center" Margin="6,0,0,0" Click="Pass_Click">High pass</RadioButton>
-                <RadioButton Grid.Row="1" VerticalAlignment="Center" Margin="6,0,0,0" Click="Pass_Click">Low pass</RadioButton>
-                <RadioButton Name="ZFSpecial" Grid.Row="2" VerticalAlignment="Center" Margin="6,0,0,0" Click="Pass_Click">Special LP</RadioButton>
+                <RadioButton Name="HighPass" Grid.Row="0" IsChecked="True" VerticalAlignment="Center" Margin="6,0,0,0" Checked="HighPass_Checked" >High pass</RadioButton>
+                <RadioButton Name="LowPass" Grid.Row="1" VerticalAlignment="Center" Margin="6,0,0,0" Checked="LowPass_Checked">Low pass</RadioButton>
+                <RadioButton Name="ZFSpecial" Grid.Row="2" VerticalAlignment="Center" Margin="6,0,0,0" Checked="ZFSpecial_Checked">Special LP</RadioButton>
                 <Border Grid.Column="1" Grid.RowSpan="3"/>
                 <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Left">
                     <CheckBox Name="PassFCB" IsChecked="True" Click="PassFCB_Click">Pass band freq</CheckBox>

@@ -5,5 +5,8 @@
     <Setting Name="LastFolder" Type="System.String" Scope="User">
       <Value Profile="(Default)">C:</Value>
     </Setting>
+    <Setting Name="LastParFile" Type="System.String" Scope="User">
+      <Value Profile="(Default)">C:</Value>
+    </Setting>
   </Settings>
 </SettingsFile>

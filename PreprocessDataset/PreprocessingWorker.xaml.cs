@@ -89,6 +89,7 @@ namespace PreprocessDataset
         internal bool _refExcludeElim = true;
 
         internal string sequenceName;
+        internal bool outputSFP = false;
 
         //Map from data[] slot to BDF channel; may or may not include eliminated channels due to referencing
         int[] Data2BDFChannelMap;
@@ -166,6 +167,7 @@ namespace PreprocessDataset
             }
             else //RWNL output; possible SL
                 if (!bw.CancellationPending)
+                {
                     if (doLaplacian)
                     {
                         DetermineOutputLocations();
@@ -173,6 +175,7 @@ namespace PreprocessDataset
                     }
                     else
                         CreateNewRWNLDataset();
+                }
             logFile.Close();
             bwArgs.Cancel = bw.CancellationPending; //indicate if cancelled or not
         }
@@ -457,6 +460,7 @@ namespace PreprocessDataset
         private void FilterData()
         {
             logStream.WriteStartElement("Filters");
+            logStream.WriteAttributeString("Causal", reverse ? "False" : "True");
             int f = 1;
             foreach (IIRFilter df in filterList)
             {
@@ -607,12 +611,16 @@ namespace PreprocessDataset
             ElectrodeOutputFileStream eof = new ElectrodeOutputFileStream(
                 new FileStream(System.IO.Path.Combine(directory, head.ElectrodeFile), FileMode.Create, FileAccess.Write),
                 typeof(RPhiThetaRecord));
+            List<ElectrodeRecord> SPFList = null;
+            if (outputSFP) SPFList = new List<ElectrodeRecord>();
             foreach (ChannelDescription cd in channels)
             {
                 if (cd.Selected && cd.eRecord != null)
                 {
                     RPhiThetaRecord rpt = new RPhiThetaRecord(cd.Name, cd.eRecord.convertRPhiTheta());
                     rpt.write(eof);
+                    if (outputSFP)
+                        SPFList.Add(new XYZRecord(cd.Name, cd.eRecord.convertXYZ()));
                 }
             }
             eof.Close();
@@ -621,6 +629,7 @@ namespace PreprocessDataset
             HeaderFileWriter hfw = new HeaderFileWriter(
                 new FileStream(System.IO.Path.Combine(directory, newFilename + ".hdr"), FileMode.Create, FileAccess.Write),
                 head);
+            if (outputSFP) writeSFPFile(SPFList);
         }
 
         private void DetermineOutputLocations()
@@ -740,7 +749,7 @@ namespace PreprocessDataset
             }
             logStream.WriteEndElement(/*HeadGeometry*/);
             logStream.WriteStartElement("Methodology");
-            logStream.WriteAttributeString("Type", NewOrleans ? "Hew Orleans" : "Spherical spline");
+            logStream.WriteAttributeString("Type", NewOrleans ? "New Orleans" : "Polyharmonic spline");
             if (NewOrleans)
                 logStream.WriteElementString("Lambda", NOlambda.ToString("0.00"));
             else
@@ -994,7 +1003,23 @@ namespace PreprocessDataset
                 HeaderFileWriter hfw = new HeaderFileWriter(
                     new FileStream(System.IO.Path.Combine(directory, newFilename + ".hdr"), FileMode.Create, FileAccess.Write),
                     head);
+
+                if (outputSFP) writeSFPFile(SLOutputLocations);
             }
+        }
+
+        private void writeSFPFile(List<ElectrodeRecord> OutputLocations)
+        {
+            StreamWriter sw = new StreamWriter(
+                new FileStream(System.IO.Path.Combine(directory, baseFileName + "." + sequenceName + ".sfp"), FileMode.Create, FileAccess.Write),
+                Encoding.ASCII);
+            foreach(ElectrodeRecord er in OutputLocations)
+            {
+                Point3D xyz = er.convertXYZ();
+                string name = er.Name.Replace(' ', '_');
+                sw.WriteLine(name + " " + xyz.X.ToString("G") + " " + xyz.Y.ToString("G") + " " + xyz.Z.ToString("G"));
+            }
+            sw.Close();
         }
 
         double[] outputChannelMax;

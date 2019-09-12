@@ -14,6 +14,7 @@ namespace PreprocessDataset
         ListBox myList;
 
         Chebyshev filter = new Chebyshev();
+        public IIRFilter Filter { get { return filter; } }
         const double cutoff = 1D;
         const double stopA = 40;
         const int poles = 2;
@@ -146,10 +147,17 @@ namespace PreprocessDataset
             if (ErrorCheckReq != null) ErrorCheckReq(this, null);
         }
 
-        private void HPLP_Click(object sender, RoutedEventArgs e)
+        private void HighPass_Checked(object sender, RoutedEventArgs e)
         {
-            filter.HP = (bool)HighPass.IsChecked;
-            ErrorCheckReq(this, null);
+            filter.HP = true;
+            if (ErrorCheckReq != null) ErrorCheckReq(this, null);
+        }
+
+        private void LowPass_Checked(object sender, RoutedEventArgs e)
+        {
+            filter.HP = false;
+            if (ErrorCheckReq != null) ErrorCheckReq(this, null);
+
         }
 
         private void CutoffCB_Click(object sender, RoutedEventArgs e)
