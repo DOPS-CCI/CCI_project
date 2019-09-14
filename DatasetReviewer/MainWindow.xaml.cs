@@ -124,7 +124,7 @@ namespace DatasetReviewer
                         r = false;
                     }
 
-                } while (r == false);
+                } while (!r);
 
                 Log.writeToLog("     on dataset " + headerFileName);
 
@@ -135,7 +135,13 @@ namespace DatasetReviewer
                         if (ede.IsExtrinsic)
                         {
                             int chan = bdf.ChannelNumberFromLabel(ede.channelName);
-                            if (!channelList.Contains(chan)) //don't enter duplicate
+                            if (chan < 0)
+                            {
+                                ErrorWindow ew = new ErrorWindow();
+                                ew.Message = "Invalid channel reference for extrinsic Event " + ede.Name + ": channel " + ede.channelName + " not found";
+                                ew.ShowDialog();
+                            }
+                            else if (!channelList.Contains(chan)) //don't enter duplicate
                                 channelList.Add(chan);
                         }
                     }
