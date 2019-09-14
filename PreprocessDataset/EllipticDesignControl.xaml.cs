@@ -281,7 +281,7 @@ namespace PreprocessDataset
 
         private void ZFNP_TextChanged(object sender, TextChangedEventArgs e)
         {
-            if (ZFNP == null || !ZFPanel.IsVisible) return;
+            if (ZFNP == null || !filter.ZFDesign) return;
             int p;
             if (!int.TryParse(ZFNP.Text, out p)) p = 0;
             filter.NP = p;
@@ -290,7 +290,7 @@ namespace PreprocessDataset
 
         private void ZFRipple_TextChanged(object sender, TextChangedEventArgs e)
         {
-            if (ZFRipple == null || !ZFPanel.IsVisible) return;
+            if (ZFRipple == null || !filter.ZFDesign) return;
             double r;
             if (!double.TryParse(ZFRipple.Text, out r))
                 filter.Ripple = double.NaN;
@@ -303,7 +303,7 @@ namespace PreprocessDataset
 
         private void ZFAttenS_TextChanged(object sender, TextChangedEventArgs e)
         {
-            if (ZFAttenS == null || !ZFPanel.IsVisible) return;
+            if (ZFAttenS == null || !filter.ZFDesign) return;
             double a;
             if (!double.TryParse(ZFAttenS.Text, out a)) a = double.NaN;
             filter.StopA = a;
@@ -322,7 +322,7 @@ namespace PreprocessDataset
         private void ZFPanel_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
         {
             if (ZFPassF.IsVisible) //NB: Visibility hasn't yet been changed
-            {//Goinr to standard design
+            {//Going to standard design
                 if (double.IsNaN(filter.StopA))
                     Attenuation.Text = "";
                 else
