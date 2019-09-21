@@ -26,8 +26,8 @@ namespace Header
             }
             set
             {
-                if (value < 2 || value > 24)
-                    throw new Exception("Header: Invalid Status value of " + value.ToString("0"));
+                if (value < 2 || value > 16)
+                    throw new Exception("Header.Status.set: Invalid Status value of " + value.ToString("0"));
                 _status = value;
                 _mask = 0xFFFFFFFF >> (32 - _status);
             }
@@ -40,7 +40,8 @@ namespace Header
         public string Date { get; set; }
         public string Time { get; set; }
         public int Subject { get; set; }
-        public int Agent { get; set; }
+        int _agent = -1;
+        public int Agent { get { return _agent; } set { _agent = value; } }
         public List<string> Technician { get; set; }
         public Dictionary<string, string> OtherExperimentInfo { get; set; }
         public Dictionary<string, string> OtherSessionInfo { get; set; }
