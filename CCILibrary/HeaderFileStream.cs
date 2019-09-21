@@ -194,13 +194,13 @@ namespace HeaderFileStream
                     header.Agent = xr.ReadContentAsInt();
                     xr.ReadEndElement(/* Agent */);
                 }
-                header.Technician = new List<string>();
-                while (xr.Name == "Technician")
+                header.Technician = new List<string>(); //must be at least one
+                do
                 {
-                    xr.ReadStartElement(/* Technician */);
+                    xr.ReadStartElement("Technician");
                     header.Technician.Add(xr.ReadContentAsString());
                     xr.ReadEndElement(/* Technician */);
-                }
+                } while (xr.Name == "Technician");
                 if (xr.Name == "Other") {
                     header.OtherSessionInfo = new Dictionary<string, string>();
                     do
@@ -268,6 +268,9 @@ namespace HeaderFileStream
                 xw = XmlWriter.Create(str, settings);
                 xw.WriteStartDocument();
                 xw.WriteStartElement("Header");
+                xw.WriteAttributeString("xmlns", "http://www.zoomlenz.net");
+                xw.WriteAttributeString("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance");
+                xw.WriteAttributeString("xsi:schemaLocation", "http://www.zoomlenz.net http://www.zoomlenz.net/xml/Header.xsd");
                 xw.WriteStartElement("ExperimentDescription");
                 xw.WriteElementString("SoftwareVersion", head.SoftwareVersion);
                 xw.WriteElementString("Title", head.Title);
@@ -311,10 +314,8 @@ namespace HeaderFileStream
                         xw.WriteElementString("Channel", ede.Value.channelName);
                         xw.WriteElementString("Edge", ede.Value.rise ? "rising" : "falling");
                         xw.WriteElementString("Location", ede.Value.location ? "after" : "before");
-                        if (ede.Value.channelMax != 0)
-                            xw.WriteElementString("Max", ede.Value.channelMax.ToString("G"));
-                        if (ede.Value.channelMin != 0)
-                            xw.WriteElementString("Min", ede.Value.channelMin.ToString("G"));
+                        xw.WriteElementString("Max", ede.Value.channelMax.ToString("G"));
+                        xw.WriteElementString("Min", ede.Value.channelMin.ToString("G"));
                     }
                     if (ede.Value.ancillarySize != 0)
                         xw.WriteElementString("Ancillary", ede.Value.ancillarySize.ToString("0"));
@@ -332,7 +333,8 @@ namespace HeaderFileStream
                 xw.WriteElementString("Date", head.Date);
                 xw.WriteElementString("Time", head.Time);
                 xw.WriteElementString("Subject", head.Subject.ToString("0000"));
-                xw.WriteElementString("Agent", head.Agent.ToString("0000"));
+                if (head.Agent >= 0)
+                    xw.WriteElementString("Agent", head.Agent.ToString("0000"));
                 foreach (string tech in head.Technician)
                     xw.WriteElementString("Technician", tech);
                 if(head.OtherSessionInfo != null)
