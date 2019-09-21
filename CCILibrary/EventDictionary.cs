@@ -62,13 +62,7 @@ namespace EventDictionary
         {
             set
             {
-                //if (value == null) //deprecated
-                //{
-                //    m_intrinsic = true;
-                //    m_covered = false;
-                //}
-                //else
-                    m_intrinsic = value;
+                m_intrinsic = value;
             }
         }
 
