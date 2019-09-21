@@ -217,6 +217,9 @@ namespace EventFile
                 xw = XmlWriter.Create(stream, settings);
                 xw.WriteStartDocument();
                 xw.WriteStartElement("Events");
+                xw.WriteAttributeString("xmlns", "http://www.zoomlenz.net");
+                xw.WriteAttributeString("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance");
+                xw.WriteAttributeString("xsi:schemaLocation", "http://www.zoomlenz.net http://www.zoomlenz.net/xml/Event.xsd");
             }
             catch (XmlException x)
             {
@@ -237,7 +240,7 @@ namespace EventFile
                 xw.WriteElementString("Index", ev.Index.ToString("0"));
                 xw.WriteElementString("GrayCode", ev.GC.ToString("0"));
                 xw.WriteStartElement("ClockTime");
-                if (ev.HasRelativeTime) // BDF-based clock
+                if (ev.HasRelativeTime) // relative, BDF-based clock
                 {
                     xw.WriteString(ev.Time.ToString("0.0000000"));
                     xw.WriteEndElement(/* ClockTime */);

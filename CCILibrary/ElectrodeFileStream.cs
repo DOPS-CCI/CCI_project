@@ -79,6 +79,9 @@ namespace ElectrodeFileStream
                 xw = XmlWriter.Create(str, settings);
                 xw.WriteStartDocument();
                 xw.WriteStartElement("Electrodes");
+                xw.WriteAttributeString("xmlns", "http://www.zoomlenz.net");
+                xw.WriteAttributeString("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance");
+                xw.WriteAttributeString("xsi:schemaLocation", "http://www.zoomlenz.net http://www.zoomlenz.net/xml/Electrode.xsd");
                 if (t == typeof(PhiThetaRecord))
                     xw.WriteAttributeString("Type", "PhiTheta");
                 else if (t == typeof(XYRecord))

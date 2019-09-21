@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xsd:schema 
+    targetNamespace="http://www.zoomlenz.net"
+    xmlns="http://www.zoomlenz.net"
+    xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+    xmlns:vc="http://www.w3.org/2007/XMLSchema-versioning" vc:minVersion="1.1"
+    elementFormDefault="qualified"
+    xpathDefaultNamespace="##targetNamespace">
+    
+    <xsd:element name="Electrodes">
+        <xsd:complexType>
+            <xsd:sequence>
+                <xsd:element ref="Electrode" maxOccurs="unbounded"/>
+            </xsd:sequence>
+            <xsd:attribute name="Type" use="required">
+                <xsd:simpleType>
+                    <xsd:restriction base="xsd:string">
+                        <xsd:enumeration value="PhiTheta"/>
+                        <xsd:enumeration value="XY"/>
+                        <xsd:enumeration value="XYZ"/>
+                        <xsd:enumeration value="RPhiTheta"/>
+                    </xsd:restriction>
+                </xsd:simpleType>
+            </xsd:attribute>
+            <xsd:anyAttribute notNamespace="##targetNamespace"/>
+            <xsd:assert test="if (@Type = 'RPhiTheta') then ./Electrode/R and ./Electrode/Theta and ./Electrode/Phi and
+                not(./Electrode/X) and not(./Electrode/Y) and not(./Electrode/Z) else true()"/>            
+            <xsd:assert test="if (@Type = 'PhiTheta') then not(./Electrode/R) and ./Electrode/Theta and ./Electrode/Phi and 
+                not(./Electrode/X) and not(./Electrode/Y) and not(./Electrode/Z) else true()"/>            
+            <xsd:assert test="if (@Type = 'XYZ') then ./Electrode/X and ./Electrode/Y and ./Electrode/Z and
+                not(./Electrode/R) and not(./Electrode/Phi) and not(./Electrode/Theta) else true()"/>            
+            <xsd:assert test="if (@Type = 'XY') then not(./Electrode/R) and not(./Electrode/Phi) and not(./Electrode/Theta) and
+                ./Electrode/X and ./Electrode/Y  and not(./Electrode/Z) else true()"/>            
+        </xsd:complexType>
+        <xsd:unique name="UniqueElectrodeName">
+            <xsd:selector xpath="./Electrode"/>
+            <xsd:field xpath="@Name"/>
+        </xsd:unique>
+    </xsd:element>
+    
+    <xsd:element name="Electrode">
+        <xsd:complexType>
+            <xsd:sequence>
+                <xsd:element name="R" minOccurs="0" type="xsd:double"/>
+                <xsd:element name="Phi" minOccurs="0" type="xsd:double"/>
+                <xsd:element name="Theta" minOccurs="0" type="xsd:double"/>
+                <xsd:element name="X" minOccurs="0" type="xsd:double"/>
+                <xsd:element name="Y" minOccurs="0" type="xsd:double"/>
+                <xsd:element name="Z" minOccurs="0" type="xsd:double"/>
+            </xsd:sequence>
+            <xsd:attribute name="Name">
+                <xsd:simpleType>
+                    <xsd:restriction base="xsd:string">
+                        <xsd:minLength value="1"/>
+                    </xsd:restriction>
+                </xsd:simpleType>
+            </xsd:attribute>
+        </xsd:complexType>
+    </xsd:element>
+</xsd:schema>

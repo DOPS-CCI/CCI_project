@@ -1,87 +1,221 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
-  <xs:element name="Header">
-    <xs:complexType>
-      <xs:sequence>
-        <xs:element ref="ExperimentDescription"/>
-        <xs:element ref="SessionDescription"/>
-      </xs:sequence>
-    </xs:complexType>
-  </xs:element>
-  <xs:element name="ExperimentDescription">
-    <xs:complexType>
-      <xs:sequence>
-        <xs:element ref="SoftwareVersion"/>
-        <xs:element ref="Title"/>
-        <xs:element ref="LongDescription"/>
-        <xs:element ref="Experimenter"/>
-        <xs:element ref="Status"/>
-        <xs:element maxOccurs="unbounded" ref="GroupVar"/>
-        <xs:element maxOccurs="unbounded" ref="Event"/>
-      </xs:sequence>
-    </xs:complexType>
-  </xs:element>
-  <xs:element name="SoftwareVersion" type="xs:NMTOKEN"/>
-  <xs:element name="Title" type="xs:string"/>
-  <xs:element name="LongDescription" type="xs:string"/>
-  <xs:element name="Experimenter" type="xs:string"/>
-  <xs:element name="Status" type="xs:integer"/>
-  <xs:element name="Event">
-    <xs:complexType>
-      <xs:sequence>
-        <xs:element ref="Name"/>
-        <xs:element ref="Description"/>
-        <xs:element maxOccurs="unbounded" ref="GroupVar" minOccurs="0"/>
-      </xs:sequence>
-      <xs:attribute name="Clock" use="required" type="xs:NCName"/>
-      <xs:attribute name="Type" use="required"/>
-    </xs:complexType>
-  </xs:element>
-  <xs:element name="SessionDescription">
-    <xs:complexType>
-      <xs:sequence>
-        <xs:element ref="Date"/>
-        <xs:element ref="Time"/>
-        <xs:element ref="Subject"/>
-        <xs:element ref="Agent"/>
-        <xs:element ref="Technician"/>
-        <xs:element ref="BDFFile"/>
-        <xs:element ref="EventFile"/>
-        <xs:element ref="ElectrodeFile"/>
-        <xs:element ref="Comment"/>
-      </xs:sequence>
-    </xs:complexType>
-  </xs:element>
-  <xs:element name="Date" type="xs:date"/>
-  <xs:element name="Time" type="xs:time" block=""/>
-  <xs:element name="Subject" type="xs:integer"/>
-  <xs:element name="Agent" type="xs:integer"/>
-  <xs:element name="Technician" type="xs:string"/>
-  <xs:element name="BDFFile" type="xs:NCName"/>
-  <xs:element name="EventFile" type="xs:string"/>
-  <xs:element name="ElectrodeFile" type="xs:string"/>
-  <xs:element name="Comment" type="xs:string"/>
-  <xs:element name="GroupVar">
-    <xs:complexType>
-      <xs:sequence>
-        <xs:sequence minOccurs="0">
-          <xs:element ref="Name"/>
-          <xs:element ref="Description"/>
-        </xs:sequence>
-        <xs:element minOccurs="0" maxOccurs="unbounded" ref="GV"/>
-      </xs:sequence>
-      <xs:attribute name="Name"/>
-    </xs:complexType>
-  </xs:element>
-  <xs:element name="GV">
-    <xs:complexType>
-      <xs:simpleContent>
-        <xs:extension base="xs:integer">
-          <xs:attribute name="Desc" use="required"/>
-        </xs:extension>
-      </xs:simpleContent>
-    </xs:complexType>
-  </xs:element>
-  <xs:element name="Name" type="xs:string"/>
-  <xs:element name="Description" type="xs:string"/>
-</xs:schema>
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+  targetNamespace="http://www.zoomlenz.net"
+  xmlns:x="http://www.zoomlenz.net"
+  elementFormDefault="qualified"
+  xmlns:vc="http://www.w3.org/2007/XMLSchema-versioning" vc:minVersion="1.1"
+  xpathDefaultNamespace="##defaultNamespace">
+  
+  <xsd:element name="Header">
+    <xsd:complexType>
+      <xsd:sequence>
+        <xsd:element ref="x:ExperimentDescription"/>
+        <xsd:element ref="x:SessionDescription"/>
+      </xsd:sequence>
+    </xsd:complexType>
+  </xsd:element>
+  
+  <xsd:element name="ExperimentDescription">
+    <xsd:complexType>
+      <xsd:sequence>
+        <xsd:element ref="x:SoftwareVersion"/>
+        <xsd:element name="Title" type="x:DescriptionType"/>
+        <xsd:element name="LongDescription" type="x:DescriptionType"/>
+        <xsd:element name="Experimenter" maxOccurs="unbounded" type="xsd:string"/>
+        <xsd:element ref="x:Status"/>
+        <xsd:element ref="x:Other" minOccurs="0" maxOccurs="unbounded"/>
+        <xsd:element ref="x:GroupVar" minOccurs="0" maxOccurs="unbounded"/>
+        <xsd:element ref="x:Event" minOccurs="0" maxOccurs="unbounded"/>
+      </xsd:sequence>
+    </xsd:complexType>
+    <xsd:unique name="UniqueEventName">
+      <xsd:selector xpath="./x:Event"/>
+      <xsd:field xpath="x:Name"/>
+    </xsd:unique>
+    <xsd:key name="GVNameKey">
+      <xsd:selector xpath="./x:GroupVar"/>
+      <xsd:field xpath="x:Name"/>
+    </xsd:key>
+    <xsd:keyref refer="x:GVNameKey" name="EventGVRef">
+      <xsd:selector xpath="./x:Event/x:GroupVar"/>
+      <xsd:field xpath="@Name"/>
+    </xsd:keyref>
+  </xsd:element>
+  
+  <xsd:element name="SoftwareVersion">
+    <xsd:simpleType>
+      <xsd:restriction base="xsd:string">
+        <xsd:pattern value="[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+"/>
+      </xsd:restriction>
+    </xsd:simpleType>
+  </xsd:element>
+  
+  <xsd:element name="Status">
+    <xsd:simpleType>
+      <xsd:restriction base="xsd:positiveInteger">
+        <xsd:minInclusive value="2"/>
+        <xsd:maxInclusive value="16"/>
+      </xsd:restriction>
+    </xsd:simpleType>
+  </xsd:element>
+  
+  <xsd:element name="Other">
+    <xsd:complexType>
+      <xsd:simpleContent>
+        <xsd:extension base="xsd:string">
+          <xsd:attribute name="Name" use="required" type="xsd:string"/>
+        </xsd:extension>
+      </xsd:simpleContent>
+    </xsd:complexType>
+  </xsd:element>
+  
+  <xsd:element name="Event">
+    <xsd:complexType>
+      <xsd:sequence>
+        <xsd:element name="Name" type="x:ENameType"/>
+        <xsd:element name="Description" type="x:DescriptionType"/>
+        <xsd:element name="Channel" minOccurs="0">
+          <xsd:simpleType>
+            <xsd:restriction base="xsd:string">
+              <xsd:minLength value="1"/>
+            </xsd:restriction>
+          </xsd:simpleType>
+        </xsd:element>
+        <xsd:element ref="x:Edge" minOccurs="0"/>
+        <xsd:element ref="x:Location" minOccurs="0"/>
+        <xsd:element name="Max" minOccurs="0" type="xsd:double"/>
+        <xsd:element name="Min" minOccurs="0" type="xsd:double"/>
+        <xsd:element name="GroupVar" minOccurs="0" maxOccurs="unbounded">
+          <xsd:complexType>
+            <xsd:attribute name="Name" use="required" type="x:GVName"/>
+          </xsd:complexType>
+        </xsd:element>
+      </xsd:sequence>
+      <xsd:attribute name="Clock" use="optional" default="Absolute">
+        <xsd:simpleType>
+          <xsd:restriction base="xsd:string">
+            <xsd:enumeration value="Absolute"/>
+            <xsd:enumeration value="Relative"/>
+          </xsd:restriction>
+        </xsd:simpleType>
+      </xsd:attribute>
+      <xsd:attribute name="Type"  use="required">
+        <xsd:simpleType>
+          <xsd:restriction base="xsd:string">
+            <xsd:enumeration value="Intrinsic"/>
+            <xsd:enumeration value="Extrinsic"/>
+          </xsd:restriction>
+        </xsd:simpleType>
+      </xsd:attribute>
+      <xsd:attribute name="Covered" use="optional" default="Yes">
+        <xsd:simpleType>
+          <xsd:restriction base="xsd:string">
+            <xsd:pattern value="Yes|No"/>
+          </xsd:restriction>
+        </xsd:simpleType>
+      </xsd:attribute>
+      <xsd:assert test="if (@Covered = 'No') then @Clock = 'Relative' else true()"/>
+      <xsd:assert test="if (@Type = 'Extrinsic') then x:Channel and x:Edge and x:Location and x:Max and x:Min else true()"/>
+      <xsd:assert test="if (@Type = 'Extrinsic') then x:Max > x:Min else true()"/>
+      <xsd:assert test="if (@Type = 'Intrinsic') then not(x:Channel) and not(x:Edge) and not(x:Location) and not(x:Max) and not(x:Min) else true()"/>
+    </xsd:complexType>
+    <xsd:unique name="UniqueEventGV">
+      <xsd:selector xpath="./x:GroupVar"/>
+      <xsd:field xpath="@Name"/>
+    </xsd:unique>
+  </xsd:element>
+
+  <xsd:element name="Edge">
+    <xsd:simpleType>
+      <xsd:restriction base="xsd:string">
+        <xsd:enumeration value="rising"/>
+        <xsd:enumeration value="falling"/>
+      </xsd:restriction>
+    </xsd:simpleType>
+  </xsd:element>
+  <xsd:element name="Location">
+    <xsd:simpleType>
+      <xsd:restriction base="xsd:string">
+        <xsd:enumeration value="before"/>
+        <xsd:enumeration value="after"/>
+      </xsd:restriction>
+    </xsd:simpleType>
+  </xsd:element>
+  
+  <xsd:element name="SessionDescription">
+    <xsd:complexType>
+      <xsd:sequence>
+        <xsd:element ref="x:Date"/>
+        <xsd:element ref="x:Time"/>
+        <xsd:element name="Subject" type="xsd:nonNegativeInteger"/>
+        <xsd:element name="Agent" minOccurs="0" type="xsd:nonNegativeInteger"/>
+        <xsd:element name="Technician" maxOccurs="unbounded" type="xsd:string"/>
+        <xsd:element ref="x:Other" minOccurs="0" maxOccurs="unbounded"/>
+        <xsd:element name="BDFFile" type="xsd:string"/>
+        <xsd:element name="EventFile" type="xsd:string"/>
+        <xsd:element name="ElectrodeFile" type="xsd:string"/>
+        <xsd:element name="Comment" minOccurs="0" type="xsd:string"/>
+      </xsd:sequence>
+    </xsd:complexType>
+  </xsd:element>
+  
+  <xsd:element name="Date">
+    <xsd:simpleType>
+      <xsd:restriction base="xsd:string">
+        <xsd:pattern value="(0?[1-9]|1[0-2])[-/](0?[1-9]|[1-2][0-9]|3[0-1])[-/]20[0-9][0-9]"/>
+      </xsd:restriction>
+    </xsd:simpleType>
+  </xsd:element>
+  <xsd:element name="Time">
+    <xsd:simpleType>
+      <xsd:restriction base="xsd:string">
+        <xsd:pattern value="((0?|1)[0-9]|2[0-3]):[0-5][0-9]( (AM|PM))?"/>
+      </xsd:restriction>
+    </xsd:simpleType>
+  </xsd:element>
+  
+  <xsd:element name="GroupVar">
+  <xsd:complexType>
+    <xsd:sequence>
+      <xsd:element name="Name" type="x:GVName"/>
+      <xsd:element name="Description" type="x:DescriptionType"/>
+      <xsd:element name="GV" minOccurs="0" maxOccurs="unbounded">
+       <xsd:complexType>
+         <xsd:simpleContent>
+           <xsd:extension base="xsd:positiveInteger">
+             <xsd:attribute name="Desc" use="required"/>
+           </xsd:extension>
+         </xsd:simpleContent>
+       </xsd:complexType>
+      </xsd:element>
+    </xsd:sequence>
+  </xsd:complexType>
+  <xsd:unique name="UniqueGVValueName">
+    <xsd:selector xpath="./x:GV"/>
+    <xsd:field xpath="@Desc"/>
+  </xsd:unique>
+  <xsd:unique name="UniqueGVValue">
+    <xsd:selector xpath="./x:GV"/>
+    <xsd:field xpath="."/>
+  </xsd:unique>
+  </xsd:element>
+
+  <xsd:simpleType name="GVName" >
+     <xsd:restriction base="xsd:string">
+      <xsd:pattern value="[a-zA-Z][a-zA-Z0-9_\-\.]*"/>
+    </xsd:restriction>
+  </xsd:simpleType>
+
+  <xsd:simpleType name="ENameType">
+    <xsd:restriction base="xsd:string">
+      <xsd:pattern value="\**[a-zA-Z][a-zA-Z0-9_\-\.]*"/>
+    </xsd:restriction>
+  </xsd:simpleType>
+  
+  <xsd:simpleType name="DescriptionType">
+    <xsd:restriction base="xsd:string">
+      <xsd:minLength value="1"/>
+    </xsd:restriction>
+  </xsd:simpleType>
+  
+</xsd:schema>
