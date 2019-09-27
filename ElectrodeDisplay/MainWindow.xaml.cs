@@ -43,6 +43,7 @@ namespace ElectrodeDisplay
             }
             InitializeComponent();
             this.Title = dlg.FileName;
+            this.Show();
         }
 
         const double radius = 30;
