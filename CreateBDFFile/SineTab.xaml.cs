@@ -22,8 +22,8 @@ namespace CreateBDFFile
     {
         protected double[] Parm = new double[3]; // Coef, Freq, Phase
         protected VType[] CParm = new VType[3];
-        static double c1 = 2D * Math.PI;
-        static double c2 = c1 / 360D;
+        static double c1 = 2D * Math.PI; //2 pi
+        static double c2 = c1 / 360D; //radians/deg
 
         public SineTab()
         {

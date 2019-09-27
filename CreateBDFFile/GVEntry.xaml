@@ -1,7 +1,7 @@
 ﻿<ListBoxItem x:Class="CreateBDFFile.GVEntry"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    FontSize="14" Loaded="ListBoxItem_Loaded">
+    FontSize="14" Loaded="ListBoxItem_Loaded" Background="White">
     <Border BorderBrush="DarkBlue" BorderThickness="1" Margin="2">
         <Grid Height="50" Width="400">
             <Grid.RowDefinitions>

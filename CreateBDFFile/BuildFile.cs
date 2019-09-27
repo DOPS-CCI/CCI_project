@@ -89,7 +89,7 @@ namespace CreateBDFFile
             {
                 string sName = parameters.ChannelLabelPrefix + " " + (i + 1).ToString("0");
                 PhiThetaRecord xy = new PhiThetaRecord(sName, phi[i], theta[i]);
-                xy.write(efs, "");
+                xy.write(efs);
             }
             efs.Close();
             
@@ -302,10 +302,7 @@ namespace CreateBDFFile
         int _samplingRate;
         internal int samplingRate
         {
-            get
-            {
-                return _samplingRate;
-            }
+            get { return _samplingRate; }
             set
             {
                 if (_samplingRate != value)
