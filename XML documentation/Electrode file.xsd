@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <xsd:schema 
-    targetNamespace="http://www.zoomlenz.net"
-    xmlns="http://www.zoomlenz.net"
+    targetNamespace="http://www.zoomlenz.net/Electrode"
+    xmlns:x="http://www.zoomlenz.net/Electrode"
     xmlns:xsd="http://www.w3.org/2001/XMLSchema"
     xmlns:vc="http://www.w3.org/2007/XMLSchema-versioning" vc:minVersion="1.1"
     elementFormDefault="qualified"
-    xpathDefaultNamespace="##targetNamespace">
+    xpathDefaultNamespace="##defaultNamespace">
     
     <xsd:element name="Electrodes">
         <xsd:complexType>
             <xsd:sequence>
-                <xsd:element ref="Electrode" maxOccurs="unbounded"/>
+                <xsd:element ref="x:Electrode" maxOccurs="unbounded"/>
             </xsd:sequence>
             <xsd:attribute name="Type" use="required">
                 <xsd:simpleType>
@@ -23,17 +23,17 @@
                 </xsd:simpleType>
             </xsd:attribute>
             <xsd:anyAttribute notNamespace="##targetNamespace"/>
-            <xsd:assert test="if (@Type = 'RPhiTheta') then ./Electrode/R and ./Electrode/Theta and ./Electrode/Phi and
-                not(./Electrode/X) and not(./Electrode/Y) and not(./Electrode/Z) else true()"/>            
-            <xsd:assert test="if (@Type = 'PhiTheta') then not(./Electrode/R) and ./Electrode/Theta and ./Electrode/Phi and 
-                not(./Electrode/X) and not(./Electrode/Y) and not(./Electrode/Z) else true()"/>            
-            <xsd:assert test="if (@Type = 'XYZ') then ./Electrode/X and ./Electrode/Y and ./Electrode/Z and
-                not(./Electrode/R) and not(./Electrode/Phi) and not(./Electrode/Theta) else true()"/>            
-            <xsd:assert test="if (@Type = 'XY') then not(./Electrode/R) and not(./Electrode/Phi) and not(./Electrode/Theta) and
-                ./Electrode/X and ./Electrode/Y  and not(./Electrode/Z) else true()"/>            
+            <xsd:assert test="if (@Type = 'RPhiTheta') then ./x:Electrode/x:R and ./x:Electrode/x:Theta and ./x:Electrode/x:Phi and
+                not(./x:Electrode/x:X) and not(./x:Electrode/x:Y) and not(./x:Electrode/x:Z) else true()"/>            
+            <xsd:assert test="if (@Type = 'PhiTheta') then not(./x:Electrode/x:R) and ./x:Electrode/x:Theta and ./x:Electrode/x:Phi and 
+                not(./x:Electrode/x:X) and not(./x:Electrode/x:Y) and not(./x:Electrode/x:Z) else true()"/>            
+            <xsd:assert test="if (@Type = 'XYZ') then ./x:Electrode/x:X and ./x:Electrode/x:Y and ./x:Electrode/x:Z and
+                not(./x:Electrode/x:R) and not(./x:Electrode/x:Phi) and not(./x:Electrode/x:Theta) else true()"/>            
+            <xsd:assert test="if (@Type = 'XY') then not(./x:Electrode/x:R) and not(./x:Electrode/x:Phi) and not(./x:Electrode/x:Theta) and
+                ./x:Electrode/x:X and ./x:Electrode/x:Y  and not(./x:Electrode/x:Z) else true()"/>            
         </xsd:complexType>
         <xsd:unique name="UniqueElectrodeName">
-            <xsd:selector xpath="./Electrode"/>
+            <xsd:selector xpath="./x:Electrode"/>
             <xsd:field xpath="@Name"/>
         </xsd:unique>
     </xsd:element>

@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <xsd:schema
     xmlns:xsd="http://www.w3.org/2001/XMLSchema"
-    xmlns:x="http://www.zoomlenz.net"
-    targetNamespace="http://www.zoomlenz.net"
+    xmlns:x="http://www.zoomlenz.net/Event"
+    targetNamespace="http://www.zoomlenz.net/Event"
     elementFormDefault="qualified"
     xmlns:vc="http://www.w3.org/2007/XMLSchema-versioning" vc:minVersion="1.1"
     xpathDefaultNamespace="##defaultNamespace">
@@ -29,9 +29,10 @@
                 </xsd:element>
                 <xsd:element name="EventTime" minOccurs="0" type="xsd:string"/>
                 <xsd:element ref="x:GroupVars" minOccurs="0"/>
+                <xsd:element name="Ancillary" type="xsd:base64Binary" minOccurs="0"/>
             </xsd:sequence>
             <xsd:attribute name="Name" type="x:ENameType" use="required"/>
-            <xsd:assert test="if (./ClockTime > 1E9) then EventTime else true()"/>
+            <xsd:assert test="if (./x:ClockTime > 1E10) then x:EventTime else true()"/>
         </xsd:complexType>
     </xsd:element>
     

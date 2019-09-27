@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema"
-  targetNamespace="http://www.zoomlenz.net"
-  xmlns:x="http://www.zoomlenz.net"
+  targetNamespace="http://www.zoomlenz.net/Header"
+  xmlns:x="http://www.zoomlenz.net/Header"
   elementFormDefault="qualified"
   xmlns:vc="http://www.w3.org/2007/XMLSchema-versioning" vc:minVersion="1.1"
   xpathDefaultNamespace="##defaultNamespace">
@@ -90,6 +90,7 @@
             <xsd:attribute name="Name" use="required" type="x:GVName"/>
           </xsd:complexType>
         </xsd:element>
+        <xsd:element name="Ancillary" minOccurs="0" type="xsd:positiveInteger"/>
       </xsd:sequence>
       <xsd:attribute name="Clock" use="optional" default="Absolute">
         <xsd:simpleType>
@@ -202,7 +203,7 @@
 
   <xsd:simpleType name="GVName" >
      <xsd:restriction base="xsd:string">
-      <xsd:pattern value="[a-zA-Z][a-zA-Z0-9_\-\.]*"/>
+      <xsd:pattern value="[a-zA-Z][a-zA-Z0-9_\-\.]{0,23}"/>
     </xsd:restriction>
   </xsd:simpleType>
 
