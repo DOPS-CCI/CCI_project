@@ -85,7 +85,7 @@ namespace EEGArtifactEditor
                         FileMode.Open, FileAccess.Read));
 
                 //make list of candidate EEG channels, so that channel selection window can use it
-                BDFLength = (double)bdf.NumberOfRecords * bdf.RecordDuration;
+                BDFLength = (double)bdf.NumberOfRecords * bdf.RecordDurationDouble;
                 string trans = bdf.transducer(0); //here we assumne that channel 0 is an EEG channel
                 for (int i = 0; i < bdf.NumberOfChannels - 1; i++) //exclude Status channel
                     if (bdf.transducer(i) == trans) EEGChannels.Add(i);

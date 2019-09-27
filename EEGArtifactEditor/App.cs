@@ -1,5 +1,4 @@
-﻿#undef DEBUG
-using System;
+﻿using System;
 using System.Windows;
 using CCIUtilities;
 
