@@ -31,7 +31,7 @@ namespace HeaderFileStream
                 xr = XmlReader.Create(str, settings);
                 if (xr.MoveToContent() != XmlNodeType.Element) throw new XmlException("input stream not a valid Header file");
                 nameSpace = xr.NamespaceURI;
-                xr.ReadStartElement("Header");
+                xr.ReadStartElement("Header", nameSpace);
             }
             catch (Exception x)
             {
@@ -52,7 +52,7 @@ namespace HeaderFileStream
 
                 header.Experimenter = new List<string>();
                 while (xr.Name == "Experimenter")
-                    header.Experimenter.Add(xr.ReadElementContentAsString());
+                    header.Experimenter.Add(xr.ReadElementContentAsString("Experimenter", nameSpace));
                 header.Status = xr.ReadElementContentAsInt("Status", nameSpace);
 
                 if (xr.Name == "Other")
@@ -60,11 +60,8 @@ namespace HeaderFileStream
                     header.OtherExperimentInfo = new Dictionary<string, string>();
                     do
                     {
-                        string name = xr["Name"];
-                        xr.ReadStartElement(/* Other */);
-                        string value = xr.ReadContentAsString();
-                        header.OtherExperimentInfo.Add(name, value);
-                        xr.ReadEndElement(/* Other */);
+                        header.OtherExperimentInfo.Add(xr["Name"],
+                            xr.ReadElementContentAsString("Other", nameSpace));
                     } while (xr.Name == "Other");
                 }
 
@@ -85,8 +82,8 @@ namespace HeaderFileStream
                             gve.GVValueDictionary = new Dictionary<string, int>();
                             do
                             {
-                                string key = xr["Desc", nameSpace];
-                                xr.ReadStartElement(/* GV */);
+                                string key = xr["Desc"];
+                                xr.ReadStartElement("GV", nameSpace);
                                 int val = xr.ReadContentAsInt();
                                 if (val > 0)
                                     gve.GVValueDictionary.Add(key, val);
@@ -153,17 +150,11 @@ namespace HeaderFileStream
                                 throw new Exception("invalid max/min signal values in extrinsic Event " + name);
                             //Note: Max and Min are optional; if neither is specified, 0.0 will always be used as threshold
                         }
-                        if (xr.Name == "Ancillary")
-                        {
-                            xr.ReadStartElement(/* Ancillary */);
-                            ede.ancillarySize = xr.ReadContentAsInt();
-                            xr.ReadEndElement(/* Ancillary */);
-                        }
                         if (xr.Name == "GroupVar")
                         {
                             ede.GroupVars = new List<GVEntry>();
                             do {
-                                string gvName = xr["Name", nameSpace];
+                                string gvName = xr["Name"];
                                 bool isEmpty = xr.IsEmptyElement;
                                 xr.ReadStartElement(/* GroupVar */);
                                 GVEntry gve;
@@ -172,6 +163,12 @@ namespace HeaderFileStream
                                 else throw new Exception("invalid GroupVar " + gvName + " in Event " + name);
                                 if(!isEmpty) xr.ReadEndElement(/* GroupVar */);
                             } while (xr.Name == "GroupVar");
+                        }
+                        if (xr.Name == "Ancillary")
+                        {
+                            xr.ReadStartElement("Ancillary", nameSpace);
+                            ede.ancillarySize = xr.ReadContentAsInt();
+                            xr.ReadEndElement(/* Ancillary */);
                         }
                         header.Events.Add(name, ede);
                         xr.ReadEndElement(/* Event */);
@@ -253,6 +250,7 @@ namespace HeaderFileStream
     public class HeaderFileWriter
     {
         XmlWriter xw;
+        const string ns = "http://www.zoomlenz.net/Header";
 
         public HeaderFileWriter(Stream str, Header.Header head)
         {
@@ -267,34 +265,35 @@ namespace HeaderFileStream
                 settings.CheckCharacters = true;
                 xw = XmlWriter.Create(str, settings);
                 xw.WriteStartDocument();
-                xw.WriteStartElement("Header");
-                xw.WriteAttributeString("xmlns", "http://www.zoomlenz.net");
-                xw.WriteAttributeString("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance");
-                xw.WriteAttributeString("xsi:schemaLocation", "http://www.zoomlenz.net http://www.zoomlenz.net/xml/Header.xsd");
-                xw.WriteStartElement("ExperimentDescription");
-                xw.WriteElementString("SoftwareVersion", head.SoftwareVersion);
-                xw.WriteElementString("Title", head.Title);
-                xw.WriteElementString("LongDescription", head.LongDescription);
+                xw.WriteStartElement("Header", ns);
+                xw.WriteAttributeString("xmlns", ns);
+                xw.WriteAttributeString("xmlns", "xsi", null, "http://www.w3.org/2001/XMLSchema-instance");
+                xw.WriteAttributeString("schemaLocation", "http://www.w3.org/2001/XMLSchema-instance",
+                    "http://www.zoomlenz.net http://www.zoomlenz.net/xml/Header.xsd");
+                xw.WriteStartElement("ExperimentDescription", ns);
+                xw.WriteElementString("SoftwareVersion", ns, head.SoftwareVersion);
+                xw.WriteElementString("Title", ns, head.Title);
+                xw.WriteElementString("LongDescription", ns, head.LongDescription);
                 foreach (string s in head.Experimenter)
-                    xw.WriteElementString("Experimenter", s);
-                xw.WriteElementString("Status", head.Status.ToString("0"));
+                    xw.WriteElementString("Experimenter", ns, s);
+                xw.WriteElementString("Status", ns, head.Status.ToString("0"));
                 if (head.OtherExperimentInfo != null)
                     foreach (KeyValuePair<string, string> other in head.OtherExperimentInfo)
                     {
-                        xw.WriteStartElement("Other");
+                        xw.WriteStartElement("Other", ns);
                         xw.WriteAttributeString("Name", other.Key);
                         xw.WriteString(other.Value);
                         xw.WriteEndElement(/* Other */);
                     }
                 foreach (GroupVarDictionary.GVEntry gve in head.GroupVars.Values)
                 {
-                    xw.WriteStartElement("GroupVar");
-                    xw.WriteElementString("Name", gve.Name);
-                    xw.WriteElementString("Description", gve.Description);
+                    xw.WriteStartElement("GroupVar", ns);
+                    xw.WriteElementString("Name", ns, gve.Name);
+                    xw.WriteElementString("Description", ns, gve.Description);
                     if(gve.HasValueDictionary) // will be null if integer values just stand for themselves
                         foreach (KeyValuePair<string, int> i in gve.GVValueDictionary)
                         {
-                            xw.WriteStartElement("GV");
+                            xw.WriteStartElement("GV", ns);
                             xw.WriteAttributeString("Desc", i.Key);
                             xw.WriteString(i.Value.ToString("0"));
                             xw.WriteEndElement(/* GV */);
@@ -303,53 +302,53 @@ namespace HeaderFileStream
                 }
                 foreach (KeyValuePair<string, EventDictionaryEntry> ede in head.Events)
                 {
-                    xw.WriteStartElement("Event");
+                    xw.WriteStartElement("Event", ns);
                     xw.WriteAttributeString("Type", (bool)ede.Value.m_intrinsic ? "Intrinsic" : "Extrinsic");
                     xw.WriteAttributeString("Clock", ede.Value.HasRelativeTime ? "Relative" : "Absolute");
                     xw.WriteAttributeString("Covered", ede.Value.IsCovered ? "Yes" : "No");
-                    xw.WriteElementString("Name", ede.Key);
-                    xw.WriteElementString("Description", ede.Value.Description);
+                    xw.WriteElementString("Name", ns, ede.Key);
+                    xw.WriteElementString("Description", ns, ede.Value.Description);
                     if (ede.Value.IsCovered && !(bool)ede.Value.m_intrinsic)
                     {
-                        xw.WriteElementString("Channel", ede.Value.channelName);
-                        xw.WriteElementString("Edge", ede.Value.rise ? "rising" : "falling");
-                        xw.WriteElementString("Location", ede.Value.location ? "after" : "before");
-                        xw.WriteElementString("Max", ede.Value.channelMax.ToString("G"));
-                        xw.WriteElementString("Min", ede.Value.channelMin.ToString("G"));
+                        xw.WriteElementString("Channel", ns, ede.Value.channelName);
+                        xw.WriteElementString("Edge", ns, ede.Value.rise ? "rising" : "falling");
+                        xw.WriteElementString("Location", ns, ede.Value.location ? "after" : "before");
+                        xw.WriteElementString("Max", ns, ede.Value.channelMax.ToString("G"));
+                        xw.WriteElementString("Min", ns, ede.Value.channelMin.ToString("G"));
                     }
-                    if (ede.Value.ancillarySize != 0)
-                        xw.WriteElementString("Ancillary", ede.Value.ancillarySize.ToString("0"));
                     if(ede.Value.GroupVars!=null)
                         foreach (GVEntry gv in ede.Value.GroupVars)
                         {
-                            xw.WriteStartElement("GroupVar", "");
+                            xw.WriteStartElement("GroupVar", ns);
                             xw.WriteAttributeString("Name", gv.Name);
                             xw.WriteEndElement(/* GroupVar */);
                         }
+                    if (ede.Value.ancillarySize != 0)
+                        xw.WriteElementString("Ancillary", ns, ede.Value.ancillarySize.ToString("0"));
                     xw.WriteEndElement(/* Event */);
                 }
                 xw.WriteEndElement(/* ExperimentDescription */);
-                xw.WriteStartElement("SessionDescription");
-                xw.WriteElementString("Date", head.Date);
-                xw.WriteElementString("Time", head.Time);
-                xw.WriteElementString("Subject", head.Subject.ToString("0000"));
+                xw.WriteStartElement("SessionDescription", ns);
+                xw.WriteElementString("Date", ns, head.Date);
+                xw.WriteElementString("Time", ns, head.Time);
+                xw.WriteElementString("Subject", ns, head.Subject.ToString("0000"));
                 if (head.Agent >= 0)
-                    xw.WriteElementString("Agent", head.Agent.ToString("0000"));
+                    xw.WriteElementString("Agent", ns, head.Agent.ToString("0000"));
                 foreach (string tech in head.Technician)
-                    xw.WriteElementString("Technician", tech);
+                    xw.WriteElementString("Technician", ns, tech);
                 if(head.OtherSessionInfo != null)
                     foreach (KeyValuePair<string, string> other in head.OtherSessionInfo)
                     {
-                        xw.WriteStartElement("Other");
+                        xw.WriteStartElement("Other", ns);
                         xw.WriteAttributeString("Name", other.Key);
                         xw.WriteString(other.Value);
                         xw.WriteEndElement(/* Other */);
                     }
-                xw.WriteElementString("BDFFile", head.BDFFile);
-                xw.WriteElementString("EventFile", head.EventFile);
-                xw.WriteElementString("ElectrodeFile", head.ElectrodeFile);
+                xw.WriteElementString("BDFFile", ns, head.BDFFile);
+                xw.WriteElementString("EventFile", ns, head.EventFile);
+                xw.WriteElementString("ElectrodeFile", ns, head.ElectrodeFile);
                 if (head.Comment != null && head.Comment != "")
-                    xw.WriteElementString("Comment", head.Comment);
+                    xw.WriteElementString("Comment", ns, head.Comment);
                 xw.WriteEndElement(/* SessionDescription */);
                 xw.WriteEndElement(/* Header */);
                 xw.Close();

@@ -33,8 +33,8 @@ namespace ElectrodeFileStream
                 xr = XmlReader.Create(str, settings);
                 if (xr.MoveToContent() != XmlNodeType.Element) throw new XmlException("Not a valid electrode file");
                 nameSpace = xr.NamespaceURI;
-                type = xr["Type", nameSpace];
-                xr.ReadStartElement("Electrodes");
+                type = xr["Type"];
+                xr.ReadStartElement("Electrodes", nameSpace);
             }
             catch (Exception x)
             {
@@ -66,11 +66,14 @@ namespace ElectrodeFileStream
     {
         internal XmlWriter xw;
         internal Type t;
+        const string defaultNS = "http://www.zoomlenz.net/Electrode";
+        internal string ns;
 
-        public ElectrodeOutputFileStream(Stream str, Type t)
+        public ElectrodeOutputFileStream(Stream str, Type t, string nameSpace = defaultNS)
         {
             if (!str.CanWrite) throw new Exception("Unable to open output stream in ElectrodeOutputFileStream.");
             this.t = t;
+            this.ns = nameSpace;
             XmlWriterSettings settings = new XmlWriterSettings();
             settings.Indent = true;
             settings.Encoding = System.Text.Encoding.UTF8;
@@ -78,10 +81,11 @@ namespace ElectrodeFileStream
             {
                 xw = XmlWriter.Create(str, settings);
                 xw.WriteStartDocument();
-                xw.WriteStartElement("Electrodes");
-                xw.WriteAttributeString("xmlns", "http://www.zoomlenz.net");
-                xw.WriteAttributeString("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance");
-                xw.WriteAttributeString("xsi:schemaLocation", "http://www.zoomlenz.net http://www.zoomlenz.net/xml/Electrode.xsd");
+                xw.WriteStartElement("Electrodes", nameSpace);
+                xw.WriteAttributeString("xmlns", nameSpace);
+                xw.WriteAttributeString("xmlns", "xsi", null, "http://www.w3.org/2001/XMLSchema-instance");
+                xw.WriteAttributeString("schemaLocation", "http://www.w3.org/2001/XMLSchema-instance",
+                    "http://www.zoomlenz.net http://www.zoomlenz.net/xml/Electrode.xsd");
                 if (t == typeof(PhiThetaRecord))
                     xw.WriteAttributeString("Type", "PhiTheta");
                 else if (t == typeof(XYRecord))
@@ -125,7 +129,7 @@ namespace ElectrodeFileStream
 
         public abstract void read(XmlReader xr, string nameSpace = ""); //read in next electrode record from XML file
 
-        public abstract void write(ElectrodeOutputFileStream ofs, string nameSpace = ""); //write an electrode record to XML file
+        public abstract void write(ElectrodeOutputFileStream ofs); //write an electrode record to XML file
 
         public abstract Point projectXY(); //project electrode coordinates to X-Y space (isomorphic to Phi-Theta space)
 
@@ -202,8 +206,8 @@ namespace ElectrodeFileStream
         /// <param name="nameSpace">namesSpace or null</param>
         public override void read(XmlReader xr, string nameSpace = "")
         {
-            this.Name = xr["Name", nameSpace];
-            xr.ReadStartElement(/* Electrode */);
+            this.Name = xr["Name"];
+            xr.ReadStartElement("Electrode", nameSpace);
             this.R = xr.ReadElementContentAsDouble("R", nameSpace);
             this.Phi = xr.ReadElementContentAsDouble("Phi", nameSpace) * ToRad;
             this.Theta = xr.ReadElementContentAsDouble("Theta", nameSpace) * ToRad;
@@ -216,12 +220,13 @@ namespace ElectrodeFileStream
         /// </summary>
         /// <param name="ofs">Electrode output file stream</param>
         /// <param name="nameSpace"></param>
-        public override void write(ElectrodeOutputFileStream ofs, string nameSpace = "")
+        public override void write(ElectrodeOutputFileStream ofs)
         {
             if (ofs.t != typeof(RPhiThetaRecord)) throw new Exception("Attempt to mix types in ElectrodeOutputFileStream.");
             XmlWriter xw = ofs.xw;
+            string nameSpace = ofs.ns;
             xw.WriteStartElement("Electrode", nameSpace);
-            xw.WriteAttributeString("Name", nameSpace, this.Name);
+            xw.WriteAttributeString("Name", this.Name);
             xw.WriteElementString("R", nameSpace, R.ToString("G"));
             xw.WriteElementString("Phi", nameSpace, (Phi * ToDeg).ToString("G"));
             xw.WriteElementString("Theta", nameSpace, (Theta * ToDeg).ToString("G"));
@@ -299,8 +304,8 @@ namespace ElectrodeFileStream
         /// <param name="nameSpace">namesSpace or null</param>
         public override void read(XmlReader xr, string nameSpace = "")
         {
-            this.Name = xr["Name", nameSpace];
-            xr.ReadStartElement(/* Electrode */);
+            this.Name = xr["Name"];
+            xr.ReadStartElement("Electrode", nameSpace);
             this.Phi = xr.ReadElementContentAsDouble("Phi", nameSpace) * ToRad;
             this.Theta = xr.ReadElementContentAsDouble("Theta", nameSpace) * ToRad;
             xr.ReadEndElement(/* Electrode */);
@@ -312,12 +317,13 @@ namespace ElectrodeFileStream
         /// </summary>
         /// <param name="ofs">Electrode output file stream</param>
         /// <param name="nameSpace"></param>
-        public override void write(ElectrodeOutputFileStream ofs, string nameSpace = "")
+        public override void write(ElectrodeOutputFileStream ofs)
         {
             if (ofs.t != typeof(PhiThetaRecord)) throw new Exception("Attempt to mix types in ElectrodeOutputFileStream.");
             XmlWriter xw = ofs.xw;
+            string nameSpace = ofs.ns;
             xw.WriteStartElement("Electrode", nameSpace);
-            xw.WriteAttributeString("Name", nameSpace, this.Name);
+            xw.WriteAttributeString("Name", this.Name);
             xw.WriteElementString("Phi", nameSpace, (Phi * ToDeg).ToString("G"));
             xw.WriteElementString("Theta", nameSpace, (Theta * ToDeg).ToString("G"));
             xw.WriteEndElement();
@@ -399,19 +405,20 @@ namespace ElectrodeFileStream
 
         public override void read(XmlReader xr, string nameSpace = "")
         {
-            this.Name = xr["Name", nameSpace];
-            xr.ReadStartElement(/* Electrode */);
+            this.Name = xr["Name"];
+            xr.ReadStartElement("Electrode", nameSpace);
             this.X = xr.ReadElementContentAsDouble("X", nameSpace);
             this.Y = xr.ReadElementContentAsDouble("Y", nameSpace);
             xr.ReadEndElement(/* Electrode */);
         }
 
-        public override void write(ElectrodeOutputFileStream ofs, string nameSpace = "")
+        public override void write(ElectrodeOutputFileStream ofs)
         {
             if (ofs.t != typeof(XYRecord)) throw new Exception("Attempt to mix types in ElectrodeOutputFileStream.");
             XmlWriter xw = ofs.xw;
+            string nameSpace = ofs.ns;
             xw.WriteStartElement("Electrode", nameSpace);
-            xw.WriteAttributeString("Name", nameSpace, this.Name);
+            xw.WriteAttributeString("Name", this.Name);
             xw.WriteElementString("X", nameSpace, this.X.ToString("G"));
             xw.WriteElementString("Y", nameSpace, this.Y.ToString("G"));
             xw.WriteEndElement();
@@ -513,18 +520,19 @@ namespace ElectrodeFileStream
 
         public override void read(XmlReader xr, string nameSpace = "")
         {
-            this.Name = xr["Name", nameSpace];
-            xr.ReadStartElement(/* Electrode */);
+            this.Name = xr["Name"];
+            xr.ReadStartElement("Electrode", nameSpace);
             this.X = xr.ReadElementContentAsDouble("X", nameSpace);
             this.Y = xr.ReadElementContentAsDouble("Y", nameSpace);
             this.Z = xr.ReadElementContentAsDouble("Z", nameSpace);
             xr.ReadEndElement(/* Electrode */);
         }
 
-        public override void write(ElectrodeOutputFileStream ofs, string nameSpace = "")
+        public override void write(ElectrodeOutputFileStream ofs)
         {
             if (ofs.t != typeof(XYZRecord)) throw new Exception("Attempt to mix types in ElectrodeOutputFileStream.");
             XmlWriter xw = ofs.xw;
+            string nameSpace = ofs.ns;
             xw.WriteStartElement("Electrode", nameSpace);
             xw.WriteAttributeString("Name", nameSpace, this.Name);
             xw.WriteElementString("X", nameSpace, this.X.ToString("G"));

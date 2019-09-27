@@ -37,7 +37,7 @@ namespace EventFile
                 xr = XmlReader.Create(str, settings);
                 if (xr.MoveToContent() != XmlNodeType.Element) throw new XmlException("Not a valid Event file");
                 nameSpace = xr.NamespaceURI; 
-                xr.ReadStartElement("Events");
+                xr.ReadStartElement("Events", nameSpace);
             } catch(Exception x) {
                 throw new Exception("EventFileReader: " + x.Message);
             }
@@ -52,8 +52,8 @@ namespace EventFile
             if (xr.Name != "Event") return null; // signal EOF?
             try
             {
-                InputEvent ev = EventFactory.Instance().CreateInputEvent(xr["Name", nameSpace]);
-                xr.ReadStartElement("Event");
+                InputEvent ev = EventFactory.Instance().CreateInputEvent(xr["Name"]);
+                xr.ReadStartElement("Event", nameSpace);
                 xr.ReadStartElement("Index", nameSpace);
                 ev.m_index = (uint)xr.ReadContentAsInt();
                 xr.ReadEndElement(/* Index */);
@@ -62,7 +62,7 @@ namespace EventFile
                 xr.ReadEndElement(/* GrayCode */);
                 if (xr.Name == "ClockTime") //usual form for Events
                 {
-                    string t = xr.ReadElementString(/* ClockTime */);
+                    string t = xr.ReadElementString("ClockTime", nameSpace);
                     if (t.Contains(".")) //preferred, with decimal point
                         ev.m_time = Convert.ToDouble(t);
                     else //deprecated, no decimal point
@@ -71,11 +71,11 @@ namespace EventFile
                         ev.m_time = Convert.ToDouble(t.Substring(0, l) + "." + t.Substring(l));
                     }
                     if (xr.Name == "EventTime") // optional; present with absolute timing, optional with relative
-                        ev._eventTime = xr.ReadElementString(/* EventTime */);
+                        ev._eventTime = xr.ReadElementString("EventTime", nameSpace);
                 }
                 else if (xr.Name == "Time") //Time construct -- deprecated as of 11 Feb 2013
                 {
-                    string t = xr.ReadElementString(/* Time */);
+                    string t = xr.ReadElementString(/* Time */); //not in nameSpace
                     if (t.Contains(".")) //new style
                         ev.m_time = System.Convert.ToDouble(t);
                     else //old, old style -- very deprecated!
@@ -93,16 +93,14 @@ namespace EventFile
                     if(ev.EDE.GroupVars!=null)
                         foreach (GVEntry gve in ev.EDE.GroupVars)
                         {
-                            if (xr.IsStartElement("GV"))
+                            if (xr.IsStartElement("GV", nameSpace))
                             {
-                                string GVName = xr["Name", nameSpace];
+                                string GVName = xr["Name"];
                                 if (GVName == null)
                                     throw new Exception("GV " + gve.Name + " not found in Event " + ev.Name);
                                 if (gve.Name != GVName)
                                     throw new Exception("Found GV named " + GVName + " in Event file which does not match Event " + ev.Name + " definition for GV " + gve.Name);
-                                xr.ReadStartElement(/* GV */);
-                                ev.GVValue[j++] = xr.ReadContentAsString();
-                                xr.ReadEndElement(/* GV */);
+                                ev.GVValue[j++] = xr.ReadElementContentAsString("GV", nameSpace);
                             }
                             else
                                 throw new Exception("Missing GV named " + gve.Name + " in Event file record for Event " + ev.Name);
@@ -116,7 +114,7 @@ namespace EventFile
                 }
                 if (xr.Name == "Ancillary")
                 {
-                    xr.ReadStartElement(/* Ancillary */);
+                    xr.ReadStartElement("Ancillary", nameSpace);
                     //do it this way to assure correct number of bytes
                     byte[] anc = Convert.FromBase64String(xr.ReadContentAsString());
                     if (anc.Length != ev.ancillary.Length)
@@ -200,6 +198,7 @@ namespace EventFile
     public sealed class EventFileWriter : IDisposable
     {
         XmlWriter xw;
+        const string nameSpace = "http://www.zoomlenz.net/Event";
 
         /// <summary>
         /// General constructor for writing an Event file:
@@ -216,10 +215,11 @@ namespace EventFile
                 settings.Encoding = System.Text.Encoding.UTF8;
                 xw = XmlWriter.Create(stream, settings);
                 xw.WriteStartDocument();
-                xw.WriteStartElement("Events");
-                xw.WriteAttributeString("xmlns", "http://www.zoomlenz.net");
-                xw.WriteAttributeString("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance");
-                xw.WriteAttributeString("xsi:schemaLocation", "http://www.zoomlenz.net http://www.zoomlenz.net/xml/Event.xsd");
+                xw.WriteStartElement("Events", nameSpace);
+                xw.WriteAttributeString("xmlns", nameSpace);
+                xw.WriteAttributeString("xmlns", "xsi", null, "http://www.w3.org/2001/XMLSchema-instance");
+                xw.WriteAttributeString("schemaLocation", "http://www.w3.org/2001/XMLSchema-instance",
+                    "http://www.zoomlenz.net http://www.zoomlenz.net/xml/Event.xsd");
             }
             catch (XmlException x)
             {
@@ -235,17 +235,17 @@ namespace EventFile
         {
             try
             {
-                xw.WriteStartElement("Event");
+                xw.WriteStartElement("Event", nameSpace);
                 xw.WriteAttributeString("Name", ev.Name);
-                xw.WriteElementString("Index", ev.Index.ToString("0"));
-                xw.WriteElementString("GrayCode", ev.GC.ToString("0"));
-                xw.WriteStartElement("ClockTime");
+                xw.WriteElementString("Index", nameSpace, ev.Index.ToString("0"));
+                xw.WriteElementString("GrayCode", nameSpace, ev.GC.ToString("0"));
+                xw.WriteStartElement("ClockTime", nameSpace);
                 if (ev.HasRelativeTime) // relative, BDF-based clock
                 {
                     xw.WriteString(ev.Time.ToString("0.0000000"));
                     xw.WriteEndElement(/* ClockTime */);
                     if (ev._eventTime != null) //string may be present, if the Event was created from an Absolute Event
-                        xw.WriteElementString("EventTime", ev._eventTime);
+                        xw.WriteElementString("EventTime", nameSpace, ev._eventTime);
                 }
                 else // Absolute clock
                 {
@@ -255,13 +255,13 @@ namespace EventFile
                     // Absolute clocks always record EventTime in readable form
                     DateTime t = new DateTime((long)(ev.Time * 1E7));
                     if (t.Year < 1000) t = t.AddYears(1600); //convert to 0 year basis from 1600 basis
-                    xw.WriteElementString("EventTime", t.ToString("d MMM yyyy HH:mm:ss.fffFF")); //enforce standard format
+                    xw.WriteElementString("EventTime", nameSpace, t.ToString("d MMM yyyy HH:mm:ss.fffFF")); //enforce standard format
                 }
-                xw.WriteStartElement("GroupVars");
+                xw.WriteStartElement("GroupVars", nameSpace);
                 if (ev.GVValue != null)
                     for (int j = 0; j < ev.GVValue.Length; j++)
                     {
-                        xw.WriteStartElement("GV");
+                        xw.WriteStartElement("GV", nameSpace);
                         xw.WriteAttributeString("Name", ev.EDE.GroupVars[j].Name); //assure it matches HDR entry
                         string s = ev.GVValue[j];
                         int v = ev.EDE.GroupVars[j].ConvertGVValueStringToInteger(s);
@@ -273,7 +273,7 @@ namespace EventFile
                 xw.WriteEndElement(/* GroupVars */);
                 if (ev.ancillary != null && ev.ancillary.Length > 0)
                 {
-                    xw.WriteStartElement("Ancillary");
+                    xw.WriteStartElement("Ancillary", nameSpace);
                     xw.WriteBase64(ev.ancillary, 0, ev.ancillary.Length);
                     xw.WriteEndElement(/* Ancillary */);
                 }
