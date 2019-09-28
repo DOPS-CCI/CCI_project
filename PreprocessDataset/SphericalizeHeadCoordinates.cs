@@ -1,8 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using CCIUtilities;
 using ElectrodeFileStream;
 
@@ -20,9 +17,7 @@ namespace PreprocessDataset
             foreach (ElectrodeRecord r in etr)
             {
                 Point3D xyz = r.convertXYZ();
-                XYZ[i, 0] = xyz.X;
-                XYZ[i, 1] = xyz.Y;
-                XYZ[i++, 2] = xyz.Z;
+                XYZ[i, 0] = xyz.X; XYZ[i, 1] = xyz.Y; XYZ[i++, 2] = xyz.Z;
             }
             SphereFit sf = new SphereFit(XYZ);
             R = sf.R;

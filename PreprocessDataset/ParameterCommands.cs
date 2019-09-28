@@ -1,16 +1,9 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows;
-using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Forms;
 using System.Xml;
 using CCIUtilities;
-using DigitalFilter;
 
 namespace PreprocessDataset
 {
@@ -75,7 +68,6 @@ namespace PreprocessDataset
 
             Properties.Settings.Default.LastParFile = System.IO.Path.GetDirectoryName(dlg.FileName);
 
-            string s;
             XmlWriterSettings xws = new XmlWriterSettings();
             xws.Indent = true;
             xws.CloseOutput = true;
@@ -204,8 +196,6 @@ namespace PreprocessDataset
 
         private void PerformOpenPFile()
         {
-            string s;
-            bool found;
             System.Windows.Forms.OpenFileDialog dlg = new System.Windows.Forms.OpenFileDialog();
             dlg.Title = "Open parameter file ...";
             dlg.DefaultExt = ".par"; // Default file extension

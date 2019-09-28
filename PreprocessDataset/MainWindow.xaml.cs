@@ -3,10 +3,8 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows;
-using System.Windows.Input;
 using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Forms;
@@ -30,6 +28,7 @@ namespace PreprocessDataset
         ChannelSelection channels;
 
         PreprocessingWorker ppw = new PreprocessingWorker();
+        ElectrodeInputFileStream eis; //all ETR electrodes
 
         public MainWindow()
         {
@@ -150,7 +149,7 @@ namespace PreprocessDataset
             ETRFullPathName = System.IO.Path.Combine(ppw.directory, ppw.head.ElectrodeFile);
             try
             {
-                ppw.eis = new ElectrodeInputFileStream(new FileStream(ETRFullPathName, FileMode.Open, FileAccess.Read));
+                eis = new ElectrodeInputFileStream(new FileStream(ETRFullPathName, FileMode.Open, FileAccess.Read));
             }
             catch (Exception e)
             {
@@ -161,28 +160,24 @@ namespace PreprocessDataset
             }
 
             //Calculate head radius for use in SpherePoints.Count calculation
-            if (ppw.eis.etrPositions.Count < 4) ppw.meanRadius = 10D;
+            if (eis.etrPositions.Count < 4) ppw.meanRadius = 10D;
             else
-                ppw.meanRadius = CalculateHeadRadius(ppw.eis.etrPositions.Values);
+            {
+                ppw.shc = new SphericalizeHeadCoordinates(eis.etrPositions.Values);
+                ppw.meanRadius = ppw.shc.R;
+            }
 
             //Process BDF channels using ETR file and set up initial selection dialog
-            chDialog = new BDFChannelSelectionDialog(ppw.bdf, ppw.eis);
+            chDialog = new BDFChannelSelectionDialog(ppw.bdf, eis);
             channels = chDialog.SelectedChannels;
             ppw.inputType = InputType.RWNL;
             return true;
         }
 
-        private double CalculateHeadRadius(IEnumerable<ElectrodeRecord> etr)
-        {
-            SphericalizeHeadCoordinates shc = new SphericalizeHeadCoordinates(etr);
-            etr = shc.Electrodes; //update electrode locations to conform to new coordinate system
-            return shc.R;
-        }
-
         private bool ProcessBDFFile(string fileName)
         {
             ppw.head = null; //indicate no HDR file
-            ppw.eis = null; //indicate no ETR file
+            ppw.shc = null;//indicate no ETR file
 
             try
             {
@@ -208,7 +203,7 @@ namespace PreprocessDataset
         private bool ProcessSETFile(string fileName)
         {
             ppw.head = null; //indicate no HDR file
-            ppw.eis = null; //indicate no ETR file
+            ppw.shc = null; //indicate no ETR file
 
             ppw.SETVars = null;
             try
@@ -253,15 +248,17 @@ namespace PreprocessDataset
             }
             ppw.inputType = InputType.SET;
 
-            //Calculate head radius for use in SpherePoints.Count calculation
-            ElectrodeRecord[] etr = new ElectrodeRecord[channels.EEGTotal];
-            int i = 0;
-            foreach (ChannelDescription cd in channels)
-                if(cd.EEG) etr[i++] = cd.eRecord;
-            if (i < 4)
+            if (channels.EEGTotal < 4)
                 ppw.meanRadius = 10D;
             else
-                ppw.meanRadius = CalculateHeadRadius(etr);
+            {
+                //Calculate head radius for use in SpherePoints.Count calculation
+                ElectrodeRecord[] etr = new ElectrodeRecord[channels.EEGTotal];
+                int i = 0;
+                foreach (ChannelDescription cd in channels)
+                    if (cd.EEG) etr[i++] = cd.eRecord;
+                ppw.meanRadius = (new SphericalizeHeadCoordinates(etr)).R;
+            }
 
             return true;
         }
@@ -745,7 +742,7 @@ namespace PreprocessDataset
         private void SelectChannels_Click(object sender, RoutedEventArgs e)
         {
             if (chDialog == null)
-                chDialog = new BDFChannelSelectionDialog(channels, ppw.eis);
+                chDialog = new BDFChannelSelectionDialog(channels, eis);
             chDialog.Owner = this;
             bool? result = chDialog.ShowDialog();
             if (result != null && (bool)result)

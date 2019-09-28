@@ -26,7 +26,8 @@ namespace Laplacian
         /// </summary>
         /// <param name="locations">Measured locations as List or array of ElectrodeRecords in any coordinate system</param>
         /// <param name="order">Maximum fit "frequency": integer 0 to 4; 0 is sphere</param>
-        public HeadGeometry(IEnumerable<ElectrodeRecord> locations, int order)
+        /// <param name="fit"></param>
+        public HeadGeometry(IEnumerable<ElectrodeRecord> locations, int order, SphereFit fit = null)
         {
             _order = order;
             SphericalHarmonic.CreateSHEngine(order); //Prime SH pump

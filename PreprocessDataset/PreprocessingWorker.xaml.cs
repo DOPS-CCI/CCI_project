@@ -4,17 +4,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
 using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Shapes;
 using System.Xml;
-using CCILibrary;
 using CCIUtilities;
 using BDFEDFFileStream;
 using BDFChannelSelection;
@@ -22,7 +14,6 @@ using DigitalFilter;
 using ElectrodeFileStream;
 using Laplacian;
 using HeaderFileStream;
-using Header;
 using MLLibrary;
 
 namespace PreprocessDataset
@@ -57,9 +48,9 @@ namespace PreprocessDataset
         internal long fileLength; //in datels
         internal int nChans; //gross number of channels in input file
 
+        internal SphericalizeHeadCoordinates shc;
         internal double meanRadius;
         internal int HeadFitOrder;
-        internal ElectrodeInputFileStream eis; //locations of all EEG electrodes
         internal ChannelSelection channels;
         //NOTE: the list of BDF channels used to create the data[] array is created
         // from channels with or without elim channels depending on whether
@@ -75,7 +66,7 @@ namespace PreprocessDataset
 
         internal int _outType = 1;
         //ETR entries of sites to calculate output
-        internal List<ElectrodeRecord> SLOutputLocations;
+        internal IEnumerable<ElectrodeRecord> SLOutputLocations;
         //Nominal distance between output sites: _outType == 2
         internal double aDist;
         //Filename of ETR file to be used as output sites: _outType == 3
@@ -145,6 +136,20 @@ namespace PreprocessDataset
                 logStream.WriteEndElement(/*Channel*/);
             }
             logStream.WriteEndElement(/*SelectedChannels*/);
+
+            //check if only .SFP file creation
+            if (outputSFP &&  (inputType == InputType.RWNL) &&
+                !doDetrend && !doReference && !doFiltering && !doLaplacian)
+            {
+                List<ElectrodeRecord> SFPList = new List<ElectrodeRecord>();
+                foreach (ChannelDescription cd in channels)
+                {
+                    if (cd.Selected && cd.eRecord != null)
+                        SFPList.Add(cd.eRecord);
+                }
+                writeSFPFile(SFPList);
+                return;
+            }
 
             if (inputType == InputType.SET)
                 ReadFDTData();
@@ -442,7 +447,7 @@ namespace PreprocessDataset
                 }
             }
             else if (_refType == 3) //use matrix transform reference
-          {
+            {
                 throw new NotImplementedException("Matrix transform reference not yet implemented");
                 logStream.WriteAttributeString("Type", "transform");
                 float[] v = new float[dataSize0];
@@ -611,8 +616,8 @@ namespace PreprocessDataset
             ElectrodeOutputFileStream eof = new ElectrodeOutputFileStream(
                 new FileStream(System.IO.Path.Combine(directory, head.ElectrodeFile), FileMode.Create, FileAccess.Write),
                 typeof(RPhiThetaRecord));
-            List<ElectrodeRecord> SPFList = null;
-            if (outputSFP) SPFList = new List<ElectrodeRecord>();
+            List<ElectrodeRecord> SFPList = null;
+            if (outputSFP) SFPList = new List<ElectrodeRecord>();
             foreach (ChannelDescription cd in channels)
             {
                 if (cd.Selected && cd.eRecord != null)
@@ -620,16 +625,16 @@ namespace PreprocessDataset
                     RPhiThetaRecord rpt = new RPhiThetaRecord(cd.Name, cd.eRecord.convertRPhiTheta());
                     rpt.write(eof);
                     if (outputSFP)
-                        SPFList.Add(new XYZRecord(cd.Name, cd.eRecord.convertXYZ()));
+                        SFPList.Add(new XYZRecord(cd.Name, cd.eRecord.convertXYZ()));
                 }
             }
             eof.Close();
+            if (outputSFP) writeSFPFile(SFPList);
 
             //Now write out new HDR file
             HeaderFileWriter hfw = new HeaderFileWriter(
                 new FileStream(System.IO.Path.Combine(directory, newFilename + ".hdr"), FileMode.Create, FileAccess.Write),
                 head);
-            if (outputSFP) writeSFPFile(SPFList);
         }
 
         private void DetermineOutputLocations()
@@ -650,7 +655,7 @@ namespace PreprocessDataset
             else if (inputType == InputType.SET)
                 headGeometry = new HeadGeometry(SLInputChannelLocations, HeadFitOrder); //this works as all are selected
             else
-                headGeometry = new HeadGeometry(eis.etrPositions.Values.ToArray(), HeadFitOrder);
+                headGeometry = new HeadGeometry(shc.Electrodes, HeadFitOrder);
 
             if (_outType == 1) //Use all input locations
                 if (inputType == InputType.SET)
@@ -659,11 +664,11 @@ namespace PreprocessDataset
                     foreach (ChannelDescription cd in channels)
                     {
                         if (cd.eRecord != null)
-                            SLOutputLocations.Add(cd.eRecord);
+                            ((List<ElectrodeRecord>)SLOutputLocations).Add(cd.eRecord);
                     }
                 }
                 else
-                    SLOutputLocations = eis.etrPositions.Values.ToList();
+                    SLOutputLocations = shc.Electrodes;
             else if (_outType == 2) //Use sites with "uniform" distribution
             {
                 bw.ReportProgress(0, "Calculate output locations");
@@ -679,7 +684,7 @@ namespace PreprocessDataset
                     if (bw.CancellationPending) return; //check for cancellation
 
                     double R = headGeometry.EvaluateAt(t.Item1, t.Item2);
-                    SLOutputLocations.Add(new RPhiThetaRecord(
+                    ((List<ElectrodeRecord>)SLOutputLocations).Add(new RPhiThetaRecord(
                         "S" + i.ToString(format),
                         R, t.Item1, Math.PI / 2D - t.Item2, true));
 
@@ -772,7 +777,7 @@ namespace PreprocessDataset
                 logStream.WriteAttributeString("Type", "Calculated");
                 logStream.WriteElementString("NominalDistance", aDist.ToString("0.00"));
                 logStream.WriteStartElement("Locations");
-                logStream.WriteAttributeString("Count", SLOutputLocations.Count.ToString("0"));
+                logStream.WriteAttributeString("Count", SLOutputLocations.Count().ToString("0"));
                 foreach(ElectrodeRecord er in SLOutputLocations)
                 {
                     logStream.WriteStartElement("Location");
@@ -801,7 +806,7 @@ namespace PreprocessDataset
             bw.ReportProgress(10);
 
             //then, calculate SL after final decimation
-            int outputDataCount = SLOutputLocations.Count;
+            int outputDataCount = SLOutputLocations.Count();
             double[] inputBuffer = new double[SLInputChannelData.Length];
             outputBuffer = new float[outputDataCount][];
             for (int c = 0; c < outputDataCount; c++)
@@ -864,7 +869,7 @@ namespace PreprocessDataset
                 newBDF = new BDFEDFFileWriter(
                     new FileStream(System.IO.Path.Combine(directory, head.BDFFile), FileMode.Create, FileAccess.Write),
                     outputDataCount + channels.NonEEGSelected + channels.NonAESelected,
-                    (double)SR.Decimation1 * SR.Decimation2 * bdf.RecordDuration, //record length in seconds
+                    (double)SR.Decimation1 * SR.Decimation2 * bdf.RecordDurationDouble, //record length in seconds
                     bdf.NSamp, //number of samples stays the same
                     true);
 
@@ -1008,7 +1013,7 @@ namespace PreprocessDataset
             }
         }
 
-        private void writeSFPFile(List<ElectrodeRecord> OutputLocations)
+        private void writeSFPFile(IEnumerable<ElectrodeRecord> OutputLocations)
         {
             StreamWriter sw = new StreamWriter(
                 new FileStream(System.IO.Path.Combine(directory, baseFileName + "." + sequenceName + ".sfp"), FileMode.Create, FileAccess.Write),
@@ -1041,7 +1046,7 @@ namespace PreprocessDataset
         /// </summary>
         private void setPMaxMin()
         {
-            int n = SLOutputLocations.Count;
+            int n = SLOutputLocations.Count();
             outputChannelMax = new double[n];
             outputChannelMin = new double[n];
             superMax = double.MinValue;
