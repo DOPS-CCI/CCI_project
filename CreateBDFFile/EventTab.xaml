@@ -9,20 +9,10 @@
                 <ColumnDefinition/>
             </Grid.ColumnDefinitions>
             <TextBlock Grid.Column="0" Margin="1" VerticalAlignment="Center" Text="{Binding ElementName=name,Path=Text}" />
-            <Button Grid.Column="1" Name="XButton"  Margin="0" Height="12" VerticalAlignment="top" Click="XButton_Click" HorizontalAlignment="Right">
-                <TextBlock FontSize="8" Margin="0" VerticalAlignment="Center">
-                    <Bold>X</Bold>
-                </TextBlock>
+            <Button Grid.Column="1" Name="XButton"  Margin="0" Height="12" VerticalAlignment="Top" Click="XButton_Click" HorizontalAlignment="Right" VerticalContentAlignment="Top">
+                <TextBlock FontSize="7" FontWeight="Bold" Margin="0" VerticalAlignment="Center" Text="X"/>
             </Button>
         </Grid>
-<!--        <StackPanel Orientation="Horizontal">
-            <TextBlock Margin="0,0,2,0" VerticalAlignment="Center" Text="{Binding ElementName=name,Path=Text}" />
-            <Button Name="XButton"  Margin="1" Height="12" VerticalAlignment="top" Click="XButton_Click" HorizontalAlignment="Right">
-                <TextBlock FontSize="8" Margin="0" VerticalAlignment="Center">
-                    <Bold>X</Bold>
-                </TextBlock>
-            </Button>
-        </StackPanel> -->
     </TabItem.Header>
     <TabItem.Content>
         <Grid>
@@ -39,7 +29,7 @@
             </StackPanel>
             <!--Event occurences-->
             <StackPanel Orientation="Vertical" Grid.Row="1">
-                <GroupBox Header="Occurrences" Margin="2" BorderBrush="DarkBlue">
+                <GroupBox Header="Timing" Margin="2" BorderBrush="DarkBlue">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition />
@@ -97,6 +87,8 @@
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="24"/>
@@ -105,9 +97,9 @@
                     <RadioButton Name="SNone" Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3" Margin="2" IsChecked="True" Checked="SignalTypeButton_Checked" Unchecked="SignalTypeButton_Checked">None</RadioButton>
                     <RadioButton Name="SImpulse" Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" Margin="2" Checked="SignalTypeButton_Checked" Tag="{Binding ElementName=BW,Path=IsEnabled,Mode=TwoWay}" Unchecked="SignalTypeButton_Checked">Impulse</RadioButton>
                     <TextBlock Grid.Row="1" Grid.Column="2" Margin="2" HorizontalAlignment="Right">Bandwidth:</TextBlock>
-                    <TextBox Name="BW" Grid.Row="1" Grid.Column="3" IsEnabled="False" TextChanged="BW_TextChanged">20</TextBox>
+                    <TextBox Name="BW" Grid.Row="1" Grid.Column="3" IsEnabled="{Binding ElementName=SImpulse,Path=IsChecked}" TextChanged="BW_TextChanged">20</TextBox>
                     <RadioButton Name="SDampedSine" Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" Margin="2" Checked="SignalTypeButton_Checked" Tag="{Binding ElementName=DampParms,Path=IsEnabled,Mode=TwoWay}" Unchecked="SignalTypeButton_Checked">Damped sinusoid:</RadioButton>
-                    <Grid Name="DampParms" Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="6" IsEnabled="False">
+                    <Grid Name="DampParms" Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="6" IsEnabled="{Binding ElementName=SDampedSine,Path=IsChecked}">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
@@ -116,7 +108,7 @@
                             <ColumnDefinition Width="24"/>
                             <ColumnDefinition /><ColumnDefinition /><ColumnDefinition /><ColumnDefinition /><ColumnDefinition />
                         </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="2" Grid.Row="0" HorizontalAlignment="Right" Margin="2">Coefficient:</TextBlock>
+                        <TextBlock Grid.Column="2" Grid.Row="0" HorizontalAlignment="Right" Margin="2">Amplitude:</TextBlock>
                         <TextBox Name="DSCoef" Grid.Column="3" Grid.Row="0" TextChanged="Num_TextChanged">1.0</TextBox>
                         <TextBlock Grid.Column="4" Grid.Row="0" HorizontalAlignment="Right" Margin="2">Damping:</TextBlock>
                         <TextBox Name="DSDamp" Grid.Column="5" Grid.Row="0" TextChanged="DSDamp_TextChanged">1.0</TextBox>
@@ -124,6 +116,23 @@
                         <TextBox Name="DSFreq" Grid.Column="3" Grid.Row="1" TextChanged="Num_TextChanged">10.0</TextBox>
                         <TextBlock Grid.Column="4" Grid.Row="1" HorizontalAlignment="Right" Margin="2">Phase(deg):</TextBlock>
                         <TextBox Name="DSPhase" Grid.Column="5" Grid.Row="1" TextChanged="Num_TextChanged">0</TextBox>
+                    </Grid>
+                    <RadioButton Name="DoubleExp" Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3" Margin="2">Double exponential:</RadioButton>
+                    <Grid Name="DExpParms" Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="6" IsEnabled="{Binding ElementName=DoubleExp,Path=IsChecked}">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="24"/>
+                            <ColumnDefinition /><ColumnDefinition /><ColumnDefinition /><ColumnDefinition /><ColumnDefinition />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="2" Grid.Row="0" HorizontalAlignment="Right" Margin="2">Amplitude:</TextBlock>
+                        <TextBox Name="DECoef" Grid.Column="3" Grid.Row="0" TextChanged="Num_TextChanged">1.0</TextBox>
+                        <TextBlock Grid.Column="2" Grid.Row="1" HorizontalAlignment="Right" Margin="2">T1:</TextBlock>
+                        <TextBox Name="DET1" Grid.Column="3" Grid.Row="1" TextChanged="Num_TextChanged">0.1</TextBox>
+                        <TextBlock Grid.Column="4" Grid.Row="1" HorizontalAlignment="Right" Margin="2">T2:</TextBlock>
+                        <TextBox Name="DET2" Grid.Column="5" Grid.Row="1" TextChanged="DSDamp_TextChanged">1.0</TextBox>
                     </Grid>
                 </Grid>
             </GroupBox>

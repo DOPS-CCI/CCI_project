@@ -31,7 +31,7 @@
                 <TextBlock Margin="3" VerticalAlignment="Center">Parameter:</TextBlock>
                 <RadioButton Margin="4,2,2,2" Name="None" VerticalAlignment="Center" IsChecked="True">None</RadioButton>
                 <RadioButton Margin="4,2,2,2" Name="Coef" VerticalAlignment="Center" IsEnabled="False" Checked="RB_Checked" Unchecked="RB_Checked" ContextMenu="{StaticResource Map}">
-                    Coefficient
+                    Amplitude
                 </RadioButton>
                 <RadioButton Margin="4,2,2,2" Name="Freq" VerticalAlignment="Center" IsEnabled="False" Checked="RB_Checked" Unchecked="RB_Checked" ContextMenu="{StaticResource Map}">
                     Frequency
