@@ -13,6 +13,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using CCIUtilities;
 
 namespace CreateRWNLDataset
 {
@@ -58,6 +59,11 @@ namespace CreateRWNLDataset
             errorCheck();
         }
 
+        private void SignalTab_ErrorCheckReq(object sender, EventArgs e)
+        {
+            errorCheck();
+        }
+
         private void Page_Click(object sender, RoutedEventArgs e)
         {
             if (((Button)sender).Name == "Page1Button")
@@ -93,6 +99,13 @@ namespace CreateRWNLDataset
                 foreach (EventTab et in EventsPanel.Items)
                 {
                     if (et.Validate()) continue;
+                    ok = false;
+                    break;
+                }
+            if (ok)
+                foreach (IValidate t in TermsPanel.Items)
+                {
+                    if (t.Validate()) continue;
                     ok = false;
                     break;
                 }
@@ -170,7 +183,18 @@ namespace CreateRWNLDataset
 
         private void TermButton_Click(object sender, RoutedEventArgs e)
         {
-
+            String s = ((Button)sender).Name;
+            TabItem t;
+            if (s == "PolyButton") t = new PolyTab(this);
+            else if (s == "NoiseButton") t = new NoiseTab(this);
+            else if (s == "SineButton") t = new SineTab(this);
+            //else if (s == "SqrButton") t = new SqrTab();
+            else if (s == "AMButton") t = new AMTab(this);
+            else if (s == "FMButton") t = new FMTab(this);
+            else return; // should not occur
+            TermsPanel.Items.Add(t);
+            TermsPanel.SelectedItem = t;
+            ((IValidate)t).ErrorCheckReq += SignalTab_ErrorCheckReq;
         }
 
         internal void RemoveEventHandler(EventTab et)

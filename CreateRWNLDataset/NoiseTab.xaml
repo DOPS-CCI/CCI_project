@@ -1,0 +1,51 @@
+﻿<TabItem x:Class="CreateRWNLDataset.NoiseTab"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="clr-namespace:CreateRWNLDataset"
+    FontSize="14">
+    <TabItem.Header>
+        <StackPanel Orientation="Horizontal" Width="48" Margin="-2,2">
+            <TextBlock Margin="0,0,2,0" VerticalAlignment="Center">Noise</TextBlock>
+            <Button Margin="0" Height="12" VerticalAlignment="top" Click="XButton_Click" HorizontalAlignment="Right">
+                <TextBlock FontSize="8" Margin="-1" Padding="0" VerticalAlignment="Center">
+                    <Bold>X</Bold>
+                </TextBlock>
+            </Button>
+        </StackPanel>
+    </TabItem.Header>
+    <TabItem.Content>
+        <StackPanel Orientation="Vertical" VerticalAlignment="Center">
+            <Grid VerticalAlignment="Center">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Margin="2">Amplitude:</TextBlock>
+                <TextBox Name="Amplitude" Grid.Column="1" TextChanged="Amplitude_TextChanged" Height="24">1.0</TextBox>
+            </Grid>
+            <TextBlock Name="Formula" Height="30" FontFamily="Palatino Linotype" FontSize="20" />
+            <GroupBox Header="Type">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition />
+                        <RowDefinition />
+                        <RowDefinition />
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition />
+                    </Grid.ColumnDefinitions>
+                    <RadioButton Name="Uniform" Grid.Row="0" IsChecked="True" Margin="2,2,10,2" Checked="Radio_Click" Unchecked="Radio_Click">Uniform distribution</RadioButton>
+                    <RadioButton Name="Gauss" Grid.Row="1" Margin="2,2,10,2" Checked="Radio_Click" Unchecked="Radio_Click">Gaussian distribution</RadioButton>
+                    <RadioButton Name="PinkG" Grid.Row="2" Margin="2,2,10,2" Checked="Radio_Click" Unchecked="Radio_Click" Tag="{Binding ElementName=PGFreq,Path=IsEnabled,Mode=TwoWay}">Pink Gaussian</RadioButton>
+                    <StackPanel Name="PGFreq" Grid.Row="2" Grid.Column="1" Orientation="Horizontal" IsEnabled="{Binding ElementName=PinkG,Path=IsChecked}">
+                        <TextBlock Margin="2">Cut-off freq(Hz):</TextBlock>
+                        <TextBox Name="PinkF" Width="60" TextChanged="PinkF_TextChanged">10.0</TextBox>
+                        <TextBlock Margin="4,2,2,2">Filter order(&lt;=3):</TextBlock>
+                        <TextBox Name="PinkOrder" Width="30" TextChanged="PinkOrder_TextChanged">3</TextBox>
+                    </StackPanel>
+                </Grid>
+            </GroupBox>
+        </StackPanel>
+    </TabItem.Content>
+</TabItem>

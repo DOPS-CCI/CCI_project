@@ -42,6 +42,8 @@
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Data" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xml" />
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System.Core" />
@@ -59,11 +61,34 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="AMTab.xaml.cs">
+      <DependentUpon>AMTab.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="FMTab.xaml.cs">
+      <DependentUpon>FMTab.xaml</DependentUpon>
+    </Compile>
     <Compile Include="GVItem.xaml.cs">
       <DependentUpon>GVItem.xaml</DependentUpon>
     </Compile>
+    <Compile Include="NoiseTab.xaml.cs">
+      <DependentUpon>NoiseTab.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="PolyTab.xaml.cs">
+      <DependentUpon>PolyTab.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="SineTab.xaml.cs">
+      <DependentUpon>SineTab.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Util.cs" />
+    <Page Include="AMTab.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="EventTab.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="FMTab.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -89,6 +114,18 @@
       <DependentUpon>MainWindow.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
+    <Page Include="NoiseTab.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="PolyTab.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="SineTab.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Parameters.cs" />

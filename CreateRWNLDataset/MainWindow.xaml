@@ -127,7 +127,7 @@
                             <EventSetter Event="Click" Handler="TermButton_Click"/>
                         </Style>
                     </StackPanel.Resources>
-                    <Button Name="ConstButton" Tag="Const">Const</Button>
+                    <Button Name="PolyButton" Tag="Const">Poly</Button>
                     <Button Name="NoiseButton" Tag="Noise">Noise</Button>
                     <Button Name="SineButton" Tag="Sine">Sine</Button>
                     <Button Name="SqrButton" Tag="Sqr">Square</Button>
