@@ -1,0 +1,51 @@
+﻿<ListBoxItem x:Class="CreateRWNLDataset.GVItem"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+    FontSize="14" Background="AliceBlue">
+    <Border BorderBrush="DarkBlue" BorderThickness="1" Margin="2">
+        <Grid Height="50" Width="400">
+            <Grid.RowDefinitions>
+                <RowDefinition />
+                <RowDefinition />
+            </Grid.RowDefinitions>
+            <StackPanel Orientation="Horizontal" Grid.Row="0">
+                <TextBlock Margin="3" VerticalAlignment="Center">Name:</TextBlock>
+                <TextBox Width="100" Name="name" Height="24" TextChanged="name_TextChanged">GV Name</TextBox>
+                <TextBlock Margin="5,3,3,3" VerticalAlignment="Center">NValues:</TextBlock>
+                <TextBox Width="40" Name="N" Height="24" TextChanged="N_TextChanged">1</TextBox>
+                <RadioButton Margin="4,2,2,2" Name="Cyclic" VerticalAlignment="Center" IsChecked="True" Checked="Cyclic_Checked">Cyclic</RadioButton>
+                <RadioButton Margin="4,2,2,2" Name="Random" VerticalAlignment="Center" Checked="Cyclic_Checked">Random</RadioButton>
+            </StackPanel>
+            <StackPanel Name="ParameterSP" Orientation="Horizontal" Grid.Row="1">
+                <StackPanel.Resources>
+                    <ContextMenu x:Key="Map" Visibility="Hidden">
+                        <StackPanel Orientation="Horizontal" MinWidth="120">
+                            <TextBlock Margin="3">Mapping:</TextBlock>
+                            <TextBox Name="MapTB" TextChanged="MapTB_TextChanged" MinWidth="80">v</TextBox>
+                        </StackPanel>
+                    </ContextMenu>
+                    <Style TargetType="RadioButton">
+                        <Setter Property="Margin" Value="4,2,2,2"/>
+                        <Setter Property="VerticalAlignment" Value="Center"/>
+                        <Setter Property="Visibility" Value="Hidden"/>
+                        <EventSetter Event="Checked" Handler="Parameter_Checked"/>
+                        <EventSetter Event="Unchecked" Handler="Parameter_Unchecked"/>
+                    </Style>
+                </StackPanel.Resources>
+                <StackPanel.ToolTip>
+                    Right click to obtain panel to enter formula for dependency of Event signal on the GV. Use "v" as the value of the GV.
+                </StackPanel.ToolTip>
+                <TextBlock Margin="3" VerticalAlignment="Center">Parameter:</TextBlock>
+                <RadioButton Name="None" IsChecked="True" Visibility="Visible">None</RadioButton>
+                <RadioButton Name="Coef" ContextMenu="{StaticResource Map}">Amplitude</RadioButton>
+                <RadioButton Name="Bandwidth" ContextMenu="{StaticResource Map}">Bandwidth</RadioButton>
+                <RadioButton Name="Freq" ContextMenu="{StaticResource Map}">Frequency</RadioButton>
+                <RadioButton Name="Damp" ContextMenu="{StaticResource Map}">Damping</RadioButton>
+                <RadioButton Name="T1" ContextMenu="{StaticResource Map}">T1</RadioButton>
+                <RadioButton Name="T2" ContextMenu="{StaticResource Map}">T2</RadioButton>
+            </StackPanel>
+        </Grid>
+    </Border>
+</ListBoxItem>
