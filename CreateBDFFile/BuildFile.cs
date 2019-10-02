@@ -30,7 +30,7 @@ namespace CreateBDFFile
                 throw new Exception("Directory creation failed: " + io.ToString());
             }
 
-            parameters.fileName = di.FullName + Path.DirectorySeparatorChar + parameters.fileName;
+            parameters.fileName = System.IO.Path.Combine(di.FullName, parameters.fileName);
 
             /* ***** Create new BDF/EDF file ***** */
             BDFEDFFileWriter file = new BDFEDFFileWriter(

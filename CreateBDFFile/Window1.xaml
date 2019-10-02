@@ -8,7 +8,7 @@
     </Window.Resources>
     <ScrollViewer>
     <Grid DataContext="{StaticResource params}">
-        <Grid Name="Page1" Panel.ZIndex="1" Background="AliceBlue" VerticalAlignment="Stretch" Visibility="Collapsed">
+        <Grid Name="Page1" Panel.ZIndex="1" Background="AliceBlue" VerticalAlignment="Stretch" Visibility="Visible">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition />
@@ -106,7 +106,7 @@
                 <RowDefinition />
                 <RowDefinition Height="36" />
             </Grid.RowDefinitions>
-            <Grid Grid.Row="0" Name="Page2" Visibility="Visible" Background="AliceBlue" Panel.ZIndex="0" UseLayoutRounding="True">
+            <Grid Grid.Row="0" Name="Page2" Visibility="Collapsed" Background="AliceBlue" Panel.ZIndex="0" UseLayoutRounding="True">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="40" />
                     <RowDefinition Height="Auto" />
