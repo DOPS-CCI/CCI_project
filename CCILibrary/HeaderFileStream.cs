@@ -285,21 +285,22 @@ namespace HeaderFileStream
                         xw.WriteString(other.Value);
                         xw.WriteEndElement(/* Other */);
                     }
-                foreach (GroupVarDictionary.GVEntry gve in head.GroupVars.Values)
-                {
-                    xw.WriteStartElement("GroupVar", ns);
-                    xw.WriteElementString("Name", ns, gve.Name);
-                    xw.WriteElementString("Description", ns, gve.Description);
-                    if(gve.HasValueDictionary) // will be null if integer values just stand for themselves
-                        foreach (KeyValuePair<string, int> i in gve.GVValueDictionary)
-                        {
-                            xw.WriteStartElement("GV", ns);
-                            xw.WriteAttributeString("Desc", i.Key);
-                            xw.WriteString(i.Value.ToString("0"));
-                            xw.WriteEndElement(/* GV */);
-                        }
-                    xw.WriteEndElement(/* GroupVar */);
-                }
+                if (head.GroupVars != null)
+                    foreach (GroupVarDictionary.GVEntry gve in head.GroupVars.Values)
+                    {
+                        xw.WriteStartElement("GroupVar", ns);
+                        xw.WriteElementString("Name", ns, gve.Name);
+                        xw.WriteElementString("Description", ns, gve.Description);
+                        if (gve.HasValueDictionary) // will be null if integer values just stand for themselves
+                            foreach (KeyValuePair<string, int> i in gve.GVValueDictionary)
+                            {
+                                xw.WriteStartElement("GV", ns);
+                                xw.WriteAttributeString("Desc", i.Key);
+                                xw.WriteString(i.Value.ToString("0"));
+                                xw.WriteEndElement(/* GV */);
+                            }
+                        xw.WriteEndElement(/* GroupVar */);
+                    }
                 foreach (KeyValuePair<string, EventDictionaryEntry> ede in head.Events)
                 {
                     xw.WriteStartElement("Event", ns);
@@ -316,7 +317,7 @@ namespace HeaderFileStream
                         xw.WriteElementString("Max", ns, ede.Value.channelMax.ToString("G"));
                         xw.WriteElementString("Min", ns, ede.Value.channelMin.ToString("G"));
                     }
-                    if(ede.Value.GroupVars!=null)
+                    if (ede.Value.GroupVars != null)
                         foreach (GVEntry gv in ede.Value.GroupVars)
                         {
                             xw.WriteStartElement("GroupVar", ns);
@@ -336,7 +337,7 @@ namespace HeaderFileStream
                     xw.WriteElementString("Agent", ns, head.Agent.ToString("0000"));
                 foreach (string tech in head.Technician)
                     xw.WriteElementString("Technician", ns, tech);
-                if(head.OtherSessionInfo != null)
+                if (head.OtherSessionInfo != null)
                     foreach (KeyValuePair<string, string> other in head.OtherSessionInfo)
                     {
                         xw.WriteStartElement("Other", ns);

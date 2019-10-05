@@ -1628,7 +1628,7 @@ namespace BDFEDFFileStream
         {
             v = Math.Abs(v);
             int p = 0;
-            while (v >= 1D) { v /= 10D; p++; }
+            while (v > 1D) { v /= 10D; p++; }
             if (p == 0) p = 1;
             if (p >= digits)
                 return new string('0', p);
