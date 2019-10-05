@@ -9,7 +9,7 @@ using CCIUtilities;
 
 namespace CreateRWNLDataset
 {
-    public partial class NoiseTab : TabItem, Util.ITerm, IValidate
+    public partial class NoiseTab : TabItem, Util.IBackgroundSignal, IValidate
     {
         protected double Coef;
         internal Util.VType CCoef;

@@ -59,7 +59,7 @@ namespace CreateRWNLDataset
 
         public bool Validate(object o = null)
         {
-            if (this.Name == "") return false;
+            if (eventDef.Name == null || eventDef.Name == "") return false;
             if (eventDef.periodic == Timing.Periodic)
             {
                 if (eventDef.period == 0D) return false;
@@ -112,8 +112,8 @@ namespace CreateRWNLDataset
         private void name_TextChanged(object sender, TextChangedEventArgs e)
         {
             string t = name.Text;
-            if (Util.nameCheck(t)) this.Name = t;
-            else this.Name = "";
+            if (Util.nameCheck(t)) eventDef.Name = t;
+            else eventDef.Name = "";
             ECRequest();
         }
 
@@ -235,6 +235,7 @@ namespace CreateRWNLDataset
             lbi.Tag = this.Parent; // leave pointer to TabControl, so we can search for uniqueness of GV names!
             GVPanel.Items.Add(lbi);
             lbi.ErrorCheckReq += GVItem_ErrorCheckReq;
+            eventDef.GVs.Add(lbi.gvd);
             RemoveGV.IsEnabled = true;
             ECRequest();
         }
@@ -250,6 +251,7 @@ namespace CreateRWNLDataset
             GVItem lbi = (GVItem)GVPanel.SelectedItem;
             lbi.ErrorCheckReq -= GVItem_ErrorCheckReq;
             GVPanel.Items.Remove(lbi);
+            eventDef.GVs.Remove(lbi.gvd);
             if (GVPanel.Items.Count == 0) RemoveGV.IsEnabled = false;
             ECRequest();
         }

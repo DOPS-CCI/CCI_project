@@ -52,9 +52,9 @@ namespace CreateRWNLDataset
 
         public bool Validate(object o = null)
         {
-            if (gvd.Name == null || !Util.nameCheck(gvd.Name)) return false;
+            if (gvd.Name == null || gvd.Name == "") return false;
             if (gvd.Nmax <= 0) return false;
-            if (gvd.param != "None" && gvd.map == null) return false;
+            if (gvd.param != -1 && gvd.map == null) return false;
             return true;
         }
 
@@ -66,7 +66,7 @@ namespace CreateRWNLDataset
         private void Parameter_Checked(object sender, RoutedEventArgs e)
         {
             RadioButton rb = (RadioButton)sender;
-            gvd.param = rb.Name;
+            gvd.param = (int)rb.Tag;
             if (rb.ContextMenu != null)
                 rb.ContextMenu.Visibility = Visibility.Visible;
             ECRequest();
@@ -75,7 +75,7 @@ namespace CreateRWNLDataset
         private void Parameter_Unchecked(object sender, RoutedEventArgs e)
         {
             RadioButton rb = (RadioButton)sender;
-            gvd.param = rb.Name;
+            gvd.param = (int)rb.Tag;
             if (rb.ContextMenu != null)
                 rb.ContextMenu.Visibility = Visibility.Hidden;
             ECRequest();
@@ -99,7 +99,9 @@ namespace CreateRWNLDataset
 
         private void name_TextChanged(object sender, TextChangedEventArgs e)
         {
-            gvd.Name = name.Text;
+            string t = name.Text;
+            if (Util.nameCheck(t)) gvd.Name = t;
+            else gvd.Name = "";
             ECRequest();
         }
 

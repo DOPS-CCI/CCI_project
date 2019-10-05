@@ -7,7 +7,7 @@ using CCIUtilities;
 
 namespace CreateRWNLDataset
 {
-    public partial class SineTab : TabItem, Util.ITerm, IValidate
+    public partial class SineTab : TabItem, Util.IBackgroundSignal, IValidate
     {
         protected double[] Parm = new double[3]; // Coef, Freq, Phase
         internal Util.VType[] CParm = new Util.VType[3];

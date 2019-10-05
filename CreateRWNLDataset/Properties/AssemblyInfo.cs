@@ -10,7 +10,7 @@ using System.Windows;
 [assembly: AssemblyTitle("CreateRWNLDataset")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("Microsoft")]
+[assembly: AssemblyCompany("CCI")]
 [assembly: AssemblyProduct("CreateRWNLDataset")]
 [assembly: AssemblyCopyright("Copyright © Microsoft 2019")]
 [assembly: AssemblyTrademark("")]

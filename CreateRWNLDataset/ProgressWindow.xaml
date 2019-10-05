@@ -1,0 +1,10 @@
+﻿<Window x:Class="CreateRWNLDataset.ProgressWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Progress" Width="360" WindowStartupLocation="CenterOwner" SizeToContent="Height" ResizeMode="NoResize" WindowStyle="ThreeDBorderWindow" >
+    <StackPanel Orientation="Vertical">
+        <TextBlock Name="Phase" FontSize="20" Margin="8" HorizontalAlignment="Center" FontWeight="Bold">Phase</TextBlock>
+        <ProgressBar Name="Bar" Height="30" Margin="10"/>
+        <Button Name="CancelButton" Width="80" Height="30"  Margin="8" FontSize="16" FontWeight="Bold" IsCancel="True" Click="CancelButton_Click">Cancel</Button>
+    </StackPanel>
+</Window>

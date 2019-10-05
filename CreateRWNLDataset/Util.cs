@@ -11,9 +11,9 @@ using System.Windows.Documents;
 
 namespace CreateRWNLDataset
 {
-    internal class Util
+    internal partial class Util
     {
-        public interface ITerm
+        public interface IBackgroundSignal
         {
             Inline DisplayFormula();
             double Calculate(double t, int channel);
@@ -49,9 +49,9 @@ namespace CreateRWNLDataset
         public static double ApplyCR(double v, VType c, int channel)
         {
             if (c == VType.None) return v;
-            if (c == VType.Channel) return v * Convert.ToDouble(channel);
+            if (c == VType.Channel) return v * Convert.ToDouble(channel + 1);
             if (c == VType.Random) return v * UniformRND();
-            return v * Convert.ToDouble(channel) * UniformRND();
+            return v * Convert.ToDouble(channel + 1) * UniformRND();
         }
 
         internal static double doDoubleCheck(string input, double bad = double.NaN)
@@ -183,6 +183,16 @@ namespace CreateRWNLDataset
         {
             return mean + GaussRND() * SD;
         }
+
+        public static double TruncGaussRND(double mean, double SD)
+        {
+            double v;
+            do
+            {
+                v = GaussRND(mean, SD);
+            } while (v < 0D);
+            return v;
+        }
     }
 
     public class PinkRNGFactory
@@ -293,7 +303,6 @@ namespace CreateRWNLDataset
         }
     }
 
-
     [ValueConversion(typeof(bool?), typeof(Visibility))]
     public class BoolVisibilityConverter : IValueConverter
     {
@@ -306,6 +315,25 @@ namespace CreateRWNLDataset
         public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
         {
             throw new NotImplementedException();
+        }
+    }
+
+    [ValueConversion(typeof(double), typeof(Run))]
+    public class DoubleStringConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            Console.WriteLine("Enter Convert with {0}", targetType);
+            if ((double)value <= 0) return "";
+            return ((double)value).ToString("G4");
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            Console.WriteLine("Enter ConvertBack with {0}", targetType);
+            double v;
+            if (double.TryParse((string)value, out v)) return v;
+            else return 0D;
         }
     }
 }

@@ -7,16 +7,16 @@ using CCIUtilities;
 
 namespace CreateRWNLDataset
 {
-    public partial class PolyTab : TabItem, Util.ITerm, IValidate
+    public partial class PolyTab : TabItem, Util.IBackgroundSignal, IValidate
     {
         internal double[] Coef;
         internal Util.VType CCoef;
         Polynomial poly;
-        MainWindow wnd;
+        MainWindow window;
 
         public PolyTab(MainWindow w)
         {
-            wnd = w;
+            window = w;
             InitializeComponent();
             Formula.Inlines.Clear();
             Formula.Inlines.Add(DisplayFormula());
@@ -105,7 +105,8 @@ namespace CreateRWNLDataset
 
         public double Calculate(double t, int channel)
         {
-            return Util.ApplyCR(poly.EvaluateAt(t), CCoef, channel);
+            double T = 2D * (t / window.parameters.actualFileTime) - 1D;
+            return Util.ApplyCR(poly.EvaluateAt(T), CCoef, channel);
         }
 
         private void XButton_Click(object sender, RoutedEventArgs e)

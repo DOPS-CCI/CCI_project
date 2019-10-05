@@ -14,6 +14,20 @@ namespace CreateRWNLDataset
         internal int Nmax;
         internal Polynomial map;
         internal bool cyclic = true;
-        internal string param = "None";
+        internal int param = -1;
+
+        int lastV = -1;
+        public int nextGV
+        {
+            get
+            {
+                if (cyclic)
+                {
+                    lastV = (++lastV) % Nmax;
+                    return lastV + 1;
+                }
+                return (int)Util.UniformRND(0D, (double)Nmax) + 1;
+            }
+        }
     }
 }

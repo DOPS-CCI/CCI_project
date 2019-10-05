@@ -3,7 +3,18 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+    xmlns:sys="clr-namespace:System;assembly=mscorlib"
     FontSize="14" Background="AliceBlue">
+    <ListBoxItem.Resources>
+        <sys:Int32 x:Key="None">-1</sys:Int32>
+        <sys:Int32 x:Key="Coef">0</sys:Int32>
+        <sys:Int32 x:Key="BW">1</sys:Int32>
+        <sys:Int32 x:Key="Freq">1</sys:Int32>
+        <sys:Int32 x:Key="Damp">2</sys:Int32>
+        <sys:Int32 x:Key="Phase">3</sys:Int32>
+        <sys:Int32 x:Key="T1">1</sys:Int32>
+        <sys:Int32 x:Key="T2">2</sys:Int32>
+    </ListBoxItem.Resources>
     <Border BorderBrush="DarkBlue" BorderThickness="1" Margin="2">
         <Grid Height="50" Width="400">
             <Grid.RowDefinitions>
@@ -38,13 +49,14 @@
                     Right click to obtain panel to enter formula for dependency of Event signal on the GV. Use "v" as the value of the GV.
                 </StackPanel.ToolTip>
                 <TextBlock Margin="3" VerticalAlignment="Center">Parameter:</TextBlock>
-                <RadioButton Name="None" IsChecked="True" Visibility="Visible">None</RadioButton>
-                <RadioButton Name="Coef" ContextMenu="{StaticResource Map}">Amplitude</RadioButton>
-                <RadioButton Name="Bandwidth" ContextMenu="{StaticResource Map}">Bandwidth</RadioButton>
-                <RadioButton Name="Freq" ContextMenu="{StaticResource Map}">Frequency</RadioButton>
-                <RadioButton Name="Damp" ContextMenu="{StaticResource Map}">Damping</RadioButton>
-                <RadioButton Name="T1" ContextMenu="{StaticResource Map}">T1</RadioButton>
-                <RadioButton Name="T2" ContextMenu="{StaticResource Map}">T2</RadioButton>
+                <RadioButton Name="None" IsChecked="True" Visibility="Visible" Tag="{StaticResource None}" Content="None">
+                </RadioButton>
+                <RadioButton Name="Coef" ContextMenu="{StaticResource Map}" Tag="{StaticResource Coef}">Amplitude</RadioButton>
+                <RadioButton Name="Bandwidth" ContextMenu="{StaticResource Map}" Tag="{StaticResource BW}">Bandwidth</RadioButton>
+                <RadioButton Name="Freq" ContextMenu="{StaticResource Map}" Tag="{StaticResource Freq}">Frequency</RadioButton>
+                <RadioButton Name="Damp" ContextMenu="{StaticResource Map}" Tag="{StaticResource Damp}">Damping</RadioButton>
+                <RadioButton Name="T1" ContextMenu="{StaticResource Map}" Tag="{StaticResource T1}">T1</RadioButton>
+                <RadioButton Name="T2" ContextMenu="{StaticResource Map}" Tag="{StaticResource T2}">T2</RadioButton>
             </StackPanel>
         </Grid>
     </Border>

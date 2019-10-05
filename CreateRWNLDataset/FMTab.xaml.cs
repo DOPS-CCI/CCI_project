@@ -17,7 +17,7 @@ using CCIUtilities;
 
 namespace CreateRWNLDataset
 {
-    public partial class FMTab : TabItem, Util.ITerm, IValidate
+    public partial class FMTab : TabItem, Util.IBackgroundSignal, IValidate
     {
         protected double[] Parm = new double[6]; // Coef, FreqC, PhaseC, FreqM, PhaseM, Mod
         internal Util.VType[] CParm = new Util.VType[6];

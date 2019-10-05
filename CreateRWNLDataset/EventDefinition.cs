@@ -9,6 +9,7 @@ namespace CreateRWNLDataset
 {
     public class EventDefinition : EventDictionaryEntry
     {
+        internal string Name;
         internal Timing periodic = Timing.Periodic;
         internal double period;
         internal RandomType randomType = RandomType.Gaussian;
@@ -35,6 +36,61 @@ namespace CreateRWNLDataset
             this.Covered = true;
             this.Intrinsic = true;
             this.RelativeTime = false;
+        }
+
+        public double nextIncrement
+        {
+            get
+            {
+                if (periodic == Timing.Periodic)
+                    return period;
+                else if (randomType == RandomType.Uniform)
+                    return Util.UniformRND(uniformMin, uniformMax);
+                else //gaussian
+                    return Util.TruncGaussRND(gaussianMean, gaussianSD);
+            }
+        }
+
+        public int[] assignGVValues()
+        {
+            int[] gv = new int[GVs.Count];
+            for (int i = 0; i < GVs.Count; i++) gv[i] = GVs[i].nextGV;
+            return gv;
+        }
+
+        public double Calculate(double t, int channel, int[] gvvalues)
+        {
+            //First calculate the parameter values that are GV value dependent
+            //We do it this way in case multiple GVs refer to same parameter
+            double[] p = new double[] { 1D, 1D, 1D };
+            int i = 0;
+            foreach (GVDefinition gvd in GVs)
+            {
+                if (gvd.param >= 0)
+                    p[gvd.param] *= gvd.map.EvaluateAt((double)gvvalues[i]);
+                i++;
+            }
+            switch (signal)
+            {
+                case SignalType.None:
+                    return 0D;
+                case SignalType.Impulse:
+                    double T = 2D * Math.PI * t * p[1] * impulseBW;
+                    return 2D * p[0] * p[1] * impulseAmp * impulseBW *
+                        (t == 0D ? 1D : Math.Sin(T) / T);
+                case SignalType.DampedSine:
+                    if (t >= 0)
+                        return p[0] * DSAmp * Math.Exp(-t * p[2] * DSDamp) *
+                            Math.Sin(2D * Math.PI * t * p[1] * DSFreq);
+                    else return 0D;
+                case SignalType.DoubleExp:
+                    if (t >= 0)
+                        return p[0] * DEAmp * (p[1] * DET1 + p[2] * DET2) * Math.Exp(-t / (p[2] * DET2)) *
+                            (1D - Math.Exp(-t / (p[1] * DET1))) / (p[2] * p[2] * DET2 * DET2);
+                    else return 0D;
+                default:
+                    return 0D;
+            }
         }
     }
 
