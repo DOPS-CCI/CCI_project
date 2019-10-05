@@ -74,6 +74,13 @@
 </div>
 
 <div id="application-block">
+<a href="publish/CreateRWNLDataset/publish.html" target="_blank">
+  <h2>Create test RWNL datasets (CreateRWNLDataset) </h2>
+  <p>Creates an RWNL format dataset. User may select a number of Events and corresponding signals with signal parameters depending on the value of group variables. Background signals, not Event related, may also be included: polynomial, sine wave (optionally AM or FM modulated), square wave, and various noise choices.</p>
+</a>
+</div>
+
+<div id="application-block">
 <a href="publish/DatasetReviewer/publish.html" target="_blank">
   <h2>Display RWNL datasets (DatasetReviewer)</h2>
   <p>Opens RWNL dataset and displays BDF file and Event file data in scrollable format; detects certain errors in RWNL format; one can select channels to display including Status channel, manipulate display decimation, and investigate clock offsets.</p>
