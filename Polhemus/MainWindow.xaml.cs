@@ -41,7 +41,7 @@ namespace Polhemus
 
         Projection projection;
 
-        static internal string networkFolder = @"X:\ElectrodePositionFiles";
+        static internal string networkFolder = @"X:\ElectrodePositionFiles"; //Network location of final storage location and Templates folder
         const string templatesFolder = @"Templates"; //location of template files
         const double screenDPI = 120D; //modify to make window fit to screen
         const int smooth = 50; //smoothing factor for moving average distance
@@ -560,7 +560,7 @@ namespace Polhemus
             if (efs != null)
             {
                 foreach (XYZRecord xyz in electrodeLocations)
-                    xyz.write(efs, "");
+                    xyz.write(efs);
                 efs.Close();
                 efs = null;
                 output3.Text = "Wrote " + electrodeLocations.Count().ToString("0") + " electrode location records.";
