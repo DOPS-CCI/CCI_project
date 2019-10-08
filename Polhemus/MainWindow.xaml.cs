@@ -560,7 +560,7 @@ namespace Polhemus
             if (efs != null)
             {
                 foreach (XYZRecord xyz in electrodeLocations)
-                    xyz.write(efs, "");
+                    xyz.write(efs);
                 efs.Close();
                 efs = null;
                 output3.Text = "Wrote " + electrodeLocations.Count().ToString("0") + " electrode location records.";
