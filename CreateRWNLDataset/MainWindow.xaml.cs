@@ -240,8 +240,8 @@ namespace CreateRWNLDataset
             parameters.head.Experimenter.Add("James E. Lenz");
             parameters.head.Experimenter.Add(Environment.UserName);
             parameters.head.Status = parameters.nBits;
-            parameters.head.Date = dt.ToString("dd-MM-yy");
-            parameters.head.Time = dt.ToString("HH:mm.ss");
+            parameters.head.Date = dt.ToString("dd-MM-yyyy");
+            parameters.head.Time = dt.ToString("HH:mm tt");
             parameters.head.Subject = 0;
             parameters.head.Agent = 0;
             parameters.head.Technician = new List<string>(1);
