@@ -57,7 +57,7 @@
     <ApplicationIcon>Simple CCI.ico</ApplicationIcon>
   </PropertyGroup>
   <PropertyGroup>
-    <SignManifests>false</SignManifests>
+    <SignManifests>true</SignManifests>
   </PropertyGroup>
   <PropertyGroup>
     <ManifestCertificateThumbprint>3386940E1E4803487619AC5D01698DBE513F976C</ManifestCertificateThumbprint>
