@@ -134,9 +134,7 @@ namespace CreateRWNLDataset
             file.writeHeader();
 
             /* ***** Create Electrode position file ***** */
-            double[] phi;
-            double[] theta;
-            setElectrodeLocations(parameters.nChan, out phi, out theta); // assign locations
+            setElectrodeLocations(parameters.nChan, out double[] phi, out double[] theta); // assign locations
             ElectrodeFileStream.ElectrodeOutputFileStream efs = new ElectrodeFileStream.ElectrodeOutputFileStream(
                 File.Open(parameters.fileName + ".etr", FileMode.Create, FileAccess.Write), typeof(PhiThetaRecord));
             for (int i = 0; i < parameters.nChan; i++)
@@ -163,7 +161,7 @@ namespace CreateRWNLDataset
             int pts = 0;
             IEnumerator<realEvent> reEnum = events.GetEnumerator();
             bool end = reEnum.MoveNext();
-            realEvent nextEvent = reEnum.Current;
+            realEvent nextEvent;
             EventFileWriter efw = new EventFileWriter(new FileStream(parameters.fileName + ".evt", FileMode.Create, FileAccess.Write));
 
             /* ***** Main loop ***** */
@@ -213,7 +211,7 @@ namespace CreateRWNLDataset
             theta = new double[N];
 
             /* ***** Create layout arrays ***** */
-            int[] lastCol = null; // last column on right, column number a
+            int[] lastCol = null; // last column on right, column number a (zero based)
             int[] lastRow = null; // last row at bottom, row number a; used only if lastCol filled
 
             int a = (int)Math.Sqrt(N); // size of base, square layout
@@ -245,7 +243,7 @@ namespace CreateRWNLDataset
                 else bigOffsetY = ((double)a + 1D) / 2d;
             }
 
-            if (lastCol == null && lastRow == null) scale = 90D / (a - 1);
+            if (lastCol == null && lastRow == null) scale = (a == 1 ? 0D : 90D / (a - 1));
             else scale = 90D / a;
             do
             {
@@ -258,7 +256,10 @@ namespace CreateRWNLDataset
                     double x = ((double)i + offset - bigOffsetX);
                     double y = (bigOffsetY - (double)iRow);
                     phi[iChan] = scale * Math.Sqrt(x * x + y * y);
-                    theta[iChan++] = 180D * Math.Atan2(-x, y) / Math.PI;
+                    if (y != 0 || x != 0)
+                        theta[iChan++] = 180D * Math.Atan2(-x, y) / Math.PI;
+                    else
+                        theta[iChan++] = 0D;
                 }
                 iRow++;
 
