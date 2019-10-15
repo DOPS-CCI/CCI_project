@@ -134,7 +134,9 @@ namespace CreateRWNLDataset
             file.writeHeader();
 
             /* ***** Create Electrode position file ***** */
-            setElectrodeLocations(parameters.nChan, out double[] phi, out double[] theta); // assign locations
+            double[] phi;
+            double[] theta;
+            setElectrodeLocations(parameters.nChan, out phi, out theta); // assign locations
             ElectrodeFileStream.ElectrodeOutputFileStream efs = new ElectrodeFileStream.ElectrodeOutputFileStream(
                 File.Open(parameters.fileName + ".etr", FileMode.Create, FileAccess.Write), typeof(PhiThetaRecord));
             for (int i = 0; i < parameters.nChan; i++)
