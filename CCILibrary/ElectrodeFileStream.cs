@@ -69,11 +69,11 @@ namespace ElectrodeFileStream
         const string defaultNS = "http://www.zoomlenz.net/Electrode";
         internal string ns;
 
-        public ElectrodeOutputFileStream(Stream str, Type t, string nameSpace = defaultNS)
+        public ElectrodeOutputFileStream(Stream str, Type t)
         {
             if (!str.CanWrite) throw new Exception("Unable to open output stream in ElectrodeOutputFileStream.");
             this.t = t;
-            this.ns = nameSpace;
+            this.ns = defaultNS;
             XmlWriterSettings settings = new XmlWriterSettings();
             settings.Indent = true;
             settings.Encoding = System.Text.Encoding.UTF8;
@@ -81,11 +81,7 @@ namespace ElectrodeFileStream
             {
                 xw = XmlWriter.Create(str, settings);
                 xw.WriteStartDocument();
-                xw.WriteStartElement("Electrodes", nameSpace);
-                xw.WriteAttributeString("xmlns", nameSpace);
-                xw.WriteAttributeString("xmlns", "xsi", null, "http://www.w3.org/2001/XMLSchema-instance");
-                xw.WriteAttributeString("schemaLocation", "http://www.w3.org/2001/XMLSchema-instance",
-                    "http://www.zoomlenz.net http://www.zoomlenz.net/xml/Electrode.xsd");
+                xw.WriteStartElement("Electrodes", ns);
                 if (t == typeof(PhiThetaRecord))
                     xw.WriteAttributeString("Type", "PhiTheta");
                 else if (t == typeof(XYRecord))
@@ -96,6 +92,10 @@ namespace ElectrodeFileStream
                     xw.WriteAttributeString("Type", "RPhiTheta");
                 else
                     throw new Exception("Invalid electrode record type.");
+                xw.WriteAttributeString("xmlns", ns);
+                xw.WriteAttributeString("xmlns", "xsi", null, "http://www.w3.org/2001/XMLSchema-instance");
+                xw.WriteAttributeString("schemaLocation", "http://www.w3.org/2001/XMLSchema-instance",
+                    "http://www.zoomlenz.net http://www.zoomlenz.net/xml/Electrode.xsd");
             }
             catch (XmlException x)
             {
@@ -534,7 +534,7 @@ namespace ElectrodeFileStream
             XmlWriter xw = ofs.xw;
             string nameSpace = ofs.ns;
             xw.WriteStartElement("Electrode", nameSpace);
-            xw.WriteAttributeString("Name", nameSpace, this.Name);
+            xw.WriteAttributeString("Name", this.Name);
             xw.WriteElementString("X", nameSpace, this.X.ToString("G"));
             xw.WriteElementString("Y", nameSpace, this.Y.ToString("G"));
             xw.WriteElementString("Z", nameSpace, this.Z.ToString("G"));
