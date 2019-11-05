@@ -214,6 +214,9 @@ namespace PreprocessDataset
                 if (ppw.SETVars["EEG"].VariableType == "OBJECT") ppw.SETVars.Assign("DATA", "EEG.EEG");
                 else ppw.SETVars.Assign("DATA", "EEG");
 
+                if (((IMLNumeric)ppw.SETVars.SelectV("DATA.trials")).ToInteger() != 1)
+                    throw new Exception(".SET file contains more than a single epoch.");
+
                 ppw.nChans = ((IMLNumeric)ppw.SETVars.SelectV("DATA.nbchan")).ToInteger(); //total number of channels in the FDT file (some may not be EEG)
                 ppw.fileLength = ((IMLNumeric)ppw.SETVars.SelectV("DATA.pnts")).ToLong(); //number of datels in the FDT file
                 ppw.SR = new SamplingRate(((IMLNumeric)ppw.SETVars.SelectV("DATA.srate")).ToDouble(), 2);

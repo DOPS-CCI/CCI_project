@@ -19,6 +19,7 @@ namespace PreprocessDataset
             ew.Message = "Sender: "+sender.ToString()+"\r\nIn " + ex.TargetSite + ": " + ex.Message +
                 ";\r\n" + ex.StackTrace;
             ew.ShowDialog();
+            Environment.Exit(-1);
 #endif
         }
     }
