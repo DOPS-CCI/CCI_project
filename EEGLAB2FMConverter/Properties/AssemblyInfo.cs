@@ -10,9 +10,9 @@ using System.Windows;
 [assembly: AssemblyTitle("EEGLAB2FMConverter")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("Microsoft")]
+[assembly: AssemblyCompany("Cedar Creek Institute")]
 [assembly: AssemblyProduct("EEGLAB2FMConverter")]
-[assembly: AssemblyCopyright("Copyright © Microsoft 2019")]
+[assembly: AssemblyCopyright("Copyright © CCI 2019")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
