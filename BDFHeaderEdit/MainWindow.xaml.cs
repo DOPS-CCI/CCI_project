@@ -19,6 +19,8 @@ namespace BDFHeaderEdit
         ObservableCollection<dataTuple> datagridItems = new ObservableCollection<dataTuple>();
         string[] name;
         string[] type;
+        string[] physicalDimension;
+        string[] prefilter;
 
         public MainWindow()
         {
@@ -36,13 +38,19 @@ namespace BDFHeaderEdit
 
             Title = "Edit BDF header: " + System.IO.Path.GetFileName(fileName);
 
+            SubjectIDTB.Text = editor.SubjectID;
+            RecordingIDTB.Text = editor.RecordingID;
             name = editor.GetChannelLabels();
             type = editor.GetTransducerTypes();
+            physicalDimension = editor.GetPhysicalDimensions();
+            prefilter = editor.GetPrefilters();
             for (int i = 0; i < name.Length; i++)
             {
-                datagridItems.Add(new dataTuple(i + 1, name[i], type[i]));
+                datagridItems.Add(new dataTuple(i + 1, name[i], type[i], physicalDimension[i], prefilter[i]));
             }
             ChannelSelect.ItemsSource = datagridItems;
+            this.Show();
+            this.Activate();
         }
 
         private void ChannelSelect_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
@@ -55,6 +63,10 @@ namespace BDFHeaderEdit
                 editor.ChangeChannelLabel(row, s.Substring(0, Math.Min(16, s.Length))); //have to shorten here as well as in property.set
             else if (n == 2) //Type
                 editor.ChangeTransducerType(row, s.Substring(0, Math.Min(80, s.Length))); //have to shorten here as well as in property.set
+            else if (n == 3) //Dimension
+                editor.ChangePhysicalDimension(row, s.Substring(0, Math.Min(8, s.Length))); //have to shorten here as well as in property.set
+            else if (n == 4) //Prefilter
+                editor.ChangePrefilter(row, s.Substring(0, Math.Min(80, s.Length))); //have to shorten here as well as in property.set
         }
 
         private void ChannelSelect_AutoGeneratingColumn(object sender, DataGridAutoGeneratingColumnEventArgs e)
@@ -71,6 +83,14 @@ namespace BDFHeaderEdit
                     e.Column.Width = 150;
                     break;
                 case ("Type"):
+                    e.Column.CanUserResize = true;
+                    e.Column.MinWidth = 400;
+                    break;
+                case ("Dimension"):
+                    e.Column.CanUserResize = true;
+                    e.Column.MinWidth = 64;
+                    break;
+                case ("Prefilter"):
                     e.Column.CanUserResize = true;
                     e.Column.MinWidth = 400;
                     break;
@@ -98,6 +118,16 @@ namespace BDFHeaderEdit
         {
             editor.Close();
             Environment.Exit(0);
+        }
+
+        private void RecordingIDTB_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            editor.ChangeRecordingID(RecordingIDTB.Text);
+        }
+
+        private void SubjectIDTB_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            editor.ChangeSubjectID(SubjectIDTB.Text);
         }
     }
 
@@ -139,11 +169,37 @@ namespace BDFHeaderEdit
             }
         }
 
-        internal dataTuple(int i, string name, string type)
+        string _dimension;
+        public string Dimension
+        {
+            get { return _dimension; }
+            set
+            {
+                if (value == _dimension) return;
+                _dimension = value.Substring(0, Math.Min(8, value.Length));
+                NotifyPropertyChanged();
+            }
+        }
+
+        string _prefilter;
+        public string Prefilter
+        {
+            get { return _prefilter; }
+            set
+            {
+                if (value == _prefilter) return;
+                _prefilter = value.Substring(0, Math.Min(80, value.Length));
+                NotifyPropertyChanged();
+            }
+        }
+
+        internal dataTuple(int i, string name, string type, string dimension, string prefilter)
         {
             Number = i;
             _name = name;
             _type = type;
+            _dimension = dimension;
+            _prefilter = prefilter;
         }
 
         public event PropertyChangedEventHandler PropertyChanged;
