@@ -74,6 +74,13 @@
 </div>
 
 <div id="application-block">
+<a href="publish/EEGLAB2FMConverter/publish.html" target="_blank">
+  <h2>EEGLAB to FILMAN converter (EEG2FMConverter)</h2>
+  <p>Converts saved EEGLAB datsets (.SET/.FDT files) to FILMAN format. Each episode in the EEGLAB dataset results in one recordset in FILMAN. GVs to be brought across may be selected from a list. User may choose an associated RWNL HDR file to aid in mapping text GV values in EEGLAB to positive integers required by FILMAN. This mapping may be optionally saved in a text format. If the EEGLAB daataset has undergone ICA processing, the converter permits selecting either &ldquo;electrode&rdquo; or &ldquo;component&rdquo; space outputs. Note: the .set file must be in MATLAB v6.5 file format (check "File/Memory and other options" dialog box setting).</p>
+</a>
+</div>
+
+<div id="application-block">
 <a href="publish/CreateRWNLDataset/publish.html" target="_blank">
   <h2>Create test RWNL datasets (CreateRWNLDataset) </h2>
   <p>Creates an RWNL format dataset. User may select a number of Events and corresponding signals with signal parameters depending on the value of group variables. Background signals, not Event related, may also be included: polynomial, sine wave (optionally AM or FM modulated), square wave, and various noise choices.</p>
@@ -117,24 +124,19 @@
 </div>
 
 <div id="application-block">
+<a href="publish/BDFHeaderEdit/publish.html" target="_blank">
+  <h2>Edit BDF header information (BDFHeaderEdit) </h2>
+  <p>Edit the information in a BDF header. Editable information includes channel labels, transducer types, physical dimensions, and prefilter descriptions as well as subject and recording identifications. Editing is done &ldquo;in place&rdquo; with edited file replacing the original.</p>
+</a>
+</div>
+
+<div id="application-block">
 <a href="publish/PreprocessDataset/publish.html" target="_blank">
   <h2>Preprocess RWNL dataset (PreprocessDataset)</h2>
   <p>The PreprocessDataset (PD) application is intended to simplify and consolidate the early processing of physiological datasets acquired through the BioSemi system. The processing functions include simple channel selection and renaming, simple data decimation, global detrending of channel data, various referencing options, and IIR filtering of channel data. PD also can compute the surface Laplacian (SL) on interpolated (and smoothed) EEG data when electrode locations are known. PD accepts both RWNL complete datasets and &ldquo;naked&rdquo; BDF data. Application also creates an XML log file documenting processing performed on the dataset.</p>
 </a>
     <div id="UG-link">
       	<a href="publish/PreprocessDataset/User_guide.pdf" target="_blank">
-		<p style="text-align:right">User guide</p>
-	</a>
-    </div>
-</div>
-
-<div id="application-block">
-<a href="publish/ConvertEEG2FM/publish.html" target="_blank">
-  <h2>EEGLAB to FILMAN converter (ConvertEEG2FM)</h2>
-  <p>Converts EEGLAB .SET file (Export output) to FILMAN format on a trial-by-trial basis, one FILMAN record for each experimental trial; data in each record is as processed by EEGLAB (filtered, referenced, etc.); select group variables to be included; create FILMAN file description; optionally include electrode positioning information encoded in the FILMAN channel label.</p>
-</a>
-    <div id="UG-link">
-      	<a href="publish/ConvertEEG2FM/User_guide.pdf" target="_blank">
 		<p style="text-align:right">User guide</p>
 	</a>
     </div>
