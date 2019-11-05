@@ -14,6 +14,7 @@ namespace MLLibrary
     {
         string VariableType { get; }
         bool IsMLArray { get; }
+        bool IsNull { get; }
     }
 
     public interface IMLArrayable : IMLType //Marker for items that can be array form: all but array itself
@@ -58,6 +59,7 @@ namespace MLLibrary
 
         public abstract IMLType this[long i] { get; set; }
         public abstract bool IsMLArray { get; }
+        public bool IsNull { get { return _length == 0; } }
 
         public long CalculateIndex(int[] indices, bool rowMajor = true)
         {
@@ -985,6 +987,7 @@ namespace MLLibrary
 
     public interface IMLNumeric : IMLScalar
     {
+        float ToSingle();
         double ToDouble();
         int ToInteger();
         long ToLong();
@@ -998,6 +1001,10 @@ namespace MLLibrary
 
         public static implicit operator char(MLChar v) { return v.Value; }
         public static implicit operator MLChar(char v) { return new MLChar(v); }
+        public static explicit operator MLString(MLChar ch)
+        {
+            return new MLString(ch.Value.ToString());
+        }
 
         public static MLChar[] CreateArray(string s)
         {
@@ -1019,6 +1026,8 @@ namespace MLLibrary
         }
 
         public bool IsMLArray { get { return false; } }
+
+        public bool IsNull { get { return false; } }
 
         public override string ToString()
         {
@@ -1043,6 +1052,7 @@ namespace MLLibrary
         public static explicit operator int(MLInt8 v) { return (int)v.Value; }
         public static explicit operator double(MLInt8 v) { return (double)v.Value; }
         public static explicit operator float(MLInt8 v) { return (float)v.Value; }
+        public float ToSingle() { return Value; }
         public double ToDouble() { return Value; }
         public int ToInteger() { return Value; }
         public long ToLong() { return Value; }
@@ -1071,6 +1081,8 @@ namespace MLLibrary
 
         public bool IsMLArray { get { return false; } }
 
+        public bool IsNull { get { return false; } }
+
         public string VariableType
         {
             get { return "INT8"; }
@@ -1089,6 +1101,7 @@ namespace MLLibrary
         public static explicit operator uint(MLUInt8 v) { return (uint)v.Value; }
         public static explicit operator double(MLUInt8 v) { return (double)v.Value; }
         public static explicit operator float(MLUInt8 v) { return (float)v.Value; }
+        public float ToSingle() { return Value; }
         public double ToDouble() { return Value; }
         public int ToInteger() { return Value; }
         public long ToLong() { return Value; }
@@ -1117,6 +1130,8 @@ namespace MLLibrary
 
         public bool IsMLArray { get { return false; } }
 
+        public bool IsNull { get { return false; } }
+
         public string VariableType
         {
             get { return "UINT8"; }
@@ -1134,6 +1149,7 @@ namespace MLLibrary
         public static explicit operator int(MLInt16 v) { return (int)v.Value; }
         public static explicit operator double(MLInt16 v) { return (double)v.Value; }
         public static explicit operator float(MLInt16 v) { return (float)v.Value; }
+        public float ToSingle() { return Value; }
         public double ToDouble() { return Value; }
         public int ToInteger() { return Value; }
         public long ToLong() { return Value; }
@@ -1162,6 +1178,8 @@ namespace MLLibrary
 
         public bool IsMLArray { get { return false; } }
 
+        public bool IsNull { get { return false; } }
+
         public string VariableType
         {
             get { return "INT16"; }
@@ -1179,6 +1197,7 @@ namespace MLLibrary
         public static explicit operator uint(MLUInt16 v) { return (uint)v.Value; }
         public static explicit operator double(MLUInt16 v) { return (double)v.Value; }
         public static explicit operator float(MLUInt16 v) { return (float)v.Value; }
+        public float ToSingle() { return Value; }
         public double ToDouble() { return Value; }
         public int ToInteger() { return Value; }
         public long ToLong() { return Value; }
@@ -1207,6 +1226,8 @@ namespace MLLibrary
 
         public bool IsMLArray { get { return false; } }
 
+        public bool IsNull { get { return false; } }
+
         public string VariableType
         {
             get { return "UINT16"; }
@@ -1223,6 +1244,7 @@ namespace MLLibrary
         public static implicit operator MLInt32(int v) { return new MLInt32(v); }
         public static explicit operator double(MLInt32 v) { return (double)v.Value; }
         public static explicit operator float(MLInt32 v) { return (float)v.Value; }
+        public float ToSingle() { return Value; }
         public double ToDouble() { return Value; }
         public int ToInteger() { return Value; }
         public long ToLong() { return Value; }
@@ -1251,6 +1273,8 @@ namespace MLLibrary
 
         public bool IsMLArray { get { return false; } }
 
+        public bool IsNull { get { return false; } }
+
         public string VariableType
         {
             get { return "INT32"; }
@@ -1267,6 +1291,7 @@ namespace MLLibrary
         public static implicit operator MLUInt32(uint v) { return new MLUInt32(v); }
         public static explicit operator double(MLUInt32 v) { return (double)v.Value; }
         public static explicit operator float(MLUInt32 v) { return (float)v.Value; }
+        public float ToSingle() { return Value; }
         public double ToDouble() { return Value; }
         public int ToInteger() { return (int)Value; }
         public long ToLong() { return (long)Value; }
@@ -1295,6 +1320,8 @@ namespace MLLibrary
 
         public bool IsMLArray { get { return false; } }
 
+        public bool IsNull { get { return false; } }
+
         public string VariableType
         {
             get { return "UINT32"; }
@@ -1310,6 +1337,7 @@ namespace MLLibrary
         public static implicit operator float(MLSingle v) { return v.Value; }
         public static implicit operator MLSingle(float v) { return new MLSingle(v); }
         public static explicit operator double(MLSingle v) { return (double)v.Value; }
+        public float ToSingle() { return Value; }
         public double ToDouble() { return Value; }
         public int ToInteger() { return (int)Value; }
         public long ToLong() { return (long)Value; }
@@ -1338,6 +1366,8 @@ namespace MLLibrary
 
         public bool IsMLArray { get { return false; } }
 
+        public bool IsNull { get { return false; } }
+
         public string VariableType
         {
             get { return "SINGLE"; }
@@ -1352,6 +1382,7 @@ namespace MLLibrary
 
         public static implicit operator double(MLDouble v) { return v.Value; }
         public static implicit operator MLDouble(double v) { return new MLDouble(v); }
+        public float ToSingle() { return (float)Value; }
         public double ToDouble() { return Value; }
         public int ToInteger() { return (int)Value; }
         public long ToLong() { return (long)Value; }
@@ -1380,6 +1411,8 @@ namespace MLLibrary
 
         public bool IsMLArray { get { return false; } }
 
+        public bool IsNull { get { return false; } }
+
         public string VariableType
         {
             get { return "DOUBLE"; }
@@ -1401,6 +1434,7 @@ namespace MLLibrary
         /// Returns magnitude of (complex) Value
         /// </summary>
         /// <returns>Magnitude of Value</returns>
+        public float ToSingle() { return (float)Value.Magnitude; }
         public double ToDouble() { return Value.Magnitude; }
         public int ToInteger() { return (int)Value.Magnitude; }
         public long ToLong() { return (long)Value.Magnitude; }
@@ -1429,6 +1463,8 @@ namespace MLLibrary
 
         public bool IsMLArray { get { return false; } }
 
+        public bool IsNull { get { return false; } }
+
         public string VariableType
         {
             get { return "COMPLEX"; }
@@ -1455,6 +1491,8 @@ namespace MLLibrary
         }
 
         public bool IsMLArray { get { return false; } }
+
+        public bool IsNull { get { return false; } }
 
         public string VariableType
         {
@@ -1701,7 +1739,7 @@ namespace MLLibrary
             }
             if (p < match.Length) sb.Append(match.Substring(p));
             throw new Exception(
-                String.Format("In MLSelector.Select: error matching selector {0} against variable type {1}; {2}",
+                String.Format("In MLSelector.SelectV: error matching selector {0} against variable type {1}; {2}",
                 sb.ToString(), t0.VariableType, mess));
         }
 
