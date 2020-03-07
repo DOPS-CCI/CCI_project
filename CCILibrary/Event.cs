@@ -24,8 +24,8 @@ namespace Event
     /// </summary>
     public class EventFactory
     {
-        private static int currentIndex = 0;
-        private static int indexMax;
+        private static int _currentIndex = 0;
+        private static uint _indexMax;
         private static EventFactory instance = null;
         internal static EventDictionary.EventDictionary ed;
         private static int nBits;
@@ -37,7 +37,7 @@ namespace Event
         private EventFactory(EventDictionary.EventDictionary newED)
         {
             nBits = newED.Bits;
-            indexMax = (1 << nBits) - 2; //loops from 1 to Event.Index; = 2^n - 2 to avoid double bit change at loopback
+            _indexMax = (1U << nBits) - 2U; //loops from 1 to Event.Index; = 2^n - 2 to avoid double bit change at loopback
             EventFactory.ed = newED;
         }
 
@@ -72,9 +72,10 @@ namespace Event
             if (!ed.TryGetValue(name, out ede)) //check to make sure there is an EventDictionaryEntry for this name
                 throw new Exception("No entry in EventDictionary for \"" + name + "\"");
             OutputEvent e = new OutputEvent(ede);
+            e.factory = this;
             if (ede.IsCovered)
             {
-                e.m_index = nextIndex();
+                e.m_index = (uint)nextIndex();
                 e.m_gc = grayCode((uint)e.Index);
             }
 //            markBDFstatus((uint)e.GC); //***** this is needed only if used for real-time application with BIOSEMI
@@ -84,7 +85,9 @@ namespace Event
         public InputEvent CreateInputEvent(string name)
         {
             EventDictionaryEntry ede;
-            if (name == null || !ed.TryGetValue(name, out ede))
+            if (name == null)
+                throw new ArgumentException("Null argument");
+            if (!ed.TryGetValue(name, out ede))
                 throw new Exception("No entry in EventDictionary for \"" + name + "\"");
             InputEvent e = new InputEvent(ede);
             return e;
@@ -93,34 +96,9 @@ namespace Event
         //
         // Threadsafe code to create the next Event index
         //
-        private uint nextIndex() {
-            int initialValue, computedValue;
-            do {
-                // Save the current index in a local variable.
-                initialValue = currentIndex;
-
-                // Generate a new trial index.
-                computedValue = (initialValue % indexMax) + 1; // This increments index and loops as needed
-
-                // CompareExchange compares currentIndex to initialValue. If
-                // they are not equal, then another thread has updated the
-                // currentIndex since this loop started. Then CompareExchange
-                // does not update currentIndex and returns the
-                // contents of currentIndex, which does not equal initialValue,
-                // so the loop executes again.
-            } while (initialValue != Interlocked.CompareExchange(
-                ref currentIndex, computedValue, initialValue));
-            // If no other thread updated the running total, then 
-            // currentIndex and initialValue are equal when CompareExchange
-            // compares them, and computedValue is stored in currentIndex.
-            // CompareExchange returns the value that was in currentIndex
-            // before the update, which is equal to initialValue, so the 
-            // loop ends.
-
-            // The function returns computedValue, not currentIndex, because
-            // currentIndex could be changed by another thread between
-            // the time the loop ends and the function returns.
-            return (uint)computedValue;
+        public int nextIndex()
+        {
+            return Interlocked.Increment(ref _currentIndex);
         }
 
         private void markBDFstatus(uint i)
@@ -129,7 +107,8 @@ namespace Event
         }
         internal static uint grayCode(uint n)
         {
-            return n ^ (n >> 1);
+            uint m = (n - 1) % (uint)_indexMax + 1;
+            return m ^ (m >> 1);
         }
     }//EventFactory class
 
@@ -316,6 +295,7 @@ namespace Event
     public class OutputEvent : Event, IComparable<OutputEvent>
     {
         public string[] GVValue; //stored as strings
+        public EventFactory factory;
 
         internal OutputEvent(EventDictionaryEntry entry): base(entry)
         {
@@ -404,7 +384,7 @@ namespace Event
         /// </summary>
         /// <param name="ie">InputEvent to be copied</param>
         /// <param name="convertToRelativeTime">Convert (Absolute) InputEvent to Relative OutputEvent</param>
-        /// <remarks>WARNING: EDE modified to indicate Relative clocking if convertToRelative time is true</remarks>
+        /// <remarks>WARNING: EDE modified to indicate Relative clocking if convertToRelativeTime is true</remarks>
         public OutputEvent(InputEvent ie, bool convertToRelativeTime = false) : base(ie.EDE)
         {
             if (convertToRelativeTime)
