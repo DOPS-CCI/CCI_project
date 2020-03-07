@@ -32,11 +32,13 @@ namespace BDFChannelReshuffle
                 string BDFFileName = System.IO.Path.GetFileNameWithoutExtension(BDFFilePath);
                 Console.WriteLine();
 
-                //open channel mapping file
+                //open channel mapping file:
+                //Configuration of CSV remapping file:
+                //"Correct channel name","New BDF channel number (must be in order 1-32)","Old BDF channel number to be moved"
                 Console.Write("Channel montage file (relative to HDR directory): ");
                 string shuffleFilePath = Console.ReadLine();
                 if (shuffleFilePath == "")
-                    shuffleFilePath = System.IO.Path.Combine(directory, "..", "S0501-G2-20191014-0935", "S501 remapping.csv");
+                    shuffleFilePath = System.IO.Path.Combine(directory, "..", "S0501-G2-20191014-0935", "S501 remapping2.csv");
                 else shuffleFilePath = System.IO.Path.Combine(directory, shuffleFilePath);
                 StreamReader shuffleFile = new StreamReader(
                     new FileStream(shuffleFilePath, FileMode.Open, FileAccess.Read));
@@ -72,18 +74,19 @@ namespace BDFChannelReshuffle
                 //copy information for new BDF header record
                 output.LocalSubjectId = bdf.LocalSubjectId;
                 output.LocalRecordingId = bdf.LocalRecordingId;
-                for (int r = 0; r < nChans; r++)
+                for (int newChan = 0; newChan < nChans; newChan++)
                 {
-                    int chan = map[r].Item1;
-                    output.channelLabel(r, map[r].Item2);
-                    output.dimension(r, bdf.dimension(chan));
-                    output.dMax(r, bdf.dMax(chan));
-                    output.dMin(r, bdf.dMin(chan));
-                    output.pMax(r, bdf.pMax(chan));
-                    output.pMin(r, bdf.pMin(chan));
-                    output.prefilter(r, bdf.prefilter(chan));
-                    output.transducer(r, bdf.transducer(chan));
+                    int oldChan = map[newChan].Item1;
+                    output.channelLabel(newChan, map[newChan].Item2);
+                    output.dimension(newChan, bdf.dimension(oldChan));
+                    output.dMax(newChan, bdf.dMax(oldChan));
+                    output.dMin(newChan, bdf.dMin(oldChan));
+                    output.pMax(newChan, bdf.pMax(oldChan));
+                    output.pMin(newChan, bdf.pMin(oldChan));
+                    output.prefilter(newChan, bdf.prefilter(oldChan));
+                    output.transducer(newChan, bdf.transducer(oldChan));
                 }
+                //Move Status channel header information
                 output.channelLabel(nChans, bdf.channelLabel(nChans));
                 output.dimension(nChans, bdf.dimension(nChans));
                 output.dMax(nChans, bdf.dMax(nChans));
@@ -95,14 +98,14 @@ namespace BDFChannelReshuffle
                 output.writeHeader();
 
                 //copy into new BDF file, mapping channels
-                for (int n = 0; n < bdf.NumberOfRecords; n++)
+                for (int nRec = 0; nRec < bdf.NumberOfRecords; nRec++)
                 {
                     BDFEDFRecord rec = bdf.read();
-                    for (int r = 0; r < nChans; r++)
+                    for (int newChan = 0; newChan < nChans; newChan++)
                     {
-                        int chan = map[r].Item1;
+                        int oldChan = map[newChan].Item1;
                         for (int p = 0; p < bdf.NSamp; p++)
-                            output.putSample(r, p, rec.getRawPoint(chan, p));
+                            output.putSample(newChan, p, rec.getRawPoint(oldChan, p));
                     }
                     output.putStatus(bdf.getStatus()); //have to handle Status separately
                     output.write();
@@ -122,7 +125,7 @@ namespace BDFChannelReshuffle
             catch (Exception e)
             {
                 Console.WriteLine("ERROR: " + e.Message);
-                Console.Write("Program exitting after return");
+                Console.Write("Program exiting after return");
                 Console.ReadLine();
             }
         }
