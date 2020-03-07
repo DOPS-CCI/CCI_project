@@ -3,12 +3,23 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Convert EEGLAB to FILMAN" FontSize="14" FontWeight="Bold" ResizeMode="NoResize" SizeToContent="WidthAndHeight" WindowStartupLocation="CenterScreen">
     <StackPanel Orientation="Vertical">
+        <StackPanel.Resources>
+            <Style TargetType="Button">
+                <Setter Property="Height" Value="30"/>
+                <Setter Property="Width" Value="90"/>
+                <Setter Property="Margin" Value="6,2"/>
+            </Style>
+        </StackPanel.Resources>
         <StackPanel Orientation="Horizontal">
             <StackPanel Orientation="Vertical">
                 <TextBlock Margin="8,2">SELECT GROUP VARIABLES:</TextBlock>
                 <ScrollViewer Height="264" Margin="8" Width="200" HorizontalAlignment="Left">
                     <ListBox Name="GVSelection" SelectionMode="Multiple" SelectionChanged="GVSelection_SelectionChanged"></ListBox>
                 </ScrollViewer>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                    <Button IsEnabled="{Binding ElementName=GVSelection,Path=HasItems}" Click="SelectAll_Click">Select All</Button>
+                    <Button IsEnabled="{Binding ElementName=GVSelection,Path=HasItems}" Click="SelectNone_Click">Select None</Button>
+                </StackPanel>
             </StackPanel>
             <Grid>
                 <Border BorderThickness="2" BorderBrush="#FF28A3D1" IsEnabled="False" IsHitTestVisible="False" Margin="4" Padding="4" OverridesDefaultStyle="True" VerticalAlignment="Center">
@@ -51,7 +62,7 @@
                 </StackPanel>
             </Grid>
         </StackPanel>
-        <TextBlock Margin="8,2" Text="EDIT DESCRIPTION (in blue):"/>
+        <TextBlock Margin="8,2" Text="EDIT DESCRIPTION (only blue region will show in FM header):"/>
         <Grid>
             <TextBox Name="CommentText" Margin="8" FontSize="13" FontWeight="Normal" Height="136" AcceptsReturn="True" FontFamily="Courier New" Panel.ZIndex="-10" Padding="1,2,1,1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Disabled"/>
             <Canvas Margin="8">
@@ -59,17 +70,11 @@
             </Canvas>
         </Grid>
         <Grid>
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center">
-                <CheckBox Name="IncludePosition" Margin="8" IsChecked="True">Include electrode positioning information</CheckBox>
+            <StackPanel Orientation="Vertical" HorizontalAlignment="Left" VerticalAlignment="Center">
+                <CheckBox Name="IncludePosition" Margin="8,2" IsChecked="True">Include electrode positioning information</CheckBox>
+                <CheckBox Name="ICAProcessing" Margin="8,2" IsChecked="True">Produce output that is ICA processed</CheckBox>
             </StackPanel>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                <StackPanel.Resources>
-                    <Style TargetType="Button">
-                        <Setter Property="Height" Value="32"/>
-                        <Setter Property="Width" Value="80"/>
-                        <Setter Property="Margin" Value="8"/>
-                    </Style>
-                </StackPanel.Resources>
                 <Button Click="OpenFile_Click" >Open file</Button>
                 <Button Name="Convert" Click="Convert_Click" IsEnabled="False">Convert</Button>
                 <Button Click="Quit_Click">Quit</Button>

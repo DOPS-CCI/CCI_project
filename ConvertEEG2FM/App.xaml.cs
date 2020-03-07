@@ -20,7 +20,7 @@ namespace ConvertEEG2FM
         private void MyHandler(object sender, UnhandledExceptionEventArgs args)
         {
             ErrorWindow ew = new ErrorWindow();
-            ew.Title = "Unhandled Error in ConvertEEG2FM: PLEASE SAVE THIS INFORMATION!";
+            ew.Title = "Unhandled Error in ConvertEEG2FM: PLEASE SAVE THIS INFORMATION FOR ANALYSIS!";
             Exception e = (Exception)args.ExceptionObject;
             StringBuilder sb = new StringBuilder("ERROR MESSAGE: " + e.GetType().ToString() + " -- " + e.Message + Environment.NewLine);
             for (Exception f = e.InnerException; f != null; f = f.InnerException)
