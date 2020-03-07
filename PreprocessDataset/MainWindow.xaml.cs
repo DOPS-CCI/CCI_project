@@ -78,6 +78,7 @@ namespace PreprocessDataset
             {
                 LaplacianGB.Visibility = Visibility.Collapsed; //no SL
                 CreateSFP.Visibility = Visibility.Collapsed; //no electrode locations
+                Cmmm.Visibility = Visibility.Collapsed;
             }
 
             if (ppw.inputType == InputType.SET)
@@ -87,6 +88,7 @@ namespace PreprocessDataset
                 SETTotal.Text = channels.BDFTotal.ToString("0");
                 SETGB.Visibility = Visibility.Visible;
                 CreateSFP.Visibility = Visibility.Collapsed; //no electrode locations
+                Cmmm.Visibility = Visibility.Collapsed;
             }
             else
             {
@@ -115,6 +117,7 @@ namespace PreprocessDataset
             ArrayDist.Text = "3.0";
             SequenceName.Text="SurfLap";
             CreateSFP.IsChecked = false;
+            Cmmm.SelectedIndex = 0;
         }
 
         private bool ProcessHDRFile(string fileName)
@@ -787,6 +790,12 @@ namespace PreprocessDataset
         private void CreateSFP_Click(object sender, RoutedEventArgs e)
         {
             ppw.outputSFP = (bool)CreateSFP.IsChecked;
+            ppw.SFPcm = Cmmm.SelectedIndex == 0;
+        }
+
+        private void Cmmm_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            ppw.SFPcm = Cmmm.SelectedIndex == 0;
         }
     }
 

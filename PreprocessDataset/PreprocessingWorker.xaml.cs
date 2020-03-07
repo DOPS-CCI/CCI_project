@@ -81,6 +81,7 @@ namespace PreprocessDataset
 
         internal string sequenceName;
         internal bool outputSFP = false;
+        internal bool SFPcm = true;
 
         //Map from data[] slot to BDF channel; may or may not include eliminated channels due to referencing
         int[] Data2BDFChannelMap;
@@ -1018,10 +1019,16 @@ namespace PreprocessDataset
             StreamWriter sw = new StreamWriter(
                 new FileStream(System.IO.Path.Combine(directory, baseFileName + "." + sequenceName + ".sfp"), FileMode.Create, FileAccess.Write),
                 Encoding.ASCII);
-            foreach(ElectrodeRecord er in OutputLocations)
+            foreach (ElectrodeRecord er in OutputLocations)
             {
                 Point3D xyz = er.convertXYZ();
                 string name = er.Name.Replace(' ', '_');
+                if (!SFPcm) //convert to mm
+                {
+                    xyz.X *= 10D;
+                    xyz.Y *= 10D;
+                    xyz.Z *= 10D;
+                }
                 sw.WriteLine(name + " " + xyz.X.ToString("G") + " " + xyz.Y.ToString("G") + " " + xyz.Z.ToString("G"));
             }
             sw.Close();

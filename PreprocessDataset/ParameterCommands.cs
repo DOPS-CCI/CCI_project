@@ -185,7 +185,8 @@ namespace PreprocessDataset
             }
 
             xml.WriteStartElement("Output");
-            xml.WriteAttributeString("SFP", ppw.outputSFP ? "True" : "False");
+            if (ppw.outputSFP)
+                xml.WriteAttributeString("SFP", ppw.SFPcm ? "CM" : "MM");
             xml.WriteElementString("Sequence", ppw.sequenceName);
             xml.WriteEndElement(/*Output*/);
 
@@ -405,7 +406,14 @@ namespace PreprocessDataset
                 else
                     Laplacian.IsChecked = false;
 
-                CreateSFP.IsChecked = xml["SFP"] == "True";
+                string sfp = xml["SFP"];
+                if (sfp == null || sfp == "False")
+                    CreateSFP.IsChecked = false;
+                else
+                {
+                    CreateSFP.IsChecked = true;
+                    Cmmm.SelectedIndex = xml["SFP"] == "MM" ? 1 : 0;
+                }
                 xml.ReadStartElement("Output");
                 SequenceName.Text = xml.ReadElementContentAsString("Sequence", "");
                 xml.ReadEndElement(/*Output*/);

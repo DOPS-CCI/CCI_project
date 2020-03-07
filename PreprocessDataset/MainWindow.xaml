@@ -267,8 +267,14 @@
                             <TextBlock x:Name="FileWarning" Foreground="Red" VerticalAlignment="Center" Text=" WARNING: existing file(s) will be overwritten!" Visibility="Hidden"/>
                         </StackPanel>
                         <TextBlock x:Name="OutputFileName" TextWrapping="Wrap"><Run Text="File name"/></TextBlock>
-                        <CheckBox x:Name="CreateSFP" Margin="4" FontSize="12" Content="Create BESA-xyz .SFP file for EEGLAB electrode position import" Checked="CreateSFP_Click" Unchecked="CreateSFP_Click"/>
-                    </StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <CheckBox x:Name="CreateSFP" Margin="4" Content="Create BESA-xyz .SFP file for EEGLAB electrode position import in" FontSize="12" Checked="CreateSFP_Click" Unchecked="CreateSFP_Click"/>
+                            <ComboBox Name="Cmmm" Width="60" AllowDrop="True" IsReadOnly="True" SelectedIndex="0" VerticalAlignment="Center" VerticalContentAlignment="Center" FontSize="12" SelectionChanged="Cmmm_SelectionChanged">
+                                <TextBlock Margin="0">cm</TextBlock>
+                                <TextBlock Margin="0">mm</TextBlock>
+                            </ComboBox>
+                        </StackPanel>
+                </StackPanel>
                 </GroupBox>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                     <StackPanel.Resources>
