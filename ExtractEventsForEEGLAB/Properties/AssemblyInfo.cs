@@ -12,7 +12,7 @@ using System.Windows;
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("CCI")]
 [assembly: AssemblyProduct("ExtractEventsForEEGLAB")]
-[assembly: AssemblyCopyright("Copyright © CCI 2019")]
+[assembly: AssemblyCopyright("Copyright © CCI 2020")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 

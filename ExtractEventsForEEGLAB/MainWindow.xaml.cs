@@ -13,6 +13,7 @@ using EventDictionary;
 using EventFile;
 using HeaderFileStream;
 using BDFEDFFileStream;
+using ElectrodeFileStream;
 
 namespace ExtractEvents
 {
@@ -109,7 +110,7 @@ namespace ExtractEvents
                             //Calculate latency for this Event
                             latency = statusList[nStatus].Time;
                         }
-                        else continue;
+                        else continue; //skip unselected Events
                     if (EDE.IsExtrinsic)
                     {
                         BDFLoc t = f.New(latency);
@@ -128,6 +129,31 @@ namespace ExtractEvents
                         for (int i = 0; i < NAdd; i++)
                             sb.Append("," + empty);
                     CSVout.WriteLine(sb.ToString());
+                }
+
+                //Create SFP file if requested:
+                // This simply writes out the attached .ETR file, converting to .SFP format;
+                // there is no name checking!!!! User beware! Replaces ' ' with '_' in names
+                if ((bool)CreateSFP.IsChecked)
+                {
+                    ElectrodeInputFileStream efs = new ElectrodeInputFileStream(
+                        new FileStream(System.IO.Path.Combine(directory, head.ElectrodeFile), FileMode.Open, FileAccess.Read));
+                    StreamWriter sw = new StreamWriter(
+                        new FileStream(System.IO.Path.Combine(directory, head.ElectrodeFile + ".sfp"), FileMode.Create, FileAccess.Write),
+                        Encoding.ASCII);
+                    foreach (KeyValuePair<string, ElectrodeRecord> el in efs.etrPositions)
+                    {
+                        Point3D xyz = el.Value.convertXYZ();
+                        string name = el.Key.Replace(' ', '_');
+                        if (Cmmm.SelectedIndex == 1) //convert to mm
+                        {
+                            xyz.X *= 10D;
+                            xyz.Y *= 10D;
+                            xyz.Z *= 10D;
+                        }
+                        sw.WriteLine(name + " " + xyz.X.ToString("G") + " " + xyz.Y.ToString("G") + " " + xyz.Z.ToString("G"));
+                    }
+                    sw.Close();
                 }
             }
             catch (Exception ex)
