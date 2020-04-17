@@ -6,6 +6,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Forms;
+using CCILibrary;
 using CCIUtilities;
 using GroupVarDictionary;
 using Event;
@@ -88,7 +89,7 @@ namespace ExtractEvents
                     sb.Append(",GV" + i.ToString("0"));
             CSVout.WriteLine(sb.ToString()); //write header line
 
-            int nStatus = 0;
+            int nStatus = 0; //always indexes last, found, Status change
             int limit = (int)(0.5 / dataFile.SampTime);
             EventFactory.Instance(head.Events);
             BDFLocFactory f = new BDFLocFactory(dataFile);
@@ -99,23 +100,34 @@ namespace ExtractEvents
                 {
                     double latency = 0;
                     EventDictionaryEntry EDE = ev.EDE;
+
+                    if (!SelectEvents.SelectedItems.Contains(EDE)) continue; //skip if we havn't selected this Event type
+
                     if (ev.IsNaked)
                         if (ev.HasRelativeTime) latency = ev.relativeTime;
                         else continue; //better skip naked absolute!
-                    else
-                        if (SelectEvents.SelectedItems.Contains(EDE)) //have we selected this Event type?
-                        {
-                            while (statusList[nStatus].GC.Value != ev.GC) nStatus++; //Find GrayCode in Status for this Event, starting at the current location
-
-                            //Calculate latency for this Event
-                            latency = statusList[nStatus].Time;
-                        }
-                        else continue; //skip unselected Events
-                    if (EDE.IsExtrinsic)
+                    else //Selected, covered Event
                     {
-                        BDFLoc t = f.New(latency);
-                        dataFile.findExtrinsicEvent(EDE, ref t, limit);
-                        latency = t.ToSecs();
+                        //Find GrayCode in Status channel for this Event, starting at last found marker
+                        //Use greater than or equal as stop-search criteria; this permits multiple Events at same location
+                        //and use real GC comparison to avoid problems at GC value roll-over
+                        while (true)
+                        {
+                            if (nStatus >= statusList.Count) throw new Exception("Unexpected end of Status channel");
+                            if (statusList[nStatus].GC.CompareTo(ev.GC) > -1) break; //found Status marker
+                            nStatus++;
+                        }
+
+                        latency = statusList[nStatus].Time;
+
+                        if (EDE.IsExtrinsic) //then find relative extrinsic signal if appropriate
+                        {
+                            BDFLoc t = f.New(latency);
+                            if (dataFile.findExtrinsicEvent(EDE, ref t, limit))
+                                latency = t.ToSecs();
+                            else continue; //skip Event without found extrinsic signal
+                        }
+
                     }
 
                     sb = new StringBuilder((++evCount).ToString("0") + "," + latency.ToString("0.0000") + "," + EDE.Name.Replace(' ', '_'));
