@@ -16,7 +16,7 @@ using System.Windows.Navigation;
 using System.Windows.Shapes;
 using Microsoft.Win32;
 using MATFile;
-using MLTypes;
+using MLLibrary;
 
 namespace SPSSDataConsolidator
 {
@@ -56,13 +56,13 @@ namespace SPSSDataConsolidator
 
             MLVariableSelection w = new MLVariableSelection();
             TreeView t = w.MLVarTree;
-            foreach (KeyValuePair<string, MLType> kvp in mlv)
+            foreach (KeyValuePair<string, IMLType> kvp in mlv)
             {
                 TreeViewItem tvi = new TreeViewItem();
-                MLType mlt = kvp.Value;
-                tvi.Header = kvp.Key + "(" + mlt.GetVariableType() + ")";
+/*                IMLType mlt = kvp.Value;
+                tvi.Header = kvp.Key + "(" + mlt.GetVariableType() + ")"; 
                 tvi.Items.Add(tvi);
-                scanHeirachy(mlt, tvi.Items);
+                scanHeirachy(mlt, tvi.Items);*/
             }
 
             MATFileRecord mat = new MATFileRecord();
@@ -73,16 +73,16 @@ namespace SPSSDataConsolidator
         private static void scanHeirachy(dynamic mlt, IList items)
         {
             Type T = mlt.GetType();
-            if (T.IsSubclassOf(typeof(MLDimensionedType)))
+            if (T.IsSubclassOf(typeof(MLDimensioned)))
             {
-                MLDimensionedType mld = (MLDimensionedType)mlt;
-                if (((MLDimensionedType)mlt).Length <= 1L) //Singleton element
+                MLDimensioned mld = (MLDimensioned)mlt;
+                if (((MLDimensioned)mlt).Length <= 1L) //Singleton element
                 {
                     scanHeirachy(mlt[0], items);
                 }
                 else
                 {
-                    foreach(MLType v in 
+                    
                 }
             }
             else return;
