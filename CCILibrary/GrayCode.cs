@@ -3,8 +3,8 @@
 namespace CCILibrary
 {
     /// <summary>
-    /// This class encapsulates Gray codes and their use in the Status channel of a BDF file per
-    /// the CCI protocol (cyclical GrayCode); in particular, they encode the values from 1 to 2^n - 2
+    /// This struct encapsulates Gray codes and their use in the Status channel of a BDF file per
+    /// the RWNL protocol (cyclical GrayCode); in particular, they encode the values from 1 to 2^n - 2
     /// where n is the number of Status bits used for the Event markers tied to the Gray codes;
     /// the value of zero is permitted, but not included in the cyclical series as it has a 
     /// special meaning at the start of the BDF file, before the first Event, and is never used to
@@ -192,12 +192,12 @@ namespace CCILibrary
         }
 
         //NOTE: must assure that n is in the correct range
-        private static uint uint2GC(uint n)
+        internal static uint uint2GC(uint n)
         {
             return n ^ (n >> 1);
         }
 
-        private static uint GC2uint(uint gc)
+        internal static uint GC2uint(uint gc)
         {
             //this works for up to 32 bit Gray code; see
             //algorithm in GrayCode class for more efficient
@@ -245,5 +245,51 @@ namespace CCILibrary
             if (i1 - i2 < comp) return 1;
             return -1;
         }
+    }
+
+    /// <summary>
+    /// This class encapsulates a Gray code factory for use with a particular Status channel of a BDF file per
+    /// the RWNL protocol (cyclical GrayCode); in particular, it encodes the values from 1 to 2^n - 2
+    /// where n is the number of Status bits used for the Event markers tied to the Gray codes;
+    /// the value of zero is not included in the cyclical series as it has a special meaning at the start
+    /// of the BDF file, before the first Event, and is never used to encode an Event.
+    /// </summary>
+    public class GCFactory
+    {
+        int _status;
+        uint _lastIndex = 0;
+        uint _hiIndex;
+
+        public GCFactory(int status)
+        {
+            _status = status;
+            _hiIndex = (1U << status) - 2U;
+        }
+
+        public uint NextGC()
+        {
+            if (++_lastIndex > _hiIndex) return _lastIndex = 1;
+            return _lastIndex ^ (_lastIndex >> 1);
+        }
+
+        public GrayCode NextGrayCode()
+        {
+            if (++_lastIndex > _hiIndex) _lastIndex = 1;
+            return new GrayCode(_lastIndex, _status);
+        }
+
+        public int Compare(uint gc1, uint gc2)
+        {
+            if (gc1 == gc2) return 0;
+            uint i1 = GrayCode.GC2uint(gc1);
+            uint i2 = GrayCode.GC2uint(gc2);
+            int comp = 1 << (_status - 1);
+            if (i1 < i2)
+                if (i2 - i1 < comp) return -1;
+                else return 1;
+            if (i1 - i2 < comp) return 1;
+            return -1;
+        }
+
     }
 }

@@ -43,5 +43,24 @@ namespace CCILibraryTest
             for (uint i = 1; i <= 14; i++)
                 Assert.AreEqual<uint>(i, gc1.Encode(i).Decode());
         }
+
+        [TestMethod]
+        public void TestFactory()
+        {
+            GCFactory f = new GCFactory(8);
+            uint i1 = f.NextGC();
+            Assert.AreEqual(1U, i1);
+            uint i2 = f.NextGC();
+            Assert.AreEqual(3U, i2);
+            Assert.AreEqual(1, f.Compare(i2, i1));
+            Assert.AreEqual(-1, f.Compare(i1, i2));
+            Assert.AreEqual(0, f.Compare(i2, i2));
+            for (int i = 3; i < 254; i++)
+                i1 = f.NextGC();
+            Assert.AreEqual(-1, f.Compare(i1, i2));  //compare 253 with 2
+            Assert.AreEqual(129U, i1 = f.NextGC());
+            Assert.AreEqual(1, f.Compare(i2, i1));  //compare 2 with 254
+            Assert.AreEqual(1U, i1 = f.NextGC());
+        }
     }
 }
