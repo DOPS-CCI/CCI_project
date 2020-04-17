@@ -1,0 +1,29 @@
+﻿<Window x:Class="RTLibrary.AskFinalCommentWindow"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Session-specific comments" WindowStyle="ToolWindow"
+        FontSize="16" FontWeight="Bold"
+             WindowStartupLocation="CenterScreen" SizeToContent="WidthAndHeight" ResizeMode="NoResize">
+    <StackPanel Orientation="Vertical">
+        <StackPanel.Resources>
+            <Style TargetType="TextBlock">
+                <Setter Property="Margin" Value="6"/>
+            </Style>
+            <Style TargetType="TextBox">
+                <Setter Property="Margin" Value="6"/>
+                <Setter Property="FontWeight" Value="Normal"/>
+            </Style>
+            <Style TargetType="Button">
+                <Setter Property="Margin" Value="6"/>
+                <Setter Property="Width" Value="150"/>
+                <Setter Property="Height" Value="32"/>
+            </Style>
+        </StackPanel.Resources>
+        <TextBlock>Session comment</TextBlock>
+        <TextBox Name="Comment" Width="400" Height="120" TextWrapping="Wrap" HorizontalAlignment="Left" VerticalAlignment="Top" TextChanged="Comment_TextChanged"/>
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button IsCancel="True" Click="OK_Click">No comment</Button>
+            <Button Name="OK" IsDefault="True" Click="OK_Click" IsEnabled="False">Enter comment</Button>
+        </StackPanel>
+        </StackPanel>
+</Window>

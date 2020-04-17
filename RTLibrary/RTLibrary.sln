@@ -1,0 +1,32 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2012
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RTLibrary", "RTLibrary.csproj", "{D169DFEF-CE3B-40DE-BC21-A186EF38C45A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RTTestApp", "..\RTTestApp\RTTestApp.csproj", "{1F3661A3-FCD9-4F41-8825-EEDC19258073}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RTLibraryTest", "UnitTestProject1\RTLibraryTest.csproj", "{B20B4C40-E09F-47BB-9036-5A5896BE6433}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{D169DFEF-CE3B-40DE-BC21-A186EF38C45A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D169DFEF-CE3B-40DE-BC21-A186EF38C45A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D169DFEF-CE3B-40DE-BC21-A186EF38C45A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D169DFEF-CE3B-40DE-BC21-A186EF38C45A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1F3661A3-FCD9-4F41-8825-EEDC19258073}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1F3661A3-FCD9-4F41-8825-EEDC19258073}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1F3661A3-FCD9-4F41-8825-EEDC19258073}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1F3661A3-FCD9-4F41-8825-EEDC19258073}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B20B4C40-E09F-47BB-9036-5A5896BE6433}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B20B4C40-E09F-47BB-9036-5A5896BE6433}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B20B4C40-E09F-47BB-9036-5A5896BE6433}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B20B4C40-E09F-47BB-9036-5A5896BE6433}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

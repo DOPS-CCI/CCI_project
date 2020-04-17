@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Experiment>
+  <Title>Test -- Reaction Time</Title>
+  <SoftwareVersion>1.0.0.0</SoftwareVersion>
+  <LongDescription>Reaction time to push one of three colored buttons</LongDescription>
+  <Experimenter>JL</Experimenter>
+  <ExperimentCode>XX</ExperimentCode>
+  <RTClockPeriod>1</RTClockPeriod>
+  <Status>16</Status>
+  
+  <Structure>
+    <GroupVar>
+      <Name>TrialNumber</Name>
+      <Description>Sequence number</Description>
+    </GroupVar>
+    <GroupVar>
+      <Name>Target</Name>
+      <Description>Target color</Description>
+      <GV Desc="Red">1</GV>
+      <GV Desc="Green">2</GV>
+      <GV Desc="Blue">3</GV>
+    </GroupVar>
+    <GroupVar>
+      <Name>Response</Name>
+      <Description>Response button color</Description>
+      <GV Desc="Red">1</GV>
+      <GV Desc="Green">2</GV>
+      <GV Desc="Blue">3</GV>
+    </GroupVar>
+    <GroupVar>
+      <Name>Timing</Name>
+      <Description>Length of time to response in msec</Description>
+    </GroupVar>
+
+    <Event>
+      <Name>TargetPresentation</Name>
+      <Description>Beginning of timing period: target presented</Description>
+      <GroupVar Name="TrialNumber"/>
+      <GroupVar Name="Target"/>
+      <GroupVar Name="Response"/>
+    </Event>
+    <Event>
+      <Name>Response</Name>
+      <Description>End of timing period: response registered</Description>
+      <GroupVar Name="TrialNumber"/>
+      <GroupVar Name="Target"/>
+      <GroupVar Name="Response"/>
+      <GroupVar Name="Timing"/>
+    </Event>
+    <Event>
+      <Name>Null</Name>
+      <Description>Null event</Description>
+    </Event>
+  </Structure>
+</Experiment>
