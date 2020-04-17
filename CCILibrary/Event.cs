@@ -296,17 +296,19 @@ namespace Event
     {
         public string[] GVValue; //stored as strings
         public EventFactory factory;
+        public uint Index { get { return m_index; } set { m_index = value; } }
+        public uint GC { get { return m_gc; } set { m_gc = value; } }
 
-        internal OutputEvent(EventDictionaryEntry entry): base(entry)
+        public OutputEvent(EventDictionaryEntry entry, bool setTime = true)
+            : base(entry)
         {
-            DateTime t = DateTime.Now;
-            m_time = (double)(t.Ticks) / 1E7; // Get time immediately
-            _eventTime = t.ToString("d MMM yyyy HH:mm:ss.fffFF");
+            if (setTime) SetTime(DateTime.Now);
 
             if (entry.GroupVars != null && entry.GroupVars.Count > 0)
                 GVValue = new string[entry.GroupVars.Count]; //allocate correct number of group variable value entries
             else GVValue = null;
         }
+
         /// <summary>
         /// Stand-alone constructor for use creating simulated events (not real-time); no checking is performed
         /// </summary>
@@ -412,6 +414,16 @@ namespace Event
             }
             else
                 GVValue = null;
+        }
+
+        /// <summary>
+        /// Sets time parameters in record, assuring correct formats and agreement
+        /// </summary>
+        /// <param name="time">DateTime to be recorded, usually <c></c>DataeTime.Now</c></param>
+        public void SetTime(DateTime time)
+        {
+            m_time = (double)(time.Ticks) / 1E7;
+            _eventTime = time.ToString("d MMM yyyy HH:mm:ss.fffFF");
         }
 
         public void setRelativeTime(double time)

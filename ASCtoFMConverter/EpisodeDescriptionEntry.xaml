@@ -8,7 +8,7 @@
     <TabControl Name="EpisodeDescriptionPanel">
         <TabItem>
             <TabItem.Header>
-                <TextBlock FontWeight="Bold">Episode description</TextBlock>
+                <TextBlock FontWeight="Bold">Epoch description</TextBlock>
             </TabItem.Header>
         <Border BorderBrush="CornflowerBlue" BorderThickness="1" CornerRadius="6" Margin="1">
     <StackPanel Orientation="Horizontal">

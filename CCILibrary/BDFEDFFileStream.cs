@@ -955,7 +955,7 @@ namespace BDFEDFFileStream
         /// <param name="sp">starting location for the search, usually the Status change for this Event</param>
         /// <param name="limit">limit of the search in samples</param>
         /// <param name="threshhold">fraction of signal rise or fall to use as threshhold</param>
-        /// <returns></returns>
+        /// <returns>true if found, false, if not</returns>
         public bool findExtrinsicEvent(
             EventDictionaryEntry EDE, ref BDFLoc sp, int limit, double threshold = 0.5D)
         {

@@ -115,23 +115,7 @@ namespace BDFEDFFileStream
             if (ev == null) return null;
             return ev.Time - GCList.Find(gct => gct.GC.Value == (uint)ev.GC).Time;
         }
-        /*
-                public double getRelativeTimeBasedOnClosestAbsolute(List<Event.Event> events, double absoluteTime)
-                {
-                    foreach (Event.Event ev in events)
-                    {
-                        if (ev.HasRelativeTime || ev.IsNaked) continue; //looking for covered, absolute Events only
-                        double t = ev.Time; //absolute time of current event
-                        while (t <= absoluteTime)
-                        {
 
-                        }
-                    }
-                    Event.Event evLess = events.FindLast(e => e.HasAbsoluteTime && e.IsCovered && e.Time <= absoluteTime); //find closest below
-                    double d = absoluteTime-evLess.Time;
-                    Event.Event evGreater = events.Find(e => e.HasAbsoluteTime && e.IsCovered && e.Time > absoluteTime && e.Time - absoluteTime < d);
-                }
-         */
         public override string ToString()
         {
             StringBuilder sb = new StringBuilder("Events: ");
